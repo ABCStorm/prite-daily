@@ -1,0 +1,5 @@
+.venv/
+__pycache__/
+# output/ holds the extracted JSON + ~205MB of images; keep it out of git
+# (the website will import it / move it into the DB or object storage).
+output/

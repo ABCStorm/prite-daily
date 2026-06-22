@@ -1,0 +1,766 @@
+import React, { useState, useEffect, useRef } from "react";
+import {
+  ShieldCheck, Trophy, NotebookPen, Users, Layers, Stethoscope,
+  Check, X, ChevronRight, Image as ImageIcon, Trash2, Download,
+  Flame, ArrowRight, Pencil
+} from "lucide-react";
+
+/* ----------------------------------------------------------------------
+   PRITE daily question screen — clickable prototype
+   Andrew = admin/resident. No backend; all state is in-memory sample data.
+---------------------------------------------------------------------- */
+
+const T = {
+  ink: "#1b1e2b",
+  inkSoft: "#252a3a",
+  inkLine: "#33384b",
+  paper: "#faf7f1",
+  paperEdge: "#ece5d8",
+  card: "#ffffff",
+  text: "#23262f",
+  muted: "#6c7280",
+  faint: "#9aa0ab",
+  teal: "#0e7a6b",
+  tealDeep: "#0b5d52",
+  tealSoft: "#e2efeb",
+  correctLine: "#1a7a4a",
+  correctBg: "#e7f2ea",
+  correctText: "#155f39",
+  wrongLine: "#b04a30",
+  wrongBg: "#f6e8e2",
+  wrongText: "#8a3722",
+  gold: "#bf8a30",
+  goldSoft: "#f0e3c1",
+  silver: "#97a0ab",
+  bronze: "#b07a4f",
+};
+
+const QUESTIONS = [
+  {
+    id: "q1482",
+    number: 1482,
+    stem:
+      "A 27-year-old man is brought to the emergency department two days after starting a new medication. He is agitated and diaphoretic. Temperature is 39.4°C, blood pressure 168/98 mmHg, heart rate 122/min. On exam he has inducible clonus and hyperreflexia that is markedly greater in the lower extremities than the upper. Which is the most likely diagnosis?",
+    options: [
+      { key: "A", text: "Neuroleptic malignant syndrome", pct: 31 },
+      { key: "B", text: "Serotonin syndrome", pct: 58 },
+      { key: "C", text: "Malignant hyperthermia", pct: 4 },
+      { key: "D", text: "Anticholinergic toxicity", pct: 5 },
+      { key: "E", text: "Sympathomimetic intoxication", pct: 2 },
+    ],
+    correct: "B",
+    stats: { attempts: 41, correctPct: 58 },
+    explanation:
+      "Rapid onset after a serotonergic agent, with neuromuscular hyperactivity that is greater in the legs (clonus, hyperreflexia) plus autonomic instability, points to serotonin syndrome. The popular wrong answer is NMS, but NMS develops over days after a dopamine antagonist and presents with lead-pipe rigidity and bradyreflexia rather than clonus. The lower-extremity-predominant clonus is the single most discriminating finding here.",
+    imageCaption: "Serotonin syndrome vs. NMS — onset, tone, and reflex comparison",
+    flashcard: {
+      text:
+        "{{c1::Clonus}} and hyperreflexia greater in the {{c2::lower extremities}} distinguish serotonin syndrome from the lead-pipe rigidity of NMS.",
+      extraQ: "Q1482 — 27M, 2 days after a new med: T 39.4°C, agitation, inducible clonus, lower-extremity-predominant hyperreflexia. Most likely diagnosis?",
+      extraA: "B — Serotonin syndrome",
+      extraExpl:
+        "Serotonin syndrome: rapid onset after serotonergic agent, clonus/hyperreflexia (legs > arms), autonomic instability. NMS: slower onset after dopamine antagonist, lead-pipe rigidity, bradyreflexia.",
+    },
+    notes: [
+      { author: "Priya N.", role: "PGY-3", time: "2d ago", text: "Mnemonic that finally stuck for me: serotonin = hyper (clonus, brisk reflexes), NMS = lead pipe (rigid, slow). Legs > arms is the giveaway." },
+      { author: "Marcus T.", role: "PGY-2", time: "1d ago", text: "Tested last cycle. They love pairing this with a recent SSRI + linezolid or tramadol combo in the stem — watch for the second serotonergic drug." },
+    ],
+  },
+  {
+    id: "q0917",
+    number: 917,
+    stem:
+      "A 34-year-old woman with bipolar I disorder maintained on lithium presents after three days of vomiting and diarrhea. She now has a coarse tremor, ataxia, and confusion. Serum lithium is 2.4 mEq/L and creatinine is elevated above her baseline. Which is the most appropriate next step?",
+    options: [
+      { key: "A", text: "Continue lithium and recheck level in 24 hours", pct: 4 },
+      { key: "B", text: "Administer activated charcoal", pct: 7 },
+      { key: "C", text: "Initiate hemodialysis", pct: 47 },
+      { key: "D", text: "Intravenous normal saline alone", pct: 38 },
+      { key: "E", text: "Switch to valproate", pct: 4 },
+    ],
+    correct: "C",
+    stats: { attempts: 39, correctPct: 47 },
+    explanation:
+      "Symptomatic toxicity (neurologic signs) with rising creatinine and a level in this range is an indication for hemodialysis, which clears lithium far faster than the kidneys can. Saline supports clearance in mild cases and is reasonable adjunctively, but as a standalone answer it under-treats a patient who already has neurologic toxicity and renal impairment — that's why nearly 4 in 10 of the class picked it. Activated charcoal does not bind lithium.",
+    imageCaption: "Lithium toxicity — severity tiers and dialysis criteria",
+    flashcard: {
+      text:
+        "{{c1::Hemodialysis}} is indicated in lithium toxicity with neurologic symptoms or {{c2::renal impairment}}, and activated charcoal does not bind lithium.",
+      extraQ: "Q917 — 34F on lithium, GI losses, now coarse tremor/ataxia/confusion, level 2.4 with rising creatinine. Next step?",
+      extraA: "C — Initiate hemodialysis",
+      extraExpl:
+        "Symptomatic toxicity + renal impairment → hemodialysis. Saline alone under-treats here; charcoal does not bind lithium.",
+    },
+    notes: [
+      { author: "Dana R.", role: "Faculty", time: "4d ago", text: "Good one to anchor: the question is rarely 'is it toxic' — it's 'does this patient meet dialysis criteria.' Neuro signs or renal impairment tip it." },
+    ],
+  },
+];
+
+const LEADERBOARD = [
+  { name: "Priya Nair", short: "Priya N.", done: 412, acc: 81, streak: 36, you: false },
+  { name: "Sam Whitfield", short: "Sam W.", done: 398, acc: 79, streak: 41, you: false },
+  { name: "Andrew Correll", short: "You", done: 374, acc: 78, streak: 22, you: true },
+  { name: "Marcus Tran", short: "Marcus T.", done: 351, acc: 74, streak: 18, you: false },
+  { name: "Lena Ortiz", short: "Lena O.", done: 339, acc: 77, streak: 12, you: false },
+  { name: "Dev Patel", short: "Dev P.", done: 318, acc: 72, streak: 9, you: false },
+  { name: "Grace Kim", short: "Grace K.", done: 297, acc: 80, streak: 27, you: false },
+];
+
+function initials(name) {
+  return name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
+}
+
+export default function App() {
+  const [qi, setQi] = useState(0);
+  const q = QUESTIONS[qi];
+
+  const [picked, setPicked] = useState(null);
+  const [revealed, setRevealed] = useState(false);
+  const [tab, setTab] = useState("explanation");
+  const [myNote, setMyNote] = useState("");
+  const [savedFlash, setSavedFlash] = useState(false);
+  const [notes, setNotes] = useState(q.notes);
+  const [draft, setDraft] = useState("");
+  const [cloze, setCloze] = useState(q.flashcard.text);
+  const [editingCloze, setEditingCloze] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [showBoard, setShowBoard] = useState(false);
+
+  const confettiRef = useRef(null);
+  const tabRefs = useRef({});
+  const [ind, setInd] = useState({ left: 0, width: 0, top: 0 });
+
+  // reset per-question state when navigating
+  useEffect(() => {
+    setPicked(null); setRevealed(false); setTab("explanation");
+    setMyNote(""); setNotes(q.notes); setDraft("");
+    setCloze(q.flashcard.text); setEditingCloze(false);
+  }, [qi]); // eslint-disable-line
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2600);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  // slide the tab indicator under the active tab (handles wrapping on mobile)
+  useEffect(() => {
+    const el = tabRefs.current[tab];
+    if (el) setInd({ left: el.offsetLeft, width: el.offsetWidth, top: el.offsetTop + el.offsetHeight - 1 });
+  }, [tab, revealed]);
+
+  const fire = (msg) => setToast(msg);
+
+  const prefersReduced = () =>
+    typeof window !== "undefined" && window.matchMedia &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const fireConfetti = () => {
+    const canvas = confettiRef.current;
+    if (!canvas || prefersReduced()) return;
+    const ctx = canvas.getContext("2d");
+    const dpr = window.devicePixelRatio || 1;
+    const W = canvas.clientWidth, H = canvas.clientHeight;
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const colors = [T.teal, T.gold, "#e07a5f", "#1a7a4a", "#ffffff", T.tealDeep, "#f2c14e"];
+    const cx = W / 2, cy = H * 0.34, N = 150;
+    const parts = Array.from({ length: N }).map(() => {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 4 + Math.random() * 8;
+      return {
+        x: cx + (Math.random() - 0.5) * 70, y: cy + (Math.random() - 0.5) * 24,
+        vx: Math.cos(a) * sp * (0.5 + Math.random() * 0.9),
+        vy: Math.sin(a) * sp - (4 + Math.random() * 5),
+        g: 0.17 + Math.random() * 0.13, size: 5 + Math.random() * 7,
+        rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.35,
+        color: colors[(Math.random() * colors.length) | 0],
+        rect: Math.random() > 0.5, life: 0, ttl: 95 + Math.random() * 45,
+      };
+    });
+    let frame = 0;
+    const draw = () => {
+      ctx.clearRect(0, 0, W, H);
+      let alive = false;
+      for (const p of parts) {
+        if (p.life > p.ttl) continue;
+        alive = true; p.life++;
+        p.vy += p.g; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, 1 - p.life / p.ttl);
+        ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillStyle = p.color;
+        if (p.rect) ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+        else { ctx.beginPath(); ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2); ctx.fill(); }
+        ctx.restore();
+      }
+      frame++;
+      if (alive && frame < 240) requestAnimationFrame(draw);
+      else ctx.clearRect(0, 0, W, H);
+    };
+    requestAnimationFrame(draw);
+  };
+
+  const submit = () => {
+    if (!picked) return;
+    setRevealed(true);
+    if (picked === q.correct) setTimeout(fireConfetti, 140);
+  };
+  const next = () => setQi((i) => (i + 1) % QUESTIONS.length);
+
+  const isCorrect = revealed && picked === q.correct;
+
+  return (
+    <div style={s.root}>
+      <style>{CSS}</style>
+
+      {/* ---------------- Top bar ---------------- */}
+      <header style={s.top}>
+        <div style={s.topInner}>
+          <div style={s.brand}>
+            <span style={s.brandMark}><Stethoscope size={16} strokeWidth={2.4} /></span>
+            <span style={s.brandName}>PRITE&nbsp;<span style={{ color: T.faint, fontWeight: 500 }}>Daily</span></span>
+          </div>
+          <div style={s.topMeta}>
+            <span style={s.countdown}><span style={s.countNum}>84</span> days to exam</span>
+            <span style={s.dot} />
+            <span style={s.regimen}>Today&nbsp;<b style={{ color: "#fff" }}>3</b>&thinsp;/&thinsp;10</span>
+            <button style={s.boardBtn} onClick={() => setShowBoard(true)}>
+              <Trophy size={14} strokeWidth={2.2} /> Leaderboard
+            </button>
+            <span style={s.who}>
+              <span style={s.avatarSm}>AC</span>
+              <span style={s.adminTag}><ShieldCheck size={11} strokeWidth={2.5} /> Admin</span>
+            </span>
+          </div>
+        </div>
+      </header>
+
+      {/* ---------------- Main well ---------------- */}
+      <main style={s.well}>
+        {/* progress line */}
+        <div style={s.progressRow}>
+          <span style={s.qeyebrow}>Question {String(q.number).padStart(4, "0")}</span>
+          <span style={s.progressTrack}>
+            {[0,1,2].map((i) => (
+              <span key={i} style={{ ...s.pip, background: i < 2 ? T.teal : (i === 2 ? T.gold : T.paperEdge) }} />
+            ))}
+            {Array.from({ length: 7 }).map((_, i) => (
+              <span key={"r"+i} style={{ ...s.pip, background: T.paperEdge }} />
+            ))}
+          </span>
+        </div>
+
+        {/* ---- Question card ---- */}
+        <section style={s.qcard}>
+          <p style={s.stem}>{q.stem}</p>
+
+          <div style={s.options}>
+            {q.options.map((o, oi) => {
+              const chosen = picked === o.key;
+              const correct = revealed && o.key === q.correct;
+              const wrongPick = revealed && chosen && o.key !== q.correct;
+              const base = { ...s.opt };
+              if (!revealed && chosen) Object.assign(base, s.optChosen);
+              if (correct) Object.assign(base, s.optCorrect);
+              if (wrongPick) Object.assign(base, s.optWrong);
+              return (
+                <button
+                  key={o.key}
+                  onClick={() => !revealed && setPicked(o.key)}
+                  disabled={revealed}
+                  style={base}
+                  className={"opt" + (correct ? " pop" : "")}
+                >
+                  {/* class distribution fill (the signature reveal) */}
+                  {revealed && (
+                    <span
+                      className="dist"
+                      style={{
+                        ...s.dist,
+                        width: `${o.pct}%`,
+                        animationDelay: `${oi * 70}ms`,
+                        background: correct ? T.correctBg : (wrongPick ? T.wrongBg : "#eef0f3"),
+                      }}
+                    />
+                  )}
+                  <span style={{
+                    ...s.optKey,
+                    borderColor: correct ? T.correctLine : wrongPick ? T.wrongLine : (chosen && !revealed ? T.teal : T.paperEdge),
+                    color: correct ? T.correctText : wrongPick ? T.wrongText : (chosen && !revealed ? T.teal : T.muted),
+                  }}>{o.key}</span>
+                  <span style={s.optText}>{o.text}</span>
+                  {revealed && (
+                    <span style={s.optRight}>
+                      <span style={{
+                        ...s.optPct,
+                        color: correct ? T.correctText : wrongPick ? T.wrongText : T.faint,
+                      }}>{o.pct}%</span>
+                      {correct && <Check size={16} strokeWidth={3} color={T.correctLine} />}
+                      {wrongPick && <X size={16} strokeWidth={3} color={T.wrongLine} />}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {!revealed ? (
+            <div style={s.actionRow}>
+              <span style={s.actionHint}>{picked ? `Answer ${picked} selected` : "Choose an answer"}</span>
+              <button
+                style={{ ...s.primary, opacity: picked ? 1 : 0.45, cursor: picked ? "pointer" : "not-allowed" }}
+                onClick={submit}
+              >
+                Submit answer
+              </button>
+            </div>
+          ) : (
+            <div style={{ ...s.verdict, background: isCorrect ? T.correctBg : T.wrongBg, borderColor: isCorrect ? T.correctLine : T.wrongLine }} className="slidein">
+              <span style={{ ...s.verdictIcon, background: isCorrect ? T.correctLine : T.wrongLine }}>
+                {isCorrect ? <Check size={15} strokeWidth={3} color="#fff" /> : <X size={15} strokeWidth={3} color="#fff" />}
+              </span>
+              <span style={{ color: isCorrect ? T.correctText : T.wrongText, fontWeight: 600 }}>
+                {isCorrect ? "Correct" : "Not quite"}
+              </span>
+              <span style={s.verdictMeta}>
+                {q.stats.correctPct}% of the class got this · {q.stats.attempts} attempts
+              </span>
+            </div>
+          )}
+        </section>
+
+        {/* ---- Tabs (only meaningful after reveal, but always visible) ---- */}
+        {revealed && (
+          <section style={s.below}>
+            <nav style={s.tabs}>
+              {[
+                ["explanation", "Explanation", <Layers size={14} strokeWidth={2.2} />],
+                ["mine", "My notes", <NotebookPen size={14} strokeWidth={2.2} />],
+                ["group", `Group notes`, <Users size={14} strokeWidth={2.2} />],
+                ["flash", "Flashcard", <Layers size={14} strokeWidth={2.2} />],
+              ].map(([id, label, icon]) => (
+                <button
+                  key={id}
+                  ref={(el) => (tabRefs.current[id] = el)}
+                  onClick={() => setTab(id)}
+                  style={{ ...s.tab, ...(tab === id ? s.tabActive : {}) }}
+                  className="tab"
+                >
+                  {icon}{label}
+                  {id === "group" && <span style={s.tabCount}>{notes.length}</span>}
+                </button>
+              ))}
+              <span className="tabInd" style={{ ...s.tabInd, left: ind.left, width: ind.width, top: ind.top }} />
+            </nav>
+
+            <div style={s.panel}>
+              {tab === "explanation" && (
+                <div className="fade">
+                  <p style={s.expl}>{q.explanation}</p>
+                  <div style={s.figure}>
+                    <span style={s.figIcon}><ImageIcon size={18} strokeWidth={1.8} color={T.faint} /></span>
+                    <span style={s.figCap}>{q.imageCaption}</span>
+                    <span style={s.figTag}>from explanation slide</span>
+                  </div>
+                </div>
+              )}
+
+              {tab === "mine" && (
+                <div className="fade">
+                  <label style={s.lbl}>Private to you · exports without the AI explanation</label>
+                  <textarea
+                    value={myNote}
+                    onChange={(e) => setMyNote(e.target.value)}
+                    placeholder="Jot your own reasoning, a mnemonic, where you went wrong…"
+                    style={s.textarea}
+                  />
+                  <div style={s.saveRow}>
+                    <span style={{ ...s.savedDot, opacity: myNote ? 1 : 0.3 }} />
+                    <span style={s.savedTxt}>{myNote ? "Saved" : "Nothing saved yet"}</span>
+                    <button style={s.ghost} onClick={() => fire("Exported your notes (question + your answer, no AI explanation)")}>
+                      <Download size={13} strokeWidth={2.2} /> Export my notes
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {tab === "group" && (
+                <div className="fade">
+                  <div style={s.threadHead}>
+                    <label style={s.lbl}>Shared with your class · attributed</label>
+                    <button style={s.ghost} onClick={() => fire("Exported all group notes (question + answer + comments)")}>
+                      <Download size={13} strokeWidth={2.2} /> Export group notes
+                    </button>
+                  </div>
+                  <div style={s.thread}>
+                    {notes.map((n, i) => (
+                      <div key={i} style={s.note}>
+                        <span style={{ ...s.avatar, background: n.role === "Faculty" ? T.tealDeep : T.inkSoft }}>{initials(n.author)}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={s.noteMeta}>
+                            <b style={s.noteAuthor}>{n.author}</b>
+                            <span style={{ ...s.roleTag, ...(n.role === "Faculty" ? s.roleFac : {}) }}>{n.role}</span>
+                            <span style={s.noteTime}>{n.time}</span>
+                            <button
+                              style={s.del}
+                              title="Remove (admin)"
+                              onClick={() => setNotes(notes.filter((_, j) => j !== i))}
+                            >
+                              <Trash2 size={13} strokeWidth={2} />
+                            </button>
+                          </div>
+                          <p style={s.noteText}>{n.text}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={s.addRow}>
+                    <span style={{ ...s.avatar, background: T.teal }}>AC</span>
+                    <input
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && draft.trim()) {
+                          setNotes([...notes, { author: "Andrew Correll", role: "Admin", time: "now", text: draft.trim() }]);
+                          setDraft("");
+                        }
+                      }}
+                      placeholder="Add a note for the class…"
+                      style={s.addInput}
+                    />
+                    <button
+                      style={{ ...s.primarySm, opacity: draft.trim() ? 1 : 0.45 }}
+                      onClick={() => {
+                        if (!draft.trim()) return;
+                        setNotes([...notes, { author: "Andrew Correll", role: "Admin", time: "now", text: draft.trim() }]);
+                        setDraft("");
+                      }}
+                    >Post</button>
+                  </div>
+                </div>
+              )}
+
+              {tab === "flash" && (
+                <div className="fade">
+                  <div style={s.cardChrome}>
+                    <div style={s.cardChromeHead}>
+                      <span style={s.cardType}>Cloze</span>
+                      <span style={s.cardCached}><Layers size={12} strokeWidth={2.2} /> Generated once · cached for the class</span>
+                      {!editingCloze ? (
+                        <button style={s.tinyBtn} onClick={() => setEditingCloze(true)}><Pencil size={12} strokeWidth={2.2} /> Refine</button>
+                      ) : (
+                        <button style={{ ...s.tinyBtn, color: T.teal }} onClick={() => { setEditingCloze(false); fire("Canonical card updated for the class"); }}>
+                          <Check size={12} strokeWidth={2.6} /> Save canonical
+                        </button>
+                      )}
+                    </div>
+
+                    <span style={s.fieldLbl}>Text</span>
+                    {editingCloze ? (
+                      <textarea value={cloze} onChange={(e) => setCloze(e.target.value)} style={s.clozeEdit} />
+                    ) : (
+                      <>
+                        <code style={s.clozeRaw}>{renderClozeRaw(cloze)}</code>
+                        <div style={s.clozePreview}>{renderClozePreview(cloze)}</div>
+                      </>
+                    )}
+
+                    <span style={{ ...s.fieldLbl, marginTop: 14 }}>Extra <span style={{ color: T.faint, fontWeight: 500 }}>· shown under the answer</span></span>
+                    <div style={s.extra}>
+                      <p style={s.extraLine}><b>Q.</b> {q.flashcard.extraQ}</p>
+                      <p style={s.extraLine}><b>A.</b> {q.flashcard.extraA}</p>
+                      <p style={{ ...s.extraLine, color: T.muted, marginBottom: 0 }}><b style={{ color: T.text }}>Why.</b> {q.flashcard.extraExpl}</p>
+                    </div>
+                  </div>
+
+                  <div style={s.flashActions}>
+                    <button style={s.primarySm} onClick={() => { setSavedFlash(true); fire(".apkg downloaded — cloze + Extra wired, ready to import"); }}>
+                      <Download size={14} strokeWidth={2.2} /> Download .apkg
+                    </button>
+                    <span style={s.flashNote}>{savedFlash ? "Cached for everyone — no new API call next time" : "Native Anki Cloze type · double-click to import"}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div style={s.nextRow}>
+              <button style={s.next} onClick={next}>
+                Next question <ArrowRight size={16} strokeWidth={2.4} />
+              </button>
+            </div>
+          </section>
+        )}
+      </main>
+
+      {/* ---------------- Leaderboard overlay (the emailed graphic) ---------------- */}
+      {showBoard && (
+        <div style={s.scrim} onClick={() => setShowBoard(false)}>
+          <div style={s.board} onClick={(e) => e.stopPropagation()} className="rise">
+            <div style={s.boardTop}>
+              <div>
+                <div style={s.boardEyebrow}>Class Standings · PGY cohort</div>
+                <div style={s.boardTitle}>This cycle</div>
+              </div>
+              <button style={s.close} onClick={() => setShowBoard(false)}><X size={16} strokeWidth={2.4} /></button>
+            </div>
+
+            <div style={s.podium}>
+              {[1, 0, 2].map((idx, slot) => {
+                const p = LEADERBOARD[idx];
+                const medal = [T.gold, T.silver, T.bronze][idx === 0 ? 0 : idx === 1 ? 1 : 2];
+                const tall = idx === 0;
+                return (
+                  <div key={p.name} style={{ ...s.podCol, ...(tall ? s.podTall : {}), animationDelay: `${slot * 90}ms` }} className="podin">
+                    <span style={{ ...s.podAvatar, borderColor: medal }}>{initials(p.name)}</span>
+                    <span style={s.podName}>{p.short}</span>
+                    <span style={s.podScore}>{p.done}</span>
+                    <span style={{ ...s.podRank, background: medal }}>{idx + 1}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={s.boardList}>
+              {LEADERBOARD.slice(3).map((p, i) => (
+                <div key={p.name} style={{ ...s.boardRow, ...(p.you ? s.boardYou : {}), animationDelay: `${280 + i * 55}ms` }} className="rowin">
+                  <span style={s.rowRank}>{i + 4}</span>
+                  <span style={{ ...s.rowAvatar, background: p.you ? T.teal : T.inkSoft }}>{initials(p.name)}</span>
+                  <span style={s.rowName}>{p.short}</span>
+                  <span style={s.rowStreak}><Flame size={12} strokeWidth={2.2} color={T.gold} />{p.streak}</span>
+                  <span style={s.rowAcc}>{p.acc}%</span>
+                  <span style={s.rowDone}>{p.done}</span>
+                </div>
+              ))}
+            </div>
+
+            <div style={s.boardFoot}>
+              <span>Sent with your daily reminder</span>
+              <span style={s.boardFootR}>PRITE in 84 days · keep the streak</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <canvas ref={confettiRef} style={s.confetti} />
+
+      {toast && <div style={s.toast} className="toast">{toast}</div>}
+    </div>
+  );
+}
+
+/* ---- cloze rendering helpers ---- */
+function renderClozeRaw(text) {
+  // show the raw {{c1::...}} syntax with the markers tinted
+  const parts = text.split(/(\{\{c\d::[^}]*\}\})/g);
+  return parts.map((p, i) => {
+    const m = p.match(/^\{\{(c\d)::([^}]*)\}\}$/);
+    if (!m) return <span key={i}>{p}</span>;
+    return (
+      <span key={i}>
+        <span style={{ color: T.faint }}>{`{{${m[1]}::`}</span>
+        <span style={{ color: T.teal, fontWeight: 700 }}>{m[2]}</span>
+        <span style={{ color: T.faint }}>{`}}`}</span>
+      </span>
+    );
+  });
+}
+function renderClozePreview(text) {
+  const parts = text.split(/(\{\{c\d::[^}]*\}\})/g);
+  return parts.map((p, i) => {
+    const m = p.match(/^\{\{(c\d)::([^}]*)\}\}$/);
+    if (!m) return <span key={i}>{p}</span>;
+    return <span key={i} style={s.blank}>[ {m[1]} ]</span>;
+  });
+}
+
+/* ---------------------------------------------------------------------- */
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+* { box-sizing: border-box; }
+button { font-family: inherit; }
+.opt:hover:not(:disabled) { border-color: ${T.teal}33 !important; transform: translateY(-1px); }
+.opt:disabled { cursor: default; }
+.opt { transition: transform .12s ease, border-color .12s ease; }
+.tab:hover { color: ${T.text}; }
+.dist { animation: grow .6s cubic-bezier(.22,.61,.36,1) both; }
+@keyframes grow { from { width: 0 !important; } }
+.fade { animation: fade .28s ease both; }
+@keyframes fade { from { opacity: 0; transform: translateY(4px); } }
+.rise { animation: rise .26s cubic-bezier(.22,.61,.36,1) both; }
+@keyframes rise { from { opacity: 0; transform: translateY(14px) scale(.98); } }
+.toast { animation: tin .3s ease both; }
+@keyframes tin { from { opacity: 0; transform: translateY(8px); } }
+
+/* press feedback on every button (options have their own handling) */
+button:not(.opt):active { transform: scale(.96); }
+.opt:active:not(:disabled) { transform: scale(.99); }
+
+/* correct-answer pop + glow */
+.pop { animation: pop .5s cubic-bezier(.3,1.4,.5,1) both; }
+@keyframes pop {
+  0% { box-shadow: 0 0 0 0 ${T.correctLine}00; }
+  35% { transform: scale(1.015); box-shadow: 0 0 0 4px ${T.correctLine}33; }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 ${T.correctLine}00; }
+}
+
+.slidein { animation: slidein .34s cubic-bezier(.22,.7,.3,1) both; }
+@keyframes slidein { from { opacity: 0; transform: translateY(-6px); } }
+
+.rowin { animation: rowin .4s cubic-bezier(.22,.7,.3,1) both; }
+@keyframes rowin { from { opacity: 0; transform: translateX(-10px); } }
+
+.podin { animation: podin .46s cubic-bezier(.22,.9,.3,1) both; }
+@keyframes podin { from { opacity: 0; transform: translateY(16px); } }
+
+/* tab indicator slide */
+.tabInd { transition: left .32s cubic-bezier(.5,.1,.2,1), width .32s cubic-bezier(.5,.1,.2,1), top .25s ease; }
+textarea, input { font-family: inherit; }
+textarea:focus, input:focus { outline: 2px solid ${T.teal}55; outline-offset: 1px; }
+button:focus-visible { outline: 2px solid ${T.teal}; outline-offset: 2px; }
+::selection { background: ${T.tealSoft}; }
+@media (prefers-reduced-motion: reduce) {
+  .dist, .fade, .rise, .toast, .pop, .slidein, .rowin, .podin { animation: none !important; }
+  .tabInd { transition: none !important; }
+  button:not(.opt):active, .opt:active:not(:disabled) { transform: none !important; }
+}
+@media (max-width: 680px) {
+  .topMetaHide { display: none !important; }
+}
+`;
+
+/* ---------------------------------------------------------------------- */
+const s: Record<string, React.CSSProperties> = {
+  root: { minHeight: "100vh", background: T.ink, fontFamily: "'Space Grotesk', system-ui, sans-serif", color: T.text },
+
+  top: { position: "sticky", top: 0, zIndex: 20, background: T.ink, borderBottom: `1px solid ${T.inkLine}` },
+  topInner: { maxWidth: 880, margin: "0 auto", padding: "13px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14 },
+  brand: { display: "flex", alignItems: "center", gap: 9 },
+  brandMark: { width: 28, height: 28, borderRadius: 8, background: T.teal, color: "#fff", display: "grid", placeItems: "center" },
+  brandName: { color: "#fff", fontWeight: 600, fontSize: 16, letterSpacing: "-0.01em" },
+  topMeta: { display: "flex", alignItems: "center", gap: 13 },
+  countdown: { color: "#c7ccd6", fontSize: 12.5, fontFamily: "'JetBrains Mono', monospace" },
+  countNum: { color: T.gold, fontWeight: 700 },
+  dot: { width: 3, height: 3, borderRadius: 3, background: T.inkLine },
+  regimen: { color: "#aeb4c0", fontSize: 12.5, fontFamily: "'JetBrains Mono', monospace" },
+  boardBtn: { display: "flex", alignItems: "center", gap: 6, background: T.inkSoft, color: "#e7d9b4", border: `1px solid ${T.inkLine}`, padding: "6px 11px", borderRadius: 8, fontSize: 12.5, fontWeight: 500, cursor: "pointer" },
+  who: { display: "flex", alignItems: "center", gap: 7 },
+  avatarSm: { width: 28, height: 28, borderRadius: 8, background: T.teal, color: "#fff", display: "grid", placeItems: "center", fontSize: 11.5, fontWeight: 700 },
+  adminTag: { display: "inline-flex", alignItems: "center", gap: 4, color: "#9aa0ab", fontSize: 11, fontWeight: 500 },
+
+  well: { maxWidth: 740, margin: "0 auto", padding: "26px 22px 90px" },
+
+  progressRow: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
+  qeyebrow: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: "0.08em", color: "#8c93a1", textTransform: "uppercase" },
+  progressTrack: { display: "flex", gap: 5 },
+  pip: { width: 16, height: 5, borderRadius: 3 },
+
+  qcard: { background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 16, padding: "26px 26px 22px", boxShadow: "0 1px 0 rgba(0,0,0,.04), 0 18px 40px -28px rgba(20,24,40,.5)" },
+  stem: { fontFamily: "'Newsreader', Georgia, serif", fontSize: 20, lineHeight: 1.5, color: T.text, margin: "0 0 22px", fontWeight: 400 },
+
+  options: { display: "flex", flexDirection: "column", gap: 9 },
+  opt: { position: "relative", overflow: "hidden", display: "flex", alignItems: "center", gap: 13, textAlign: "left", width: "100%", background: T.card, border: `1.5px solid ${T.paperEdge}`, borderRadius: 11, padding: "13px 15px", fontSize: 15, color: T.text, cursor: "pointer" },
+  optChosen: { borderColor: T.teal, background: T.tealSoft },
+  optCorrect: { borderColor: T.correctLine },
+  optWrong: { borderColor: T.wrongLine },
+  dist: { position: "absolute", left: 0, top: 0, bottom: 0, zIndex: 0, borderRadius: "10px 0 0 10px" },
+  optKey: { position: "relative", zIndex: 1, flexShrink: 0, width: 26, height: 26, borderRadius: 7, border: "1.5px solid", display: "grid", placeItems: "center", fontSize: 13, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", background: "rgba(255,255,255,.7)" },
+  optText: { position: "relative", zIndex: 1, flex: 1, lineHeight: 1.35 },
+  optRight: { position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 9, flexShrink: 0 },
+  optPct: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, fontWeight: 600 },
+
+  actionRow: { display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 20 },
+  actionHint: { fontSize: 13, color: T.muted, fontFamily: "'JetBrains Mono', monospace" },
+  primary: { background: T.teal, color: "#fff", border: "none", padding: "11px 22px", borderRadius: 10, fontSize: 14.5, fontWeight: 600, cursor: "pointer" },
+
+  verdict: { display: "flex", alignItems: "center", gap: 10, marginTop: 20, padding: "12px 15px", border: "1.5px solid", borderRadius: 11, flexWrap: "wrap" },
+  verdictIcon: { width: 22, height: 22, borderRadius: 6, display: "grid", placeItems: "center", flexShrink: 0 },
+  verdictMeta: { marginLeft: "auto", fontSize: 12.5, color: T.muted, fontFamily: "'JetBrains Mono', monospace" },
+
+  below: { marginTop: 18 },
+  tabs: { position: "relative", display: "flex", gap: 4, borderBottom: `1px solid ${T.inkLine}`, paddingBottom: 0, flexWrap: "wrap" },
+  tab: { display: "flex", alignItems: "center", gap: 7, background: "transparent", border: "none", color: "#8c93a1", padding: "9px 13px", fontSize: 13.5, fontWeight: 500, cursor: "pointer", borderBottom: "2px solid transparent", marginBottom: -1 },
+  tabActive: { color: "#fff" },
+  tabInd: { position: "absolute", height: 2, background: T.teal, borderRadius: 2, pointerEvents: "none" },
+  tabCount: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, background: T.inkSoft, color: "#c7ccd6", borderRadius: 20, padding: "1px 7px" },
+
+  panel: { background: T.paper, border: `1px solid ${T.paperEdge}`, borderTop: "none", borderRadius: "0 0 14px 14px", padding: 22, marginTop: 0 },
+
+  expl: { fontFamily: "'Newsreader', Georgia, serif", fontSize: 16.5, lineHeight: 1.6, color: T.text, margin: "0 0 18px" },
+  figure: { display: "flex", alignItems: "center", gap: 12, background: "#fff", border: `1px dashed ${T.paperEdge}`, borderRadius: 11, padding: "14px 16px" },
+  figIcon: { width: 38, height: 38, borderRadius: 8, background: T.paper, display: "grid", placeItems: "center", flexShrink: 0 },
+  figCap: { fontSize: 14, color: T.text, fontWeight: 500, flex: 1 },
+  figTag: { fontSize: 11, color: T.faint, fontFamily: "'JetBrains Mono', monospace", flexShrink: 0 },
+
+  lbl: { display: "block", fontSize: 12, color: T.muted, marginBottom: 9, fontFamily: "'JetBrains Mono', monospace" },
+  textarea: { width: "100%", minHeight: 96, resize: "vertical", border: `1px solid ${T.paperEdge}`, borderRadius: 10, padding: "12px 14px", fontSize: 14.5, lineHeight: 1.5, background: "#fff", color: T.text },
+  saveRow: { display: "flex", alignItems: "center", gap: 9, marginTop: 11 },
+  savedDot: { width: 7, height: 7, borderRadius: 7, background: T.teal },
+  savedTxt: { fontSize: 12.5, color: T.muted },
+  ghost: { marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: `1px solid ${T.paperEdge}`, color: T.text, padding: "7px 12px", borderRadius: 9, fontSize: 12.5, fontWeight: 500, cursor: "pointer" },
+
+  threadHead: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
+  thread: { display: "flex", flexDirection: "column", gap: 14 },
+  note: { display: "flex", gap: 11 },
+  avatar: { width: 32, height: 32, borderRadius: 9, color: "#fff", display: "grid", placeItems: "center", fontSize: 11.5, fontWeight: 700, flexShrink: 0, fontFamily: "'Space Grotesk', sans-serif" },
+  noteMeta: { display: "flex", alignItems: "center", gap: 8 },
+  noteAuthor: { fontSize: 13.5, color: T.text },
+  roleTag: { fontSize: 10.5, fontWeight: 600, color: T.muted, background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 5, padding: "1px 6px" },
+  roleFac: { color: T.tealDeep, borderColor: `${T.teal}55`, background: T.tealSoft },
+  noteTime: { fontSize: 11.5, color: T.faint, fontFamily: "'JetBrains Mono', monospace" },
+  del: { marginLeft: "auto", background: "transparent", border: "none", color: T.faint, cursor: "pointer", padding: 3, display: "grid", placeItems: "center", borderRadius: 6 },
+  noteText: { margin: "4px 0 0", fontSize: 14.5, lineHeight: 1.5, color: T.text },
+  addRow: { display: "flex", alignItems: "center", gap: 10, marginTop: 16, paddingTop: 16, borderTop: `1px solid ${T.paperEdge}` },
+  addInput: { flex: 1, border: `1px solid ${T.paperEdge}`, borderRadius: 9, padding: "10px 13px", fontSize: 14, background: "#fff", color: T.text },
+  primarySm: { display: "inline-flex", alignItems: "center", gap: 7, background: T.teal, color: "#fff", border: "none", padding: "9px 16px", borderRadius: 9, fontSize: 13.5, fontWeight: 600, cursor: "pointer" },
+
+  cardChrome: { background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 12, padding: 18 },
+  cardChromeHead: { display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" },
+  cardType: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 600, color: T.tealDeep, background: T.tealSoft, borderRadius: 6, padding: "3px 9px" },
+  cardCached: { display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, color: T.faint },
+  tinyBtn: { marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 5, background: T.paper, border: `1px solid ${T.paperEdge}`, color: T.muted, padding: "5px 10px", borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: "pointer" },
+  fieldLbl: { display: "block", fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", color: T.faint, marginBottom: 7 },
+  clozeRaw: { display: "block", fontFamily: "'JetBrains Mono', monospace", fontSize: 13, lineHeight: 1.6, background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 9, padding: "11px 13px", color: T.text, whiteSpace: "pre-wrap" },
+  clozePreview: { fontFamily: "'Newsreader', Georgia, serif", fontSize: 15.5, lineHeight: 1.55, color: T.text, marginTop: 10 },
+  clozeEdit: { width: "100%", minHeight: 70, fontFamily: "'JetBrains Mono', monospace", fontSize: 13, lineHeight: 1.6, border: `1px solid ${T.teal}66`, borderRadius: 9, padding: "11px 13px", background: T.paper, color: T.text, resize: "vertical" },
+  blank: { display: "inline-block", background: T.goldSoft, color: "#8a6414", borderRadius: 5, padding: "0 8px", margin: "0 2px", fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 600 },
+  extra: { background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 9, padding: "13px 15px" },
+  extraLine: { fontSize: 14, lineHeight: 1.5, margin: "0 0 8px", color: T.text },
+
+  flashActions: { display: "flex", alignItems: "center", gap: 13, marginTop: 14 },
+  flashNote: { fontSize: 12, color: T.muted },
+
+  nextRow: { display: "flex", justifyContent: "flex-end", marginTop: 20 },
+  next: { display: "inline-flex", alignItems: "center", gap: 9, background: T.inkSoft, color: "#fff", border: `1px solid ${T.inkLine}`, padding: "11px 20px", borderRadius: 10, fontSize: 14.5, fontWeight: 600, cursor: "pointer" },
+
+  scrim: { position: "fixed", inset: 0, background: "rgba(15,17,26,.6)", backdropFilter: "blur(3px)", display: "grid", placeItems: "center", padding: 18, zIndex: 50 },
+  board: { width: "100%", maxWidth: 440, background: T.paper, borderRadius: 18, overflow: "hidden", border: `1px solid ${T.paperEdge}`, boxShadow: "0 30px 80px -30px rgba(0,0,0,.6)" },
+  boardTop: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "20px 22px 6px" },
+  boardEyebrow: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: T.muted },
+  boardTitle: { fontSize: 22, fontWeight: 700, color: T.text, letterSpacing: "-0.01em", marginTop: 3 },
+  close: { background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 8, width: 32, height: 32, display: "grid", placeItems: "center", cursor: "pointer", color: T.muted },
+
+  podium: { display: "flex", alignItems: "flex-end", justifyContent: "center", gap: 12, padding: "14px 22px 18px" },
+  podCol: { display: "flex", flexDirection: "column", alignItems: "center", gap: 4, position: "relative", background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 12, padding: "16px 12px 12px", width: 96 },
+  podTall: { paddingTop: 26, boxShadow: `0 0 0 2px ${T.goldSoft}` },
+  podAvatar: { width: 42, height: 42, borderRadius: 11, border: "2.5px solid", display: "grid", placeItems: "center", fontSize: 14, fontWeight: 700, color: T.text, background: T.paper },
+  podName: { fontSize: 12.5, fontWeight: 600, color: T.text },
+  podScore: { fontFamily: "'JetBrains Mono', monospace", fontSize: 15, fontWeight: 700, color: T.tealDeep },
+  podRank: { position: "absolute", top: -10, width: 22, height: 22, borderRadius: 7, color: "#fff", display: "grid", placeItems: "center", fontSize: 12, fontWeight: 700 },
+
+  boardList: { padding: "0 16px 8px", display: "flex", flexDirection: "column", gap: 2 },
+  boardRow: { display: "flex", alignItems: "center", gap: 11, padding: "9px 10px", borderRadius: 10 },
+  boardYou: { background: T.tealSoft, boxShadow: `inset 0 0 0 1px ${T.teal}55` },
+  rowRank: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: T.faint, width: 18, textAlign: "center", flexShrink: 0 },
+  rowAvatar: { width: 28, height: 28, borderRadius: 8, color: "#fff", display: "grid", placeItems: "center", fontSize: 10.5, fontWeight: 700, flexShrink: 0 },
+  rowName: { flex: 1, fontSize: 13.5, fontWeight: 500, color: T.text },
+  rowStreak: { display: "inline-flex", alignItems: "center", gap: 3, fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: T.muted, width: 42 },
+  rowAcc: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: T.muted, width: 38, textAlign: "right" },
+  rowDone: { fontFamily: "'JetBrains Mono', monospace", fontSize: 13.5, fontWeight: 700, color: T.text, width: 40, textAlign: "right" },
+
+  boardFoot: { display: "flex", justifyContent: "space-between", padding: "13px 22px", borderTop: `1px solid ${T.paperEdge}`, fontSize: 11.5, color: T.faint, fontFamily: "'JetBrains Mono', monospace" },
+  boardFootR: { color: T.gold },
+
+  confetti: { position: "fixed", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 70 },
+  toast: { position: "fixed", bottom: 22, left: "50%", transform: "translateX(-50%)", background: T.ink, color: "#fff", padding: "11px 18px", borderRadius: 11, fontSize: 13.5, fontWeight: 500, boxShadow: "0 16px 40px -16px rgba(0,0,0,.6)", zIndex: 60, maxWidth: "90vw", textAlign: "center" },
+};

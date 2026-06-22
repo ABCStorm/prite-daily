@@ -1,0 +1,2218 @@
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import {
+  ShieldCheck, Trophy, NotebookPen, Users, Layers, Stethoscope,
+  Check, X, Image as ImageIcon, Trash2, Download, Flame, ArrowRight,
+  ArrowLeft, ListChecks, LogOut, Clock, Settings as SettingsIcon,
+  Sparkles, Target, RotateCcw, BarChart3, Pencil, Search, FileText, ExternalLink,
+  TrendingUp, Youtube, Network,
+} from "lucide-react";
+import mermaid from "mermaid";
+
+mermaid.initialize({ startOnLoad: false, theme: "neutral", securityLevel: "loose", fontFamily: "inherit" });
+
+// Renders a Mermaid diagram from source; falls back to the raw code if it can't parse.
+function MermaidDiagram({ code }: { code: string }) {
+  const [svg, setSvg] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  const idRef = useRef("mmd-" + Math.random().toString(36).slice(2));
+  useEffect(() => {
+    let alive = true;
+    setSvg(null); setFailed(false);
+    mermaid
+      .render(idRef.current, code)
+      .then((r) => { if (alive) setSvg(r.svg); })
+      .catch(() => { if (alive) setFailed(true); });
+    return () => { alive = false; };
+  }, [code]);
+  if (failed) return <pre style={{ whiteSpace: "pre-wrap", fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, overflowX: "auto" }}>{code}</pre>;
+  if (!svg) return null;
+  return <div style={{ overflowX: "auto" }} dangerouslySetInnerHTML={{ __html: svg }} />;
+}
+import { isConfigured, supabase, signInWithGoogle, signOut, questionId } from "./lib/supabase";
+import { useAuth } from "./lib/useAuth";
+import { matchRoster } from "./lib/roster";
+import {
+  getMyAnswers, saveAnswer, getMyNote, saveMyNote,
+  getGroupNotes, addGroupNote, deleteGroupNote,
+  listProfiles, updateProfile, setTrainingLevel,
+  getQuestionStats, getLeaderboard,
+  getMySettings, saveSettings,
+  getAllMyNotes, getAllGroupNotes,
+  getTagMissStats,
+  getFlashcard, generateFlashcard, saveFlashcard, getFlashcardsForIds,
+  type AnswerRow, type GroupNote as DbGroupNote, type Profile,
+  type QuestionStats, type LeaderRow, type Settings, type TagMissRow, type Flashcard,
+} from "./lib/db";
+import { exportMyNotes, exportGroupNotes, exportMissed, ankingLecture, exportPptx } from "./lib/exports";
+
+/* ----------------------------------------------------------------------
+   PRITE daily question screen — now driven by the REAL extracted bank
+   (public/data/questions.json + /images/<year>/...). ~3,590 questions,
+   2014–2025. No backend yet: notes are local/ephemeral; there is no class
+   answer distribution, flashcard, or leaderboard data, so those are shown
+   as "coming with the backend" rather than faked.
+---------------------------------------------------------------------- */
+
+const T = {
+  ink: "#1b1e2b", inkSoft: "#252a3a", inkLine: "#33384b",
+  paper: "#faf7f1", paperEdge: "#ece5d8", card: "#ffffff",
+  text: "#23262f", muted: "#6c7280", faint: "#9aa0ab",
+  teal: "#0e7a6b", tealDeep: "#0b5d52", tealSoft: "#e2efeb",
+  correctLine: "#1a7a4a", correctBg: "#e7f2ea", correctText: "#155f39",
+  wrongLine: "#b04a30", wrongBg: "#f6e8e2", wrongText: "#8a3722",
+  gold: "#bf8a30", goldSoft: "#f0e3c1",
+};
+
+type RawOption = { letter: string; text: string };
+type QTags = {
+  diagnosis?: string[]; medication?: string[]; psychotherapy?: string[];
+  neuro?: string[]; historical?: string[]; setting?: string | null;
+};
+type RawQuestion = {
+  deck: string; year: string; q_index: number; slide_number: number;
+  stem: string; options: RawOption[];
+  answer_letter: string | null; answer_letters: string[]; multi_select: boolean;
+  answer_text: string; answer_source: string; answer_raw: string;
+  explanation_text: string; figure_images: string[]; explanation_images: string[];
+  clinical_application?: string; video_query?: string;
+  diagram?: { code: string; caption?: string } | null;
+  comparison_table?: { title?: string; headers: string[]; rows: string[][] } | null;
+  flags: string[];
+  prite_category?: string; prite_label?: string; tags?: QTags;
+};
+
+type GroupNote = { author: string; role: string; time: string; text: string };
+
+function initials(name: string) {
+  return name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
+}
+
+function imgSrc(p: string) {
+  return p.startsWith("<") ? "" : "/" + p; // skip failed-export placeholders
+}
+
+function ago(iso: string) {
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+}
+
+function renderClozeRaw(text: string) {
+  return text.split(/(\{\{c\d::[^}]*\}\})/g).map((p, i) => {
+    const m = p.match(/^\{\{(c\d)::([^}]*)\}\}$/);
+    if (!m) return <span key={i}>{p}</span>;
+    return (
+      <span key={i}>
+        <span style={{ color: T.faint }}>{`{{${m[1]}::`}</span>
+        <span style={{ color: T.teal, fontWeight: 700 }}>{m[2]}</span>
+        <span style={{ color: T.faint }}>{`}}`}</span>
+      </span>
+    );
+  });
+}
+function renderClozePreview(text: string) {
+  return text.split(/(\{\{c\d::[^}]*\}\})/g).map((p, i) => {
+    const m = p.match(/^\{\{(c\d)::([^}]*)\}\}$/);
+    if (!m) return <span key={i}>{p}</span>;
+    return <span key={i} style={s.blank}>[ {m[1]} ]</span>;
+  });
+}
+
+function isSameDay(iso: string) {
+  const d = new Date(iso), n = new Date();
+  return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
+}
+
+function daysUntil(isoDate: string) {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  const target = new Date(y, m - 1, d).getTime();
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  return Math.round((target - start) / 86400000);
+}
+
+// Standard-normal CDF (Abramowitz & Stegun 26.2.17). The PRITE-score predictor
+// uses it to turn an accuracy z-score into an estimated percentile.
+function normCdf(z: number) {
+  const t = 1 / (1 + 0.2316419 * Math.abs(z));
+  const d = 0.3989423 * Math.exp((-z * z) / 2);
+  let p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+  if (z > 0) p = 1 - p;
+  return p; // p is now Φ(z), the lower-tail probability
+}
+const clampPct = (n: number) => Math.min(99, Math.max(1, Math.round(n)));
+function ordinal(n: number) {
+  const r = n % 100;
+  if (r >= 11 && r <= 13) return "th";
+  return ["th", "st", "nd", "rd"][n % 10] ?? "th";
+}
+
+export default function App() {
+  const [all, setAll] = useState<RawQuestion[] | null>(null);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
+
+  const [year, setYear] = useState<string>("all");
+  const [qi, setQi] = useState(0);
+
+  const [picked, setPicked] = useState<string[]>([]);
+  const [revealed, setRevealed] = useState(false);
+  const [tab, setTab] = useState("explanation");
+  const [myNote, setMyNote] = useState("");
+  const [draft, setDraft] = useState("");
+  const [toast, setToast] = useState<string | null>(null);
+  const [jump, setJump] = useState("");
+
+  const confettiRef = useRef<HTMLCanvasElement | null>(null);
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [ind, setInd] = useState({ left: 0, width: 0, top: 0 });
+
+  // --- auth + persistence ---
+  const { session, profile, loading: authLoading, reloadProfile } = useAuth();
+  const signedIn = Boolean(session);
+  const approved = !isConfigured || profile?.status === "approved";
+  const persist = isConfigured && signedIn && approved;
+  const [answers, setAnswers] = useState<Record<string, AnswerRow>>({});
+  const [groupNotes, setGroupNotes] = useState<DbGroupNote[]>([]);
+  const [showApprovals, setShowApprovals] = useState(false);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [stats, setStats] = useState<QuestionStats | null>(null);
+  const [showBoard, setShowBoard] = useState(false);
+  const [leaders, setLeaders] = useState<LeaderRow[]>([]);
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [mode, setMode] = useState<"today" | "browse" | "custom">("today");
+  const [todayQueue, setTodayQueue] = useState<RawQuestion[]>([]);
+  const [customQueue, setCustomQueue] = useState<RawQuestion[]>([]);
+  const [customLabel, setCustomLabel] = useState<string>("");
+  const [answersLoaded, setAnswersLoaded] = useState(false);
+  const [reviewMode, setReviewMode] = useState(false);
+  const [showMissed, setShowMissed] = useState(false);
+  const [allMyNotes, setAllMyNotes] = useState<Record<string, string>>({});
+  const [showInsights, setShowInsights] = useState(false);
+  const [showStats, setShowStats] = useState(false);
+  const [showDeck, setShowDeck] = useState(false);
+  const [card, setCard] = useState<Flashcard | null>(null);
+  const [cardBusy, setCardBusy] = useState(false);
+  const [editCard, setEditCard] = useState<{ cloze: string; extra: string } | null>(null);
+  const answersRef = useRef(answers);
+  useEffect(() => { answersRef.current = answers; }, [answers]);
+
+  // load all my prior answers once approved (to restore progress + mark done)
+  useEffect(() => {
+    if (persist) {
+      setAnswersLoaded(false);
+      getMyAnswers().then((a) => { setAnswers(a); setAnswersLoaded(true); });
+      getMySettings().then(setSettings);
+    } else { setAnswers({}); setAnswersLoaded(false); setSettings(null); }
+  }, [persist]);
+
+  // build today's set: due-review (missed, past the recycle interval) first,
+  // then new unanswered, capped at the regimen. Built from an answers snapshot
+  // so answering doesn't reshuffle it mid-session.
+  // extra=true ignores the daily cap (an explicit "give me another set")
+  const buildToday = useCallback((extra = false) => {
+    if (!all) return;
+    const regimen = settings?.regimen ?? 10;
+    const recycle = settings?.recycle_missed ?? true;
+    const reviewCap = settings?.review_per_day ?? 3;
+    const afterMs = (settings?.recycle_after_days ?? 14) * 86400000;
+    const now = Date.now();
+    const a = answersRef.current;
+    const answeredToday = Object.values(a).filter((r) => isSameDay(r.updated_at)).length;
+    const remaining = extra ? regimen : Math.max(0, regimen - answeredToday);
+    const due: RawQuestion[] = [], fresh: RawQuestion[] = [];
+    for (const qq of all) {
+      const id = questionId(qq.year, qq.q_index);
+      const row = a[id];
+      if (!row) fresh.push(qq);
+      else if (recycle && !row.first_correct && now - Date.parse(row.updated_at) >= afterMs) due.push(qq);
+    }
+    // include up to `reviewCap` due-review questions, fill the rest with new
+    const reviewCount = Math.min(reviewCap, due.length, remaining);
+    const fresher = fresh.slice(0, Math.max(0, remaining - reviewCount));
+    setReviewMode(false);
+    setTodayQueue([...due.slice(0, reviewCount), ...fresher]);
+  }, [all, settings]);
+
+  // build a review-only set from every currently-missed question, presented
+  // fresh (answer hidden) for a second attempt
+  const startReview = useCallback(() => {
+    if (!all) return;
+    const a = answersRef.current;
+    const missed = all.filter((qq) => {
+      const row = a[questionId(qq.year, qq.q_index)];
+      return row && !row.correct;
+    });
+    setReviewMode(true);
+    setTodayQueue(missed.slice(0, 30));
+    setMode("today"); setQi(0);
+  }, [all]);
+
+  useEffect(() => {
+    if (persist && answersLoaded) buildToday();
+  }, [persist, answersLoaded, buildToday]);
+
+  // admins: load the member list (for the approvals panel + pending badge)
+  const adminLoggedIn = isConfigured && profile?.role === "admin";
+  useEffect(() => {
+    if (adminLoggedIn) listProfiles().then(setProfiles);
+  }, [adminLoggedIn, showApprovals]);
+
+  const actOnProfile = async (id: string, patch: Partial<Pick<Profile, "status" | "role">>) => {
+    await updateProfile(id, patch);
+    listProfiles().then(setProfiles);
+  };
+
+  // load the real bank once
+  useEffect(() => {
+    fetch("/data/questions.json")
+      .then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then((data: RawQuestion[]) => setAll(data))
+      .catch((e) => setLoadErr(String(e)));
+  }, []);
+
+  const years = useMemo(
+    () => (all ? Array.from(new Set(all.map((q) => q.year))).sort() : []),
+    [all]
+  );
+  const browseSet = useMemo(
+    () => (all ? (year === "all" ? all : all.filter((q) => q.year === year)) : []),
+    [all, year]
+  );
+  const byId = useMemo(() => {
+    const m = new Map<string, RawQuestion>();
+    if (all) for (const qq of all) m.set(questionId(qq.year, qq.q_index), qq);
+    return m;
+  }, [all]);
+  const inToday = persist && mode === "today";
+  const inCustom = persist && mode === "custom";
+  const set = inToday ? todayQueue : inCustom ? customQueue : browseSet;
+  const q = set[qi];
+
+  // reset tab + load this question's notes (mine + group) on navigation
+  useEffect(() => {
+    setTab("explanation"); setDraft(""); setStats(null); setCard(null); setEditCard(null);
+    const cur = set[qi];
+    const qid = cur ? questionId(cur.year, cur.q_index) : null;
+    if (qid && persist) {
+      getMyNote(qid).then(setMyNote);
+      getGroupNotes(qid).then(setGroupNotes);
+    } else { setMyNote(""); setGroupNotes([]); }
+  }, [qi, year, persist, mode]); // eslint-disable-line
+
+  // lazy-load the cached flashcard when the Flashcard tab is opened
+  useEffect(() => {
+    if (tab !== "flash" || !persist || card) return;
+    const cur = set[qi];
+    if (cur) getFlashcard(questionId(cur.year, cur.q_index)).then((c) => { if (c) setCard(c); });
+  }, [tab, qi, persist, mode]); // eslint-disable-line
+
+  // per-question class stats: fetch once the answer is revealed
+  useEffect(() => {
+    if (!revealed || !persist) { setStats(null); return; }
+    const cur = set[qi];
+    if (!cur) return;
+    getQuestionStats(questionId(cur.year, cur.q_index)).then(setStats);
+  }, [revealed, qi, year, persist, mode]); // eslint-disable-line
+
+  // leaderboard: (re)load whenever the modal opens
+  useEffect(() => {
+    if (showBoard && persist) getLeaderboard().then(setLeaders);
+  }, [showBoard, persist]);
+
+  // restore a prior answer (reveal state) on navigation. In review mode the
+  // question is presented FRESH (answer hidden) so you get another attempt.
+  // Keyed on qi/year/reviewMode/answersLoaded (not `answers`) so submitting an
+  // answer doesn't re-hide what you just revealed.
+  useEffect(() => {
+    const cur = set[qi];
+    const qid = cur ? questionId(cur.year, cur.q_index) : null;
+    const prior = qid ? answers[qid] : undefined;
+    if (!reviewMode && prior) { setPicked(prior.picked); setRevealed(true); }
+    else { setPicked([]); setRevealed(false); }
+  }, [qi, year, reviewMode, answersLoaded, mode]); // eslint-disable-line
+
+  useEffect(() => {
+    if (qi >= set.length && set.length) setQi(0);
+  }, [set.length]); // eslint-disable-line
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2600);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  useEffect(() => {
+    const el = tabRefs.current[tab];
+    if (el) setInd({ left: el.offsetLeft, width: el.offsetWidth, top: el.offsetTop + el.offsetHeight - 1 });
+  }, [tab, revealed, qi]);
+
+  const fire = (msg: string) => setToast(msg);
+
+  const prefersReduced = () =>
+    typeof window !== "undefined" && window.matchMedia &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const fireConfetti = () => {
+    const canvas = confettiRef.current;
+    if (!canvas || prefersReduced()) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const dpr = window.devicePixelRatio || 1;
+    const W = canvas.clientWidth, H = canvas.clientHeight;
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const colors = [T.teal, T.gold, "#e07a5f", "#1a7a4a", "#ffffff", T.tealDeep, "#f2c14e"];
+    const cx = W / 2, cy = H * 0.34, N = 150;
+    const parts = Array.from({ length: N }).map(() => {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 4 + Math.random() * 8;
+      return {
+        x: cx + (Math.random() - 0.5) * 70, y: cy + (Math.random() - 0.5) * 24,
+        vx: Math.cos(a) * sp * (0.5 + Math.random() * 0.9),
+        vy: Math.sin(a) * sp - (4 + Math.random() * 5),
+        g: 0.17 + Math.random() * 0.13, size: 5 + Math.random() * 7,
+        rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.35,
+        color: colors[(Math.random() * colors.length) | 0],
+        rect: Math.random() > 0.5, life: 0, ttl: 95 + Math.random() * 45,
+      };
+    });
+    let frame = 0;
+    const draw = () => {
+      ctx.clearRect(0, 0, W, H);
+      let alive = false;
+      for (const p of parts) {
+        if (p.life > p.ttl) continue;
+        alive = true; p.life++;
+        p.vy += p.g; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, 1 - p.life / p.ttl);
+        ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillStyle = p.color;
+        if (p.rect) ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+        else { ctx.beginPath(); ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2); ctx.fill(); }
+        ctx.restore();
+      }
+      frame++;
+      if (alive && frame < 240) requestAnimationFrame(draw);
+      else ctx.clearRect(0, 0, W, H);
+    };
+    requestAnimationFrame(draw);
+  };
+
+  // --- auth gate (only when Supabase is configured) ---
+  if (isConfigured && authLoading) return <Center>Signing you in…</Center>;
+  if (isConfigured && !session) return <SignIn />;
+  if (isConfigured && session && (!profile || profile.status !== "approved"))
+    return <Pending email={session.user.email ?? ""} status={profile?.status ?? "pending"} />;
+  if (isConfigured && session && profile && profile.status === "approved" && !profile.training_level)
+    return <TrainingLevelGate onSaved={reloadProfile} />;
+
+  if (loadErr) return <Center>Couldn’t load the question bank: {loadErr}</Center>;
+  if (!all) return <Center>Loading the PRITE bank…</Center>;
+  if (!q) {
+    if (persist && mode === "today") {
+      return (
+        <div style={{ ...s.root, display: "grid", placeItems: "center", padding: 40 }}>
+          <style>{CSS}</style>
+          <div style={{ textAlign: "center", color: "#c7ccd6", maxWidth: 360 }}>
+            {!answersLoaded ? "Building today’s set…" : (
+              <>
+                <p style={{ fontSize: 16, marginBottom: 16 }}>🎉 You’re all caught up — nothing due today.</p>
+                <button style={s.jumpBtn} onClick={() => { setMode("browse"); setQi(0); }}>Browse all questions</button>
+              </>
+            )}
+          </div>
+        </div>
+      );
+    }
+    return <Center>No questions for this filter.</Center>;
+  }
+
+  const correctSet = q.answer_letters && q.answer_letters.length ? q.answer_letters
+    : q.answer_letter ? [q.answer_letter] : [];
+  const isCorrect =
+    revealed && picked.length > 0 &&
+    picked.length === correctSet.length && picked.every((l) => correctSet.includes(l));
+
+  const togglePick = (key: string) => {
+    if (revealed) return;
+    setPicked((cur) =>
+      q.multi_select
+        ? (cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key])
+        : [key]
+    );
+  };
+
+  const submit = async () => {
+    if (!picked.length) return;
+    setRevealed(true);
+    const right =
+      picked.length === correctSet.length && picked.every((l) => correctSet.includes(l));
+    if (right) setTimeout(fireConfetti, 140);
+    if (persist && q) {
+      const qid = questionId(q.year, q.q_index);
+      const saved = await saveAnswer(qid, picked, right);
+      if (saved) setAnswers((m) => ({ ...m, [qid]: saved }));
+    }
+  };
+
+  const go = (delta: number) => setQi((i) => (i + delta + set.length) % set.length);
+  const doJump = () => {
+    const n = parseInt(jump, 10);
+    if (!isNaN(n) && n >= 1 && n <= set.length) setQi(n - 1);
+    setJump("");
+  };
+
+  const hasExpl = q.explanation_text || q.explanation_images.length > 0;
+  const hasDiagram = !!(q.diagram?.code || (q.comparison_table && q.comparison_table.rows?.length));
+  const tabs: [string, string, React.ReactNode][] = [
+    ["explanation", "Explanation", <Layers size={14} strokeWidth={2.2} />],
+    ["practice", "In practice", <Stethoscope size={14} strokeWidth={2.2} />],
+    ...(hasDiagram
+      ? ([["diagram", "Diagram", <Network size={14} strokeWidth={2.2} />]] as [string, string, React.ReactNode][])
+      : []),
+    ["video", "Video", <Youtube size={14} strokeWidth={2.2} />],
+    ["mine", "My notes", <NotebookPen size={14} strokeWidth={2.2} />],
+    ["group", "Group notes", <Users size={14} strokeWidth={2.2} />],
+    ["flash", "Flashcard", <Sparkles size={14} strokeWidth={2.2} />],
+  ];
+
+  const qid = questionId(q.year, q.q_index);
+  const isAdmin = profile?.role === "admin";
+  const pendingCount = profiles.filter((p) => p.status === "pending").length;
+  const answeredCount = Object.keys(answers).length;
+  // progress is derived from answers dated today (persists across refresh),
+  // not from the live queue (which rebuilds and drops answered questions)
+  const target = settings?.regimen ?? 10;
+  const doneToday = Object.values(answers).filter((a) => isSameDay(a.updated_at)).length;
+  const dayComplete = inToday && doneToday >= target;
+  const missedOutstanding = Object.values(answers).filter((a) => !a.correct).length;
+  const examDays = settings?.exam_date ? daysUntil(settings.exam_date) : null;
+  const switchMode = (m: "today" | "browse" | "custom") => { setMode(m); setQi(0); setReviewMode(false); };
+  // start a custom study session from a hand-picked set (from the Search modal)
+  const startCustom = (qs: RawQuestion[], label: string) => {
+    if (!qs.length) return;
+    setCustomQueue(qs);
+    setCustomLabel(label);
+    setMode("custom"); setQi(0); setReviewMode(false);
+    setShowDeck(false);
+    fire(`Studying ${qs.length} question${qs.length === 1 ? "" : "s"}${label ? ` · ${label}` : ""}`);
+  };
+  // clicking the Custom toggle: jump back into an existing set, or open the picker
+  const goCustom = () => {
+    if (customQueue.length) switchMode("custom");
+    else setShowDeck(true);
+  };
+  const saveSettingsNow = async (patch: Partial<Settings>) => {
+    setSettings((s) => (s ? { ...s, ...patch } : s));
+    await saveSettings(patch);
+  };
+  const displayName = profile?.full_name || profile?.email || session?.user.email || "You";
+  const isAnswered = Boolean(answers[qid]);
+
+  const saveNoteNow = () => { if (persist) saveMyNote(qid, myNote); };
+  const doExportMine = async () => {
+    if (myNote.trim()) await saveMyNote(qid, myNote); // flush the current one first
+    const notes = await getAllMyNotes();
+    if (!notes.length) { fire("No notes to export yet"); return; }
+    exportMyNotes(notes, byId, answers, displayName);
+    fire(`Exported ${notes.length} note${notes.length === 1 ? "" : "s"} → study sheet`);
+  };
+  const doExportGroup = async () => {
+    const g = await getAllGroupNotes();
+    if (!g.length) { fire("No group notes to export yet"); return; }
+    exportGroupNotes(g, byId);
+    fire(`Exported ${g.length} group comment${g.length === 1 ? "" : "s"}`);
+  };
+  const missedIds = Object.entries(answers).filter(([, a]) => !a.correct).map(([id]) => id);
+  const openMissed = async () => {
+    const notes = await getAllMyNotes();
+    setAllMyNotes(Object.fromEntries(notes.map((n) => [n.question_id, n.text])));
+    setShowMissed(true);
+  };
+  const doExportMissed = () => {
+    exportMissed(missedIds, byId, answers, allMyNotes, displayName);
+    fire(`Exported ${missedIds.length} missed question${missedIds.length === 1 ? "" : "s"}`);
+  };
+  const doGenerateCard = async (force = false) => {
+    setCardBusy(true);
+    const res = await generateFlashcard({
+      question_id: qid, stem: q.stem, options: q.options,
+      answer_letter: q.answer_letter, answer_text: q.answer_text, force,
+    });
+    setCardBusy(false);
+    if ("error" in res) { fire("Flashcard error: " + res.error); return; }
+    setCard(res); setEditCard(null);
+    if (!force) fire(res.cached ? "Loaded the class card" : "Card generated & cached for the class");
+  };
+  const doSaveCard = async () => {
+    if (!editCard) return;
+    await saveFlashcard(qid, editCard.cloze, editCard.extra);
+    setCard({ question_id: qid, cloze_text: editCard.cloze, extra: editCard.extra });
+    setEditCard(null);
+    fire("Canonical card updated for the class");
+  };
+  const doDownloadCard = async () => {
+    if (!card) return;
+    fire("Building .apkg…");
+    const { buildApkg } = await import("./lib/apkg");
+    await buildApkg([{ questionId: qid, cloze: card.cloze_text, lecture: ankingLecture(q) }], `prite-${qid}.apkg`);
+    fire("Downloaded — double-click to import into Anki");
+  };
+  const postGroupNote = async () => {
+    if (!draft.trim() || !persist) return;
+    await addGroupNote(qid, draft.trim());
+    setDraft("");
+    setGroupNotes(await getGroupNotes(qid));
+  };
+  const removeGroupNote = async (id: string) => {
+    await deleteGroupNote(id);
+    setGroupNotes((ns) => ns.filter((n) => n.id !== id));
+  };
+
+  return (
+    <div style={s.root}>
+      <style>{CSS}</style>
+
+      {/* Top bar */}
+      <header style={s.top}>
+        <div style={s.topInner}>
+          <div style={s.brand}>
+            <span style={s.brandMark}><Stethoscope size={16} strokeWidth={2.4} /></span>
+            <span style={s.brandName}>PRITE&nbsp;<span style={{ color: T.faint, fontWeight: 500 }}>Daily</span></span>
+          </div>
+          <div style={s.topMeta}>
+            <span style={s.countdown}>
+              {examDays !== null
+                ? <><span style={{ ...s.countNum, color: examDays <= 14 ? "#e07a5f" : T.gold }}>{examDays}</span> {examDays === 1 ? "day" : "days"} to exam</>
+                : <><span style={s.countNum}>{all.length}</span> questions</>}
+              {persist && <> · <span style={s.countNum}>{answeredCount}</span> done</>}
+            </span>
+            {persist ? (
+              <span style={s.who}>
+                <button style={s.approveBtn} onClick={() => setShowBoard(true)}>
+                  <Trophy size={13} strokeWidth={2.3} /> Leaderboard
+                </button>
+                <button style={s.approveBtn} onClick={() => setShowStats(true)}>
+                  <TrendingUp size={13} strokeWidth={2.3} /> Statistics
+                </button>
+                <button style={s.approveBtn} onClick={() => setShowInsights(true)}>
+                  <BarChart3 size={13} strokeWidth={2.3} /> Residency Insights
+                </button>
+                {isAdmin && (
+                  <button style={s.approveBtn} onClick={() => setShowApprovals(true)}>
+                    <ShieldCheck size={13} strokeWidth={2.3} /> Approvals
+                    {pendingCount > 0 && <span style={s.pendingBadge}>{pendingCount}</span>}
+                  </button>
+                )}
+                <button style={s.signOut} title="Settings" onClick={() => setShowSettings(true)}>
+                  <SettingsIcon size={14} strokeWidth={2.2} />
+                </button>
+                <span style={s.avatarSm}>{(displayName[0] || "?").toUpperCase()}</span>
+                <span style={s.adminTag}>
+                  {isAdmin && <ShieldCheck size={11} strokeWidth={2.5} />}
+                  {isAdmin ? "Admin" : (profile?.role ?? "")}
+                </span>
+                <button style={s.signOut} title="Sign out" onClick={() => signOut()}>
+                  <LogOut size={13} strokeWidth={2.2} />
+                </button>
+              </span>
+            ) : (
+              <span style={s.adminTag}>local preview</span>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <main style={s.well}>
+        {/* Navigation / filter row */}
+        <div style={s.nav}>
+          {persist && (
+            <div style={s.modeToggle}>
+              <button style={{ ...s.modeBtn, ...(mode === "today" ? s.modeOn : {}) }} onClick={() => switchMode("today")}>
+                <Sparkles size={13} strokeWidth={2.2} /> Today
+              </button>
+              <button style={{ ...s.modeBtn, ...(mode === "custom" ? s.modeOn : {}) }} onClick={goCustom} title="Build a study set by topic, year, drug or diagnosis">
+                <Target size={13} strokeWidth={2.2} /> Custom
+              </button>
+              <button style={{ ...s.modeBtn, ...(mode === "browse" ? s.modeOn : {}) }} onClick={() => switchMode("browse")}>
+                <Layers size={13} strokeWidth={2.2} /> Browse
+              </button>
+            </div>
+          )}
+          <button style={s.deckBtn} onClick={() => setShowDeck(true)} title="Search & filter questions">
+            <Search size={13} strokeWidth={2.4} /> Search
+          </button>
+          {inToday ? (
+            <>
+              <span style={s.todayProg}>
+                <Target size={13} strokeWidth={2.3} color={dayComplete ? T.teal : T.faint} />
+                <b style={{ color: dayComplete ? T.teal : "#e7eaf0" }}>{doneToday}</b>
+                <span style={{ color: T.faint }}>/ {target} today</span>
+              </span>
+              {missedOutstanding > 0 && (
+                <button style={s.missChip} onClick={openMissed} title="Read & review your missed questions">
+                  <Flame size={12} strokeWidth={2.2} color={T.gold} />
+                  <span>
+                    {missedOutstanding} learning {missedOutstanding === 1 ? "opportunity" : "opportunities"}
+                  </span>
+                </button>
+              )}
+            </>
+          ) : inCustom ? (
+            <span style={s.todayProg}>
+              <Target size={13} strokeWidth={2.3} color={T.teal} />
+              <b style={{ color: "#e7eaf0" }}>{set.length}</b>
+              <span style={{ color: T.faint }}>custom{customLabel ? ` · ${customLabel}` : ""}</span>
+              <button style={s.customEdit} onClick={() => setShowDeck(true)} title="Change this set">
+                <Pencil size={11} strokeWidth={2.3} /> Edit
+              </button>
+            </span>
+          ) : (
+            <select value={year} onChange={(e) => { setYear(e.target.value); setQi(0); }} style={s.sel}>
+              <option value="all">All years ({all.length})</option>
+              {years.map((y) => (
+                <option key={y} value={y}>{y} ({all.filter((x) => x.year === y).length})</option>
+              ))}
+            </select>
+          )}
+          <div style={s.navMid}>
+            <button style={s.navBtn} onClick={() => go(-1)} title="Previous"><ArrowLeft size={16} strokeWidth={2.4} /></button>
+            <span style={s.navInfo}>{qi + 1} <span style={{ color: T.faint }}>/ {set.length}</span></span>
+            <button style={s.navBtn} onClick={() => go(1)} title="Next"><ArrowRight size={16} strokeWidth={2.4} /></button>
+          </div>
+          {!inToday && (
+            <div style={s.jumpWrap}>
+              <input
+                value={jump} onChange={(e) => setJump(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && doJump()}
+                placeholder="Jump #" style={s.jump} inputMode="numeric"
+              />
+              <button style={s.jumpBtn} onClick={doJump}>Go</button>
+            </div>
+          )}
+        </div>
+
+        {dayComplete && (
+          <div style={s.doneBanner} className="slidein">
+            <span style={s.doneIcon}><Check size={15} strokeWidth={3} color="#fff" /></span>
+            <span><b>That's your {target} for today.</b> Nice work — come back tomorrow for a fresh set.</span>
+            <button style={s.doneBtn} onClick={() => { buildToday(true); setQi(0); }}><RotateCcw size={13} strokeWidth={2.3} /> Another set</button>
+            <button style={{ ...s.doneBtn, background: "transparent" }} onClick={() => switchMode("browse")}>Browse all</button>
+          </div>
+        )}
+
+        {/* Provenance line */}
+        <div style={s.progressRow}>
+          <span style={s.qeyebrow}>{q.year} · Q{q.q_index} <span style={{ color: T.faint }}>(slide {q.slide_number})</span></span>
+          {reviewMode && <span style={{ ...s.multiTag, color: T.teal, background: T.tealSoft }}><RotateCcw size={12} strokeWidth={2.2} /> Reviewing missed — try again</span>}
+          {q.multi_select && <span style={s.multiTag}><ListChecks size={12} strokeWidth={2.2} /> Select all that apply</span>}
+        </div>
+
+        {/* Question card */}
+        <section style={s.qcard}>
+          {q.figure_images.filter((p) => imgSrc(p)).length > 0 && (
+            <div style={s.figRow}>
+              {q.figure_images.filter((p) => imgSrc(p)).map((p, i) => (
+                <img key={i} src={imgSrc(p)} alt="question figure" style={s.figImg} loading="lazy" />
+              ))}
+            </div>
+          )}
+          <p style={s.stem}>{q.stem}</p>
+
+          <div style={s.options}>
+            {q.options.map((o, oi) => {
+              const chosen = picked.includes(o.letter);
+              const correct = revealed && correctSet.includes(o.letter);
+              const wrongPick = revealed && chosen && !correctSet.includes(o.letter);
+              const base: React.CSSProperties = { ...s.opt };
+              if (!revealed && chosen) Object.assign(base, s.optChosen);
+              if (correct) Object.assign(base, s.optCorrect);
+              if (wrongPick) Object.assign(base, s.optWrong);
+              const total = stats?.attempts ?? 0;
+              const cnt = stats?.distribution?.[o.letter] ?? 0;
+              const pct = total > 0 ? Math.round((cnt / total) * 100) : 0;
+              const showDist = revealed && stats && total > 0;
+              return (
+                <button
+                  key={o.letter}
+                  onClick={() => togglePick(o.letter)}
+                  disabled={revealed}
+                  style={base}
+                  className={"opt" + (correct ? " pop" : "")}
+                >
+                  {showDist && (
+                    <span
+                      className="dist"
+                      style={{
+                        ...s.dist,
+                        width: `${pct}%`,
+                        animationDelay: `${oi * 70}ms`,
+                        background: correct ? T.correctBg : wrongPick ? T.wrongBg : "#eef0f3",
+                      }}
+                    />
+                  )}
+                  <span style={{
+                    ...s.optKey, position: "relative", zIndex: 1,
+                    borderColor: correct ? T.correctLine : wrongPick ? T.wrongLine : (chosen && !revealed ? T.teal : T.paperEdge),
+                    color: correct ? T.correctText : wrongPick ? T.wrongText : (chosen && !revealed ? T.teal : T.muted),
+                  }}>{o.letter}</span>
+                  <span style={{ ...s.optText, position: "relative", zIndex: 1 }}>{o.text}</span>
+                  {revealed && (
+                    <span style={{ ...s.optRight, position: "relative", zIndex: 1 }}>
+                      {showDist && <span style={{ ...s.optPct, color: correct ? T.correctText : wrongPick ? T.wrongText : T.faint }}>{pct}%</span>}
+                      {correct && <Check size={16} strokeWidth={3} color={T.correctLine} />}
+                      {wrongPick && <X size={16} strokeWidth={3} color={T.wrongLine} />}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {!revealed ? (
+            <div style={s.actionRow}>
+              <span style={s.actionHint}>
+                {picked.length ? `Selected ${picked.slice().sort().join(", ")}` : (q.multi_select ? "Choose all that apply" : "Choose an answer")}
+              </span>
+              <button
+                style={{ ...s.primary, opacity: picked.length ? 1 : 0.45, cursor: picked.length ? "pointer" : "not-allowed" }}
+                onClick={submit}
+              >
+                Submit{q.multi_select && picked.length ? ` (${picked.length})` : ""}
+              </button>
+            </div>
+          ) : (
+            <div style={{ ...s.verdict, background: isCorrect ? T.correctBg : T.wrongBg, borderColor: isCorrect ? T.correctLine : T.wrongLine }} className="slidein">
+              <span style={{ ...s.verdictIcon, background: isCorrect ? T.correctLine : T.wrongLine }}>
+                {isCorrect ? <Check size={15} strokeWidth={3} color="#fff" /> : <X size={15} strokeWidth={3} color="#fff" />}
+              </span>
+              <span style={{ color: isCorrect ? T.correctText : T.wrongText, fontWeight: 600 }}>
+                {isCorrect ? "Correct" : "Not quite"}
+              </span>
+              <span style={s.verdictMeta}>
+                Answer: <b style={{ color: T.text }}>{correctSet.join(", ")}</b>
+                {q.answer_text ? ` — ${q.answer_text}` : ""}
+                {stats && stats.attempts > 0 && (
+                  <> · <b style={{ color: T.text }}>{stats.pct_correct}%</b> of the class · {stats.attempts} {stats.attempts === 1 ? "attempt" : "attempts"}</>
+                )}
+              </span>
+            </div>
+          )}
+        </section>
+
+        {/* Tabs */}
+        {revealed && (
+          <section style={s.below}>
+            <nav style={s.tabs}>
+              {tabs.map(([id, label, icon]) => (
+                <button
+                  key={id}
+                  ref={(el) => (tabRefs.current[id] = el)}
+                  onClick={() => setTab(id)}
+                  style={{ ...s.tab, ...(tab === id ? s.tabActive : {}) }}
+                  className="tab"
+                >
+                  {icon}{label}
+                  {id === "group" && groupNotes.length > 0 && <span style={s.tabCount}>{groupNotes.length}</span>}
+                </button>
+              ))}
+              <span className="tabInd" style={{ ...s.tabInd, left: ind.left, width: ind.width, top: ind.top }} />
+            </nav>
+
+            <div style={s.panel}>
+              {tab === "explanation" && (
+                <div className="fade">
+                  {q.explanation_text && <p style={s.expl}>{q.explanation_text}</p>}
+                  {q.explanation_images.filter((p) => imgSrc(p)).map((p, i) => (
+                    <img key={i} src={imgSrc(p)} alt="explanation" style={s.explImg} loading="lazy" />
+                  ))}
+                  {!hasExpl && (
+                    <div style={s.emptyExpl}>
+                      <ImageIcon size={18} strokeWidth={1.8} color={T.faint} />
+                      <span>No explanation slide for this question in the {q.year} deck.</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {tab === "practice" && (
+                <div className="fade">
+                  {q.clinical_application ? (
+                    <>
+                      <label style={s.lbl}>How a resident would use this — an example scenario</label>
+                      <p style={s.expl}>{q.clinical_application}</p>
+                    </>
+                  ) : (
+                    <div style={s.emptyExpl}>
+                      <Stethoscope size={18} strokeWidth={1.8} color={T.faint} />
+                      <span>No clinical scenario yet for this question.</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {tab === "video" && (
+                <div className="fade">
+                  <label style={s.lbl}>Related videos · opens a YouTube search in a new tab</label>
+                  <a
+                    style={s.videoLink}
+                    href={`https://www.youtube.com/results?search_query=${encodeURIComponent(
+                      q.video_query || `${q.answer_text || ""} psychiatry`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Youtube size={18} strokeWidth={2} />
+                    <span style={{ flex: 1 }}>
+                      Search YouTube for: <b>{q.video_query || `${q.answer_text || "this topic"} psychiatry`}</b>
+                    </span>
+                    <ExternalLink size={15} strokeWidth={2} />
+                  </a>
+                  <p style={s.videoNote}>
+                    We surface a focused search rather than a single embed so the link never breaks. Faculty can pin a
+                    specific video here later.
+                  </p>
+                </div>
+              )}
+
+              {tab === "diagram" && (
+                <div className="fade">
+                  {q.diagram?.code && (
+                    <div style={{ marginBottom: q.comparison_table ? 22 : 0 }}>
+                      <label style={s.lbl}>Concept diagram</label>
+                      <div style={s.diagramBox}>
+                        <MermaidDiagram code={q.diagram.code} />
+                      </div>
+                      {q.diagram.caption && <p style={s.diagramCaption}>{q.diagram.caption}</p>}
+                    </div>
+                  )}
+                  {q.comparison_table && q.comparison_table.rows?.length > 0 && (
+                    <div>
+                      {q.comparison_table.title && <label style={s.lbl}>{q.comparison_table.title}</label>}
+                      <div style={{ overflowX: "auto" }}>
+                        <table style={s.cmpTable}>
+                          <thead>
+                            <tr>
+                              {q.comparison_table.headers.map((h, i) => (
+                                <th key={i} style={s.cmpTh}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {q.comparison_table.rows.map((row, ri) => (
+                              <tr key={ri}>
+                                {row.map((cell, ci) => (
+                                  <td key={ci} style={s.cmpTd}>{cell}</td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {tab === "mine" && (
+                <div className="fade">
+                  <label style={s.lbl}>Private to you · saved to your account</label>
+                  <textarea
+                    value={myNote} onChange={(e) => setMyNote(e.target.value)}
+                    onBlur={saveNoteNow}
+                    placeholder="Jot your own reasoning, a mnemonic, where you went wrong…"
+                    style={s.textarea}
+                  />
+                  <div style={s.saveRow}>
+                    <span style={{ ...s.savedDot, opacity: myNote ? 1 : 0.3 }} />
+                    <span style={s.savedTxt}>{persist ? "Saved when you click away" : "Sign in to save"}</span>
+                    <button style={s.ghost} onClick={doExportMine}>
+                      <Download size={13} strokeWidth={2.2} /> Export my notes
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {tab === "group" && (
+                <div className="fade">
+                  <div style={s.threadHead}>
+                    <label style={s.lbl}>Shared with your class · attributed</label>
+                    <button style={s.ghost} onClick={doExportGroup}>
+                      <Download size={13} strokeWidth={2.2} /> Export group notes
+                    </button>
+                  </div>
+                  <div style={s.thread}>
+                    {groupNotes.map((n) => {
+                      const name = n.author?.full_name || n.author?.email || "Member";
+                      const role = n.author?.role ?? "";
+                      const canDelete = isAdmin || n.author_id === session?.user.id;
+                      return (
+                        <div key={n.id} style={s.note}>
+                          <span style={{ ...s.avatar, background: role === "faculty" || role === "admin" ? T.tealDeep : T.inkSoft }}>{initials(name)}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={s.noteMeta}>
+                              <b style={s.noteAuthor}>{name}</b>
+                              {role && <span style={s.roleTag}>{role}</span>}
+                              <span style={s.noteTime}>{ago(n.created_at)}</span>
+                              {canDelete && (
+                                <button style={s.del} title="Remove" onClick={() => removeGroupNote(n.id)}>
+                                  <Trash2 size={13} strokeWidth={2} />
+                                </button>
+                              )}
+                            </div>
+                            <p style={s.noteText}>{n.text}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {!groupNotes.length && <p style={s.emptyNote}>No class notes on this question yet.</p>}
+                  </div>
+                  <div style={s.addRow}>
+                    <span style={{ ...s.avatar, background: T.teal }}>{(displayName[0] || "?").toUpperCase()}</span>
+                    <input
+                      value={draft} onChange={(e) => setDraft(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") postGroupNote(); }}
+                      placeholder="Add a note for the class…" style={s.addInput}
+                    />
+                    <button style={{ ...s.primarySm, opacity: draft.trim() ? 1 : 0.45 }} onClick={postGroupNote}>Post</button>
+                  </div>
+                </div>
+              )}
+
+              {tab === "flash" && (
+                <div className="fade">
+                  {!card && !editCard && (
+                    <div style={s.flashEmpty}>
+                      <Sparkles size={20} strokeWidth={1.9} color={T.teal} />
+                      <p style={{ margin: "8px 0 14px", color: T.muted, fontSize: 14, lineHeight: 1.5 }}>
+                        Turn this question into an Anki cloze card. Generated once by AI, then cached for the whole class.
+                      </p>
+                      <button style={{ ...s.primarySm, opacity: cardBusy ? 0.5 : 1 }} disabled={cardBusy} onClick={() => doGenerateCard(false)}>
+                        <Sparkles size={14} strokeWidth={2.2} /> {cardBusy ? "Generating…" : "Generate flashcard"}
+                      </button>
+                    </div>
+                  )}
+
+                  {card && !editCard && (
+                    <>
+                      <div style={s.cardChrome}>
+                        <div style={s.cardChromeHead}>
+                          <span style={s.cardType}>Cloze</span>
+                          <span style={s.cardCached}><Sparkles size={12} strokeWidth={2.2} /> cached for the class</span>
+                          {isAdmin && (
+                            <button style={s.tinyBtn} onClick={() => setEditCard({ cloze: card.cloze_text, extra: card.extra })}>
+                              <Pencil size={12} strokeWidth={2.2} /> Refine
+                            </button>
+                          )}
+                        </div>
+                        <span style={s.fieldLbl}>Text</span>
+                        <code style={s.clozeRaw}>{renderClozeRaw(card.cloze_text)}</code>
+                        <div style={s.clozePreview}>{renderClozePreview(card.cloze_text)}</div>
+                        <span style={{ ...s.fieldLbl, marginTop: 14 }}>Extra <span style={{ color: T.faint, fontWeight: 500 }}>· shown under the answer</span></span>
+                        <div style={s.extra}><p style={{ ...s.extraLine, marginBottom: 0 }}>{card.extra}</p></div>
+                      </div>
+                      <div style={s.flashActions}>
+                        <button style={s.primarySm} onClick={doDownloadCard}><Download size={14} strokeWidth={2.2} /> Download for Anki</button>
+                        {isAdmin && <button style={s.ghost} onClick={() => doGenerateCard(true)} disabled={cardBusy}><RotateCcw size={13} strokeWidth={2.2} /> Regenerate</button>}
+                        <span style={s.flashNote}>Imports as a Cloze note · Extra carries the Q&A</span>
+                      </div>
+                    </>
+                  )}
+
+                  {editCard && (
+                    <div style={s.cardChrome}>
+                      <span style={s.fieldLbl}>Text (cloze)</span>
+                      <textarea value={editCard.cloze} onChange={(e) => setEditCard({ ...editCard, cloze: e.target.value })} style={s.clozeEdit} />
+                      <span style={{ ...s.fieldLbl, marginTop: 12 }}>Extra</span>
+                      <textarea value={editCard.extra} onChange={(e) => setEditCard({ ...editCard, extra: e.target.value })} style={{ ...s.clozeEdit, minHeight: 80, fontFamily: "inherit" }} />
+                      <div style={{ ...s.flashActions, marginTop: 12 }}>
+                        <button style={s.primarySm} onClick={doSaveCard}><Check size={14} strokeWidth={2.4} /> Save canonical</button>
+                        <button style={s.ghost} onClick={() => setEditCard(null)}>Cancel</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div style={s.nextRow}>
+              <button style={s.next} onClick={() => go(1)}>
+                Next question <ArrowRight size={16} strokeWidth={2.4} />
+              </button>
+            </div>
+          </section>
+        )}
+      </main>
+
+      {showApprovals && isAdmin && (
+        <Approvals
+          profiles={profiles}
+          onClose={() => setShowApprovals(false)}
+          onAct={actOnProfile}
+        />
+      )}
+
+      {showBoard && (
+        <Leaderboard rows={leaders} meId={session?.user.id} onClose={() => setShowBoard(false)} />
+      )}
+
+      {showStats && <Stats answers={answers} byId={byId} displayName={displayName} onClose={() => setShowStats(false)} />}
+
+      {showInsights && <Insights onClose={() => setShowInsights(false)} />}
+
+      {showDeck && all && (
+        <DeckBuilder
+          all={all} byId={byId} fire={fire}
+          onClose={() => setShowDeck(false)}
+          onOpen={(qid) => {
+            const idx = all.findIndex((qq) => questionId(qq.year, qq.q_index) === qid);
+            if (idx >= 0) { setMode("browse"); setYear("all"); setQi(idx); setShowDeck(false); }
+          }}
+          onStudy={startCustom}
+        />
+      )}
+
+      {showSettings && settings && (
+        <SettingsPanel
+          settings={settings}
+          onChange={saveSettingsNow}
+          onRebuild={() => { buildToday(); setQi(0); }}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
+
+      {showMissed && (
+        <MissedPanel
+          missedIds={missedIds}
+          byId={byId}
+          answers={answers}
+          notes={allMyNotes}
+          onReview={() => { startReview(); setShowMissed(false); }}
+          onExport={doExportMissed}
+          onClose={() => setShowMissed(false)}
+        />
+      )}
+
+      <canvas ref={confettiRef} style={s.confetti} />
+      {toast && <div style={s.toast} className="toast">{toast}</div>}
+    </div>
+  );
+}
+
+function Center({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ ...s.root, display: "grid", placeItems: "center", color: "#c7ccd6", fontFamily: "'Space Grotesk', system-ui, sans-serif", padding: 40, textAlign: "center" }}>
+      <div>{children}</div>
+    </div>
+  );
+}
+
+function SignIn() {
+  return (
+    <div style={s.gateRoot}>
+      <style>{CSS}</style>
+      <div style={s.gateCard}>
+        <span style={s.gateMark}><Stethoscope size={22} strokeWidth={2.3} color="#fff" /></span>
+        <h1 style={s.gateTitle}>PRITE Daily</h1>
+        <p style={s.gateSub}>Daily PRITE practice for the residency. Sign in with your Google account to continue.</p>
+        <button style={s.googleBtn} onClick={() => signInWithGoogle()}>
+          <GoogleG /> Sign in with Google
+        </button>
+        <p style={s.gateFine}>Residents on the roster are approved automatically. Faculty &amp; alumni are approved by an admin.</p>
+      </div>
+    </div>
+  );
+}
+
+function Pending({ email, status }: { email: string; status: string }) {
+  return (
+    <div style={s.gateRoot}>
+      <style>{CSS}</style>
+      <div style={s.gateCard}>
+        <span style={{ ...s.gateMark, background: T.gold }}><Clock size={22} strokeWidth={2.3} color="#fff" /></span>
+        <h1 style={s.gateTitle}>{status === "blocked" ? "Access blocked" : "Awaiting approval"}</h1>
+        <p style={s.gateSub}>
+          You’re signed in as <b style={{ color: "#fff" }}>{email}</b>.{" "}
+          {status === "blocked"
+            ? "An admin has blocked this account."
+            : "An admin needs to approve you before you can start. You’ll get in as soon as they do."}
+        </p>
+        <button style={s.googleBtn} onClick={() => signOut()}><LogOut size={15} strokeWidth={2.2} /> Sign out</button>
+      </div>
+    </div>
+  );
+}
+
+function Approvals({
+  profiles, onClose, onAct,
+}: {
+  profiles: Profile[];
+  onClose: () => void;
+  onAct: (id: string, patch: Partial<Pick<Profile, "status" | "role">>) => void;
+}) {
+  const pending = profiles.filter((p) => p.status === "pending");
+  const others = profiles.filter((p) => p.status !== "pending");
+  const row = (p: Profile) => {
+    const year = matchRoster(p.full_name);
+    return (
+      <div key={p.id} style={s.apRow}>
+        <span style={s.apAvatar}>{initials(p.full_name || p.email)}</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={s.apName}>
+            {p.full_name || "(no name)"}
+            {year && <span style={s.apMatch}>✓ roster ’{year.slice(2)}</span>}
+            {!year && p.status === "pending" && <span style={s.apNoMatch}>no roster match</span>}
+          </div>
+          <div style={s.apEmail}>{p.email} · {p.role}{p.status !== "pending" ? ` · ${p.status}` : ""}</div>
+        </div>
+        <div style={s.apActions}>
+          {p.status !== "approved" && (
+            <button style={s.apApprove} onClick={() => onAct(p.id, { status: "approved" })}>Approve</button>
+          )}
+          {p.status === "approved" && p.role !== "admin" && (
+            <select
+              value={p.role}
+              onChange={(e) => onAct(p.id, { role: e.target.value as Profile["role"] })}
+              style={s.apSelect}
+            >
+              <option value="resident">resident</option>
+              <option value="faculty">faculty</option>
+              <option value="alumni">alumni</option>
+              <option value="admin">admin</option>
+            </select>
+          )}
+          {p.status !== "blocked" && p.role !== "admin" && (
+            <button style={s.apBlock} title="Block" onClick={() => onAct(p.id, { status: "blocked" })}>
+              <X size={14} strokeWidth={2.4} />
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+  return (
+    <div style={s.scrim} onClick={onClose}>
+      <div style={s.apPanel} onClick={(e) => e.stopPropagation()} className="rise">
+        <div style={s.apHead}>
+          <div>
+            <div style={s.apEyebrow}>Admin · access</div>
+            <div style={s.apTitle}>Approvals</div>
+          </div>
+          <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
+        </div>
+        <div style={s.apBody}>
+          <div style={s.apSectionLbl}>Pending {pending.length > 0 && <span style={s.pendingBadge}>{pending.length}</span>}</div>
+          {pending.length ? pending.map(row) : <p style={s.apEmpty}>No one waiting. Residents whose Google name matches the roster are approved automatically.</p>}
+          {others.length > 0 && <div style={{ ...s.apSectionLbl, marginTop: 18 }}>Members</div>}
+          {others.map(row)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SettingsPanel({
+  settings, onChange, onRebuild, onClose,
+}: {
+  settings: Settings;
+  onChange: (patch: Partial<Settings>) => void;
+  onRebuild: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div style={s.scrim} onClick={onClose}>
+      <div style={{ ...s.apPanel, maxWidth: 440 }} onClick={(e) => e.stopPropagation()} className="rise">
+        <div style={s.apHead}>
+          <div>
+            <div style={s.apEyebrow}>Your study plan</div>
+            <div style={s.apTitle}>Settings</div>
+          </div>
+          <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
+        </div>
+        <div style={{ ...s.apBody, padding: "4px 22px 22px" }}>
+          <div style={s.setBlock}>
+            <div style={s.setLbl}>Questions per day</div>
+            <div style={s.segRow}>
+              {[5, 10, 20].map((n) => (
+                <button key={n}
+                  style={{ ...s.segBtn, ...(settings.regimen === n ? s.segOn : {}) }}
+                  onClick={() => { onChange({ regimen: n as Settings["regimen"] }); onRebuild(); }}
+                >{n}</button>
+              ))}
+            </div>
+          </div>
+
+          <div style={s.setBlock}>
+            <div style={s.setLbl}>Exam date</div>
+            <input
+              type="date"
+              value={settings.exam_date ?? ""}
+              onChange={(e) => onChange({ exam_date: e.target.value || null })}
+              style={s.dateInput}
+            />
+            <div style={s.setHint}>Drives the countdown in the header.</div>
+          </div>
+
+          <div style={s.setBlock}>
+            <label style={s.toggleRow}>
+              <input
+                type="checkbox"
+                checked={settings.recycle_missed}
+                onChange={(e) => { onChange({ recycle_missed: e.target.checked }); onRebuild(); }}
+              />
+              <span>
+                <b>Recycle missed questions</b>
+                <div style={s.setHint}>Bring back questions you got wrong, after a delay.</div>
+              </span>
+            </label>
+            {settings.recycle_missed && (
+              <>
+                <div style={s.afterRow}>
+                  resurface after
+                  <input
+                    type="number" min={1} max={120}
+                    value={settings.recycle_after_days}
+                    onChange={(e) => { onChange({ recycle_after_days: Math.max(1, parseInt(e.target.value || "1", 10)) }); onRebuild(); }}
+                    style={s.daysInput}
+                  />
+                  days
+                </div>
+                <div style={s.afterRow}>
+                  up to
+                  <input
+                    type="number" min={0} max={20}
+                    value={settings.review_per_day ?? 3}
+                    onChange={(e) => { onChange({ review_per_day: Math.max(0, parseInt(e.target.value || "0", 10)) }); onRebuild(); }}
+                    style={s.daysInput}
+                  />
+                  missed question{(settings.review_per_day ?? 3) === 1 ? "" : "s"} per day
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type ChartData = {
+  points: { x: number; y: number; n: number }[];
+  N: number; totalQ: number;
+  fit: { m: number; b: number; r: number } | null;
+  improving: boolean;
+};
+
+function PerfChart({ chart, per }: { chart: ChartData; per: { n: number; rise: number } | null }) {
+  const { points, improving, fit, totalQ } = chart;
+  // Geometry (SVG user units; scales to container width via viewBox).
+  const W = 340, H = 168, L = 30, R = 10, TOP = 12, BOT = 24;
+  const pw = W - L - R, ph = H - TOP - BOT;
+  const xMax = Math.max(totalQ, 1);
+  const px = (x: number) => L + (x / xMax) * pw;
+  const py = (y: number) => TOP + (1 - Math.max(0, Math.min(100, y)) / 100) * ph;
+  const dotColor = (y: number) => (y >= 70 ? T.teal : y >= 50 ? T.gold : T.wrongLine);
+
+  if (points.length < 2) {
+    return (
+      <div style={s.chartCard}>
+        <div style={s.secHead}>Performance over time</div>
+        <p style={s.apEmpty}>Answer on a few separate days and your day-by-day accuracy will plot here.</p>
+      </div>
+    );
+  }
+
+  // Trend line endpoints, drawn only when there's a real upward trend.
+  const x0 = points[0].x, x1 = points[points.length - 1].x;
+  const lineY0 = fit ? fit.m * x0 + fit.b : 0;
+  const lineY1 = fit ? fit.m * x1 + fit.b : 0;
+
+  return (
+    <div style={s.chartCard}>
+      <div style={s.secHead}>Performance over time</div>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }} role="img"
+        aria-label="Scatter plot of daily first-try accuracy against questions answered">
+        {/* y gridlines + labels */}
+        {[0, 25, 50, 75, 100].map((g) => (
+          <g key={g}>
+            <line x1={L} y1={py(g)} x2={W - R} y2={py(g)} stroke={T.paperEdge} strokeWidth={1} />
+            <text x={L - 5} y={py(g) + 3} textAnchor="end" fontSize={8} fill={T.faint}>{g}</text>
+          </g>
+        ))}
+        {/* x baseline + label */}
+        <text x={L} y={H - 4} fontSize={8} fill={T.faint}>0</text>
+        <text x={W - R} y={H - 4} textAnchor="end" fontSize={8} fill={T.faint}>{totalQ} Qs</text>
+        <text x={(L + W - R) / 2} y={H - 4} textAnchor="middle" fontSize={8.5} fill={T.muted}>questions answered</text>
+        {/* trend line */}
+        {improving && fit && (
+          <line x1={px(x0)} y1={py(lineY0)} x2={px(x1)} y2={py(lineY1)}
+            stroke={T.teal} strokeWidth={2} strokeDasharray="5 4" strokeLinecap="round" opacity={0.85} />
+        )}
+        {/* scatter dots, sized a touch by that day's volume */}
+        {points.map((p, i) => (
+          <circle key={i} cx={px(p.x)} cy={py(p.y)} r={3 + Math.min(3, p.n / 8)}
+            fill={dotColor(p.y)} fillOpacity={0.85} stroke="#fff" strokeWidth={1} />
+        ))}
+      </svg>
+      {improving && per ? (
+        <p style={s.chartNote}>
+          <TrendingUp size={13} strokeWidth={2.4} style={{ verticalAlign: "-2px", color: T.teal }} />{" "}
+          Trending up: roughly <b>+{per.rise.toFixed(1)}% accuracy for every {per.n} questions</b> you answer.
+        </p>
+      ) : (
+        <p style={s.chartNote}>
+          No clear upward trend yet — each dot is one day's first-try accuracy. Keep answering and a trend line appears once it's pointing up.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function Stats({
+  answers, byId, displayName, onClose,
+}: {
+  answers: Record<string, AnswerRow>;
+  byId: Map<string, RawQuestion>;
+  displayName: string;
+  onClose: () => void;
+}) {
+  const DIMS: [string, string][] = [
+    ["prite", "PRITE category"], ["year", "Year"], ["diagnosis", "Diagnosis"],
+    ["medication", "Medication"], ["psychotherapy", "Psychotherapy"],
+    ["neuro", "Neuro concept"], ["historical", "Historical"],
+  ];
+  const [dim, setDim] = useState("prite");
+
+  const m = useMemo(() => {
+    const entries = Object.values(answers);
+    const answered = entries.length;
+    const firstTry = entries.filter((e) => e.first_correct).length;
+    const mastered = entries.filter((e) => e.correct).length;
+    const outstanding = answered - mastered;
+    const attempts = entries.reduce((n, e) => n + (e.attempts || 1), 0);
+    const today = entries.filter((e) => isSameDay(e.updated_at)).length;
+    const week = entries.filter((e) => Date.now() - Date.parse(e.updated_at) < 7 * 86400000).length;
+
+    // streak: consecutive days (ending today or yesterday) with activity
+    const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    const activeDays = new Set(entries.map((e) => dayKey(new Date(e.updated_at))));
+    let streak = 0;
+    const cur = new Date();
+    if (!activeDays.has(dayKey(cur))) cur.setDate(cur.getDate() - 1);
+    while (activeDays.has(dayKey(cur))) { streak++; cur.setDate(cur.getDate() - 1); }
+
+    return {
+      answered, attempts, today, week, mastered, outstanding,
+      firstTryAcc: answered ? Math.round((firstTry / answered) * 100) : 0,
+      currentAcc: answered ? Math.round((mastered / answered) * 100) : 0,
+      streak,
+    };
+  }, [answers]);
+
+  // Performance over time. One point per active day: first-try accuracy that
+  // day, positioned by the running total of questions answered. A least-squares
+  // line (y = m·x + b) is fit so the slope reads as "% gained per question."
+  const chart = useMemo(() => {
+    const recs = Object.values(answers)
+      .map((a) => ({ t: Date.parse(a.updated_at), ok: !!a.first_correct }))
+      .filter((r) => Number.isFinite(r.t))
+      .sort((a, b) => a.t - b.t);
+    const dayKey = (t: number) => { const d = new Date(t); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
+    const byDay = new Map<string, { first: number; n: number; ok: number }>();
+    for (const r of recs) {
+      const k = dayKey(r.t);
+      const g = byDay.get(k) ?? { first: r.t, n: 0, ok: 0 };
+      g.n++; if (r.ok) g.ok++;
+      byDay.set(k, g);
+    }
+    const days = [...byDay.values()].sort((a, b) => a.first - b.first);
+    let cum = 0;
+    const points = days.map((d) => { cum += d.n; return { x: cum, y: (d.ok / d.n) * 100, n: d.n }; });
+    const N = points.length;
+    const base = { points, N, totalQ: cum, fit: null as null | { m: number; b: number; r: number }, improving: false };
+    if (N < 2) return base;
+    const sx = points.reduce((s, p) => s + p.x, 0);
+    const sy = points.reduce((s, p) => s + p.y, 0);
+    const sxx = points.reduce((s, p) => s + p.x * p.x, 0);
+    const syy = points.reduce((s, p) => s + p.y * p.y, 0);
+    const sxy = points.reduce((s, p) => s + p.x * p.y, 0);
+    const denom = N * sxx - sx * sx;
+    const slope = denom ? (N * sxy - sx * sy) / denom : 0;
+    const b = (sy - slope * sx) / N;
+    const rDen = Math.sqrt(denom * (N * syy - sy * sy));
+    const r = rDen ? (N * sxy - sx * sy) / rDen : 0;
+    // Only call it a trend when it's upward, has a few days behind it, and the
+    // fit isn't pure noise. Otherwise we show the scatter alone.
+    const improving = N >= 4 && slope > 0 && r >= 0.15;
+    return { ...base, fit: { m: slope, b, r }, improving };
+  }, [answers]);
+
+  // "For every N questions, +X%." Pick the smallest round N giving a readable rise.
+  const per = useMemo(() => {
+    if (!chart.improving || !chart.fit) return null;
+    const n = [50, 100, 250, 500].find((k) => chart.fit!.m * k >= 1) ?? 500;
+    return { n, rise: chart.fit!.m * n };
+  }, [chart]);
+
+  // PRITE score predictor. The bank is recalled PRITE items, so your first-try
+  // accuracy is a direct proxy for raw % correct on a real exam. We model the
+  // national field as Normal(NAT_MEAN, NAT_SD) — calibrated so ~95% first-pass
+  // accuracy lands near the 99th percentile (matching a known top result) — and
+  // read your percentile off that curve. Constants are the assumptions; tweak freely.
+  const pred = useMemo(() => {
+    const NAT_MEAN = 62, NAT_SD = 14;
+    if (!m.answered) return null;
+    const acc = m.firstTryAcc;
+    const pctNow = clampPct(normCdf((acc - NAT_MEAN) / NAT_SD) * 100);
+    // Project along the trend line over a 500-question horizon, if improving.
+    const projAcc = chart.improving && chart.fit ? Math.min(98, acc + chart.fit.m * 500) : null;
+    const pctProj = projAcc != null ? clampPct(normCdf((projAcc - NAT_MEAN) / NAT_SD) * 100) : null;
+    // Confidence is thin until there's a real volume of answered questions.
+    const thin = m.answered < 60;
+    return { acc, pctNow, projAcc, pctProj, thin, horizon: 500 };
+  }, [m, chart]);
+
+  const rows = useMemo(() => {
+    const tally = new Map<string, { label: string; attempts: number; missed: number }>();
+    const push = (key: string, label: string, wrong: boolean) => {
+      const t = tally.get(key) ?? { label, attempts: 0, missed: 0 };
+      t.attempts++; if (wrong) t.missed++; tally.set(key, t);
+    };
+    for (const [id, row] of Object.entries(answers)) {
+      const q = byId.get(id);
+      if (!q) continue;
+      const wrong = !row.first_correct;
+      if (dim === "prite") { if (q.prite_category) push(q.prite_category, q.prite_label || q.prite_category, wrong); }
+      else if (dim === "year") push(q.year, q.year, wrong);
+      else for (const tg of (q.tags?.[dim as keyof QTags] as string[] | undefined) ?? []) push(tg, tg, wrong);
+    }
+    return [...tally.entries()]
+      .map(([tag, t]) => ({ tag, label: t.label, attempts: t.attempts, missed: t.missed, miss_pct: Math.round((t.missed / t.attempts) * 100) }))
+      .sort((a, b) => b.miss_pct - a.miss_pct || b.attempts - a.attempts);
+  }, [answers, byId, dim]);
+
+  const maxMiss = rows.length ? Math.max(...rows.map((r) => r.miss_pct), 1) : 1;
+  const card = (num: React.ReactNode, lbl: string, sub?: string, color?: string) => (
+    <div style={s.statCard}>
+      <div style={{ ...s.statNum, color: color ?? T.text }}>{num}</div>
+      <div style={s.statLbl}>{lbl}</div>
+      {sub && <div style={s.statSub}>{sub}</div>}
+    </div>
+  );
+
+  return (
+    <div style={s.scrim} onClick={onClose}>
+      <div style={{ ...s.apPanel, maxWidth: 600 }} onClick={(e) => e.stopPropagation()} className="rise">
+        <div style={s.apHead}>
+          <div>
+            <div style={s.apEyebrow}>{displayName.split(" ")[0]}’s performance</div>
+            <div style={s.apTitle}>Statistics</div>
+          </div>
+          <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
+        </div>
+        <div style={s.apBody}>
+          {m.answered === 0 ? (
+            <p style={s.apEmpty}>You haven’t answered any questions yet. Once you start, your stats will show up here.</p>
+          ) : (
+            <>
+              <div style={s.statGrid}>
+                {card(m.answered, "Questions answered", `${m.attempts} total attempts`)}
+                {card(`${m.firstTryAcc}%`, "First-try accuracy", `${m.answered - m.outstanding} of ${m.answered} eventually right`, m.firstTryAcc >= 70 ? T.correctText : m.firstTryAcc >= 50 ? T.gold : T.wrongText)}
+                {card(<><Flame size={18} strokeWidth={2.4} style={{ verticalAlign: "-2px" }} color={m.streak > 0 ? T.gold : T.faint} /> {m.streak}</>, "Day streak", `${m.today} today · ${m.week} this week`, m.streak > 0 ? T.gold : undefined)}
+                {card(m.outstanding, "To review", m.outstanding === 0 ? "all caught up 🎉" : "missed, not yet re-answered", m.outstanding > 0 ? T.wrongText : T.correctText)}
+              </div>
+
+              <PerfChart chart={chart} per={per} />
+
+              {pred && (
+                <div style={s.predCard}>
+                  <div style={s.secHead}>Estimated PRITE percentile</div>
+                  <div style={s.predRow}>
+                    <div>
+                      <div style={{ ...s.statNum, color: T.teal }}>
+                        {pred.pctNow}<span style={s.predOrd}>{ordinal(pred.pctNow)}</span>
+                      </div>
+                      <div style={s.statSub}>from {pred.acc}% first-try accuracy</div>
+                    </div>
+                    {pred.pctProj != null && pred.pctProj > pred.pctNow && (
+                      <>
+                        <ArrowRight size={18} color={T.faint} style={{ flexShrink: 0 }} />
+                        <div>
+                          <div style={{ ...s.statNum, color: T.gold }}>
+                            {pred.pctProj}<span style={s.predOrd}>{ordinal(pred.pctProj)}</span>
+                          </div>
+                          <div style={s.statSub}>projected after +{pred.horizon} Qs</div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <p style={s.insFoot}>
+                    Rough estimate. The bank is recalled PRITE items, so your first-try accuracy
+                    stands in for raw exam %. Modeled against an assumed national field
+                    (mean 62%, SD 14, calibrated so ~95% first-pass ≈ 99th percentile).
+                    {pred.thin && " Answer more questions for a steadier read — this is based on a small sample so far."}
+                    {" "}Practicing on real items inflates accuracy vs. a fresh exam, so treat this as a ceiling, not a guarantee.
+                  </p>
+                </div>
+              )}
+
+              <div style={s.insTabs}>
+                {DIMS.map(([d, label]) => (
+                  <button key={d} style={{ ...s.insTab, ...(dim === d ? s.insTabOn : {}) }} onClick={() => setDim(d)}>{label}</button>
+                ))}
+              </div>
+
+              <div style={s.insHead}><span>Topic (hardest first)</span><span style={s.insHeadR}>miss% · seen</span></div>
+              {rows.length === 0 && <p style={s.apEmpty}>None of your answered questions are tagged on this dimension yet.</p>}
+              {rows.map((r) => (
+                <div key={r.tag} style={s.insRow}>
+                  <span style={s.insLabel}>{r.label}</span>
+                  <div style={s.insBarWrap}>
+                    <div style={{ ...s.insBar, width: `${(r.miss_pct / maxMiss) * 100}%`, background: r.miss_pct >= 50 ? T.wrongLine : r.miss_pct >= 30 ? T.gold : T.teal }} />
+                  </div>
+                  <span style={s.insPct}>{r.miss_pct}%</span>
+                  <span style={s.insAtt}>{r.attempts}</span>
+                </div>
+              ))}
+              <p style={s.insFoot}>Difficulty = % <b>you</b> got wrong on the first try. Topics in red are where to spend more time. Only questions you’ve answered are counted.</p>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Insights({ onClose }: { onClose: () => void }) {
+  const DIMS: [string, string][] = [
+    ["prite", "PRITE category"], ["diagnosis", "Diagnosis"], ["medication", "Medication"],
+    ["psychotherapy", "Psychotherapy"], ["neuro", "Neuro concept"], ["historical", "Historical"],
+  ];
+  const COHORTS: [string, string][] = [
+    ["all", "Everyone"], ["R1", "R1"], ["R2", "R2"], ["R3", "R3"], ["R4", "R4"],
+    ["F1", "F1"], ["F2", "F2"], ["faculty", "Faculty"], ["alumni", "Alumni"],
+  ];
+  const [dim, setDim] = useState("prite");
+  const [cohort, setCohort] = useState("all");
+  const [rows, setRows] = useState<TagMissRow[] | null>(null);
+  useEffect(() => {
+    setRows(null);
+    getTagMissStats(dim, cohort === "all" ? null : cohort).then(setRows);
+  }, [dim, cohort]);
+  const maxMiss = rows && rows.length ? Math.max(...rows.map((r) => r.miss_pct), 1) : 1;
+  return (
+    <div style={s.scrim} onClick={onClose}>
+      <div style={{ ...s.apPanel, maxWidth: 600 }} onClick={(e) => e.stopPropagation()} className="rise">
+        <div style={s.apHead}>
+          <div>
+            <div style={s.apEyebrow}>What the class struggles with</div>
+            <div style={s.apTitle}>Residency Insights</div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <select value={cohort} onChange={(e) => setCohort(e.target.value)} style={s.cohortSel}>
+              {COHORTS.map(([c, label]) => <option key={c} value={c}>{label}</option>)}
+            </select>
+            <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
+          </div>
+        </div>
+        <div style={s.insTabs}>
+          {DIMS.map(([d, label]) => (
+            <button key={d} style={{ ...s.insTab, ...(dim === d ? s.insTabOn : {}) }} onClick={() => setDim(d)}>{label}</button>
+          ))}
+        </div>
+        <div style={s.apBody}>
+          <div style={s.insHead}><span>Topic (hardest first)</span><span style={s.insHeadR}>miss% · attempts</span></div>
+          {rows === null && <p style={s.apEmpty}>Loading…</p>}
+          {rows !== null && rows.length === 0 && <p style={s.apEmpty}>No answers yet to analyze. Come back once the class has been answering.</p>}
+          {rows?.map((r) => (
+            <div key={r.tag} style={s.insRow}>
+              <span style={s.insLabel}>{r.label}</span>
+              <div style={s.insBarWrap}>
+                <div style={{ ...s.insBar, width: `${(r.miss_pct / maxMiss) * 100}%`, background: r.miss_pct >= 50 ? T.wrongLine : r.miss_pct >= 30 ? T.gold : T.teal }} />
+              </div>
+              <span style={s.insPct}>{r.miss_pct}%</span>
+              <span style={s.insAtt}>{r.attempts}</span>
+            </div>
+          ))}
+          <p style={s.insFoot}>Difficulty = % of attempts answered wrong on the first try, across all residents. Topics in red are the ones to spend more time on.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DeckBuilder({
+  all, byId, onClose, onOpen, onStudy, fire,
+}: {
+  all: RawQuestion[];
+  byId: Map<string, RawQuestion>;
+  onClose: () => void;
+  onOpen: (id: string) => void;
+  onStudy?: (qs: RawQuestion[], label: string) => void;
+  fire: (m: string) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [scope, setScope] = useState<"both" | "stem" | "choices" | "answer">("both");
+  const [year, setYear] = useState("all");
+  const [cat, setCat] = useState("all");
+  const [med, setMed] = useState("all");
+  const [dx, setDx] = useState("all");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+
+  const years = useMemo(() => Array.from(new Set(all.map((q) => q.year))).sort(), [all]);
+  const cats = useMemo(() => {
+    const m = new Map<string, string>();
+    all.forEach((q) => { if (q.prite_category) m.set(q.prite_category, q.prite_label || q.prite_category); });
+    return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [all]);
+  const uniq = (key: "medication" | "diagnosis") =>
+    Array.from(new Set(all.flatMap((q) => q.tags?.[key] ?? []))).sort();
+  const meds = useMemo(() => uniq("medication"), [all]);
+  const dxs = useMemo(() => uniq("diagnosis"), [all]);
+
+  const matches = useMemo(() => all.filter((q) => {
+    if (year !== "all" && q.year !== year) return false;
+    if (cat !== "all" && q.prite_category !== cat) return false;
+    if (med !== "all" && !(q.tags?.medication ?? []).includes(med)) return false;
+    if (dx !== "all" && !(q.tags?.diagnosis ?? []).includes(dx)) return false;
+    if (search.trim()) {
+      const s = search.toLowerCase();
+      const inStem = q.stem.toLowerCase().includes(s);
+      const inChoices = q.options.some((o) => o.text.toLowerCase().includes(s));
+      const inAnswer = (q.answer_text ?? "").toLowerCase().includes(s);
+      const hit = scope === "stem" ? inStem : scope === "choices" ? inChoices
+        : scope === "answer" ? inAnswer : inStem || inChoices;
+      if (!hit) return false;
+    }
+    return true;
+  }), [all, year, cat, med, dx, search, scope]);
+
+  // when the filter changes, select all matches by default
+  useEffect(() => { setSelected(new Set(matches.map((q) => questionId(q.year, q.q_index)))); }, [year, cat, med, dx, search, scope]); // eslint-disable-line
+
+  const toggle = (id: string) => setSelected((cur) => {
+    const n = new Set(cur); n.has(id) ? n.delete(id) : n.add(id); return n;
+  });
+
+  // hand the picked questions (in list order) to a custom study session
+  const study = () => {
+    const ordered = matches.filter((q) => selected.has(questionId(q.year, q.q_index)));
+    if (!ordered.length) return;
+    const parts: string[] = [];
+    if (cat !== "all") parts.push(cats.find(([k]) => k === cat)?.[1] ?? cat);
+    if (dx !== "all") parts.push(dx);
+    if (med !== "all") parts.push(med);
+    if (year !== "all") parts.push(year);
+    if (search.trim()) parts.push(`"${search.trim()}"`);
+    onStudy?.(ordered, parts.join(" · "));
+  };
+
+  const download = async () => {
+    const ids = [...selected];
+    if (!ids.length) return;
+    setBusy(true);
+    const clozes = await getFlashcardsForIds(ids);
+    const rows = ids.map((id) => {
+      const q = byId.get(id); const cz = clozes[id];
+      return q && cz ? { questionId: id, cloze: cz, lecture: ankingLecture(q) } : null;
+    }).filter(Boolean) as { questionId: string; cloze: string; lecture: string }[];
+    if (!rows.length) { setBusy(false); fire("No cards found — load the flashcards (migration 0006) first"); return; }
+    const { buildApkg } = await import("./lib/apkg");
+    await buildApkg(rows, "prite-deck.apkg");
+    setBusy(false);
+    fire(`Built a ${rows.length}-card .apkg — double-click to import`);
+    onClose();
+  };
+
+  const downloadPptx = async () => {
+    const qsel = [...selected].map((id) => byId.get(id)).filter(Boolean) as RawQuestion[];
+    if (!qsel.length) return;
+    setBusy(true);
+    try {
+      await exportPptx(qsel, "prite-questions.pptx");
+      fire(`Built a ${qsel.length}-slide PowerPoint`);
+      onClose();
+    } catch (e) { fire("PowerPoint export failed"); console.warn(e); }
+    setBusy(false);
+  };
+
+  const shown = matches.slice(0, 250);
+  return (
+    <div style={s.scrim} onClick={onClose}>
+      <div style={{ ...s.apPanel, maxWidth: 640 }} onClick={(e) => e.stopPropagation()} className="rise">
+        <div style={s.apHead}>
+          <div>
+            <div style={s.apEyebrow}>Search · study · export</div>
+            <div style={s.apTitle}>Build a study set</div>
+          </div>
+          <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
+        </div>
+        <div style={s.deckFilters}>
+          <div style={s.deckSearchRow}>
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search for a word (e.g. fluoxetine)" style={{ ...s.deckSearch, marginBottom: 0, flex: 1 }} />
+            <div style={s.scopeToggle}>
+              {(["both", "stem", "choices", "answer"] as const).map((sc) => (
+                <button key={sc} style={{ ...s.scopeBtn, ...(scope === sc ? s.scopeOn : {}) }} onClick={() => setScope(sc)}>
+                  {sc === "both" ? "Anywhere" : sc === "stem" ? "Stem" : sc === "choices" ? "Choices" : "Answer"}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={s.deckSelRow}>
+            <select value={year} onChange={(e) => setYear(e.target.value)} style={s.cohortSel}>
+              <option value="all">Any year</option>{years.map((y) => <option key={y} value={y}>{y}</option>)}
+            </select>
+            <select value={cat} onChange={(e) => setCat(e.target.value)} style={s.cohortSel}>
+              <option value="all">Any category</option>{cats.map(([c, l]) => <option key={c} value={c}>{l}</option>)}
+            </select>
+            <select value={med} onChange={(e) => setMed(e.target.value)} style={s.cohortSel}>
+              <option value="all">Any medication</option>{meds.map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+            <select value={dx} onChange={(e) => setDx(e.target.value)} style={s.cohortSel}>
+              <option value="all">Any diagnosis</option>{dxs.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
+          <div style={s.deckCount}>
+            <span><b style={{ color: T.text }}>{matches.length}</b> match · <b style={{ color: T.teal }}>{selected.size}</b> selected</span>
+            <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+              <button style={s.tinyBtn} onClick={() => setSelected(new Set(matches.map((q) => questionId(q.year, q.q_index))))}>Select all</button>
+              <button style={s.tinyBtn} onClick={() => setSelected(new Set())}>Clear</button>
+            </span>
+          </div>
+        </div>
+        <div style={s.apBody}>
+          {matches.length === 0 && <p style={s.apEmpty}>No questions match these filters.</p>}
+          {shown.map((q) => {
+            const id = questionId(q.year, q.q_index);
+            return (
+              <div key={id} style={s.deckRow}>
+                <input type="checkbox" checked={selected.has(id)} onChange={() => toggle(id)} style={{ marginTop: 4 }} />
+                <div style={s.deckRowText} onClick={() => onOpen(id)} title="Open this question">
+                  <div style={s.deckRowMeta}>
+                    {q.year} · Q{q.q_index} · {q.prite_label}
+                    <ExternalLink size={11} strokeWidth={2.2} style={{ marginLeft: 6, verticalAlign: "-1px", color: T.faint }} />
+                  </div>
+                  <div style={s.deckRowStem}>{q.stem}</div>
+                  <div style={s.deckRowAns}>→ {q.answer_letter} · {q.answer_text}</div>
+                </div>
+              </div>
+            );
+          })}
+          {matches.length > shown.length && <p style={s.apEmpty}>+ {matches.length - shown.length} more match (all selected — refine to list them)</p>}
+        </div>
+        <div style={s.deckFoot}>
+          {onStudy && (
+            <button style={{ ...s.primarySm, opacity: selected.size ? 1 : 0.5 }} disabled={!selected.size} onClick={study} title="Practice the selected questions">
+              <Target size={14} strokeWidth={2.3} /> Study these ({selected.size})
+            </button>
+          )}
+          <button style={{ ...s.ghost, marginLeft: 0, opacity: selected.size && !busy ? 1 : 0.5 }} disabled={!selected.size || busy} onClick={download}>
+            <Download size={14} strokeWidth={2.2} /> {busy ? "Building…" : `Anki (${selected.size})`}
+          </button>
+          <button style={{ ...s.ghost, marginLeft: 0, opacity: selected.size && !busy ? 1 : 0.5 }} disabled={!selected.size || busy} onClick={downloadPptx}>
+            <FileText size={14} strokeWidth={2.2} /> PowerPoint
+          </button>
+          <span style={s.flashNote}>Study, or export the checked questions</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MissedPanel({
+  missedIds, byId, answers, notes, onReview, onExport, onClose,
+}: {
+  missedIds: string[];
+  byId: Map<string, RawQuestion>;
+  answers: Record<string, AnswerRow>;
+  notes: Record<string, string>;
+  onReview: () => void;
+  onExport: () => void;
+  onClose: () => void;
+}) {
+  const rows = missedIds.map((id) => ({ id, q: byId.get(id) })).filter((x) => x.q) as { id: string; q: RawQuestion }[];
+  return (
+    <div style={s.scrim} onClick={onClose}>
+      <div style={{ ...s.apPanel, maxWidth: 620 }} onClick={(e) => e.stopPropagation()} className="rise">
+        <div style={s.apHead}>
+          <div>
+            <div style={s.apEyebrow}>Learning opportunities</div>
+            <div style={s.apTitle}>Missed questions ({rows.length})</div>
+          </div>
+          <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
+        </div>
+        <div style={s.missActions}>
+          <button style={s.apApprove} onClick={onReview}><RotateCcw size={13} strokeWidth={2.3} /> Review these</button>
+          <button style={s.ghost} onClick={onExport}><Download size={13} strokeWidth={2.2} /> Export all</button>
+        </div>
+        <div style={s.apBody}>
+          {rows.length === 0 && <p style={s.apEmpty}>Nothing missed — go get some questions wrong. 😉</p>}
+          {rows.map(({ id, q }) => {
+            const a = answers[id];
+            const correct = q.answer_letters?.length ? q.answer_letters : q.answer_letter ? [q.answer_letter] : [];
+            return (
+              <div key={id} style={s.missQ}>
+                <div style={s.eyebrow2}>{q.year} · Q{q.q_index}</div>
+                <p style={s.missStem}>{q.stem}</p>
+                <div style={s.missMeta}>
+                  <span style={{ color: T.correctText }}>Correct: <b>{correct.join(", ")}</b>{q.answer_text ? ` — ${q.answer_text}` : ""}</span>
+                  {a && <span style={{ color: T.wrongText }}>· You: {a.picked.join(", ")}</span>}
+                </div>
+                {notes[id] && <div style={s.missNote}>{notes[id]}</div>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Leaderboard({ rows, meId, onClose }: { rows: LeaderRow[]; meId?: string; onClose: () => void }) {
+  const ranked = rows.filter((r) => r.answered > 0);
+  return (
+    <div style={s.scrim} onClick={onClose}>
+      <div style={{ ...s.apPanel, maxWidth: 460 }} onClick={(e) => e.stopPropagation()} className="rise">
+        <div style={s.apHead}>
+          <div>
+            <div style={s.apEyebrow}>Class standings</div>
+            <div style={s.apTitle}>Leaderboard</div>
+          </div>
+          <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
+        </div>
+        <div style={s.apBody}>
+          {ranked.length === 0 && <p style={s.apEmpty}>No questions answered yet. Be the first to get on the board.</p>}
+          {ranked.map((r, i) => {
+            const me = r.user_id === meId;
+            return (
+              <div key={r.user_id} style={{ ...s.lbRow, ...(me ? s.lbMe : {}) }}>
+                <span style={{ ...s.lbRank, ...(i < 3 ? { color: [T.gold, "#97a0ab", "#b07a4f"][i], fontWeight: 700 } : {}) }}>{i + 1}</span>
+                <span style={{ ...s.apAvatar, background: me ? T.teal : T.inkSoft, width: 30, height: 30 }}>{initials(r.full_name)}</span>
+                <span style={s.lbName}>{me ? "You" : r.full_name}</span>
+                <span style={s.lbDone}>{r.answered}</span>
+              </div>
+            );
+          })}
+          <div style={s.lbFoot}><span>questions answered →</span></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TrainingLevelGate({ onSaved }: { onSaved: () => void }) {
+  const [saving, setSaving] = useState(false);
+  const groups: { heading: string; opts: [string, string][] }[] = [
+    { heading: "Resident", opts: [["R1", "R1 · PGY-1"], ["R2", "R2 · PGY-2"], ["R3", "R3 · PGY-3"], ["R4", "R4 · PGY-4"]] },
+    { heading: "Child & Adolescent Fellow", opts: [["F1", "F1 · 1st year"], ["F2", "F2 · 2nd year"]] },
+    { heading: "Other", opts: [["faculty", "Faculty"], ["alumni", "Alumni"]] },
+  ];
+  const pick = async (level: string) => {
+    setSaving(true);
+    await setTrainingLevel(level);
+    await onSaved();
+  };
+  return (
+    <div style={s.gateRoot}>
+      <style>{CSS}</style>
+      <div style={{ ...s.gateCard, maxWidth: 460 }}>
+        <span style={s.gateMark}><Stethoscope size={22} strokeWidth={2.3} color="#fff" /></span>
+        <h1 style={s.gateTitle}>One quick thing</h1>
+        <p style={s.gateSub}>What's your training level? This powers the class insights and cohort comparisons.</p>
+        {groups.map((g) => (
+          <div key={g.heading} style={{ marginBottom: 14, textAlign: "left" }}>
+            <div style={s.tlHeading}>{g.heading}</div>
+            <div style={s.tlRow}>
+              {g.opts.map(([code, label]) => (
+                <button key={code} style={s.tlBtn} disabled={saving} onClick={() => pick(code)}>{label}</button>
+              ))}
+            </div>
+          </div>
+        ))}
+        <p style={s.gateFine}>You can't change this yourself later — ask an admin if you advance a year.</p>
+      </div>
+    </div>
+  );
+}
+
+function GoogleG() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden>
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+    </svg>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+* { box-sizing: border-box; }
+button { font-family: inherit; }
+.opt:hover:not(:disabled) { border-color: ${T.teal}33 !important; transform: translateY(-1px); }
+.opt:disabled { cursor: default; }
+.opt { transition: transform .12s ease, border-color .12s ease; }
+.tab:hover { color: ${T.text}; }
+.fade { animation: fade .28s ease both; }
+@keyframes fade { from { opacity: 0; transform: translateY(4px); } }
+.dist { animation: grow .6s cubic-bezier(.22,.61,.36,1) both; }
+@keyframes grow { from { width: 0 !important; } }
+.toast { animation: tin .3s ease both; }
+@keyframes tin { from { opacity: 0; transform: translateY(8px); } }
+button:not(.opt):active { transform: scale(.96); }
+.opt:active:not(:disabled) { transform: scale(.99); }
+.pop { animation: pop .5s cubic-bezier(.3,1.4,.5,1) both; }
+@keyframes pop {
+  0% { box-shadow: 0 0 0 0 ${T.correctLine}00; }
+  35% { transform: scale(1.015); box-shadow: 0 0 0 4px ${T.correctLine}33; }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 ${T.correctLine}00; }
+}
+.slidein { animation: slidein .34s cubic-bezier(.22,.7,.3,1) both; }
+@keyframes slidein { from { opacity: 0; transform: translateY(-6px); } }
+.rise { animation: rise .26s cubic-bezier(.22,.61,.36,1) both; }
+@keyframes rise { from { opacity: 0; transform: translateY(14px) scale(.98); } }
+.tabInd { transition: left .32s cubic-bezier(.5,.1,.2,1), width .32s cubic-bezier(.5,.1,.2,1), top .25s ease; }
+textarea, input, select { font-family: inherit; }
+textarea:focus, input:focus, select:focus { outline: 2px solid ${T.teal}55; outline-offset: 1px; }
+button:focus-visible { outline: 2px solid ${T.teal}; outline-offset: 2px; }
+::selection { background: ${T.tealSoft}; }
+@media (prefers-reduced-motion: reduce) {
+  .fade, .toast, .pop, .slidein { animation: none !important; }
+  .tabInd { transition: none !important; }
+  button:not(.opt):active, .opt:active:not(:disabled) { transform: none !important; }
+}
+`;
+
+/* ---------------------------------------------------------------------- */
+const s: Record<string, React.CSSProperties> = {
+  root: { minHeight: "100vh", background: T.ink, fontFamily: "'Space Grotesk', system-ui, sans-serif", color: T.text },
+
+  top: { position: "sticky", top: 0, zIndex: 20, background: T.ink, borderBottom: `1px solid ${T.inkLine}` },
+  topInner: { maxWidth: 880, margin: "0 auto", padding: "13px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14 },
+  brand: { display: "flex", alignItems: "center", gap: 9 },
+  brandMark: { width: 28, height: 28, borderRadius: 8, background: T.teal, color: "#fff", display: "grid", placeItems: "center" },
+  brandName: { color: "#fff", fontWeight: 600, fontSize: 16, letterSpacing: "-0.01em" },
+  topMeta: { display: "flex", alignItems: "center", gap: 13 },
+  countdown: { color: "#c7ccd6", fontSize: 12.5, fontFamily: "'JetBrains Mono', monospace" },
+  countNum: { color: T.gold, fontWeight: 700 },
+  who: { display: "flex", alignItems: "center", gap: 7 },
+  avatarSm: { width: 28, height: 28, borderRadius: 8, background: T.teal, color: "#fff", display: "grid", placeItems: "center", fontSize: 11.5, fontWeight: 700 },
+  adminTag: { display: "inline-flex", alignItems: "center", gap: 4, color: "#9aa0ab", fontSize: 11, fontWeight: 500, textTransform: "capitalize" },
+  signOut: { display: "grid", placeItems: "center", width: 28, height: 28, borderRadius: 8, background: T.inkSoft, color: "#aeb4c0", border: `1px solid ${T.inkLine}`, cursor: "pointer" },
+  approveBtn: { position: "relative", display: "inline-flex", alignItems: "center", gap: 6, background: T.inkSoft, color: "#e7d9b4", border: `1px solid ${T.inkLine}`, padding: "6px 11px", borderRadius: 8, fontSize: 12.5, fontWeight: 500, cursor: "pointer" },
+  pendingBadge: { display: "inline-grid", placeItems: "center", minWidth: 18, height: 18, padding: "0 5px", borderRadius: 9, background: T.gold, color: "#fff", fontSize: 11, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" },
+
+  scrim: { position: "fixed", inset: 0, background: "rgba(15,17,26,.6)", backdropFilter: "blur(3px)", display: "grid", placeItems: "center", padding: 18, zIndex: 80 },
+  apPanel: { width: "100%", maxWidth: 540, maxHeight: "84vh", display: "flex", flexDirection: "column", background: T.paper, borderRadius: 18, overflow: "hidden", border: `1px solid ${T.paperEdge}`, boxShadow: "0 30px 80px -30px rgba(0,0,0,.6)" },
+  apHead: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "20px 22px 12px" },
+  apEyebrow: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: T.muted },
+  apTitle: { fontSize: 22, fontWeight: 700, color: T.text, marginTop: 3 },
+  close: { background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 8, width: 32, height: 32, display: "grid", placeItems: "center", cursor: "pointer", color: T.muted },
+  apBody: { padding: "0 18px 18px", overflowY: "auto" },
+  apSectionLbl: { display: "flex", alignItems: "center", gap: 8, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", color: T.faint, margin: "8px 4px 10px" },
+  apRow: { display: "flex", alignItems: "center", gap: 12, padding: "10px 8px", borderBottom: `1px solid ${T.paperEdge}` },
+  apAvatar: { width: 34, height: 34, borderRadius: 9, background: T.inkSoft, color: "#fff", display: "grid", placeItems: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 },
+  apName: { fontSize: 14.5, fontWeight: 600, color: T.text, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  apMatch: { fontSize: 11, fontWeight: 600, color: T.correctText, background: T.correctBg, border: `1px solid ${T.correctLine}55`, borderRadius: 5, padding: "1px 6px" },
+  apNoMatch: { fontSize: 11, fontWeight: 500, color: T.muted, background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 5, padding: "1px 6px" },
+  apEmail: { fontSize: 12.5, color: T.muted, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  apActions: { display: "flex", alignItems: "center", gap: 7, flexShrink: 0 },
+  apApprove: { background: T.teal, color: "#fff", border: "none", padding: "7px 13px", borderRadius: 8, fontSize: 12.5, fontWeight: 600, cursor: "pointer" },
+  apSelect: { background: "#fff", color: T.text, border: `1px solid ${T.paperEdge}`, borderRadius: 8, padding: "6px 8px", fontSize: 12.5, cursor: "pointer" },
+  apBlock: { display: "grid", placeItems: "center", width: 30, height: 30, borderRadius: 8, background: "#fff", color: T.wrongLine, border: `1px solid ${T.paperEdge}`, cursor: "pointer" },
+  apEmpty: { fontSize: 13.5, color: T.muted, lineHeight: 1.5, margin: "0 4px", fontStyle: "italic" },
+  missActions: { display: "flex", gap: 9, padding: "4px 22px 14px", borderBottom: `1px solid ${T.paperEdge}` },
+  missQ: { padding: "14px 6px", borderBottom: `1px solid ${T.paperEdge}` },
+  eyebrow2: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", color: T.faint, marginBottom: 6 },
+  missStem: { fontFamily: "'Newsreader', Georgia, serif", fontSize: 15.5, lineHeight: 1.5, color: T.text, margin: "0 0 8px" },
+  missMeta: { display: "flex", flexWrap: "wrap", gap: 8, fontSize: 13, fontFamily: "'JetBrains Mono', monospace" },
+  missNote: { background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 8, padding: "9px 12px", marginTop: 9, fontSize: 14, lineHeight: 1.5, color: T.text, whiteSpace: "pre-wrap" },
+
+  statGrid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, margin: "12px 4px 6px" },
+  statCard: { background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 12, padding: "13px 15px" },
+  statNum: { fontFamily: "'Space Grotesk', system-ui, sans-serif", fontSize: 26, fontWeight: 700, lineHeight: 1.1, color: T.text },
+  statLbl: { fontSize: 13, fontWeight: 600, color: T.text, marginTop: 4 },
+  statSub: { fontSize: 11.5, color: T.muted, marginTop: 2 },
+  chartCard: { background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 12, padding: "12px 14px 10px", margin: "12px 4px 6px" },
+  predCard: { background: T.tealSoft, border: `1px solid ${T.paperEdge}`, borderRadius: 12, padding: "12px 14px 10px", margin: "10px 4px 6px" },
+  secHead: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: "0.04em", textTransform: "uppercase", color: T.faint, marginBottom: 8 } as React.CSSProperties,
+  chartNote: { fontSize: 12.5, color: T.muted, lineHeight: 1.5, margin: "8px 2px 2px" },
+  predRow: { display: "flex", alignItems: "center", gap: 14, margin: "2px 0 4px" },
+  predOrd: { fontSize: 14, fontWeight: 600, marginLeft: 1, verticalAlign: "super" } as React.CSSProperties,
+  insTabs: { display: "flex", gap: 4, flexWrap: "wrap", padding: "2px 20px 14px", borderBottom: `1px solid ${T.paperEdge}` },
+  insTab: { background: T.paper, color: T.muted, border: `1px solid ${T.paperEdge}`, padding: "6px 11px", borderRadius: 8, fontSize: 12.5, fontWeight: 500, cursor: "pointer" },
+  insTabOn: { background: T.teal, color: "#fff", borderColor: T.teal },
+  cohortSel: { background: "#fff", color: T.text, border: `1px solid ${T.paperEdge}`, borderRadius: 9, padding: "7px 10px", fontSize: 13, cursor: "pointer" },
+  insHead: { display: "flex", justifyContent: "space-between", fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: "0.04em", textTransform: "uppercase", color: T.faint, margin: "10px 4px 12px" },
+  insHeadR: { textAlign: "right" },
+  insRow: { display: "flex", alignItems: "center", gap: 10, padding: "7px 4px" },
+  insLabel: { width: 168, fontSize: 13.5, color: T.text, textTransform: "capitalize", flexShrink: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  insBarWrap: { flex: 1, height: 16, background: "#eef0f3", borderRadius: 5, overflow: "hidden" },
+  insBar: { height: "100%", borderRadius: 5 },
+  insPct: { width: 40, textAlign: "right", fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 700, color: T.text },
+  insAtt: { width: 34, textAlign: "right", fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: T.faint },
+  insFoot: { fontSize: 12, color: T.muted, lineHeight: 1.5, margin: "14px 4px 0", paddingTop: 12, borderTop: `1px solid ${T.paperEdge}` },
+  lbRow: { display: "flex", alignItems: "center", gap: 11, padding: "9px 10px", borderRadius: 10 },
+  lbMe: { background: T.tealSoft, boxShadow: `inset 0 0 0 1px ${T.teal}55` },
+  lbRank: { fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: T.faint, width: 22, textAlign: "center", flexShrink: 0 },
+  lbName: { flex: 1, fontSize: 14, fontWeight: 500, color: T.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  lbAcc: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: T.muted, width: 44, textAlign: "right" },
+  lbDone: { fontFamily: "'JetBrains Mono', monospace", fontSize: 14, fontWeight: 700, color: T.text, width: 48, textAlign: "right" },
+  lbFoot: { display: "flex", justifyContent: "flex-end", gap: 12, padding: "10px 12px 2px", fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: T.faint },
+
+  gateRoot: { minHeight: "100vh", background: T.ink, display: "grid", placeItems: "center", padding: 24, fontFamily: "'Space Grotesk', system-ui, sans-serif" },
+  gateCard: { maxWidth: 400, width: "100%", background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 18, padding: "34px 30px", textAlign: "center", boxShadow: "0 30px 80px -30px rgba(0,0,0,.6)" },
+  gateMark: { width: 52, height: 52, borderRadius: 14, background: T.teal, display: "inline-grid", placeItems: "center", marginBottom: 16 },
+  gateTitle: { fontSize: 24, fontWeight: 700, color: T.text, margin: "0 0 8px", letterSpacing: "-0.01em" },
+  gateSub: { fontSize: 14.5, lineHeight: 1.55, color: T.muted, margin: "0 0 22px" },
+  googleBtn: { display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", background: "#fff", color: "#1f2330", border: `1px solid ${T.paperEdge}`, padding: "12px 18px", borderRadius: 11, fontSize: 15, fontWeight: 600, cursor: "pointer" },
+  gateFine: { fontSize: 12, color: T.faint, lineHeight: 1.5, margin: "18px 0 0" },
+  tlHeading: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", color: T.faint, marginBottom: 7 },
+  tlRow: { display: "flex", flexWrap: "wrap", gap: 7 },
+  tlBtn: { flex: "1 1 auto", background: "#fff", color: T.text, border: `1px solid ${T.paperEdge}`, borderRadius: 9, padding: "10px 12px", fontSize: 13.5, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" },
+
+  well: { maxWidth: 740, margin: "0 auto", padding: "20px 22px 90px" },
+
+  nav: { display: "flex", alignItems: "center", gap: 12, marginBottom: 16, flexWrap: "wrap" },
+  sel: { background: T.inkSoft, color: "#e7eaf0", border: `1px solid ${T.inkLine}`, borderRadius: 9, padding: "8px 11px", fontSize: 13, cursor: "pointer" },
+  modeToggle: { display: "inline-flex", background: T.inkSoft, border: `1px solid ${T.inkLine}`, borderRadius: 10, padding: 3, gap: 2 },
+  modeBtn: { display: "inline-flex", alignItems: "center", gap: 6, background: "transparent", color: "#8c93a1", border: "none", padding: "6px 12px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" },
+  customEdit: { display: "inline-flex", alignItems: "center", gap: 4, marginLeft: 4, background: "transparent", color: T.teal, border: `1px solid ${T.inkLine}`, borderRadius: 7, padding: "3px 8px", fontSize: 12, fontWeight: 600, cursor: "pointer" },
+  modeOn: { background: T.teal, color: "#fff" },
+  todayProg: { display: "inline-flex", alignItems: "center", gap: 7, fontFamily: "'JetBrains Mono', monospace", fontSize: 13.5 },
+  missChip: { display: "inline-flex", alignItems: "center", gap: 6, background: T.inkSoft, color: "#c9a35a", border: `1px solid ${T.inkLine}`, padding: "6px 11px", borderRadius: 8, fontSize: 12.5, fontWeight: 500, cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" },
+
+  doneBanner: { display: "flex", alignItems: "center", gap: 11, flexWrap: "wrap", background: T.tealSoft, border: `1px solid ${T.teal}66`, borderRadius: 12, padding: "12px 15px", marginBottom: 16, fontSize: 14, color: T.text },
+  doneIcon: { width: 22, height: 22, borderRadius: 6, background: T.teal, display: "grid", placeItems: "center", flexShrink: 0 },
+  doneBtn: { display: "inline-flex", alignItems: "center", gap: 6, marginLeft: "auto", background: T.teal, color: "#fff", border: "none", padding: "7px 13px", borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: "pointer" },
+
+  setBlock: { padding: "16px 0", borderBottom: `1px solid ${T.paperEdge}` },
+  setLbl: { fontSize: 13.5, fontWeight: 600, color: T.text, marginBottom: 10 },
+  setHint: { fontSize: 12, color: T.muted, marginTop: 5, lineHeight: 1.45 },
+  segRow: { display: "inline-flex", background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 10, padding: 3, gap: 3 },
+  segBtn: { background: "transparent", color: T.muted, border: "none", padding: "8px 20px", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" },
+  segOn: { background: T.teal, color: "#fff" },
+  dateInput: { border: `1px solid ${T.paperEdge}`, borderRadius: 9, padding: "9px 12px", fontSize: 14, background: "#fff", color: T.text },
+  toggleRow: { display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", fontSize: 14, color: T.text },
+  afterRow: { display: "flex", alignItems: "center", gap: 8, marginTop: 12, fontSize: 13.5, color: T.muted },
+  daysInput: { width: 60, border: `1px solid ${T.paperEdge}`, borderRadius: 8, padding: "6px 9px", fontSize: 14, background: "#fff", color: T.text, textAlign: "center" },
+  navMid: { display: "flex", alignItems: "center", gap: 10, marginLeft: "auto" },
+  navBtn: { width: 34, height: 34, display: "grid", placeItems: "center", background: T.inkSoft, color: "#e7eaf0", border: `1px solid ${T.inkLine}`, borderRadius: 9, cursor: "pointer" },
+  navInfo: { fontFamily: "'JetBrains Mono', monospace", fontSize: 13.5, color: "#e7eaf0", minWidth: 86, textAlign: "center" },
+  jumpWrap: { display: "flex", alignItems: "center", gap: 6 },
+  jump: { width: 78, background: T.inkSoft, color: "#e7eaf0", border: `1px solid ${T.inkLine}`, borderRadius: 9, padding: "8px 10px", fontSize: 13 },
+  jumpBtn: { background: T.teal, color: "#fff", border: "none", borderRadius: 9, padding: "8px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer" },
+  deckBtn: { display: "inline-flex", alignItems: "center", gap: 6, background: T.inkSoft, color: "#e7d9b4", border: `1px solid ${T.inkLine}`, padding: "8px 12px", borderRadius: 9, fontSize: 12.5, fontWeight: 500, cursor: "pointer" },
+  deckFilters: { padding: "2px 20px 12px", borderBottom: `1px solid ${T.paperEdge}` },
+  deckSearch: { width: "100%", border: `1px solid ${T.paperEdge}`, borderRadius: 9, padding: "10px 13px", fontSize: 14, background: "#fff", color: T.text, marginBottom: 9 },
+  deckSearchRow: { display: "flex", alignItems: "center", gap: 8, marginBottom: 9, flexWrap: "wrap" },
+  scopeToggle: { display: "inline-flex", background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 9, padding: 2, gap: 2 },
+  scopeBtn: { background: "transparent", color: T.muted, border: "none", padding: "7px 12px", borderRadius: 7, fontSize: 12.5, fontWeight: 600, cursor: "pointer" },
+  scopeOn: { background: T.teal, color: "#fff" },
+  deckSelRow: { display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 10 },
+  deckCount: { display: "flex", alignItems: "center", fontSize: 13, color: T.muted, fontFamily: "'JetBrains Mono', monospace" },
+  deckRow: { display: "flex", alignItems: "flex-start", gap: 11, padding: "11px 4px", borderBottom: `1px solid ${T.paperEdge}` },
+  deckRowText: { display: "flex", flexDirection: "column", gap: 3, minWidth: 0, flex: 1, cursor: "pointer" },
+  deckRowMeta: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, letterSpacing: "0.04em", textTransform: "uppercase", color: T.faint },
+  deckRowStem: { fontSize: 13.5, color: T.text, lineHeight: 1.45 },
+  deckRowAns: { fontSize: 12.5, color: T.tealDeep, fontWeight: 500 },
+  deckFoot: { display: "flex", alignItems: "center", gap: 13, padding: "14px 22px", borderTop: `1px solid ${T.paperEdge}`, flexWrap: "wrap" },
+
+  progressRow: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 10 },
+  qeyebrow: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: "0.04em", color: "#8c93a1", textTransform: "uppercase" },
+  multiTag: { display: "inline-flex", alignItems: "center", gap: 5, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: T.gold, background: T.goldSoft, borderRadius: 6, padding: "3px 9px" },
+
+  qcard: { background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 16, padding: "26px 26px 22px", boxShadow: "0 1px 0 rgba(0,0,0,.04), 0 18px 40px -28px rgba(20,24,40,.5)" },
+  figRow: { display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 18, justifyContent: "center" },
+  figImg: { maxWidth: "100%", maxHeight: 320, borderRadius: 10, border: `1px solid ${T.paperEdge}`, background: "#fff" },
+  stem: { fontFamily: "'Newsreader', Georgia, serif", fontSize: 20, lineHeight: 1.5, color: T.text, margin: "0 0 22px", fontWeight: 400 },
+
+  options: { display: "flex", flexDirection: "column", gap: 9 },
+  opt: { position: "relative", overflow: "hidden", display: "flex", alignItems: "center", gap: 13, textAlign: "left", width: "100%", background: T.card, border: `1.5px solid ${T.paperEdge}`, borderRadius: 11, padding: "13px 15px", fontSize: 15, color: T.text, cursor: "pointer" },
+  optChosen: { borderColor: T.teal, background: T.tealSoft },
+  optCorrect: { borderColor: T.correctLine, background: T.correctBg },
+  optWrong: { borderColor: T.wrongLine, background: T.wrongBg },
+  optKey: { flexShrink: 0, width: 26, height: 26, borderRadius: 7, border: "1.5px solid", display: "grid", placeItems: "center", fontSize: 13, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", background: "rgba(255,255,255,.7)" },
+  optText: { flex: 1, lineHeight: 1.35 },
+  optRight: { display: "flex", alignItems: "center", gap: 9, flexShrink: 0 },
+  dist: { position: "absolute", left: 0, top: 0, bottom: 0, zIndex: 0, borderRadius: "10px 0 0 10px" },
+  optPct: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, fontWeight: 600 },
+
+  actionRow: { display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 20, gap: 10 },
+  actionHint: { fontSize: 13, color: T.muted, fontFamily: "'JetBrains Mono', monospace" },
+  primary: { background: T.teal, color: "#fff", border: "none", padding: "11px 22px", borderRadius: 10, fontSize: 14.5, fontWeight: 600, cursor: "pointer" },
+
+  verdict: { display: "flex", alignItems: "center", gap: 10, marginTop: 20, padding: "12px 15px", border: "1.5px solid", borderRadius: 11, flexWrap: "wrap" },
+  verdictIcon: { width: 22, height: 22, borderRadius: 6, display: "grid", placeItems: "center", flexShrink: 0 },
+  verdictMeta: { marginLeft: "auto", fontSize: 12.5, color: T.muted, fontFamily: "'JetBrains Mono', monospace", maxWidth: "100%" },
+
+  below: { marginTop: 18 },
+  tabs: { position: "relative", display: "flex", gap: 4, borderBottom: `1px solid ${T.inkLine}`, flexWrap: "wrap" },
+  tab: { display: "flex", alignItems: "center", gap: 7, background: "transparent", border: "none", color: "#8c93a1", padding: "9px 13px", fontSize: 13.5, fontWeight: 500, cursor: "pointer", borderBottom: "2px solid transparent", marginBottom: -1 },
+  tabActive: { color: "#fff" },
+  tabInd: { position: "absolute", height: 2, background: T.teal, borderRadius: 2, pointerEvents: "none" },
+  tabCount: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, background: T.inkSoft, color: "#c7ccd6", borderRadius: 20, padding: "1px 7px" },
+
+  panel: { background: T.paper, border: `1px solid ${T.paperEdge}`, borderTop: "none", borderRadius: "0 0 14px 14px", padding: 22 },
+
+  expl: { fontFamily: "'Newsreader', Georgia, serif", fontSize: 16.5, lineHeight: 1.6, color: T.text, margin: "0 0 16px", whiteSpace: "pre-wrap" },
+  explImg: { display: "block", maxWidth: "100%", borderRadius: 10, border: `1px solid ${T.paperEdge}`, background: "#fff", margin: "0 0 12px" },
+  emptyExpl: { display: "flex", alignItems: "center", gap: 10, color: T.muted, fontSize: 14, background: "#fff", border: `1px dashed ${T.paperEdge}`, borderRadius: 11, padding: "14px 16px" },
+  videoLink: { display: "flex", alignItems: "center", gap: 10, color: T.text, textDecoration: "none", fontSize: 14.5, background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 11, padding: "13px 15px" },
+  videoNote: { fontSize: 12.5, color: T.muted, marginTop: 10, lineHeight: 1.5 },
+  diagramBox: { background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 11, padding: "16px 14px", display: "flex", justifyContent: "center" },
+  diagramCaption: { fontSize: 13, color: T.muted, marginTop: 9, lineHeight: 1.5, fontStyle: "italic" },
+  cmpTable: { borderCollapse: "collapse", width: "100%", fontSize: 13.5, background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 11, overflow: "hidden" },
+  cmpTh: { textAlign: "left", padding: "9px 12px", background: T.paper, borderBottom: `1px solid ${T.paperEdge}`, fontWeight: 600, color: T.text },
+  cmpTd: { padding: "9px 12px", borderBottom: `1px solid ${T.paperEdge}`, color: T.text, verticalAlign: "top" },
+
+  flashEmpty: { textAlign: "center", padding: "10px 10px 6px" },
+  cardChrome: { background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 12, padding: 18 },
+  cardChromeHead: { display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" },
+  cardType: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 600, color: T.tealDeep, background: T.tealSoft, borderRadius: 6, padding: "3px 9px" },
+  cardCached: { display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, color: T.faint },
+  tinyBtn: { marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 5, background: T.paper, border: `1px solid ${T.paperEdge}`, color: T.muted, padding: "5px 10px", borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: "pointer" },
+  fieldLbl: { display: "block", fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", color: T.faint, marginBottom: 7 },
+  clozeRaw: { display: "block", fontFamily: "'JetBrains Mono', monospace", fontSize: 13, lineHeight: 1.6, background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 9, padding: "11px 13px", color: T.text, whiteSpace: "pre-wrap" },
+  clozePreview: { fontFamily: "'Newsreader', Georgia, serif", fontSize: 15.5, lineHeight: 1.55, color: T.text, marginTop: 10 },
+  clozeEdit: { width: "100%", minHeight: 70, fontFamily: "'JetBrains Mono', monospace", fontSize: 13, lineHeight: 1.6, border: `1px solid ${T.teal}66`, borderRadius: 9, padding: "11px 13px", background: T.paper, color: T.text, resize: "vertical" },
+  blank: { display: "inline-block", background: T.goldSoft, color: "#8a6414", borderRadius: 5, padding: "0 8px", margin: "0 2px", fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 600 },
+  extra: { background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 9, padding: "13px 15px", marginTop: 4 },
+  extraLine: { fontSize: 14, lineHeight: 1.5, margin: "0 0 8px", color: T.text },
+  flashActions: { display: "flex", alignItems: "center", gap: 13, marginTop: 14, flexWrap: "wrap" },
+  flashNote: { fontSize: 12, color: T.muted },
+
+  lbl: { display: "block", fontSize: 12, color: T.muted, marginBottom: 9, fontFamily: "'JetBrains Mono', monospace" },
+  textarea: { width: "100%", minHeight: 96, resize: "vertical", border: `1px solid ${T.paperEdge}`, borderRadius: 10, padding: "12px 14px", fontSize: 14.5, lineHeight: 1.5, background: "#fff", color: T.text },
+  saveRow: { display: "flex", alignItems: "center", gap: 9, marginTop: 11 },
+  savedDot: { width: 7, height: 7, borderRadius: 7, background: T.teal },
+  savedTxt: { fontSize: 12.5, color: T.muted },
+  ghost: { marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: `1px solid ${T.paperEdge}`, color: T.text, padding: "7px 12px", borderRadius: 9, fontSize: 12.5, fontWeight: 500, cursor: "pointer" },
+
+  threadHead: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 10 },
+  thread: { display: "flex", flexDirection: "column", gap: 14 },
+  note: { display: "flex", gap: 11 },
+  avatar: { width: 32, height: 32, borderRadius: 9, color: "#fff", display: "grid", placeItems: "center", fontSize: 11.5, fontWeight: 700, flexShrink: 0 },
+  noteMeta: { display: "flex", alignItems: "center", gap: 8 },
+  noteAuthor: { fontSize: 13.5, color: T.text },
+  roleTag: { fontSize: 10.5, fontWeight: 600, color: T.muted, background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 5, padding: "1px 6px" },
+  noteTime: { fontSize: 11.5, color: T.faint, fontFamily: "'JetBrains Mono', monospace" },
+  del: { marginLeft: "auto", background: "transparent", border: "none", color: T.faint, cursor: "pointer", padding: 3, display: "grid", placeItems: "center", borderRadius: 6 },
+  noteText: { margin: "4px 0 0", fontSize: 14.5, lineHeight: 1.5, color: T.text },
+  emptyNote: { fontSize: 13.5, color: T.faint, fontStyle: "italic", margin: 0 },
+  addRow: { display: "flex", alignItems: "center", gap: 10, marginTop: 16, paddingTop: 16, borderTop: `1px solid ${T.paperEdge}` },
+  addInput: { flex: 1, border: `1px solid ${T.paperEdge}`, borderRadius: 9, padding: "10px 13px", fontSize: 14, background: "#fff", color: T.text },
+  primarySm: { display: "inline-flex", alignItems: "center", gap: 7, background: T.teal, color: "#fff", border: "none", padding: "9px 16px", borderRadius: 9, fontSize: 13.5, fontWeight: 600, cursor: "pointer" },
+
+  nextRow: { display: "flex", justifyContent: "flex-end", marginTop: 20 },
+  next: { display: "inline-flex", alignItems: "center", gap: 9, background: T.inkSoft, color: "#fff", border: `1px solid ${T.inkLine}`, padding: "11px 20px", borderRadius: 10, fontSize: 14.5, fontWeight: 600, cursor: "pointer" },
+
+  confetti: { position: "fixed", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 70 },
+  toast: { position: "fixed", bottom: 22, left: "50%", transform: "translateX(-50%)", background: T.ink, color: "#fff", padding: "11px 18px", borderRadius: 11, fontSize: 13.5, fontWeight: 500, boxShadow: "0 16px 40px -16px rgba(0,0,0,.6)", zIndex: 60, maxWidth: "90vw", textAlign: "center" },
+};

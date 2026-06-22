@@ -1,0 +1,31 @@
+[
+  {
+    "year": "2018",
+    "slide_number": 5,
+    "note": "Options C/D/E were space-joined on one line; split by hand. Answer B confirmed.",
+    "set": {
+      "options": [
+        { "letter": "A", "text": "Infertility" },
+        { "letter": "B", "text": "Hirsutism" },
+        { "letter": "C", "text": "Impotence" },
+        { "letter": "D", "text": "Gynecomastia" },
+        { "letter": "E", "text": "Testicular atrophy" }
+      ],
+      "answer_letter": "B",
+      "answer_letters": ["B"],
+      "answer_text": "Hirsutism",
+      "answer_source": "manual"
+    }
+  },
+  {
+    "year": "2021",
+    "slide_number": 207,
+    "note": "Annotated commentary slide; correct answer confirmed as C (Primary, indicated).",
+    "set": {
+      "answer_letter": "C",
+      "answer_letters": ["C"],
+      "answer_text": "Primary indicated — high-risk individuals with early/subclinical symptoms",
+      "answer_source": "manual"
+    }
+  }
+]
