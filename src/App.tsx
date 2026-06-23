@@ -7,6 +7,7 @@ import {
   TrendingUp, Youtube, Network, Zap, Crown, Radio,
 } from "lucide-react";
 import mermaid from "mermaid";
+import QRCode from "qrcode";
 
 mermaid.initialize({ startOnLoad: false, theme: "neutral", securityLevel: "loose", fontFamily: "inherit" });
 
@@ -1420,8 +1421,17 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
   const [revealed, setRevealed] = useState(false);
   const [, force] = useState(0); // re-render when votes arrive
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [qr, setQr] = useState<string | null>(null); // join-URL QR as a data URL
+  const [qrBig, setQrBig] = useState(false);          // enlarged QR overlay
   const votesRef = useRef<Map<string, Map<string, string>>>(new Map()); // qid -> voter -> choice
   const chanRef = useRef<ReturnType<NonNullable<typeof supabase>["channel"]> | null>(null);
+
+  // render the join URL into a QR once per room code
+  useEffect(() => {
+    QRCode.toDataURL(pollJoinUrl(code), { margin: 1, width: 512, color: { dark: "#11131c", light: "#ffffff" } })
+      .then(setQr)
+      .catch(() => setQr(null));
+  }, [code]);
 
   const q = set[index];
   const total = set.length;
@@ -1480,8 +1490,13 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
     <div style={s.pollRoot}>
       <style>{CSS}</style>
       <div style={s.pollHead}>
+        {qr && (
+          <button style={s.qrThumb} onClick={() => setQrBig(true)} title="Tap to enlarge for scanning">
+            <img src={qr} alt={`QR code to join poll ${code}`} style={s.qrThumbImg} />
+          </button>
+        )}
         <span style={s.pollLive}><Radio size={16} strokeWidth={2.4} /> LIVE POLL</span>
-        <span style={s.pollJoin}>Join at <b style={{ color: "#fff" }}>{joinHost}</b> · code <b style={s.pollCode}>{code}</b></span>
+        <span style={s.pollJoin}>Scan, or join at <b style={{ color: "#fff" }}>{joinHost}</b> · code <b style={s.pollCode}>{code}</b></span>
         <span style={s.pollVoters}><Users size={16} strokeWidth={2.3} /> {voterCount} voted</span>
         {timeLeft != null && (
           <span style={{ ...s.timerPill, ...(timeLeft <= 10 ? s.timerPillLow : {}) }}><Clock size={14} strokeWidth={2.5} /> {fmtTime(timeLeft)}</span>
@@ -1518,6 +1533,17 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
         )}
         <button style={s.pollBtn} disabled={index >= total - 1} onClick={() => goTo(index + 1)}>Next <ArrowRight size={16} strokeWidth={2.4} /></button>
       </div>
+
+      {qrBig && qr && (
+        <div style={s.qrOverlay} onClick={() => setQrBig(false)}>
+          <div style={s.qrCard} onClick={(e) => e.stopPropagation()}>
+            <img src={qr} alt={`QR code to join poll ${code}`} style={s.qrBigImg} />
+            <div style={s.qrCardCode}>{code}</div>
+            <div style={s.qrCardUrl}>{joinHost}</div>
+            <button style={s.pollBtn} onClick={() => setQrBig(false)}>Close</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2765,6 +2791,13 @@ const s: Record<string, React.CSSProperties> = {
   pollBtn: { display: "inline-flex", alignItems: "center", gap: 8, background: T.inkSoft, color: "#e7eaf0", border: `1px solid ${T.inkLine}`, padding: "12px 22px", borderRadius: 11, fontSize: 16, fontWeight: 600, cursor: "pointer" },
   pollBtnPrimary: { background: T.teal, color: "#fff", borderColor: T.teal },
   pollAnswerLine: { fontSize: 18, color: "#c7ccd6" },
+  qrThumb: { padding: 0, border: "none", borderRadius: 10, background: "#fff", cursor: "pointer", lineHeight: 0, flexShrink: 0, boxShadow: "0 4px 14px -6px rgba(0,0,0,.5)" },
+  qrThumbImg: { display: "block", width: 56, height: 56, borderRadius: 10 },
+  qrOverlay: { position: "absolute", inset: 0, zIndex: 5, background: "rgba(11,13,20,.86)", display: "grid", placeItems: "center", padding: 24 },
+  qrCard: { display: "flex", flexDirection: "column", alignItems: "center", gap: 14, background: "#fff", borderRadius: 20, padding: "26px 26px 22px" },
+  qrBigImg: { display: "block", width: "min(60vh, 70vw, 420px)", height: "min(60vh, 70vw, 420px)", borderRadius: 12 },
+  qrCardCode: { fontFamily: "'JetBrains Mono', monospace", fontSize: 30, fontWeight: 700, letterSpacing: "0.22em", color: "#11131c" },
+  qrCardUrl: { color: "#6c7280", fontSize: 14, marginTop: -6 },
 
   // live crowd poll — participant (phone)
   joinRoot: { position: "fixed", inset: 0, zIndex: 90, background: T.ink, display: "grid", placeItems: "center", padding: 20, fontFamily: "'Space Grotesk', system-ui, sans-serif" },
