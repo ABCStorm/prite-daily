@@ -6,7 +6,28 @@ Last updated: 2026-06-22.
 ## What this is
 A daily PRITE (psychiatry in-training exam) practice web app for the Wright State
 residency. React + TypeScript + Vite front end, Supabase back end. ~3,590 real
-questions (2014–2025) extracted into `public/data/questions.json` + images.
+questions (2014–2025).
+
+## Question access control (READ before touching data loading / deploys)
+The question **text** is access-gated; the **images** are still public (a known,
+accepted tradeoff for now).
+- The bank lives in a **private Supabase Storage bucket**: `bank/questions.json.gz`
+  (gzipped). RLS policy `"approved read bank"` on `storage.objects` lets only
+  signed-in **approved** members download it. `src/lib/db.ts` → `loadQuestionBank()`
+  streams + inflates it; `App.tsx` only calls it once the user is signed in+approved.
+- `public/data/questions.json` is now a committed **2-byte `[]` stub** (was a
+  symlink to the real 10 MB bank). This is deliberate so the build can NEVER copy
+  the real bank into the public site. `public/_headers` sets `Cache-Control:
+  no-store` on `/data/*`.
+- The real data still lives in `extraction/output/questions_all.json` (in git) —
+  that's the source you'd re-upload to the bucket if it ever changes
+  (`gzip -c extraction/output/questions_all.json > questions.json.gz`, upload to
+  the `bank` bucket as `questions.json.gz`).
+- ⚠️ A stale 7-day edge cache once kept serving the old public bank after we removed
+  it; deploying an explicit no-store stub at that path is what cleared it. Don't
+  "fix" this by deleting the stub.
+- Images (`/images/...`, 205 MB) are still publicly fetchable. Gating them would
+  need Cloudflare Access or signed URLs (see chat history) — not done.
 
 ## How to run it
 ```bash
@@ -64,18 +85,20 @@ direct upload of `dist/`). Google login works on the custom domain.
 - [x] **Google OAuth consent screen published (In production)** — any resident
   with a Google account can now sign in; roster name-match auto-approves them.
   (Project: the "Gemini API" GCP project; OAuth client `prite-daily-web`.)
-- [ ] (Optional) Get the project into a private GitHub repo for backup/portability
-  — it currently only exists on this one Mac.
+- [x] Private GitHub backup — https://github.com/ABCStorm/prite-daily (complete
+  copy incl. data + images).
 
 ## Gotchas / non-obvious things
-- **NOT a git repo yet.** The project exists only on this Mac. Get it into
-  (private!) GitHub before moving machines — it contains copyrighted PRITE content,
-  so the repo must be **private**.
-- **Images are gitignored.** `extraction/output/` (~205 MB, 1,213 images) is
-  excluded from git on purpose, and `public/images` is a **symlink** →
-  `extraction/output/images`. `npm run build` follows the symlink and bakes the
-  images into `dist/`. So a fresh git clone alone won't have images unless that
-  folder travels with it. This is why we deploy the prebuilt `dist/` directly.
+- **Git remote:** private repo at **https://github.com/ABCStorm/prite-daily**
+  (branch `main`). Push future changes with `git add -A && git commit && git push`.
+  Auth is via the GitHub CLI (`gh`, installed via Homebrew).
+- **Images + question JSON live in git but past `.gitignore`.** `extraction/output/`
+  is gitignored, BUT the real data was **force-added** so the backup is complete and
+  clonable: `extraction/output/images` (1,213 files) + `extraction/output/questions_*.json`.
+  `public/images` and `public/data/questions.json` are **symlinks** into that folder,
+  which resolve on a fresh clone. (Pipeline scratch — `_batches/_results/*.bak` — is
+  intentionally NOT committed.) `npm run build` follows the symlinks and bakes the
+  images into `dist/`, which is what we deploy.
 - A domain was purchased on **Cloudflare** for this project (intended for hosting
   + email). Email is no longer needed (Google auth), but the domain is still the
   right home for the deployed site.

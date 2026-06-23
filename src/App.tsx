@@ -32,6 +32,7 @@ import { isConfigured, supabase, signInWithGoogle, signOut, questionId } from ".
 import { useAuth } from "./lib/useAuth";
 import { matchRoster } from "./lib/roster";
 import {
+  loadQuestionBank,
   getMyAnswers, saveAnswer, getMyNote, saveMyNote,
   getGroupNotes, addGroupNote, deleteGroupNote,
   listProfiles, updateProfile, setTrainingLevel,
@@ -265,13 +266,18 @@ export default function App() {
     listProfiles().then(setProfiles);
   };
 
-  // load the real bank once
+  // Load the real bank. When Supabase is configured the bank lives in a private
+  // Storage bucket, so we wait until the user is signed in + approved before
+  // requesting it (anonymous visitors can no longer pull questions.json). In
+  // local-only mode (no backend) it loads the bundled file immediately.
   useEffect(() => {
-    fetch("/data/questions.json")
-      .then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
-      .then((data: RawQuestion[]) => setAll(data))
-      .catch((e) => setLoadErr(String(e)));
-  }, []);
+    if (isConfigured && !(signedIn && approved)) return;
+    let alive = true;
+    loadQuestionBank()
+      .then((data) => { if (alive) setAll(data as RawQuestion[]); })
+      .catch((e) => { if (alive) setLoadErr(String(e?.message ?? e)); });
+    return () => { alive = false; };
+  }, [signedIn, approved]);
 
   const years = useMemo(
     () => (all ? Array.from(new Set(all.map((q) => q.year))).sort() : []),

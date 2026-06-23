@@ -4,6 +4,24 @@ import { supabase } from "./supabase";
    (returns null / []) when Supabase isn't configured, so callers don't have to
    branch. RLS on the server enforces that users only touch their own rows. */
 
+/** Load the question bank. When Supabase is configured it streams from a PRIVATE
+    Storage bucket (`bank/questions.json.gz`) that only approved members can read,
+    so the bank is never exposed to anonymous visitors. The object is gzipped to
+    keep egress down; we inflate it in the browser. Falls back to the bundled
+    static file only in local-only mode (no backend keys). */
+export async function loadQuestionBank(): Promise<unknown[]> {
+  if (supabase) {
+    const { data, error } = await supabase.storage.from("bank").download("questions.json.gz");
+    if (error || !data) throw new Error(error?.message ?? "Couldn’t load the question bank");
+    const inflated = data.stream().pipeThrough(new DecompressionStream("gzip"));
+    const text = await new Response(inflated).text();
+    return JSON.parse(text);
+  }
+  const r = await fetch("/data/questions.json");
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+}
+
 export type Profile = {
   id: string;
   email: string;
