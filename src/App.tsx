@@ -602,7 +602,7 @@ export default function App() {
                   <Trophy size={13} strokeWidth={2.3} /> Leaderboard
                 </button>
                 <button style={s.approveBtn} onClick={() => setShowStats(true)}>
-                  <TrendingUp size={13} strokeWidth={2.3} /> Statistics
+                  <TrendingUp size={13} strokeWidth={2.3} /> Personal Statistics
                 </button>
                 <button style={s.approveBtn} onClick={() => setShowInsights(true)}>
                   <BarChart3 size={13} strokeWidth={2.3} /> Residency Insights
@@ -1127,7 +1127,7 @@ function SignIn() {
         <button style={s.googleBtn} onClick={() => signInWithGoogle()}>
           <GoogleG /> Sign in with Google
         </button>
-        <p style={s.gateFine}>Residents on the roster are approved automatically. Faculty &amp; alumni are approved by an admin.</p>
+        <p style={s.gateFine}>Residents and known faculty are approved automatically. Some faculty or alumni may still need admin approval.</p>
       </div>
     </div>
   );
