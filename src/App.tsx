@@ -4,7 +4,7 @@ import {
   Check, X, Image as ImageIcon, Trash2, Download, Flame, ArrowRight,
   ArrowLeft, ListChecks, LogOut, Clock, Settings as SettingsIcon,
   Sparkles, Target, RotateCcw, BarChart3, Pencil, Search, FileText, ExternalLink,
-  TrendingUp, Youtube, Network,
+  TrendingUp, Youtube, Network, Zap, Crown, Radio,
 } from "lucide-react";
 import mermaid from "mermaid";
 
@@ -31,6 +31,11 @@ function MermaidDiagram({ code }: { code: string }) {
 import { isConfigured, supabase, signInWithGoogle, signOut, questionId } from "./lib/supabase";
 import { useAuth } from "./lib/useAuth";
 import { matchRoster } from "./lib/roster";
+import { recordToday, peekStreak, ymd } from "./lib/streaks";
+import {
+  makePollCode, channelName, pollJoinUrl, pollCodeFromUrl, clearPollParam,
+  POLL_EVENTS, type PollState, type PollVote,
+} from "./lib/poll";
 import {
   loadQuestionBank,
   getMyAnswers, saveAnswer, getMyNote, saveMyNote,
@@ -150,6 +155,38 @@ function ordinal(n: number) {
   return ["th", "st", "nd", "rd"][n % 10] ?? "th";
 }
 
+const TIMER_MIN = 20, TIMER_MAX = 120;
+const clampSecs = (n: number) => Math.min(TIMER_MAX, Math.max(TIMER_MIN, Math.round(n) || 60));
+
+function readPref<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw == null ? fallback : (JSON.parse(raw) as T);
+  } catch {
+    return fallback;
+  }
+}
+function writePref(key: string, value: unknown) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* best-effort */ }
+}
+function fmtTime(s: number) {
+  const m = Math.floor(s / 60), sec = s % 60;
+  return `${m}:${String(sec).padStart(2, "0")}`;
+}
+
+function streakMessage(kind: "login" | "completion", streak: number): string {
+  if (kind === "login") {
+    if (streak >= 14) return "Two weeks of showing up. Remarkable consistency.";
+    if (streak >= 7) return "A full week of logins — the habit is real.";
+    return "Glad you're back. Consistency compounds.";
+  }
+  if (streak >= 14) return "Legendary — two weeks of daily sets unbroken!";
+  if (streak >= 7) return "A full week of daily sets. You're on fire.";
+  if (streak >= 5) return "Five days and climbing. Keep the chain alive!";
+  if (streak >= 3) return "Three in a row — the habit is forming!";
+  return "Daily set complete. Nice work.";
+}
+
 export default function App() {
   const [all, setAll] = useState<RawQuestion[] | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
@@ -168,6 +205,28 @@ export default function App() {
   const confettiRef = useRef<HTMLCanvasElement | null>(null);
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [ind, setInd] = useState({ left: 0, width: 0, top: 0 });
+
+  // --- streak rewards (client-side, see lib/streaks.ts) ---
+  const [streakReward, setStreakReward] = useState<{ kind: "login" | "completion"; streak: number; level: number } | null>(null);
+  const [doneStreak, setDoneStreak] = useState(0); // current daily-completion streak, for the top-bar chip
+  const loginCheckedRef = useRef(false);
+  const completionCelebratedRef = useRef<string | null>(null);
+
+  // --- exam mode + timer (UI prefs, kept in localStorage to avoid a DB migration) ---
+  const [examMode, setExamMode] = useState<boolean>(() => readPref("pd_exam_mode", false));
+  const [examReview, setExamReview] = useState(false); // entered the post-set review phase
+  const [timerOn, setTimerOn] = useState<boolean>(() => readPref("pd_timer_on", false));
+  const [timerSecs, setTimerSecs] = useState<number>(() => clampSecs(readPref("pd_timer_secs", 60)));
+  const [secsDraft, setSecsDraft] = useState<string>(() => String(clampSecs(readPref("pd_timer_secs", 60))));
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const commitSecs = () => { const n = clampSecs(Number(secsDraft)); setTimerSecs(n); setSecsDraft(String(n)); };
+
+  // --- live crowd poll (Supabase Realtime, see lib/poll.ts) ---
+  const [hostCode, setHostCode] = useState<string | null>(null);   // big screen is hosting
+  const [joinCode, setJoinCode] = useState<string | null>(null);   // this device is a participant
+  useEffect(() => { writePref("pd_exam_mode", examMode); }, [examMode]);
+  useEffect(() => { writePref("pd_timer_on", timerOn); }, [timerOn]);
+  useEffect(() => { writePref("pd_timer_secs", timerSecs); }, [timerSecs]);
 
   // --- auth + persistence ---
   const { session, profile, loading: authLoading, reloadProfile } = useAuth();
@@ -294,8 +353,12 @@ export default function App() {
   }, [all]);
   const inToday = persist && mode === "today";
   const inCustom = persist && mode === "custom";
+  const inPractice = inToday || inCustom; // exam mode + timer apply only here
   const set = inToday ? todayQueue : inCustom ? customQueue : browseSet;
   const q = set[qi];
+  // explanations stay hidden while answering an exam-mode set (until review)
+  const examActive = examMode && inPractice && !examReview;
+  const showAnswer = revealed && !examActive;
 
   // reset tab + load this question's notes (mine + group) on navigation
   useEffect(() => {
@@ -315,13 +378,13 @@ export default function App() {
     if (cur) getFlashcard(questionId(cur.year, cur.q_index)).then((c) => { if (c) setCard(c); });
   }, [tab, qi, persist, mode]); // eslint-disable-line
 
-  // per-question class stats: fetch once the answer is revealed
+  // per-question class stats: fetch once the answer is actually shown
   useEffect(() => {
-    if (!revealed || !persist) { setStats(null); return; }
+    if (!showAnswer || !persist) { setStats(null); return; }
     const cur = set[qi];
     if (!cur) return;
     getQuestionStats(questionId(cur.year, cur.q_index)).then(setStats);
-  }, [revealed, qi, year, persist, mode]); // eslint-disable-line
+  }, [showAnswer, qi, year, persist, mode]); // eslint-disable-line
 
   // leaderboard: (re)load whenever the modal opens
   useEffect(() => {
@@ -361,7 +424,10 @@ export default function App() {
     typeof window !== "undefined" && window.matchMedia &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  const fireConfetti = () => {
+  // Escalating celebration. level 1 = a single modest burst (used for a correct
+  // answer); higher levels add more bursts, particles, sparkle/glow and richer
+  // palettes so longer streaks feel visibly cooler. Capped at level 5.
+  const fireCelebration = (level: number) => {
     const canvas = confettiRef.current;
     if (!canvas || prefersReduced()) return;
     const ctx = canvas.getContext("2d");
@@ -370,42 +436,142 @@ export default function App() {
     const W = canvas.clientWidth, H = canvas.clientHeight;
     canvas.width = W * dpr; canvas.height = H * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const colors = [T.teal, T.gold, "#e07a5f", "#1a7a4a", "#ffffff", T.tealDeep, "#f2c14e"];
-    const cx = W / 2, cy = H * 0.34, N = 150;
-    const parts = Array.from({ length: N }).map(() => {
-      const a = Math.random() * Math.PI * 2;
-      const sp = 4 + Math.random() * 8;
-      return {
-        x: cx + (Math.random() - 0.5) * 70, y: cy + (Math.random() - 0.5) * 24,
-        vx: Math.cos(a) * sp * (0.5 + Math.random() * 0.9),
-        vy: Math.sin(a) * sp - (4 + Math.random() * 5),
-        g: 0.17 + Math.random() * 0.13, size: 5 + Math.random() * 7,
-        rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.35,
-        color: colors[(Math.random() * colors.length) | 0],
-        rect: Math.random() > 0.5, life: 0, ttl: 95 + Math.random() * 45,
-      };
-    });
+
+    const L = Math.max(1, Math.min(5, Math.round(level)));
+    const base = [T.teal, T.gold, "#e07a5f", "#1a7a4a", "#ffffff", T.tealDeep, "#f2c14e"];
+    const gold = [T.gold, "#f2c14e", "#ffd76a", "#ffffff", "#e6a817", T.teal];
+    const rainbow = ["#e07a5f", "#f2c14e", T.gold, "#1a7a4a", T.teal, "#5b8def", "#a06cd5", "#ffffff"];
+    const cfg = {
+      1: { bursts: 1, per: 130, ttl: 105, speed: 9, colors: base, glow: false, gravity: 0.18 },
+      2: { bursts: 2, per: 120, ttl: 120, speed: 10, colors: base, glow: false, gravity: 0.16 },
+      3: { bursts: 4, per: 120, ttl: 130, speed: 11, colors: gold, glow: true, gravity: 0.15 },
+      4: { bursts: 7, per: 130, ttl: 140, speed: 12, colors: rainbow, glow: true, gravity: 0.14 },
+      5: { bursts: 11, per: 140, ttl: 150, speed: 13, colors: rainbow, glow: true, gravity: 0.13 },
+    }[L]!;
+
+    type P = {
+      ox: number; oy: number; x: number; y: number; vx: number; vy: number;
+      g: number; size: number; rot: number; vr: number; color: string;
+      rect: boolean; delay: number; life: number; ttl: number;
+    };
+    const parts: P[] = [];
+    for (let b = 0; b < cfg.bursts; b++) {
+      // First burst centered-high; extras scattered across the upper screen.
+      const cx = b === 0 ? W / 2 : W * (0.12 + Math.random() * 0.76);
+      const cy = b === 0 ? H * 0.32 : H * (0.16 + Math.random() * 0.42);
+      const delay = b === 0 ? 0 : 6 + b * 9 + ((Math.random() * 6) | 0);
+      for (let i = 0; i < cfg.per; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const sp = cfg.speed * (0.45 + Math.random() * 0.95);
+        parts.push({
+          ox: cx + (Math.random() - 0.5) * 60, oy: cy + (Math.random() - 0.5) * 22,
+          x: 0, y: 0,
+          vx: Math.cos(a) * sp,
+          vy: Math.sin(a) * sp - (3 + Math.random() * 5),
+          g: cfg.gravity + Math.random() * 0.12, size: 4 + Math.random() * (6 + L),
+          rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.38,
+          color: cfg.colors[(Math.random() * cfg.colors.length) | 0],
+          rect: Math.random() > 0.45, delay, life: 0, ttl: cfg.ttl + Math.random() * 45,
+        });
+      }
+    }
+    for (const p of parts) { p.x = p.ox; p.y = p.oy; }
+
+    const maxFrames = 240 + cfg.bursts * 12;
     let frame = 0;
     const draw = () => {
       ctx.clearRect(0, 0, W, H);
       let alive = false;
       for (const p of parts) {
+        if (frame < p.delay) { alive = true; continue; } // waiting to launch
         if (p.life > p.ttl) continue;
         alive = true; p.life++;
         p.vy += p.g; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
         ctx.save();
         ctx.globalAlpha = Math.max(0, 1 - p.life / p.ttl);
+        if (cfg.glow) { ctx.shadowBlur = 8; ctx.shadowColor = p.color; }
         ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillStyle = p.color;
         if (p.rect) ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
         else { ctx.beginPath(); ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2); ctx.fill(); }
         ctx.restore();
       }
       frame++;
-      if (alive && frame < 240) requestAnimationFrame(draw);
+      if (alive && frame < maxFrames) requestAnimationFrame(draw);
       else ctx.clearRect(0, 0, W, H);
     };
     requestAnimationFrame(draw);
   };
+
+  // Correct-answer pop reuses the modest level-1 celebration.
+  const fireConfetti = () => fireCelebration(1);
+
+  const completionLevel = (streak: number) =>
+    streak >= 14 ? 5 : streak >= 7 ? 4 : streak >= 5 ? 3 : streak >= 3 ? 2 : 1;
+
+  // Login streak: fires once per app load. Also seeds the completion-streak chip.
+  useEffect(() => {
+    if (!persist || loginCheckedRef.current) return;
+    loginCheckedRef.current = true;
+    const uid = profile?.id ?? session?.user?.id ?? "anon";
+    setDoneStreak(peekStreak(uid, "completion"));
+    const { streak, isNew } = recordToday(uid, "login");
+    if (isNew && streak >= 2) {
+      const level = streak >= 14 ? 3 : streak >= 7 ? 2 : 1;
+      setStreakReward({ kind: "login", streak, level });
+      fireCelebration(level);
+    }
+  }, [persist, profile?.id, session?.user?.id]);
+
+  // Completion streak: fires the first time the daily target is reached each day.
+  useEffect(() => {
+    if (!persist) return;
+    const tgt = settings?.regimen ?? 10;
+    const done = Object.values(answers).filter((a) => isSameDay(a.updated_at)).length;
+    const today = ymd();
+    if (done >= tgt && completionCelebratedRef.current !== today) {
+      completionCelebratedRef.current = today;
+      const uid = profile?.id ?? session?.user?.id ?? "anon";
+      const { streak, isNew } = recordToday(uid, "completion");
+      setDoneStreak(streak);
+      if (isNew) {
+        const level = completionLevel(streak);
+        setStreakReward({ kind: "completion", streak, level });
+        fireCelebration(level);
+      }
+    }
+  }, [persist, answers, settings?.regimen, profile?.id, session?.user?.id]);
+
+  // Auto-dismiss the streak reward card.
+  useEffect(() => {
+    if (!streakReward) return;
+    const t = setTimeout(() => setStreakReward(null), streakReward.kind === "completion" ? 4200 : 3400);
+    return () => clearTimeout(t);
+  }, [streakReward]);
+
+  // --- per-question timer ---
+  // finalize() is defined after the auth-gate early returns, so we reach it
+  // through a ref that the render keeps current.
+  const finalizeRef = useRef<(timedOut: boolean) => void>(() => {});
+  // Run a fresh countdown for each unanswered question in a practice mode.
+  useEffect(() => {
+    if (!timerOn || !inPractice || examReview || revealed || !q) { setTimeLeft(null); return; }
+    setTimeLeft(timerSecs);
+    const id = setInterval(() => {
+      setTimeLeft((t) => (t == null ? t : t <= 1 ? 0 : t - 1));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [timerOn, inPractice, examReview, revealed, qi, mode, timerSecs, q?.year, q?.q_index]); // eslint-disable-line
+  // When time runs out, lock the question in (auto-submit, like the real exam).
+  useEffect(() => {
+    if (timeLeft === 0 && !revealed) finalizeRef.current(true);
+  }, [timeLeft, revealed]);
+
+  // Auto-join a poll when arriving via a ?poll=CODE link.
+  useEffect(() => {
+    if (!persist) return;
+    const code = pollCodeFromUrl();
+    if (code) { setJoinCode(code); clearPollParam(); }
+  }, [persist]);
 
   // --- auth gate (only when Supabase is configured) ---
   if (isConfigured && authLoading) return <Center>Signing you in…</Center>;
@@ -451,18 +617,27 @@ export default function App() {
     );
   };
 
-  const submit = async () => {
-    if (!picked.length) return;
+  const finalize = async (timedOut = false) => {
+    if (revealed) return;
+    if (!timedOut && !picked.length) return; // need a pick unless the clock ran out
     setRevealed(true);
     const right =
+      picked.length > 0 &&
       picked.length === correctSet.length && picked.every((l) => correctSet.includes(l));
-    if (right) setTimeout(fireConfetti, 140);
+    // Hold the celebration until review when explanations are deferred.
+    if (right && !examActive) setTimeout(fireConfetti, 140);
     if (persist && q) {
       const qid = questionId(q.year, q.q_index);
       const saved = await saveAnswer(qid, picked, right);
       if (saved) setAnswers((m) => ({ ...m, [qid]: saved }));
     }
+    // Exam mode hides the result, so move straight to the next question.
+    if (examActive && qi < set.length - 1) {
+      setTimeout(() => setQi((i) => Math.min(i + 1, set.length - 1)), timedOut ? 650 : 220);
+    }
   };
+  finalizeRef.current = finalize;
+  const submit = () => finalize(false);
 
   const go = (delta: number) => setQi((i) => (i + delta + set.length) % set.length);
   const doJump = () => {
@@ -495,6 +670,12 @@ export default function App() {
   const doneToday = Object.values(answers).filter((a) => isSameDay(a.updated_at)).length;
   const dayComplete = inToday && doneToday >= target;
   const missedOutstanding = Object.values(answers).filter((a) => !a.correct).length;
+
+  // exam-mode progress across the current set
+  const setRows = inPractice ? set.map((qq) => answers[questionId(qq.year, qq.q_index)]) : [];
+  const setAnswered = setRows.filter(Boolean).length;
+  const examSetComplete = examMode && inPractice && set.length > 0 && setAnswered >= set.length;
+  const examScore = setRows.filter((r) => r && r.correct).length;
   const examDays = settings?.exam_date ? daysUntil(settings.exam_date) : null;
   const switchMode = (m: "today" | "browse" | "custom") => { setMode(m); setQi(0); setReviewMode(false); };
   // start a custom study session from a hand-picked set (from the Search modal)
@@ -584,32 +765,35 @@ export default function App() {
 
       {/* Top bar */}
       <header style={s.top}>
-        <div style={s.topInner}>
+        <div style={s.topInner} className="topInner">
           <div style={s.brand}>
             <span style={s.brandMark}><Stethoscope size={16} strokeWidth={2.4} /></span>
             <span style={s.brandName}>PRITE&nbsp;<span style={{ color: T.faint, fontWeight: 500 }}>Daily</span></span>
           </div>
-          <div style={s.topMeta}>
+          <div style={s.topMeta} className="topMeta">
             <span style={s.countdown}>
               {examDays !== null
                 ? <><span style={{ ...s.countNum, color: examDays <= 14 ? "#e07a5f" : T.gold }}>{examDays}</span> {examDays === 1 ? "day" : "days"} to exam</>
                 : <><span style={s.countNum}>{all.length}</span> questions</>}
               {persist && <> · <span style={s.countNum}>{answeredCount}</span> done</>}
+              {persist && doneStreak > 0 && (
+                <> · <span style={s.streakChip} title={`${doneStreak}-day daily streak`}><Flame size={11} strokeWidth={2.6} /> {doneStreak}</span></>
+              )}
             </span>
             {persist ? (
-              <span style={s.who}>
-                <button style={s.approveBtn} onClick={() => setShowBoard(true)}>
-                  <Trophy size={13} strokeWidth={2.3} /> Leaderboard
+              <span style={s.who} className="topActions">
+                <button style={s.approveBtn} className="topActBtn" onClick={() => setShowBoard(true)} title="Leaderboard">
+                  <Trophy size={13} strokeWidth={2.3} /> <span className="btnTxt">Leaderboard</span>
                 </button>
-                <button style={s.approveBtn} onClick={() => setShowStats(true)}>
-                  <TrendingUp size={13} strokeWidth={2.3} /> Personal Statistics
+                <button style={s.approveBtn} className="topActBtn" onClick={() => setShowStats(true)} title="Personal Statistics">
+                  <TrendingUp size={13} strokeWidth={2.3} /> <span className="btnTxt">Personal Statistics</span>
                 </button>
-                <button style={s.approveBtn} onClick={() => setShowInsights(true)}>
-                  <BarChart3 size={13} strokeWidth={2.3} /> Residency Insights
+                <button style={s.approveBtn} className="topActBtn" onClick={() => setShowInsights(true)} title="Residency Insights">
+                  <BarChart3 size={13} strokeWidth={2.3} /> <span className="btnTxt">Residency Insights</span>
                 </button>
                 {isAdmin && (
-                  <button style={s.approveBtn} onClick={() => setShowApprovals(true)}>
-                    <ShieldCheck size={13} strokeWidth={2.3} /> Approvals
+                  <button style={s.approveBtn} className="topActBtn" onClick={() => setShowApprovals(true)} title="Approvals">
+                    <ShieldCheck size={13} strokeWidth={2.3} /> <span className="btnTxt">Approvals</span>
                     {pendingCount > 0 && <span style={s.pendingBadge}>{pendingCount}</span>}
                   </button>
                 )}
@@ -701,7 +885,79 @@ export default function App() {
           )}
         </div>
 
-        {dayComplete && (
+        {/* Study options: hold-explanations (exam mode) + per-question timer + group poll */}
+        {persist && (
+          <div style={s.studyBar}>
+            {inPractice && (
+              <>
+                <button
+                  style={{ ...s.studyToggle, ...(examMode ? s.studyToggleOn : {}) }}
+                  onClick={() => { setExamMode((v) => !v); setExamReview(false); }}
+                  title="Answer every question in the set before any explanations are shown"
+                >
+                  <ListChecks size={13} strokeWidth={2.3} /> Exam mode: {examMode ? "on" : "off"}
+                </button>
+                <button
+                  style={{ ...s.studyToggle, ...(timerOn ? s.studyToggleOn : {}) }}
+                  onClick={() => setTimerOn((v) => !v)}
+                  title="Countdown per question, like the real exam"
+                >
+                  <Clock size={13} strokeWidth={2.3} /> Timer: {timerOn ? "on" : "off"}
+                </button>
+                {timerOn && (
+                  <span style={s.studySecs}>
+                    <input
+                      value={secsDraft}
+                      onChange={(e) => setSecsDraft(e.target.value.replace(/[^0-9]/g, ""))}
+                      onBlur={commitSecs}
+                      onKeyDown={(e) => e.key === "Enter" && commitSecs()}
+                      style={s.secsInput}
+                      inputMode="numeric"
+                      title="Seconds per question (20–120)"
+                    />
+                    <span style={{ color: T.faint }}>sec/question (20–120)</span>
+                  </span>
+                )}
+              </>
+            )}
+            <button
+              style={s.studyToggle}
+              onClick={() => setHostCode(makePollCode())}
+              title="Run a live poll on a big screen — residents vote from their phones"
+            >
+              <Radio size={13} strokeWidth={2.3} /> Host poll
+            </button>
+            <button
+              style={s.studyToggle}
+              onClick={() => { const c = window.prompt("Enter the poll code shown on the big screen:"); if (c && c.trim()) setJoinCode(c.trim().toUpperCase()); }}
+              title="Join a poll from your phone"
+            >
+              <Users size={13} strokeWidth={2.3} /> Join poll
+            </button>
+            {timerOn && inPractice && timeLeft != null && !revealed && (
+              <span style={{ ...s.timerPill, ...(timeLeft <= 10 ? s.timerPillLow : {}) }}>
+                <Clock size={12} strokeWidth={2.5} /> {fmtTime(timeLeft)}
+              </span>
+            )}
+          </div>
+        )}
+
+        {examSetComplete && !examReview && (
+          <div style={s.doneBanner} className="slidein">
+            <span style={s.doneIcon}><Check size={15} strokeWidth={3} color="#fff" /></span>
+            <span><b>Set complete — {examScore}/{set.length} correct.</b> Review every question with its explanation.</span>
+            <button style={s.doneBtn} onClick={() => { setExamReview(true); setQi(0); }}><Layers size={13} strokeWidth={2.3} /> Review answers</button>
+          </div>
+        )}
+
+        {examReview && (
+          <div style={s.reviewBar} className="slidein">
+            <span><b style={{ color: "#e7eaf0" }}>Reviewing answers</b> · {examScore}/{set.length} correct — explanations now shown.</span>
+            <button style={{ ...s.doneBtn, background: "transparent" }} onClick={() => setExamReview(false)}>Exit review</button>
+          </div>
+        )}
+
+        {dayComplete && !examReview && (
           <div style={s.doneBanner} className="slidein">
             <span style={s.doneIcon}><Check size={15} strokeWidth={3} color="#fff" /></span>
             <span><b>That's your {target} for today.</b> Nice work — come back tomorrow for a fresh set.</span>
@@ -731,16 +987,16 @@ export default function App() {
           <div style={s.options}>
             {q.options.map((o, oi) => {
               const chosen = picked.includes(o.letter);
-              const correct = revealed && correctSet.includes(o.letter);
-              const wrongPick = revealed && chosen && !correctSet.includes(o.letter);
+              const correct = showAnswer && correctSet.includes(o.letter);
+              const wrongPick = showAnswer && chosen && !correctSet.includes(o.letter);
               const base: React.CSSProperties = { ...s.opt };
-              if (!revealed && chosen) Object.assign(base, s.optChosen);
+              if (!showAnswer && chosen) Object.assign(base, s.optChosen);
               if (correct) Object.assign(base, s.optCorrect);
               if (wrongPick) Object.assign(base, s.optWrong);
               const total = stats?.attempts ?? 0;
               const cnt = stats?.distribution?.[o.letter] ?? 0;
               const pct = total > 0 ? Math.round((cnt / total) * 100) : 0;
-              const showDist = revealed && stats && total > 0;
+              const showDist = showAnswer && stats && total > 0;
               return (
                 <button
                   key={o.letter}
@@ -762,11 +1018,11 @@ export default function App() {
                   )}
                   <span style={{
                     ...s.optKey, position: "relative", zIndex: 1,
-                    borderColor: correct ? T.correctLine : wrongPick ? T.wrongLine : (chosen && !revealed ? T.teal : T.paperEdge),
-                    color: correct ? T.correctText : wrongPick ? T.wrongText : (chosen && !revealed ? T.teal : T.muted),
+                    borderColor: correct ? T.correctLine : wrongPick ? T.wrongLine : (chosen && !showAnswer ? T.teal : T.paperEdge),
+                    color: correct ? T.correctText : wrongPick ? T.wrongText : (chosen && !showAnswer ? T.teal : T.muted),
                   }}>{o.letter}</span>
                   <span style={{ ...s.optText, position: "relative", zIndex: 1 }}>{o.text}</span>
-                  {revealed && (
+                  {showAnswer && (
                     <span style={{ ...s.optRight, position: "relative", zIndex: 1 }}>
                       {showDist && <span style={{ ...s.optPct, color: correct ? T.correctText : wrongPick ? T.wrongText : T.faint }}>{pct}%</span>}
                       {correct && <Check size={16} strokeWidth={3} color={T.correctLine} />}
@@ -787,8 +1043,19 @@ export default function App() {
                 style={{ ...s.primary, opacity: picked.length ? 1 : 0.45, cursor: picked.length ? "pointer" : "not-allowed" }}
                 onClick={submit}
               >
-                Submit{q.multi_select && picked.length ? ` (${picked.length})` : ""}
+                {examActive ? "Lock in" : "Submit"}{q.multi_select && picked.length ? ` (${picked.length})` : ""}
               </button>
+            </div>
+          ) : examActive ? (
+            <div style={s.lockedRow}>
+              <span style={s.lockedIcon}><Check size={14} strokeWidth={3} color="#fff" /></span>
+              <span style={{ fontWeight: 600, color: "#e7eaf0" }}>
+                Answer locked{picked.length ? `: ${picked.slice().sort().join(", ")}` : " — no answer"}
+              </span>
+              <span style={s.lockedHint}>Explanations are held until you finish the set.</span>
+              {qi < set.length - 1 && (
+                <button style={s.doneBtn} onClick={() => go(1)}>Next <ArrowRight size={13} strokeWidth={2.3} /></button>
+              )}
             </div>
           ) : (
             <div style={{ ...s.verdict, background: isCorrect ? T.correctBg : T.wrongBg, borderColor: isCorrect ? T.correctLine : T.wrongLine }} className="slidein">
@@ -802,7 +1069,7 @@ export default function App() {
                 Answer: <b style={{ color: T.text }}>{correctSet.join(", ")}</b>
                 {q.answer_text ? ` — ${q.answer_text}` : ""}
                 {stats && stats.attempts > 0 && (
-                  <> · <b style={{ color: T.text }}>{stats.pct_correct}%</b> of the class · {stats.attempts} {stats.attempts === 1 ? "attempt" : "attempts"}</>
+                  <> · {stats.attempts} {stats.attempts === 1 ? "resident has" : "residents have"} answered · <b style={{ color: T.text }}>{stats.pct_correct}%</b> got it right</>
                 )}
               </span>
             </div>
@@ -810,7 +1077,7 @@ export default function App() {
         </section>
 
         {/* Tabs */}
-        {revealed && (
+        {showAnswer && (
           <section style={s.below}>
             <nav style={s.tabs}>
               {tabs.map(([id, label, icon]) => (
@@ -1051,6 +1318,11 @@ export default function App() {
             </div>
           </section>
         )}
+
+        <footer style={s.disclaimer}>
+          AI-assisted explanations, flashcards, and diagrams can be wrong. Always
+          verify against primary sources and your own clinical judgment.
+        </footer>
       </main>
 
       {showApprovals && isAdmin && (
@@ -1102,8 +1374,220 @@ export default function App() {
         />
       )}
 
+      {hostCode && (
+        <PollPresenter code={hostCode} set={set} startIndex={qi} timerSecs={timerSecs} onClose={() => setHostCode(null)} />
+      )}
+      {joinCode && (
+        <PollParticipant code={joinCode} voter={profile?.id ?? session?.user?.id ?? "anon"} onClose={() => setJoinCode(null)} />
+      )}
+
       <canvas ref={confettiRef} style={s.confetti} />
+
+      {streakReward && (
+        <div style={s.streakWrap}>
+          <div
+            style={{ ...s.streakCard, ...(streakReward.level >= 4 ? s.streakCardEpic : {}) }}
+            className={"streakPop" + (streakReward.level >= 4 ? " streakGlow" : "")}
+          >
+            <span style={{ ...s.streakIcon, ...(streakReward.level >= 4 ? s.streakIconEpic : {}) }}>
+              {streakReward.level >= 5 ? <Crown size={22} strokeWidth={2.2} color="#fff" />
+                : streakReward.level >= 3 ? <Zap size={22} strokeWidth={2.4} color="#fff" />
+                : <Flame size={22} strokeWidth={2.4} color="#fff" />}
+            </span>
+            <div>
+              <div style={s.streakBig}>
+                {streakReward.streak}-day {streakReward.kind === "login" ? "login" : "daily"} streak!
+              </div>
+              <div style={s.streakSub}>{streakMessage(streakReward.kind, streakReward.streak)}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {toast && <div style={s.toast} className="toast">{toast}</div>}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* Live crowd poll. Host = big screen (owns the question + tallies votes);  */
+/* participants = phones (tap A–E). All over an ephemeral Realtime channel. */
+
+function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
+  code: string; set: RawQuestion[]; startIndex: number; timerSecs: number; onClose: () => void;
+}) {
+  const [index, setIndex] = useState(Math.max(0, Math.min(startIndex, set.length - 1)));
+  const [revealed, setRevealed] = useState(false);
+  const [, force] = useState(0); // re-render when votes arrive
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const votesRef = useRef<Map<string, Map<string, string>>>(new Map()); // qid -> voter -> choice
+  const chanRef = useRef<ReturnType<NonNullable<typeof supabase>["channel"]> | null>(null);
+
+  const q = set[index];
+  const total = set.length;
+  const correctSet = q ? (q.answer_letters?.length ? q.answer_letters : q.answer_letter ? [q.answer_letter] : []) : [];
+  const qid = q ? questionId(q.year, q.q_index) : "";
+
+  const broadcastRef = useRef<() => void>(() => {});
+  broadcastRef.current = () => {
+    const payload: PollState = {
+      qid, year: q?.year ?? "", qIndex: q?.q_index ?? 0,
+      nOptions: q?.options.length ?? 0, index, total, revealed,
+      correct: revealed ? correctSet : [],
+    };
+    chanRef.current?.send({ type: "broadcast", event: POLL_EVENTS.state, payload });
+  };
+
+  // open the channel once
+  useEffect(() => {
+    if (!supabase) return;
+    const ch = supabase.channel(channelName(code), { config: { broadcast: { self: false } } });
+    ch.on("broadcast", { event: POLL_EVENTS.vote }, ({ payload }: { payload: PollVote }) => {
+      const v = payload;
+      if (!v?.qid || !v?.choice || !v?.voter) return;
+      let m = votesRef.current.get(v.qid);
+      if (!m) { m = new Map(); votesRef.current.set(v.qid, m); }
+      m.set(v.voter, v.choice);
+      force((n) => n + 1);
+    });
+    ch.on("broadcast", { event: POLL_EVENTS.hello }, () => broadcastRef.current());
+    ch.subscribe((st) => { if (st === "SUBSCRIBED") broadcastRef.current(); });
+    chanRef.current = ch;
+    return () => { supabase?.removeChannel(ch); chanRef.current = null; };
+  }, [code]); // eslint-disable-line
+
+  // re-broadcast the live question whenever it changes
+  useEffect(() => { broadcastRef.current(); }, [index, revealed]); // eslint-disable-line
+
+  // per-question countdown; auto-reveal when it hits zero
+  useEffect(() => {
+    if (revealed || !q) { setTimeLeft(null); return; }
+    setTimeLeft(timerSecs);
+    const id = setInterval(() => setTimeLeft((t) => (t == null ? t : t <= 1 ? 0 : t - 1)), 1000);
+    return () => clearInterval(id);
+  }, [index, revealed, timerSecs, q?.year, q?.q_index]); // eslint-disable-line
+  useEffect(() => { if (timeLeft === 0 && !revealed) setRevealed(true); }, [timeLeft, revealed]);
+
+  if (!q) return null;
+  const tally = votesRef.current.get(qid) ?? new Map<string, string>();
+  const counts: Record<string, number> = {};
+  for (const c of tally.values()) counts[c] = (counts[c] ?? 0) + 1;
+  const voterCount = tally.size;
+  const goTo = (i: number) => { setRevealed(false); setIndex(Math.max(0, Math.min(i, total - 1))); };
+  const joinHost = pollJoinUrl(code).replace(/^https?:\/\//, "");
+
+  return (
+    <div style={s.pollRoot}>
+      <style>{CSS}</style>
+      <div style={s.pollHead}>
+        <span style={s.pollLive}><Radio size={16} strokeWidth={2.4} /> LIVE POLL</span>
+        <span style={s.pollJoin}>Join at <b style={{ color: "#fff" }}>{joinHost}</b> · code <b style={s.pollCode}>{code}</b></span>
+        <span style={s.pollVoters}><Users size={16} strokeWidth={2.3} /> {voterCount} voted</span>
+        {timeLeft != null && (
+          <span style={{ ...s.timerPill, ...(timeLeft <= 10 ? s.timerPillLow : {}) }}><Clock size={14} strokeWidth={2.5} /> {fmtTime(timeLeft)}</span>
+        )}
+        <button style={s.pollClose} onClick={onClose} title="End poll"><X size={18} strokeWidth={2.4} /></button>
+      </div>
+
+      <div style={s.pollBody}>
+        <div style={s.pollMeta}>{q.year} · Q{q.q_index} · Question {index + 1} of {total}</div>
+        <p style={s.pollStem}>{q.stem}</p>
+        <div style={s.pollOpts}>
+          {q.options.map((o) => {
+            const cnt = counts[o.letter] ?? 0;
+            const pct = voterCount > 0 ? Math.round((cnt / voterCount) * 100) : 0;
+            const isCorrect = revealed && correctSet.includes(o.letter);
+            return (
+              <div key={o.letter} style={{ ...s.pollOpt, ...(isCorrect ? s.pollOptCorrect : {}) }}>
+                <span style={{ ...s.pollBar, width: `${pct}%`, background: isCorrect ? "rgba(72,199,142,.22)" : "rgba(255,255,255,.08)" }} />
+                <span style={s.pollLetter}>{o.letter}</span>
+                <span style={s.pollOptText}>{o.text}</span>
+                <span style={s.pollOptCount}>{pct}% · {cnt}{isCorrect && <Check size={20} strokeWidth={3} color="#48c78e" style={{ marginLeft: 10 }} />}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={s.pollControls}>
+        <button style={s.pollBtn} disabled={index === 0} onClick={() => goTo(index - 1)}><ArrowLeft size={16} strokeWidth={2.4} /> Prev</button>
+        {!revealed ? (
+          <button style={{ ...s.pollBtn, ...s.pollBtnPrimary }} onClick={() => setRevealed(true)}><Check size={16} strokeWidth={2.6} /> Reveal answer</button>
+        ) : (
+          <span style={s.pollAnswerLine}>Answer: <b style={{ color: "#48c78e" }}>{correctSet.join(", ")}</b>{q.answer_text ? ` — ${q.answer_text}` : ""}</span>
+        )}
+        <button style={s.pollBtn} disabled={index >= total - 1} onClick={() => goTo(index + 1)}>Next <ArrowRight size={16} strokeWidth={2.4} /></button>
+      </div>
+    </div>
+  );
+}
+
+function PollParticipant({ code, voter, onClose }: { code: string; voter: string; onClose: () => void; }) {
+  const [remote, setRemote] = useState<PollState | null>(null);
+  const [myVote, setMyVote] = useState<string | null>(null);
+  const [status, setStatus] = useState<"connecting" | "joined" | "error">("connecting");
+  const chanRef = useRef<ReturnType<NonNullable<typeof supabase>["channel"]> | null>(null);
+  const lastQid = useRef<string>("");
+
+  useEffect(() => {
+    if (!supabase) { setStatus("error"); return; }
+    const ch = supabase.channel(channelName(code), { config: { broadcast: { self: false } } });
+    ch.on("broadcast", { event: POLL_EVENTS.state }, ({ payload }: { payload: PollState }) => {
+      setRemote(payload);
+      if (payload.qid !== lastQid.current) { lastQid.current = payload.qid; setMyVote(null); }
+    });
+    ch.subscribe((st) => {
+      if (st === "SUBSCRIBED") { setStatus("joined"); ch.send({ type: "broadcast", event: POLL_EVENTS.hello, payload: { voter } }); }
+      else if (st === "CHANNEL_ERROR" || st === "TIMED_OUT") setStatus("error");
+    });
+    chanRef.current = ch;
+    return () => { supabase?.removeChannel(ch); chanRef.current = null; };
+  }, [code, voter]);
+
+  const vote = (letter: string) => {
+    if (!remote || remote.revealed) return;
+    setMyVote(letter);
+    chanRef.current?.send({ type: "broadcast", event: POLL_EVENTS.vote, payload: { qid: remote.qid, choice: letter, voter } });
+  };
+
+  const letters = remote ? Array.from({ length: remote.nOptions }, (_, i) => String.fromCharCode(65 + i)) : [];
+
+  return (
+    <div style={s.joinRoot}>
+      <style>{CSS}</style>
+      <div style={s.joinCard}>
+        <div style={s.joinHead}>
+          <span style={s.pollLive}><Radio size={15} strokeWidth={2.4} /> Poll {code}</span>
+          <button style={s.pollClose} onClick={onClose} title="Leave poll"><X size={16} strokeWidth={2.4} /></button>
+        </div>
+        {status === "error" ? (
+          <p style={s.joinMsg}>Couldn't connect to the poll. Double-check the code and try again.</p>
+        ) : !remote ? (
+          <p style={s.joinMsg}>Joined poll <b style={{ color: "#fff" }}>{code}</b> — waiting for the host to start…</p>
+        ) : (
+          <>
+            <p style={s.joinMsg}>Question {remote.index + 1} of {remote.total} — read it on the big screen, then tap your answer.</p>
+            <div style={s.joinOpts}>
+              {letters.map((L) => {
+                const mine = myVote === L;
+                const correct = remote.revealed && remote.correct.includes(L);
+                const wrong = remote.revealed && mine && !correct;
+                return (
+                  <button key={L} onClick={() => vote(L)} disabled={remote.revealed}
+                    style={{ ...s.joinOpt, ...(mine ? s.joinOptMine : {}), ...(correct ? s.joinOptCorrect : {}), ...(wrong ? s.joinOptWrong : {}) }}>
+                    {L}{correct ? " ✓" : wrong ? " ✗" : ""}
+                  </button>
+                );
+              })}
+            </div>
+            <p style={s.joinState}>
+              {remote.revealed
+                ? <>Answer: <b style={{ color: "#fff" }}>{remote.correct.join(", ")}</b>{myVote ? (remote.correct.includes(myVote) ? " — you got it! 🎉" : ` — you picked ${myVote}`) : " — you didn't vote"}</>
+                : myVote ? `You picked ${myVote}. Tap another to change it.` : "Tap a letter to cast your vote."}
+            </p>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -1983,6 +2467,10 @@ button:not(.opt):active { transform: scale(.96); }
 @keyframes slidein { from { opacity: 0; transform: translateY(-6px); } }
 .rise { animation: rise .26s cubic-bezier(.22,.61,.36,1) both; }
 @keyframes rise { from { opacity: 0; transform: translateY(14px) scale(.98); } }
+.streakPop { animation: streakPop .5s cubic-bezier(.2,1.4,.4,1) both; }
+@keyframes streakPop { 0% { opacity: 0; transform: translateY(-18px) scale(.85); } 60% { transform: translateY(0) scale(1.04); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
+.streakGlow { animation: streakPop .5s cubic-bezier(.2,1.4,.4,1) both, streakGlow 1.5s ease-in-out .5s infinite; }
+@keyframes streakGlow { 0%, 100% { box-shadow: 0 24px 60px -20px rgba(0,0,0,.7), 0 0 0 0 rgba(242,193,78,0); } 50% { box-shadow: 0 24px 60px -20px rgba(0,0,0,.7), 0 0 26px 2px rgba(242,193,78,.45); } }
 .tabInd { transition: left .32s cubic-bezier(.5,.1,.2,1), width .32s cubic-bezier(.5,.1,.2,1), top .25s ease; }
 textarea, input, select { font-family: inherit; }
 textarea:focus, input:focus, select:focus { outline: 2px solid ${T.teal}55; outline-offset: 1px; }
@@ -1990,8 +2478,16 @@ button:focus-visible { outline: 2px solid ${T.teal}; outline-offset: 2px; }
 ::selection { background: ${T.tealSoft}; }
 @media (prefers-reduced-motion: reduce) {
   .fade, .toast, .pop, .slidein { animation: none !important; }
+  .streakPop, .streakGlow { animation: none !important; }
   .tabInd { transition: none !important; }
   button:not(.opt):active, .opt:active:not(:disabled) { transform: none !important; }
+}
+@media (max-width: 680px) {
+  .topInner { flex-wrap: wrap !important; padding: 10px 14px !important; gap: 8px 10px !important; }
+  .topMeta { width: 100% !important; justify-content: space-between !important; gap: 8px !important; flex-wrap: wrap !important; }
+  .topActions { gap: 6px !important; flex-wrap: wrap !important; justify-content: flex-end !important; }
+  .topActBtn { padding: 7px 9px !important; }
+  .btnTxt { display: none !important; }
 }
 `;
 
@@ -2097,6 +2593,19 @@ const s: Record<string, React.CSSProperties> = {
   doneBanner: { display: "flex", alignItems: "center", gap: 11, flexWrap: "wrap", background: T.tealSoft, border: `1px solid ${T.teal}66`, borderRadius: 12, padding: "12px 15px", marginBottom: 16, fontSize: 14, color: T.text },
   doneIcon: { width: 22, height: 22, borderRadius: 6, background: T.teal, display: "grid", placeItems: "center", flexShrink: 0 },
   doneBtn: { display: "inline-flex", alignItems: "center", gap: 6, marginLeft: "auto", background: T.teal, color: "#fff", border: "none", padding: "7px 13px", borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: "pointer" },
+
+  studyBar: { display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap", marginBottom: 16 },
+  studyToggle: { display: "inline-flex", alignItems: "center", gap: 6, background: T.inkSoft, color: "#9aa0ab", border: `1px solid ${T.inkLine}`, padding: "6px 12px", borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: "pointer" },
+  studyToggleOn: { background: T.teal, color: "#fff", borderColor: T.teal },
+  studySecs: { display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, color: "#c7ccd6" },
+  secsInput: { width: 52, background: T.inkSoft, color: "#fff", border: `1px solid ${T.inkLine}`, borderRadius: 8, padding: "5px 8px", fontSize: 13, fontWeight: 600, textAlign: "center", fontFamily: "'JetBrains Mono', monospace" },
+  timerPill: { display: "inline-flex", alignItems: "center", gap: 5, marginLeft: "auto", background: T.inkSoft, color: "#e7eaf0", border: `1px solid ${T.inkLine}`, padding: "6px 12px", borderRadius: 9, fontSize: 14, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", fontVariantNumeric: "tabular-nums" },
+  timerPillLow: { background: "#3a2018", color: "#ff9b80", borderColor: "#7a3a2a" },
+  reviewBar: { display: "flex", alignItems: "center", gap: 11, flexWrap: "wrap", background: T.inkSoft, border: `1px solid ${T.inkLine}`, borderRadius: 12, padding: "11px 15px", marginBottom: 16, fontSize: 13.5, color: "#c7ccd6" },
+
+  lockedRow: { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginTop: 20, padding: "12px 15px", border: `1.5px solid ${T.paperEdge}`, borderRadius: 11, background: "#f4f5f7" },
+  lockedIcon: { width: 22, height: 22, borderRadius: 6, background: T.teal, display: "grid", placeItems: "center", flexShrink: 0 },
+  lockedHint: { color: T.muted, fontSize: 12.5 },
 
   setBlock: { padding: "16px 0", borderBottom: `1px solid ${T.paperEdge}` },
   setLbl: { fontSize: 13.5, fontWeight: 600, color: T.text, marginBottom: 10 },
@@ -2221,4 +2730,51 @@ const s: Record<string, React.CSSProperties> = {
 
   confetti: { position: "fixed", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 70 },
   toast: { position: "fixed", bottom: 22, left: "50%", transform: "translateX(-50%)", background: T.ink, color: "#fff", padding: "11px 18px", borderRadius: 11, fontSize: 13.5, fontWeight: 500, boxShadow: "0 16px 40px -16px rgba(0,0,0,.6)", zIndex: 60, maxWidth: "90vw", textAlign: "center" },
+
+  disclaimer: { maxWidth: 620, margin: "44px auto 0", paddingTop: 16, borderTop: `1px solid ${T.inkLine}`, color: T.faint, fontSize: 11.5, lineHeight: 1.5, textAlign: "center" },
+
+  streakChip: { display: "inline-flex", alignItems: "center", gap: 3, color: "#e07a5f", fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" },
+
+  streakWrap: { position: "fixed", top: 86, left: 0, right: 0, display: "grid", placeItems: "center", zIndex: 80, pointerEvents: "none", padding: "0 16px" },
+  streakCard: { display: "inline-flex", alignItems: "center", gap: 14, background: T.ink, border: `1px solid ${T.inkLine}`, borderRadius: 16, padding: "14px 20px 14px 14px", boxShadow: "0 24px 60px -20px rgba(0,0,0,.7)", maxWidth: "92vw" },
+  streakCardEpic: { background: "linear-gradient(135deg, #2a1f12 0%, #1b1e2b 55%, #122a25 100%)", border: "1px solid #6b5320" },
+  streakIcon: { width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg, #e07a5f, #bf8a30)", display: "grid", placeItems: "center", flexShrink: 0, boxShadow: "0 8px 20px -6px rgba(224,122,95,.6)" },
+  streakIconEpic: { background: "linear-gradient(135deg, #f2c14e, #e07a5f 60%, #a06cd5)" },
+  streakBig: { color: "#fff", fontWeight: 700, fontSize: 17, letterSpacing: "-0.01em" },
+  streakSub: { color: "#c7ccd6", fontSize: 12.5, marginTop: 2 },
+
+  // live crowd poll — host (big screen)
+  pollRoot: { position: "fixed", inset: 0, zIndex: 90, background: T.ink, color: "#fff", display: "flex", flexDirection: "column", fontFamily: "'Space Grotesk', system-ui, sans-serif" },
+  pollHead: { display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", padding: "16px 26px", borderBottom: `1px solid ${T.inkLine}`, fontSize: 16 },
+  pollLive: { display: "inline-flex", alignItems: "center", gap: 7, color: "#e07a5f", fontWeight: 700, letterSpacing: "0.04em", fontSize: 14 },
+  pollJoin: { color: "#c7ccd6", fontSize: 15 },
+  pollCode: { color: "#fff", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.18em", background: T.inkSoft, border: `1px solid ${T.inkLine}`, borderRadius: 8, padding: "3px 10px", fontSize: 18 },
+  pollVoters: { display: "inline-flex", alignItems: "center", gap: 7, marginLeft: "auto", color: "#e7eaf0", fontWeight: 600, fontFamily: "'JetBrains Mono', monospace" },
+  pollClose: { display: "grid", placeItems: "center", width: 38, height: 38, borderRadius: 10, background: T.inkSoft, color: "#aeb4c0", border: `1px solid ${T.inkLine}`, cursor: "pointer" },
+  pollBody: { flex: 1, overflow: "auto", padding: "clamp(20px, 4vw, 48px)", maxWidth: 1100, width: "100%", margin: "0 auto" },
+  pollMeta: { color: T.faint, fontFamily: "'JetBrains Mono', monospace", fontSize: 15, marginBottom: 14 },
+  pollStem: { fontSize: "clamp(22px, 3.2vw, 38px)", lineHeight: 1.3, fontFamily: "'Newsreader', Georgia, serif", color: "#f4f5f7", margin: "0 0 28px" },
+  pollOpts: { display: "flex", flexDirection: "column", gap: 12 },
+  pollOpt: { position: "relative", display: "flex", alignItems: "center", gap: 16, overflow: "hidden", background: T.inkSoft, border: `1.5px solid ${T.inkLine}`, borderRadius: 14, padding: "clamp(14px, 1.8vw, 22px) 22px", fontSize: "clamp(17px, 2vw, 24px)" },
+  pollOptCorrect: { borderColor: "#48c78e" },
+  pollBar: { position: "absolute", left: 0, top: 0, bottom: 0, zIndex: 0, borderRadius: "13px 0 0 13px", transition: "width .5s cubic-bezier(.22,.61,.36,1)" },
+  pollLetter: { position: "relative", zIndex: 1, flexShrink: 0, width: 44, height: 44, display: "grid", placeItems: "center", borderRadius: 11, background: "rgba(255,255,255,.06)", border: `1px solid ${T.inkLine}`, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" },
+  pollOptText: { position: "relative", zIndex: 1, flex: 1 },
+  pollOptCount: { position: "relative", zIndex: 1, display: "inline-flex", alignItems: "center", flexShrink: 0, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: "#e7eaf0" },
+  pollControls: { display: "flex", alignItems: "center", justifyContent: "center", gap: 16, flexWrap: "wrap", padding: "16px 26px", borderTop: `1px solid ${T.inkLine}` },
+  pollBtn: { display: "inline-flex", alignItems: "center", gap: 8, background: T.inkSoft, color: "#e7eaf0", border: `1px solid ${T.inkLine}`, padding: "12px 22px", borderRadius: 11, fontSize: 16, fontWeight: 600, cursor: "pointer" },
+  pollBtnPrimary: { background: T.teal, color: "#fff", borderColor: T.teal },
+  pollAnswerLine: { fontSize: 18, color: "#c7ccd6" },
+
+  // live crowd poll — participant (phone)
+  joinRoot: { position: "fixed", inset: 0, zIndex: 90, background: T.ink, display: "grid", placeItems: "center", padding: 20, fontFamily: "'Space Grotesk', system-ui, sans-serif" },
+  joinCard: { width: "100%", maxWidth: 460, background: T.inkSoft, border: `1px solid ${T.inkLine}`, borderRadius: 18, padding: 22, boxShadow: "0 24px 60px -20px rgba(0,0,0,.7)" },
+  joinHead: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 },
+  joinMsg: { color: "#c7ccd6", fontSize: 15, lineHeight: 1.5, margin: "0 0 18px" },
+  joinOpts: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(64px, 1fr))", gap: 12 },
+  joinOpt: { aspectRatio: "1 / 1", display: "grid", placeItems: "center", background: T.ink, color: "#e7eaf0", border: `2px solid ${T.inkLine}`, borderRadius: 16, fontSize: 30, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", cursor: "pointer" },
+  joinOptMine: { background: T.teal, color: "#fff", borderColor: T.teal },
+  joinOptCorrect: { background: "#1a7a4a", color: "#fff", borderColor: "#48c78e" },
+  joinOptWrong: { background: "#7a2a2a", color: "#fff", borderColor: "#e07a5f" },
+  joinState: { marginTop: 18, marginBottom: 0, color: "#c7ccd6", fontSize: 14.5, textAlign: "center", minHeight: 20 },
 };
