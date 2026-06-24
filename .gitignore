@@ -7,3 +7,9 @@ dist
 !.env.example
 
 *.tsbuildinfo
+
+# context-generation scratch (keep the .mjs scripts + the canonical
+# extraction/output/question_context.json, drop the per-batch intermediates)
+extraction/context_gen/in/
+extraction/context_gen/out/
+extraction/context_gen/sql_parts/

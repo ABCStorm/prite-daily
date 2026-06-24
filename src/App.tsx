@@ -4,7 +4,7 @@ import {
   Check, X, Image as ImageIcon, Trash2, Download, Flame, ArrowRight,
   ArrowLeft, ListChecks, LogOut, Clock, Settings as SettingsIcon,
   Sparkles, Target, RotateCcw, BarChart3, Pencil, Search, FileText, ExternalLink,
-  TrendingUp, Youtube, Network, Zap, Crown, Radio,
+  TrendingUp, Youtube, Network, Zap, Crown, Radio, Lightbulb, Highlighter,
 } from "lucide-react";
 import mermaid from "mermaid";
 import QRCode from "qrcode";
@@ -35,11 +35,11 @@ import { matchRoster } from "./lib/roster";
 import { recordToday, peekStreak, ymd } from "./lib/streaks";
 import {
   makePollCode, channelName, pollJoinUrl, pollCodeFromUrl, clearPollParam,
-  POLL_EVENTS, type PollState, type PollVote,
+  POLL_EVENTS, type PollState, type PollVote, type PollHello, type TeamStanding,
 } from "./lib/poll";
 import {
   loadQuestionBank,
-  getMyAnswers, saveAnswer, getMyNote, saveMyNote,
+  getMyAnswers, saveAnswer, clearMissedAnswers, getMyNote, saveMyNote,
   getGroupNotes, addGroupNote, deleteGroupNote,
   listProfiles, updateProfile, setTrainingLevel,
   getQuestionStats, getLeaderboard,
@@ -47,10 +47,11 @@ import {
   getAllMyNotes, getAllGroupNotes,
   getTagMissStats,
   getFlashcard, generateFlashcard, saveFlashcard, getFlashcardsForIds,
+  getMyHighlights, saveMyHighlights, getQuestionContext,
   type AnswerRow, type GroupNote as DbGroupNote, type Profile,
-  type QuestionStats, type LeaderRow, type Settings, type TagMissRow, type Flashcard,
+  type QuestionStats, type LeaderRow, type Settings, type TagMissRow, type Flashcard, type HlRange,
 } from "./lib/db";
-import { exportMyNotes, exportGroupNotes, exportMissed, ankingLecture, exportPptx } from "./lib/exports";
+import { exportMyNotes, exportGroupNotes, exportMissed, ankingLecture, exportPptx, exportPollTeams } from "./lib/exports";
 
 /* ----------------------------------------------------------------------
    PRITE daily question screen — now driven by the REAL extracted bank
@@ -104,6 +105,84 @@ function ago(iso: string) {
   if (s < 3600) return `${Math.floor(s / 60)}m ago`;
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   return `${Math.floor(s / 86400)}d ago`;
+}
+
+type Span = { start: number; end: number };
+
+// Offset of (node, offset) within container's full text — walks text nodes so
+// selection math stays correct even across already-highlighted <mark> spans.
+function textOffset(container: HTMLElement, node: Node, offset: number): number {
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+  let total = 0, n: Node | null;
+  while ((n = walker.nextNode())) {
+    if (n === node) return total + offset;
+    total += n.textContent?.length ?? 0;
+  }
+  return total + offset;
+}
+
+// Clamp, drop empties, sort, and coalesce overlapping/touching ranges.
+function normalizeRanges(ranges: Span[], len: number): Span[] {
+  const cleaned = ranges
+    .map((r) => ({ start: Math.max(0, Math.min(r.start, len)), end: Math.max(0, Math.min(r.end, len)) }))
+    .filter((r) => r.end > r.start)
+    .sort((a, b) => a.start - b.start);
+  const out: Span[] = [];
+  for (const r of cleaned) {
+    const last = out[out.length - 1];
+    if (last && r.start <= last.end) last.end = Math.max(last.end, r.end);
+    else out.push({ ...r });
+  }
+  return out;
+}
+
+// A paragraph you can highlight by selecting text; click a highlight to remove
+// it. Highlights are reported back as plain {start,end} offsets via onChange.
+function HighlightableText({ text, ranges, editable, onChange, style }: {
+  text: string; ranges: Span[]; editable: boolean;
+  onChange: (next: Span[]) => void; style?: React.CSSProperties;
+}) {
+  const ref = useRef<HTMLParagraphElement | null>(null);
+
+  const addSelection = () => {
+    if (!editable) return;
+    const sel = window.getSelection();
+    const el = ref.current;
+    if (!sel || sel.isCollapsed || !el) return;
+    const r = sel.getRangeAt(0);
+    if (!el.contains(r.startContainer) || !el.contains(r.endContainer)) return;
+    let start = textOffset(el, r.startContainer, r.startOffset);
+    let end = textOffset(el, r.endContainer, r.endOffset);
+    if (start > end) [start, end] = [end, start];
+    if (end <= start) return;
+    sel.removeAllRanges();
+    onChange(normalizeRanges([...ranges, { start, end }], text.length));
+  };
+
+  const norm = normalizeRanges(ranges, text.length);
+  const segs: React.ReactNode[] = [];
+  let cursor = 0;
+  norm.forEach((r, i) => {
+    if (r.start > cursor) segs.push(<span key={`p${i}`}>{text.slice(cursor, r.start)}</span>);
+    segs.push(
+      <mark
+        key={`h${i}`}
+        style={s.hlMark}
+        onClick={() => editable && onChange(norm.filter((x) => x.start !== r.start || x.end !== r.end))}
+        title={editable ? "Click to remove highlight" : undefined}
+      >
+        {text.slice(r.start, r.end)}
+      </mark>
+    );
+    cursor = r.end;
+  });
+  if (cursor < text.length) segs.push(<span key="tail">{text.slice(cursor)}</span>);
+
+  return (
+    <p ref={ref} style={{ ...style, ...(editable ? s.stemSelectable : {}) }} onMouseUp={addSelection}>
+      {segs}
+    </p>
+  );
 }
 
 function renderClozeRaw(text: string) {
@@ -196,6 +275,7 @@ export default function App() {
   const [qi, setQi] = useState(0);
 
   const [picked, setPicked] = useState<string[]>([]);
+  const [crossed, setCrossed] = useState<string[]>([]); // options crossed out (right-click), per question
   const [revealed, setRevealed] = useState(false);
   const [tab, setTab] = useState("explanation");
   const [myNote, setMyNote] = useState("");
@@ -257,6 +337,8 @@ export default function App() {
   const [card, setCard] = useState<Flashcard | null>(null);
   const [cardBusy, setCardBusy] = useState(false);
   const [editCard, setEditCard] = useState<{ cloze: string; extra: string } | null>(null);
+  const [highlights, setHighlights] = useState<HlRange[]>([]);
+  const [context, setContext] = useState<string | null>(null); // null = not yet loaded
   const answersRef = useRef(answers);
   useEffect(() => { answersRef.current = answers; }, [answers]);
 
@@ -288,7 +370,7 @@ export default function App() {
       const id = questionId(qq.year, qq.q_index);
       const row = a[id];
       if (!row) fresh.push(qq);
-      else if (recycle && !row.first_correct && now - Date.parse(row.updated_at) >= afterMs) due.push(qq);
+      else if (recycle && !row.first_correct && !row.cleared && now - Date.parse(row.updated_at) >= afterMs) due.push(qq);
     }
     // include up to `reviewCap` due-review questions, fill the rest with new
     const reviewCount = Math.min(reviewCap, due.length, remaining);
@@ -304,7 +386,7 @@ export default function App() {
     const a = answersRef.current;
     const missed = all.filter((qq) => {
       const row = a[questionId(qq.year, qq.q_index)];
-      return row && !row.correct;
+      return row && !row.correct && !row.cleared;
     });
     setReviewMode(true);
     setTodayQueue(missed.slice(0, 30));
@@ -363,14 +445,22 @@ export default function App() {
 
   // reset tab + load this question's notes (mine + group) on navigation
   useEffect(() => {
-    setTab("explanation"); setDraft(""); setStats(null); setCard(null); setEditCard(null);
+    setTab("explanation"); setDraft(""); setStats(null); setCard(null); setEditCard(null); setContext(null); setCrossed([]);
     const cur = set[qi];
     const qid = cur ? questionId(cur.year, cur.q_index) : null;
     if (qid && persist) {
       getMyNote(qid).then(setMyNote);
       getGroupNotes(qid).then(setGroupNotes);
-    } else { setMyNote(""); setGroupNotes([]); }
+      getMyHighlights(qid).then(setHighlights);
+    } else { setMyNote(""); setGroupNotes([]); setHighlights([]); }
   }, [qi, year, persist, mode]); // eslint-disable-line
+
+  // lazy-load the shared historical-context blurb when its tab is opened
+  useEffect(() => {
+    if (tab !== "context" || !persist || context !== null) return;
+    const cur = set[qi];
+    if (cur) getQuestionContext(questionId(cur.year, cur.q_index)).then((c) => setContext(c ?? ""));
+  }, [tab, qi, persist, mode]); // eslint-disable-line
 
   // lazy-load the cached flashcard when the Flashcard tab is opened
   useEffect(() => {
@@ -545,7 +635,7 @@ export default function App() {
   // Auto-dismiss the streak reward card.
   useEffect(() => {
     if (!streakReward) return;
-    const t = setTimeout(() => setStreakReward(null), streakReward.kind === "completion" ? 4200 : 3400);
+    const t = setTimeout(() => setStreakReward(null), streakReward.kind === "completion" ? 4200 : 5400);
     return () => clearTimeout(t);
   }, [streakReward]);
 
@@ -617,6 +707,10 @@ export default function App() {
         : [key]
     );
   };
+  // right-click an option to cross it out (process of elimination); right-click
+  // again to restore. Local to the current question; resets on navigation.
+  const toggleCross = (key: string) =>
+    setCrossed((cur) => (cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key]));
 
   const finalize = async (timedOut = false) => {
     if (revealed) return;
@@ -652,6 +746,7 @@ export default function App() {
   const tabs: [string, string, React.ReactNode][] = [
     ["explanation", "Explanation", <Layers size={14} strokeWidth={2.2} />],
     ["practice", "In practice", <Stethoscope size={14} strokeWidth={2.2} />],
+    ["context", "Context", <Lightbulb size={14} strokeWidth={2.2} />],
     ...(hasDiagram
       ? ([["diagram", "Diagram", <Network size={14} strokeWidth={2.2} />]] as [string, string, React.ReactNode][])
       : []),
@@ -670,7 +765,7 @@ export default function App() {
   const target = settings?.regimen ?? 10;
   const doneToday = Object.values(answers).filter((a) => isSameDay(a.updated_at)).length;
   const dayComplete = inToday && doneToday >= target;
-  const missedOutstanding = Object.values(answers).filter((a) => !a.correct).length;
+  const missedOutstanding = Object.values(answers).filter((a) => !a.correct && !a.cleared).length;
 
   // exam-mode progress across the current set
   const setRows = inPractice ? set.map((qq) => answers[questionId(qq.year, qq.q_index)]) : [];
@@ -701,6 +796,12 @@ export default function App() {
   const isAnswered = Boolean(answers[qid]);
 
   const saveNoteNow = () => { if (persist) saveMyNote(qid, myNote); };
+  // selection highlights for the stem — persisted per user + question
+  const updateHighlights = (next: Span[]) => {
+    const hl: HlRange[] = next.map((r) => ({ field: "stem", start: r.start, end: r.end }));
+    setHighlights(hl);
+    if (persist) saveMyHighlights(qid, hl);
+  };
   const doExportMine = async () => {
     if (myNote.trim()) await saveMyNote(qid, myNote); // flush the current one first
     const notes = await getAllMyNotes();
@@ -714,7 +815,7 @@ export default function App() {
     exportGroupNotes(g, byId);
     fire(`Exported ${g.length} group comment${g.length === 1 ? "" : "s"}`);
   };
-  const missedIds = Object.entries(answers).filter(([, a]) => !a.correct).map(([id]) => id);
+  const missedIds = Object.entries(answers).filter(([, a]) => !a.correct && !a.cleared).map(([id]) => id);
   const openMissed = async () => {
     const notes = await getAllMyNotes();
     setAllMyNotes(Object.fromEntries(notes.map((n) => [n.question_id, n.text])));
@@ -723,6 +824,21 @@ export default function App() {
   const doExportMissed = () => {
     exportMissed(missedIds, byId, answers, allMyNotes, displayName);
     fire(`Exported ${missedIds.length} missed question${missedIds.length === 1 ? "" : "s"}`);
+  };
+  const clearMissed = async () => {
+    const n = missedIds.length;
+    if (!n) { fire("No learning opportunities to clear"); return; }
+    if (!window.confirm(`Clear all ${n} learning opportunit${n === 1 ? "y" : "ies"}? Your history is kept — these just won't show up as learning opportunities anymore.`)) return;
+    if (persist) await clearMissedAnswers();
+    // keep the rows, just mark the currently-missed ones cleared
+    const next = Object.fromEntries(
+      Object.entries(answers).map(([id, a]) => [id, a.correct ? a : { ...a, cleared: true }])
+    );
+    answersRef.current = next;
+    setAnswers(next);
+    setShowMissed(false);
+    buildToday();
+    fire(`Cleared ${n} learning opportunit${n === 1 ? "y" : "ies"}`);
   };
   const doGenerateCard = async (force = false) => {
     setCardBusy(true);
@@ -983,17 +1099,30 @@ export default function App() {
               ))}
             </div>
           )}
-          <p style={s.stem}>{q.stem}</p>
+          <HighlightableText
+            text={q.stem}
+            ranges={highlights.filter((h) => h.field === "stem")}
+            editable={persist}
+            onChange={updateHighlights}
+            style={s.stem}
+          />
+          {persist && (
+            <div style={s.hlHint}>
+              <Highlighter size={12} strokeWidth={2.2} /> Select text to highlight · tap a highlight to remove · right-click a choice to cross it out
+            </div>
+          )}
 
           <div style={s.options}>
             {q.options.map((o, oi) => {
               const chosen = picked.includes(o.letter);
               const correct = showAnswer && correctSet.includes(o.letter);
               const wrongPick = showAnswer && chosen && !correctSet.includes(o.letter);
+              const isCrossed = !showAnswer && crossed.includes(o.letter);
               const base: React.CSSProperties = { ...s.opt };
               if (!showAnswer && chosen) Object.assign(base, s.optChosen);
               if (correct) Object.assign(base, s.optCorrect);
               if (wrongPick) Object.assign(base, s.optWrong);
+              if (isCrossed) Object.assign(base, s.optCrossed);
               const total = stats?.attempts ?? 0;
               const cnt = stats?.distribution?.[o.letter] ?? 0;
               const pct = total > 0 ? Math.round((cnt / total) * 100) : 0;
@@ -1002,6 +1131,7 @@ export default function App() {
                 <button
                   key={o.letter}
                   onClick={() => togglePick(o.letter)}
+                  onContextMenu={(e) => { e.preventDefault(); if (!showAnswer) toggleCross(o.letter); }}
                   disabled={revealed}
                   style={base}
                   className={"opt" + (correct ? " pop" : "")}
@@ -1022,7 +1152,7 @@ export default function App() {
                     borderColor: correct ? T.correctLine : wrongPick ? T.wrongLine : (chosen && !showAnswer ? T.teal : T.paperEdge),
                     color: correct ? T.correctText : wrongPick ? T.wrongText : (chosen && !showAnswer ? T.teal : T.muted),
                   }}>{o.letter}</span>
-                  <span style={{ ...s.optText, position: "relative", zIndex: 1 }}>{o.text}</span>
+                  <span style={{ ...s.optText, position: "relative", zIndex: 1, ...(isCrossed ? s.optTextCrossed : {}) }}>{o.text}</span>
                   {showAnswer && (
                     <span style={{ ...s.optRight, position: "relative", zIndex: 1 }}>
                       {showDist && <span style={{ ...s.optPct, color: correct ? T.correctText : wrongPick ? T.wrongText : T.faint }}>{pct}%</span>}
@@ -1123,6 +1253,22 @@ export default function App() {
                     <div style={s.emptyExpl}>
                       <Stethoscope size={18} strokeWidth={1.8} color={T.faint} />
                       <span>No clinical scenario yet for this question.</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {tab === "context" && (
+                <div className="fade">
+                  <label style={s.lbl}><Lightbulb size={13} strokeWidth={2.2} /> Historical &amp; memorable context — the story behind the answer</label>
+                  {context === null ? (
+                    <p style={s.expl}>Loading…</p>
+                  ) : context ? (
+                    <p style={s.expl}>{context}</p>
+                  ) : (
+                    <div style={s.emptyExpl}>
+                      <Lightbulb size={18} strokeWidth={1.8} color={T.faint} />
+                      <span>No context written for this question yet.</span>
                     </div>
                   )}
                 </div>
@@ -1321,8 +1467,8 @@ export default function App() {
         )}
 
         <footer style={s.disclaimer}>
-          AI-assisted explanations, flashcards, and diagrams can be wrong. Always
-          verify against primary sources and your own clinical judgment.
+          AI-assisted explanations, flashcards, context, and diagrams can be wrong.
+          Always verify against primary sources and your own clinical judgment.
         </footer>
       </main>
 
@@ -1371,6 +1517,7 @@ export default function App() {
           notes={allMyNotes}
           onReview={() => { startReview(); setShowMissed(false); }}
           onExport={doExportMissed}
+          onClear={clearMissed}
           onClose={() => setShowMissed(false)}
         />
       )}
@@ -1383,6 +1530,8 @@ export default function App() {
       )}
 
       <canvas ref={confettiRef} style={s.confetti} />
+
+      {streakReward?.kind === "login" && <Balloons />}
 
       {streakReward && (
         <div style={s.streakWrap}>
@@ -1424,7 +1573,33 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
   const [qr, setQr] = useState<string | null>(null); // join-URL QR as a data URL
   const [qrBig, setQrBig] = useState(false);          // enlarged QR overlay
   const votesRef = useRef<Map<string, Map<string, string>>>(new Map()); // qid -> voter -> choice
+  const teamRef = useRef<Map<string, string>>(new Map());   // voter -> team name
+  const correctRef = useRef<Map<string, string[]>>(new Map()); // qid -> correct letters (recorded on reveal)
   const chanRef = useRef<ReturnType<NonNullable<typeof supabase>["channel"]> | null>(null);
+
+  // Cumulative team leaderboard: 1 point per correct vote, summed over every
+  // question revealed so far. Derived fresh from the raw vote log each call, so
+  // it's idempotent (re-reveals and re-renders never double-count).
+  const computeStandings = (): TeamStanding[] => {
+    const score = new Map<string, number>();
+    const members = new Map<string, Set<string>>();
+    for (const [vId, team] of teamRef.current) {
+      if (!team) continue;
+      if (!members.has(team)) { members.set(team, new Set()); score.set(team, 0); }
+      members.get(team)!.add(vId);
+    }
+    for (const [qId, correct] of correctRef.current) {
+      const m = votesRef.current.get(qId);
+      if (!m) continue;
+      for (const [vId, choice] of m) {
+        const team = teamRef.current.get(vId);
+        if (team && correct.includes(choice)) score.set(team, (score.get(team) ?? 0) + 1);
+      }
+    }
+    return [...score.entries()]
+      .map(([team, sc]) => ({ team, score: sc, members: members.get(team)?.size ?? 0 }))
+      .sort((a, b) => b.score - a.score || b.members - a.members || a.team.localeCompare(b.team));
+  };
 
   // render the join URL into a QR once per room code
   useEffect(() => {
@@ -1438,12 +1613,18 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
   const correctSet = q ? (q.answer_letters?.length ? q.answer_letters : q.answer_letter ? [q.answer_letter] : []) : [];
   const qid = q ? questionId(q.year, q.q_index) : "";
 
+  // Once a question is revealed, lock in its correct answers so the cumulative
+  // team scoring can credit every vote against it (even after we move on).
+  if (revealed && qid) correctRef.current.set(qid, correctSet);
+
   const broadcastRef = useRef<() => void>(() => {});
   broadcastRef.current = () => {
+    if (revealed && qid) correctRef.current.set(qid, correctSet);
     const payload: PollState = {
       qid, year: q?.year ?? "", qIndex: q?.q_index ?? 0,
       nOptions: q?.options.length ?? 0, index, total, revealed,
       correct: revealed ? correctSet : [],
+      standings: computeStandings(),
     };
     chanRef.current?.send({ type: "broadcast", event: POLL_EVENTS.state, payload });
   };
@@ -1458,9 +1639,13 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
       let m = votesRef.current.get(v.qid);
       if (!m) { m = new Map(); votesRef.current.set(v.qid, m); }
       m.set(v.voter, v.choice);
+      if (v.team) teamRef.current.set(v.voter, v.team);
       force((n) => n + 1);
     });
-    ch.on("broadcast", { event: POLL_EVENTS.hello }, () => broadcastRef.current());
+    ch.on("broadcast", { event: POLL_EVENTS.hello }, ({ payload }: { payload: PollHello }) => {
+      if (payload?.voter && payload.team) { teamRef.current.set(payload.voter, payload.team); force((n) => n + 1); }
+      broadcastRef.current();
+    });
     ch.subscribe((st) => { if (st === "SUBSCRIBED") broadcastRef.current(); });
     chanRef.current = ch;
     return () => { supabase?.removeChannel(ch); chanRef.current = null; };
@@ -1483,6 +1668,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
   const counts: Record<string, number> = {};
   for (const c of tally.values()) counts[c] = (counts[c] ?? 0) + 1;
   const voterCount = tally.size;
+  const standings = computeStandings();
   const goTo = (i: number) => { setRevealed(false); setIndex(Math.max(0, Math.min(i, total - 1))); };
   const joinHost = pollJoinUrl(code).replace(/^https?:\/\//, "");
 
@@ -1505,6 +1691,24 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
       </div>
 
       <div style={s.pollBody}>
+        {standings.length > 0 && (
+          <div style={s.pollStats}>
+            <div style={s.pollStatsHead}>
+              <span style={s.teamBoardHead}><Trophy size={16} strokeWidth={2.4} /> Live polling group statistics</span>
+              <button style={s.pollStatsExport} onClick={() => exportPollTeams(standings, { code, index: index + 1, total })} title="Download team data (opens in Excel)">
+                <Download size={14} strokeWidth={2.3} /> Export to Excel
+              </button>
+            </div>
+            {standings.map((t, i) => (
+              <div key={t.team} style={{ ...s.teamRow, ...(i === 0 ? s.teamRowLead : {}) }}>
+                <span style={s.teamRank}>{i === 0 ? <Crown size={20} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
+                <span style={s.teamName}>{t.team}</span>
+                <span style={s.teamMembers}>{t.members} {t.members === 1 ? "player" : "players"}</span>
+                <span style={s.teamScore}>{t.score}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <div style={s.pollMeta}>{q.year} · Q{q.q_index} · Question {index + 1} of {total}</div>
         <p style={s.pollStem}>{q.stem}</p>
         <div style={s.pollOpts}>
@@ -1522,6 +1726,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
             );
           })}
         </div>
+
       </div>
 
       <div style={s.pollControls}>
@@ -1548,12 +1753,19 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
   );
 }
 
+const TEAM_KEY = "prite_poll_team";
+
 function PollParticipant({ code, voter, onClose }: { code: string; voter: string; onClose: () => void; }) {
   const [remote, setRemote] = useState<PollState | null>(null);
   const [myVote, setMyVote] = useState<string | null>(null);
   const [status, setStatus] = useState<"connecting" | "joined" | "error">("connecting");
+  const [team, setTeamState] = useState<string>(() => { try { return localStorage.getItem(TEAM_KEY) || ""; } catch { return ""; } });
+  const [draft, setDraft] = useState(team);
+  const [editing, setEditing] = useState(false);
   const chanRef = useRef<ReturnType<NonNullable<typeof supabase>["channel"]> | null>(null);
   const lastQid = useRef<string>("");
+  const teamRef = useRef(team);
+  teamRef.current = team;
 
   useEffect(() => {
     if (!supabase) { setStatus("error"); return; }
@@ -1563,20 +1775,30 @@ function PollParticipant({ code, voter, onClose }: { code: string; voter: string
       if (payload.qid !== lastQid.current) { lastQid.current = payload.qid; setMyVote(null); }
     });
     ch.subscribe((st) => {
-      if (st === "SUBSCRIBED") { setStatus("joined"); ch.send({ type: "broadcast", event: POLL_EVENTS.hello, payload: { voter } }); }
+      if (st === "SUBSCRIBED") { setStatus("joined"); ch.send({ type: "broadcast", event: POLL_EVENTS.hello, payload: { voter, team: teamRef.current || undefined } as PollHello }); }
       else if (st === "CHANNEL_ERROR" || st === "TIMED_OUT") setStatus("error");
     });
     chanRef.current = ch;
     return () => { supabase?.removeChannel(ch); chanRef.current = null; };
   }, [code, voter]);
 
+  // Set/clear my team and tell the host right away so it can roster me even
+  // before I vote.
+  const saveTeam = (name: string) => {
+    const t = name.trim().slice(0, 24);
+    setTeamState(t); setDraft(t); setEditing(false);
+    try { t ? localStorage.setItem(TEAM_KEY, t) : localStorage.removeItem(TEAM_KEY); } catch { /* no-op */ }
+    chanRef.current?.send({ type: "broadcast", event: POLL_EVENTS.hello, payload: { voter, team: t || undefined } as PollHello });
+  };
+
   const vote = (letter: string) => {
     if (!remote || remote.revealed) return;
     setMyVote(letter);
-    chanRef.current?.send({ type: "broadcast", event: POLL_EVENTS.vote, payload: { qid: remote.qid, choice: letter, voter } });
+    chanRef.current?.send({ type: "broadcast", event: POLL_EVENTS.vote, payload: { qid: remote.qid, choice: letter, voter, team: team || undefined } });
   };
 
   const letters = remote ? Array.from({ length: remote.nOptions }, (_, i) => String.fromCharCode(65 + i)) : [];
+  const showTeamEditor = editing || !team;
 
   return (
     <div style={s.joinRoot}>
@@ -1586,6 +1808,36 @@ function PollParticipant({ code, voter, onClose }: { code: string; voter: string
           <span style={s.pollLive}><Radio size={15} strokeWidth={2.4} /> Poll {code}</span>
           <button style={s.pollClose} onClick={onClose} title="Leave poll"><X size={16} strokeWidth={2.4} /></button>
         </div>
+
+        {status !== "error" && (
+          <div style={s.teamBar}>
+            {showTeamEditor ? (
+              <form
+                style={s.teamForm}
+                onSubmit={(e) => { e.preventDefault(); saveTeam(draft); }}
+              >
+                <Users size={15} strokeWidth={2.3} color="#aeb4c0" />
+                <input
+                  style={s.teamInput}
+                  value={draft}
+                  autoFocus={editing}
+                  maxLength={24}
+                  placeholder="Your team name"
+                  onChange={(e) => setDraft(e.target.value)}
+                />
+                <button type="submit" style={{ ...s.teamSet, ...(draft.trim() ? {} : s.teamSetOff) }} disabled={!draft.trim()}>
+                  {team ? "Save" : "Join"}
+                </button>
+              </form>
+            ) : (
+              <>
+                <span style={s.teamTag}><Users size={15} strokeWidth={2.3} /> Team <b style={{ color: "#fff" }}>{team}</b></span>
+                <button style={s.teamChange} onClick={() => { setDraft(team); setEditing(true); }}>change</button>
+              </>
+            )}
+          </div>
+        )}
+
         {status === "error" ? (
           <p style={s.joinMsg}>Couldn't connect to the poll. Double-check the code and try again.</p>
         ) : !remote ? (
@@ -1611,9 +1863,54 @@ function PollParticipant({ code, voter, onClose }: { code: string; voter: string
                 ? <>Answer: <b style={{ color: "#fff" }}>{remote.correct.join(", ")}</b>{myVote ? (remote.correct.includes(myVote) ? " — you got it! 🎉" : ` — you picked ${myVote}`) : " — you didn't vote"}</>
                 : myVote ? `You picked ${myVote}. Tap another to change it.` : "Tap a letter to cast your vote."}
             </p>
+            {remote.revealed && remote.standings?.length > 0 && (
+              <div style={s.teamBoardMini}>
+                {remote.standings.slice(0, 5).map((t, i) => (
+                  <div key={t.team} style={{ ...s.teamMiniRow, ...(i === 0 ? s.teamMiniLead : {}), ...(t.team === team ? s.teamMiniMine : {}) }}>
+                    <span style={s.teamMiniRank}>{i === 0 ? <Crown size={15} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
+                    <span style={s.teamMiniName}>{t.team}{t.team === team ? " (you)" : ""}</span>
+                    <span style={s.teamMiniScore}>{t.score}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {remote.standings && remote.standings.length > 0 && (
+              <button
+                style={s.teamDownload}
+                onClick={() => exportPollTeams(remote.standings, { code, index: remote.index + 1, total: remote.total })}
+              >
+                <Download size={13} strokeWidth={2.3} /> Download team stats (Excel)
+              </button>
+            )}
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+// A field of balloons drifting up the whole screen — a celebratory backdrop for
+// the login-streak reward. Hue-rotate gives each 🎈 a different color; varied
+// position/size/timing keeps it from looking like a marching grid.
+function Balloons() {
+  const N = 18;
+  return (
+    <div style={s.balloonField} aria-hidden>
+      {Array.from({ length: N }, (_, i) => (
+        <span
+          key={i}
+          className={i % 2 ? "balloonRiseB" : "balloonRiseA"}
+          style={{
+            left: `${(i + 0.5) * (100 / N)}%`,
+            fontSize: 30 + (i % 4) * 9,
+            animationDelay: `${(i % 6) * 0.26}s`,
+            animationDuration: `${4.8 + (i % 5) * 0.5}s`,
+            filter: `hue-rotate(${(i * 53) % 360}deg)`,
+          }}
+        >
+          🎈
+        </span>
+      ))}
     </div>
   );
 }
@@ -1907,7 +2204,7 @@ function Stats({
     const answered = entries.length;
     const firstTry = entries.filter((e) => e.first_correct).length;
     const mastered = entries.filter((e) => e.correct).length;
-    const outstanding = answered - mastered;
+    const outstanding = entries.filter((e) => !e.correct && !e.cleared).length;
     const attempts = entries.reduce((n, e) => n + (e.attempts || 1), 0);
     const today = entries.filter((e) => isSameDay(e.updated_at)).length;
     const week = entries.filter((e) => Date.now() - Date.parse(e.updated_at) < 7 * 86400000).length;
@@ -2340,7 +2637,7 @@ function DeckBuilder({
 }
 
 function MissedPanel({
-  missedIds, byId, answers, notes, onReview, onExport, onClose,
+  missedIds, byId, answers, notes, onReview, onExport, onClear, onClose,
 }: {
   missedIds: string[];
   byId: Map<string, RawQuestion>;
@@ -2348,6 +2645,7 @@ function MissedPanel({
   notes: Record<string, string>;
   onReview: () => void;
   onExport: () => void;
+  onClear: () => void;
   onClose: () => void;
 }) {
   const rows = missedIds.map((id) => ({ id, q: byId.get(id) })).filter((x) => x.q) as { id: string; q: RawQuestion }[];
@@ -2364,6 +2662,9 @@ function MissedPanel({
         <div style={s.missActions}>
           <button style={s.apApprove} onClick={onReview}><RotateCcw size={13} strokeWidth={2.3} /> Review these</button>
           <button style={s.ghost} onClick={onExport}><Download size={13} strokeWidth={2.2} /> Export all</button>
+          {rows.length > 0 && (
+            <button style={s.missClear} onClick={onClear} title="Hide these from your learning opportunities (history is kept)"><Check size={13} strokeWidth={2.4} /> Clear all</button>
+          )}
         </div>
         <div style={s.apBody}>
           {rows.length === 0 && <p style={s.apEmpty}>Nothing missed — go get some questions wrong. 😉</p>}
@@ -2497,6 +2798,11 @@ button:not(.opt):active { transform: scale(.96); }
 @keyframes streakPop { 0% { opacity: 0; transform: translateY(-18px) scale(.85); } 60% { transform: translateY(0) scale(1.04); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
 .streakGlow { animation: streakPop .5s cubic-bezier(.2,1.4,.4,1) both, streakGlow 1.5s ease-in-out .5s infinite; }
 @keyframes streakGlow { 0%, 100% { box-shadow: 0 24px 60px -20px rgba(0,0,0,.7), 0 0 0 0 rgba(242,193,78,0); } 50% { box-shadow: 0 24px 60px -20px rgba(0,0,0,.7), 0 0 26px 2px rgba(242,193,78,.45); } }
+.balloonRiseA, .balloonRiseB { position: absolute; bottom: -14vh; line-height: 1; opacity: 0; will-change: transform, opacity; animation-timing-function: ease-in; animation-fill-mode: both; }
+.balloonRiseA { animation-name: balloonRiseA; }
+.balloonRiseB { animation-name: balloonRiseB; }
+@keyframes balloonRiseA { 0% { transform: translateY(0) rotate(-6deg); opacity: 0; } 12% { opacity: .95; } 88% { opacity: .95; } 100% { transform: translateY(-118vh) translateX(26px) rotate(6deg); opacity: 0; } }
+@keyframes balloonRiseB { 0% { transform: translateY(0) rotate(6deg); opacity: 0; } 12% { opacity: .95; } 88% { opacity: .95; } 100% { transform: translateY(-118vh) translateX(-26px) rotate(-6deg); opacity: 0; } }
 .tabInd { transition: left .32s cubic-bezier(.5,.1,.2,1), width .32s cubic-bezier(.5,.1,.2,1), top .25s ease; }
 textarea, input, select { font-family: inherit; }
 textarea:focus, input:focus, select:focus { outline: 2px solid ${T.teal}55; outline-offset: 1px; }
@@ -2505,6 +2811,7 @@ button:focus-visible { outline: 2px solid ${T.teal}; outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) {
   .fade, .toast, .pop, .slidein { animation: none !important; }
   .streakPop, .streakGlow { animation: none !important; }
+  .balloonRiseA, .balloonRiseB { display: none !important; }
   .tabInd { transition: none !important; }
   button:not(.opt):active, .opt:active:not(:disabled) { transform: none !important; }
 }
@@ -2556,6 +2863,7 @@ const s: Record<string, React.CSSProperties> = {
   apBlock: { display: "grid", placeItems: "center", width: 30, height: 30, borderRadius: 8, background: "#fff", color: T.wrongLine, border: `1px solid ${T.paperEdge}`, cursor: "pointer" },
   apEmpty: { fontSize: 13.5, color: T.muted, lineHeight: 1.5, margin: "0 4px", fontStyle: "italic" },
   missActions: { display: "flex", gap: 9, padding: "4px 22px 14px", borderBottom: `1px solid ${T.paperEdge}` },
+  missClear: { display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: `1px solid ${T.wrongLine}`, color: T.wrongText, padding: "7px 12px", borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: "pointer" },
   missQ: { padding: "14px 6px", borderBottom: `1px solid ${T.paperEdge}` },
   eyebrow2: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", color: T.faint, marginBottom: 6 },
   missStem: { fontFamily: "'Newsreader', Georgia, serif", fontSize: 15.5, lineHeight: 1.5, color: T.text, margin: "0 0 8px" },
@@ -2673,14 +2981,19 @@ const s: Record<string, React.CSSProperties> = {
   figRow: { display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 18, justifyContent: "center" },
   figImg: { maxWidth: "100%", maxHeight: 320, borderRadius: 10, border: `1px solid ${T.paperEdge}`, background: "#fff" },
   stem: { fontFamily: "'Newsreader', Georgia, serif", fontSize: 20, lineHeight: 1.5, color: T.text, margin: "0 0 22px", fontWeight: 400 },
+  stemSelectable: { cursor: "text", marginBottom: 8 },
+  hlMark: { background: T.goldSoft, color: "inherit", borderRadius: 3, padding: "0 1px", boxShadow: `inset 0 -2px 0 ${T.gold}`, cursor: "pointer" },
+  hlHint: { display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, color: T.faint, margin: "0 0 18px" },
 
   options: { display: "flex", flexDirection: "column", gap: 9 },
   opt: { position: "relative", overflow: "hidden", display: "flex", alignItems: "center", gap: 13, textAlign: "left", width: "100%", background: T.card, border: `1.5px solid ${T.paperEdge}`, borderRadius: 11, padding: "13px 15px", fontSize: 15, color: T.text, cursor: "pointer" },
   optChosen: { borderColor: T.teal, background: T.tealSoft },
   optCorrect: { borderColor: T.correctLine, background: T.correctBg },
   optWrong: { borderColor: T.wrongLine, background: T.wrongBg },
+  optCrossed: { opacity: 0.55, background: "#f3f1ec" },
   optKey: { flexShrink: 0, width: 26, height: 26, borderRadius: 7, border: "1.5px solid", display: "grid", placeItems: "center", fontSize: 13, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", background: "rgba(255,255,255,.7)" },
   optText: { flex: 1, lineHeight: 1.35 },
+  optTextCrossed: { textDecoration: "line-through", textDecorationThickness: "2px", color: T.muted },
   optRight: { display: "flex", alignItems: "center", gap: 9, flexShrink: 0 },
   dist: { position: "absolute", left: 0, top: 0, bottom: 0, zIndex: 0, borderRadius: "10px 0 0 10px" },
   optPct: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, fontWeight: 600 },
@@ -2755,6 +3068,7 @@ const s: Record<string, React.CSSProperties> = {
   next: { display: "inline-flex", alignItems: "center", gap: 9, background: T.inkSoft, color: "#fff", border: `1px solid ${T.inkLine}`, padding: "11px 20px", borderRadius: 10, fontSize: 14.5, fontWeight: 600, cursor: "pointer" },
 
   confetti: { position: "fixed", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 70 },
+  balloonField: { position: "fixed", inset: 0, overflow: "hidden", pointerEvents: "none", zIndex: 75 },
   toast: { position: "fixed", bottom: 22, left: "50%", transform: "translateX(-50%)", background: T.ink, color: "#fff", padding: "11px 18px", borderRadius: 11, fontSize: 13.5, fontWeight: 500, boxShadow: "0 16px 40px -16px rgba(0,0,0,.6)", zIndex: 60, maxWidth: "90vw", textAlign: "center" },
 
   disclaimer: { maxWidth: 620, margin: "44px auto 0", paddingTop: 16, borderTop: `1px solid ${T.inkLine}`, color: T.faint, fontSize: 11.5, lineHeight: 1.5, textAlign: "center" },
@@ -2810,4 +3124,33 @@ const s: Record<string, React.CSSProperties> = {
   joinOptCorrect: { background: "#1a7a4a", color: "#fff", borderColor: "#48c78e" },
   joinOptWrong: { background: "#7a2a2a", color: "#fff", borderColor: "#e07a5f" },
   joinState: { marginTop: 18, marginBottom: 0, color: "#c7ccd6", fontSize: 14.5, textAlign: "center", minHeight: 20 },
+
+  // live polling group statistics — host (big screen), pinned at the top
+  pollStats: { marginBottom: 28, paddingBottom: 22, borderBottom: `1px solid ${T.inkLine}`, display: "flex", flexDirection: "column", gap: 8 },
+  pollStatsHead: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap", marginBottom: 4 },
+  pollStatsExport: { display: "inline-flex", alignItems: "center", gap: 7, background: T.inkSoft, color: "#e7eaf0", border: `1px solid ${T.inkLine}`, padding: "8px 14px", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer" },
+  teamBoardHead: { display: "inline-flex", alignItems: "center", gap: 9, color: "#f2c14e", fontWeight: 700, letterSpacing: "0.03em", fontSize: 15 },
+  teamRow: { display: "flex", alignItems: "center", gap: 16, background: T.inkSoft, border: `1.5px solid ${T.inkLine}`, borderRadius: 12, padding: "12px 18px", fontSize: "clamp(16px, 1.7vw, 21px)" },
+  teamRowLead: { borderColor: "#f2c14e", background: "rgba(242,193,78,.10)" },
+  teamRank: { flexShrink: 0, width: 34, display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: "#aeb4c0" },
+  teamName: { flex: 1, color: "#f4f5f7", fontWeight: 600 },
+  teamMembers: { flexShrink: 0, color: T.faint, fontSize: 14, fontFamily: "'JetBrains Mono', monospace" },
+  teamScore: { flexShrink: 0, minWidth: 44, textAlign: "right", color: "#fff", fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" },
+
+  // team picker + standings — participant (phone)
+  teamBar: { display: "flex", alignItems: "center", gap: 10, marginBottom: 16, minHeight: 38 },
+  teamForm: { display: "flex", alignItems: "center", gap: 8, width: "100%" },
+  teamInput: { flex: 1, minWidth: 0, background: T.ink, color: "#fff", border: `1.5px solid ${T.inkLine}`, borderRadius: 10, padding: "9px 12px", fontSize: 15, fontFamily: "'Space Grotesk', system-ui, sans-serif" },
+  teamSet: { flexShrink: 0, background: T.teal, color: "#fff", border: "none", borderRadius: 10, padding: "9px 16px", fontSize: 14.5, fontWeight: 700, cursor: "pointer" },
+  teamSetOff: { opacity: 0.4, cursor: "default" },
+  teamTag: { display: "inline-flex", alignItems: "center", gap: 7, color: "#c7ccd6", fontSize: 14.5 },
+  teamChange: { marginLeft: "auto", background: "none", border: `1px solid ${T.inkLine}`, color: "#aeb4c0", borderRadius: 8, padding: "5px 11px", fontSize: 13, cursor: "pointer" },
+  teamDownload: { marginTop: 14, width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, background: T.ink, color: "#c7ccd6", border: `1px solid ${T.inkLine}`, borderRadius: 10, padding: "10px 12px", fontSize: 13.5, fontWeight: 600, cursor: "pointer" },
+  teamBoardMini: { marginTop: 16, display: "flex", flexDirection: "column", gap: 6 },
+  teamMiniRow: { display: "flex", alignItems: "center", gap: 12, background: T.ink, border: `1px solid ${T.inkLine}`, borderRadius: 10, padding: "9px 13px", fontSize: 14.5 },
+  teamMiniLead: { borderColor: "#f2c14e", background: "rgba(242,193,78,.10)" },
+  teamMiniMine: { borderColor: T.teal },
+  teamMiniRank: { flexShrink: 0, width: 22, display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: "#aeb4c0" },
+  teamMiniName: { flex: 1, color: "#e7eaf0", fontWeight: 600 },
+  teamMiniScore: { flexShrink: 0, color: "#fff", fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" },
 };

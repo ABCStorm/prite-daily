@@ -26,6 +26,33 @@ function download(filename: string, html: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/* Live-poll team standings → CSV (opens directly in Excel/Sheets). No
+   dependency; the leading BOM makes Excel read UTF-8 correctly. Open to anyone
+   on either the host or a participant device. */
+export function exportPollTeams(
+  standings: { team: string; score: number; members: number }[],
+  meta: { code: string; index: number; total: number },
+) {
+  const cell = (v: string | number) => {
+    const s = String(v ?? "");
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const rows: (string | number)[][] = [
+    [`Live poll ${meta.code} — team statistics`],
+    [`Through question ${meta.index} of ${meta.total}`],
+    [],
+    ["Rank", "Team", "Players", "Score"],
+    ...standings.map((t, i) => [i + 1, t.team, t.members, t.score]),
+  ];
+  const csv = rows.map((r) => r.map(cell).join(",")).join("\r\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `prite-poll-${meta.code}-teams.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 const STYLE = `
   *{box-sizing:border-box} body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#23262f;max-width:760px;margin:0 auto;padding:40px 28px;line-height:1.5}
   h1{font-size:22px;margin:0 0 4px} .sub{color:#6c7280;font-size:13px;margin:0 0 26px}

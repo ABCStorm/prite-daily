@@ -19,6 +19,9 @@ export function makePollCode(len = 4): string {
 
 export const channelName = (code: string) => `poll-${code.toUpperCase()}`;
 
+// A team's cumulative score across all revealed questions in the poll.
+export type TeamStanding = { team: string; score: number; members: number };
+
 // Host → everyone: which question is live right now.
 export type PollState = {
   qid: string;
@@ -29,12 +32,14 @@ export type PollState = {
   total: number;   // size of the host's set
   revealed: boolean;
   correct: string[]; // populated only once revealed
+  standings: TeamStanding[]; // cumulative team leaderboard (highest first)
 };
 
-// Participant → host.
-export type PollVote = { qid: string; choice: string; voter: string };
-// Participant → host on join, so the host re-broadcasts the current state.
-export type PollHello = { voter: string };
+// Participant → host. `team` is optional — a voter may compete solo.
+export type PollVote = { qid: string; choice: string; voter: string; team?: string };
+// Participant → host on join (and whenever they pick/change a team), so the host
+// re-broadcasts the current state and learns the voter's team.
+export type PollHello = { voter: string; team?: string };
 
 export const POLL_EVENTS = { state: "state", vote: "vote", hello: "hello" } as const;
 

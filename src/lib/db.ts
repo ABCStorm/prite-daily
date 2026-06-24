@@ -56,6 +56,7 @@ export type AnswerRow = {
   first_correct: boolean;
   attempts: number;
   updated_at: string;
+  cleared?: boolean; // dismissed from the "learning opportunities" list (history kept)
 };
 
 export type GroupNote = {
@@ -127,6 +128,21 @@ export async function saveAnswer(
   return data as AnswerRow;
 }
 
+/** Clear my "learning opportunities" — flag every missed answer (correct = false)
+    as cleared so it drops off the review list. History/stats are kept; the rows
+    stay, just marked `cleared`. Returns how many were flagged. */
+export async function clearMissedAnswers(): Promise<number> {
+  if (!supabase) return 0;
+  const { data: u } = await supabase.auth.getUser();
+  if (!u.user) return 0;
+  const { data, error } = await supabase
+    .from("answers").update({ cleared: true })
+    .eq("user_id", u.user.id).eq("correct", false).eq("cleared", false)
+    .select("question_id");
+  if (error) { console.warn("clearMissedAnswers", error.message); return 0; }
+  return (data ?? []).length;
+}
+
 export async function getMyNote(questionId: string): Promise<string> {
   if (!supabase) return "";
   const { data } = await supabase
@@ -146,6 +162,38 @@ export async function saveMyNote(questionId: string, text: string): Promise<void
   } else {
     await supabase.from("individual_notes").delete().eq("user_id", u.user.id).eq("question_id", questionId);
   }
+}
+
+/* --- highlights (private, per user + question) --- */
+export type HlRange = { field: string; start: number; end: number };
+
+export async function getMyHighlights(questionId: string): Promise<HlRange[]> {
+  if (!supabase) return [];
+  const { data } = await supabase
+    .from("highlights").select("ranges").eq("question_id", questionId).maybeSingle();
+  return (data?.ranges as HlRange[]) ?? [];
+}
+
+export async function saveMyHighlights(questionId: string, ranges: HlRange[]): Promise<void> {
+  if (!supabase) return;
+  const { data: u } = await supabase.auth.getUser();
+  if (!u.user) return;
+  if (ranges.length) {
+    await supabase.from("highlights").upsert(
+      { user_id: u.user.id, question_id: questionId, ranges, updated_at: new Date().toISOString() },
+      { onConflict: "user_id,question_id" }
+    );
+  } else {
+    await supabase.from("highlights").delete().eq("user_id", u.user.id).eq("question_id", questionId);
+  }
+}
+
+/* --- historical context (shared canonical cache, read-only for members) --- */
+export async function getQuestionContext(questionId: string): Promise<string> {
+  if (!supabase) return "";
+  const { data } = await supabase
+    .from("question_context").select("context").eq("question_id", questionId).maybeSingle();
+  return data?.context ?? "";
 }
 
 /** Every individual note I've written, keyed by question_id (for export). */
