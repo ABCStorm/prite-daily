@@ -1142,13 +1142,8 @@ export default function App() {
             ranges={highlights.filter((h) => h.field === "stem")}
             editable={persist}
             onChange={updateHighlights}
-            style={s.stem}
+            style={{ ...s.stem, marginBottom: 18 }}
           />
-          {persist && (
-            <div style={s.hlHint}>
-              <Highlighter size={12} strokeWidth={2.2} /> Select text to highlight · tap a highlight to remove · right-click a choice to cross it out
-            </div>
-          )}
 
           <div style={s.options}>
             {q.options.map((o, oi) => {
@@ -1507,6 +1502,11 @@ export default function App() {
         <footer style={s.disclaimer}>
           AI-assisted explanations, flashcards, context, and diagrams can be wrong.
           Always verify against primary sources and your own clinical judgment.
+          {persist && (
+            <div style={s.hlHint}>
+              <Highlighter size={12} strokeWidth={2.2} /> Select text to highlight · tap a highlight to remove · right-click a choice to cross it out
+            </div>
+          )}
           {persist && (
             <div style={{ marginTop: 10 }}>
               <button style={s.siteReportBtn} onClick={() => setShowSiteReport(true)}>
@@ -3190,7 +3190,7 @@ const s: Record<string, React.CSSProperties> = {
   stem: { fontFamily: "'Newsreader', Georgia, serif", fontSize: 20, lineHeight: 1.5, color: T.text, margin: "0 0 22px", fontWeight: 400 },
   stemSelectable: { cursor: "text", marginBottom: 8 },
   hlMark: { background: T.goldSoft, color: "inherit", borderRadius: 3, padding: "0 1px", boxShadow: `inset 0 -2px 0 ${T.gold}`, cursor: "pointer" },
-  hlHint: { display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, color: T.faint, margin: "0 0 18px" },
+  hlHint: { display: "flex", justifyContent: "center", alignItems: "center", gap: 5, fontSize: 11.5, color: T.faint, margin: "12px 0 0" },
 
   options: { display: "flex", flexDirection: "column", gap: 9 },
   opt: { position: "relative", overflow: "hidden", display: "flex", alignItems: "center", gap: 13, textAlign: "left", width: "100%", background: T.card, border: `1.5px solid ${T.paperEdge}`, borderRadius: 11, padding: "13px 15px", fontSize: 15, color: T.text, cursor: "pointer" },
