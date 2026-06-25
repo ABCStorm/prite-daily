@@ -349,7 +349,8 @@ export default function App() {
   const [editCard, setEditCard] = useState<{ cloze: string; extra: string } | null>(null);
   const [highlights, setHighlights] = useState<HlRange[]>([]);
   const [context, setContext] = useState<string | null>(null); // null = not yet loaded
-  const [showReport, setShowReport] = useState(false);   // "report a problem" modal
+  const [showReport, setShowReport] = useState(false);     // per-question "report a problem"
+  const [showSiteReport, setShowSiteReport] = useState(false); // general "report a site problem" (footer)
   const [showBugs, setShowBugs] = useState(false);        // admin bug-report triage
   const [bugs, setBugs] = useState<BugReport[]>([]);
   const answersRef = useRef(answers);
@@ -1506,6 +1507,13 @@ export default function App() {
         <footer style={s.disclaimer}>
           AI-assisted explanations, flashcards, context, and diagrams can be wrong.
           Always verify against primary sources and your own clinical judgment.
+          {persist && (
+            <div style={{ marginTop: 10 }}>
+              <button style={s.siteReportBtn} onClick={() => setShowSiteReport(true)}>
+                <Bug size={12} strokeWidth={2.2} /> Report a problem with the site
+              </button>
+            </div>
+          )}
         </footer>
       </main>
 
@@ -1523,6 +1531,16 @@ export default function App() {
           label={`${q.year} · Q${q.q_index}`}
           onClose={() => setShowReport(false)}
           onDone={(ok) => { setShowReport(false); fire(ok ? "Thanks — report sent" : "Couldn't send report"); }}
+        />
+      )}
+
+      {showSiteReport && (
+        <ReportModal
+          qid={null}
+          label="The website"
+          kinds={SITE_KINDS}
+          onClose={() => setShowSiteReport(false)}
+          onDone={(ok) => { setShowSiteReport(false); fire(ok ? "Thanks — report sent" : "Couldn't send report"); }}
         />
       )}
 
@@ -2017,10 +2035,16 @@ const BUG_KINDS: [string, string][] = [
   ["duplicate", "Duplicate question"],
   ["other", "Something else"],
 ];
-function ReportModal({ qid, label, onClose, onDone }: {
-  qid: string; label: string; onClose: () => void; onDone: (ok: boolean) => void;
+// Kinds for a general "report a problem with the site" (not tied to a question).
+const SITE_KINDS: [string, string][] = [
+  ["bug", "Bug / something's broken"],
+  ["feature", "Suggestion / feature request"],
+  ["other", "Other feedback"],
+];
+function ReportModal({ qid, label, kinds = BUG_KINDS, onClose, onDone }: {
+  qid: string | null; label: string; kinds?: [string, string][]; onClose: () => void; onDone: (ok: boolean) => void;
 }) {
-  const [kind, setKind] = useState("wrong_answer");
+  const [kind, setKind] = useState(kinds[0][0]);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const submit = async () => {
@@ -2043,7 +2067,7 @@ function ReportModal({ qid, label, onClose, onDone }: {
         <div style={{ padding: "4px 22px 20px" }}>
           <label style={s.lbl}>What's wrong?</label>
           <select style={s.reportSelect} value={kind} onChange={(e) => setKind(e.target.value)}>
-            {BUG_KINDS.map(([v, lblTxt]) => <option key={v} value={v}>{lblTxt}</option>)}
+            {kinds.map(([v, lblTxt]) => <option key={v} value={v}>{lblTxt}</option>)}
           </select>
           <label style={{ ...s.lbl, marginTop: 14 }}>Details</label>
           <textarea
@@ -3255,6 +3279,7 @@ const s: Record<string, React.CSSProperties> = {
   toast: { position: "fixed", bottom: 22, left: "50%", transform: "translateX(-50%)", background: T.ink, color: "#fff", padding: "11px 18px", borderRadius: 11, fontSize: 13.5, fontWeight: 500, boxShadow: "0 16px 40px -16px rgba(0,0,0,.6)", zIndex: 60, maxWidth: "90vw", textAlign: "center" },
 
   disclaimer: { maxWidth: 620, margin: "44px auto 0", paddingTop: 16, borderTop: `1px solid ${T.inkLine}`, color: T.faint, fontSize: 11.5, lineHeight: 1.5, textAlign: "center" },
+  siteReportBtn: { display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: `1px solid ${T.paperEdge}`, color: T.muted, fontSize: 12, padding: "6px 12px", borderRadius: 8, cursor: "pointer" },
 
   streakChip: { display: "inline-flex", alignItems: "center", gap: 3, color: "#e07a5f", fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" },
 
