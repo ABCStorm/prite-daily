@@ -46,6 +46,7 @@ export type Settings = {
   recycle_after_days: number;
   review_per_day: number;
   exam_date: string | null;
+  daily_reminder: boolean;
 };
 
 export type AnswerRow = {

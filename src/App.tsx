@@ -2264,6 +2264,20 @@ function SettingsPanel({
               </>
             )}
           </div>
+
+          <div style={s.setBlock}>
+            <label style={s.toggleRow}>
+              <input
+                type="checkbox"
+                checked={!!settings.daily_reminder}
+                onChange={(e) => onChange({ daily_reminder: e.target.checked })}
+              />
+              <span>
+                <b>Email me a daily reminder</b>
+                <div style={s.setHint}>A nudge each morning to do your practice questions, sent to your sign-in email. Unsubscribe anytime by turning this off.</div>
+              </span>
+            </label>
+          </div>
         </div>
       </div>
     </div>
