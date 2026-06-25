@@ -143,6 +143,57 @@ export async function clearMissedAnswers(): Promise<number> {
   return (data ?? []).length;
 }
 
+/* --- bug / issue reports --- */
+export type BugReport = {
+  id: string;
+  reporter_id: string | null;
+  question_id: string | null;
+  kind: string;
+  message: string;
+  context: string | null;
+  status: string;
+  created_at: string;
+  resolved_at: string | null;
+  reporter?: { full_name: string | null; email: string } | null;
+};
+
+/** File a bug/issue report (as the current user). Returns true on success. */
+export async function submitBugReport(r: {
+  question_id?: string | null; kind: string; message: string; context?: string | null;
+}): Promise<boolean> {
+  if (!supabase) return false;
+  const { data: u } = await supabase.auth.getUser();
+  if (!u.user) return false;
+  const { error } = await supabase.from("bug_reports").insert({
+    reporter_id: u.user.id,
+    question_id: r.question_id ?? null,
+    kind: r.kind,
+    message: r.message,
+    context: r.context ?? null,
+  });
+  if (error) { console.warn("submitBugReport", error.message); return false; }
+  return true;
+}
+
+/** All reports, newest first (admins see everyone's; others see only their own). */
+export async function listBugReports(): Promise<BugReport[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("bug_reports")
+    .select("*, reporter:profiles(full_name, email)")
+    .order("created_at", { ascending: false });
+  if (error) { console.warn("listBugReports", error.message); return []; }
+  return (data ?? []) as BugReport[];
+}
+
+/** Admin: change a report's status (open | resolved | dismissed). */
+export async function updateBugReport(id: string, status: string): Promise<void> {
+  if (!supabase) return;
+  await supabase.from("bug_reports")
+    .update({ status, resolved_at: status === "open" ? null : new Date().toISOString() })
+    .eq("id", id);
+}
+
 export async function getMyNote(questionId: string): Promise<string> {
   if (!supabase) return "";
   const { data } = await supabase

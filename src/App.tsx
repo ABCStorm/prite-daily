@@ -4,7 +4,7 @@ import {
   Check, X, Image as ImageIcon, Trash2, Download, Flame, ArrowRight,
   ArrowLeft, ListChecks, LogOut, Clock, Settings as SettingsIcon,
   Sparkles, Target, RotateCcw, BarChart3, Pencil, Search, FileText, ExternalLink,
-  TrendingUp, Youtube, Network, Zap, Crown, Radio, Lightbulb, Highlighter,
+  TrendingUp, Youtube, Network, Zap, Crown, Radio, Lightbulb, Highlighter, Bug,
 } from "lucide-react";
 import mermaid from "mermaid";
 import QRCode from "qrcode";
@@ -48,8 +48,9 @@ import {
   getTagMissStats,
   getFlashcard, generateFlashcard, saveFlashcard, getFlashcardsForIds,
   getMyHighlights, saveMyHighlights, getQuestionContext,
+  submitBugReport, listBugReports, updateBugReport,
   type AnswerRow, type GroupNote as DbGroupNote, type Profile,
-  type QuestionStats, type LeaderRow, type Settings, type TagMissRow, type Flashcard, type HlRange,
+  type QuestionStats, type LeaderRow, type Settings, type TagMissRow, type Flashcard, type HlRange, type BugReport,
 } from "./lib/db";
 import { exportMyNotes, exportGroupNotes, exportMissed, ankingLecture, exportPptx, exportPollTeams } from "./lib/exports";
 
@@ -105,6 +106,15 @@ function ago(iso: string) {
   if (s < 3600) return `${Math.floor(s / 60)}m ago`;
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   return `${Math.floor(s / 86400)}d ago`;
+}
+
+// Daily sets lead with the most recently tested exams (2022 → 2025), since those
+// best reflect what's likely on the upcoming PRITE. Older years follow,
+// most-recent-first. Lower rank = served sooner.
+const PRIORITY_YEARS = ["2022", "2023", "2024", "2025"];
+function yearRank(year: string): number {
+  const i = PRIORITY_YEARS.indexOf(year);
+  return i !== -1 ? i : 4 + (2025 - (Number(year) || 0));
 }
 
 type Span = { start: number; end: number };
@@ -339,6 +349,9 @@ export default function App() {
   const [editCard, setEditCard] = useState<{ cloze: string; extra: string } | null>(null);
   const [highlights, setHighlights] = useState<HlRange[]>([]);
   const [context, setContext] = useState<string | null>(null); // null = not yet loaded
+  const [showReport, setShowReport] = useState(false);   // "report a problem" modal
+  const [showBugs, setShowBugs] = useState(false);        // admin bug-report triage
+  const [bugs, setBugs] = useState<BugReport[]>([]);
   const answersRef = useRef(answers);
   useEffect(() => { answersRef.current = answers; }, [answers]);
 
@@ -372,6 +385,9 @@ export default function App() {
       if (!row) fresh.push(qq);
       else if (recycle && !row.first_correct && !row.cleared && now - Date.parse(row.updated_at) >= afterMs) due.push(qq);
     }
+    // serve recent exams first (2022 → 2025, then older); stable sort keeps
+    // each year's questions in their natural order
+    fresh.sort((x, y) => yearRank(x.year) - yearRank(y.year));
     // include up to `reviewCap` due-review questions, fill the rest with new
     const reviewCount = Math.min(reviewCap, due.length, remaining);
     const fresher = fresh.slice(0, Math.max(0, remaining - reviewCount));
@@ -402,6 +418,16 @@ export default function App() {
   useEffect(() => {
     if (adminLoggedIn) listProfiles().then(setProfiles);
   }, [adminLoggedIn, showApprovals]);
+
+  // admins: load bug reports (for the triage panel + open-count badge)
+  useEffect(() => {
+    if (adminLoggedIn) listBugReports().then(setBugs);
+  }, [adminLoggedIn, showBugs]);
+  const openBugs = bugs.filter((b) => b.status === "open").length;
+  const actOnBug = async (id: string, status: string) => {
+    await updateBugReport(id, status);
+    listBugReports().then(setBugs);
+  };
 
   const actOnProfile = async (id: string, patch: Partial<Pick<Profile, "status" | "role">>) => {
     await updateProfile(id, patch);
@@ -914,6 +940,12 @@ export default function App() {
                     {pendingCount > 0 && <span style={s.pendingBadge}>{pendingCount}</span>}
                   </button>
                 )}
+                {isAdmin && (
+                  <button style={s.approveBtn} className="topActBtn" onClick={() => setShowBugs(true)} title="Bug reports">
+                    <Bug size={13} strokeWidth={2.3} /> <span className="btnTxt">Reports</span>
+                    {openBugs > 0 && <span style={s.pendingBadge}>{openBugs}</span>}
+                  </button>
+                )}
                 <button style={s.signOut} title="Settings" onClick={() => setShowSettings(true)}>
                   <SettingsIcon size={14} strokeWidth={2.2} />
                 </button>
@@ -1088,6 +1120,11 @@ export default function App() {
           <span style={s.qeyebrow}>{q.year} · Q{q.q_index} <span style={{ color: T.faint }}>(slide {q.slide_number})</span></span>
           {reviewMode && <span style={{ ...s.multiTag, color: T.teal, background: T.tealSoft }}><RotateCcw size={12} strokeWidth={2.2} /> Reviewing missed — try again</span>}
           {q.multi_select && <span style={s.multiTag}><ListChecks size={12} strokeWidth={2.2} /> Select all that apply</span>}
+          {persist && (
+            <button style={s.reportBtn} onClick={() => setShowReport(true)} title="Report a problem with this question">
+              <Bug size={12} strokeWidth={2.2} /> Report a problem
+            </button>
+          )}
         </div>
 
         {/* Question card */}
@@ -1478,6 +1515,19 @@ export default function App() {
           onClose={() => setShowApprovals(false)}
           onAct={actOnProfile}
         />
+      )}
+
+      {showReport && (
+        <ReportModal
+          qid={qid}
+          label={`${q.year} · Q${q.q_index}`}
+          onClose={() => setShowReport(false)}
+          onDone={(ok) => { setShowReport(false); fire(ok ? "Thanks — report sent" : "Couldn't send report"); }}
+        />
+      )}
+
+      {showBugs && isAdmin && (
+        <BugReportsPanel reports={bugs} byId={byId} onAct={actOnBug} onClose={() => setShowBugs(false)} />
       )}
 
       {showBoard && (
@@ -1954,6 +2004,114 @@ function Pending({ email, status }: { email: string; status: string }) {
             : "An admin needs to approve you before you can start. You’ll get in as soon as they do."}
         </p>
         <button style={s.googleBtn} onClick={() => signOut()}><LogOut size={15} strokeWidth={2.2} /> Sign out</button>
+      </div>
+    </div>
+  );
+}
+
+// "Report a problem" modal — any approved member can file an issue on a question.
+const BUG_KINDS: [string, string][] = [
+  ["wrong_answer", "Wrong / disputed answer"],
+  ["typo", "Typo or formatting"],
+  ["missing", "Missing text or image"],
+  ["duplicate", "Duplicate question"],
+  ["other", "Something else"],
+];
+function ReportModal({ qid, label, onClose, onDone }: {
+  qid: string; label: string; onClose: () => void; onDone: (ok: boolean) => void;
+}) {
+  const [kind, setKind] = useState("wrong_answer");
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    if (!message.trim() || busy) return;
+    setBusy(true);
+    const ok = await submitBugReport({ question_id: qid, kind, message: message.trim(), context: label });
+    setBusy(false);
+    onDone(ok);
+  };
+  return (
+    <div style={s.scrim} onClick={onClose}>
+      <div style={{ ...s.apPanel, maxWidth: 460 }} onClick={(e) => e.stopPropagation()} className="rise">
+        <div style={s.apHead}>
+          <div>
+            <div style={s.apEyebrow}>Report a problem</div>
+            <div style={s.apTitle}>{label}</div>
+          </div>
+          <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
+        </div>
+        <div style={{ padding: "4px 22px 20px" }}>
+          <label style={s.lbl}>What's wrong?</label>
+          <select style={s.reportSelect} value={kind} onChange={(e) => setKind(e.target.value)}>
+            {BUG_KINDS.map(([v, lblTxt]) => <option key={v} value={v}>{lblTxt}</option>)}
+          </select>
+          <label style={{ ...s.lbl, marginTop: 14 }}>Details</label>
+          <textarea
+            style={s.reportText}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Describe the issue — e.g. the answer key says B but it should be D because…"
+            rows={4}
+            autoFocus
+          />
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
+            <button style={s.ghost} onClick={onClose}>Cancel</button>
+            <button style={{ ...s.apApprove, opacity: message.trim() && !busy ? 1 : 0.5 }} onClick={submit} disabled={!message.trim() || busy}>
+              {busy ? "Sending…" : "Send report"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Admin triage of all bug reports.
+function BugReportsPanel({ reports, byId, onAct, onClose }: {
+  reports: BugReport[];
+  byId: Map<string, RawQuestion>;
+  onAct: (id: string, status: string) => void;
+  onClose: () => void;
+}) {
+  const open = reports.filter((r) => r.status === "open");
+  const done = reports.filter((r) => r.status !== "open");
+  const kindLabel = (k: string) => BUG_KINDS.find(([v]) => v === k)?.[1] ?? k;
+  const row = (r: BugReport) => {
+    const q = r.question_id ? byId.get(r.question_id) : null;
+    return (
+      <div key={r.id} style={s.bugRow}>
+        <div style={s.bugMeta}>
+          <span style={s.bugKind}>{kindLabel(r.kind)}</span>
+          {r.question_id && <span style={s.bugQ}>{r.question_id}</span>}
+          <span style={s.bugWho}>{r.reporter?.full_name || r.reporter?.email || "—"} · {ago(r.created_at)}</span>
+          <span style={{ ...s.bugStatus, color: r.status === "open" ? T.wrongText : T.faint }}>{r.status}</span>
+        </div>
+        {q && <div style={s.bugStem}>{q.stem}</div>}
+        <p style={s.bugMsg}>{r.message}</p>
+        <div style={{ display: "flex", gap: 8 }}>
+          {r.status !== "resolved" && <button style={s.apApprove} onClick={() => onAct(r.id, "resolved")}>Resolve</button>}
+          {r.status === "open" && <button style={s.ghost} onClick={() => onAct(r.id, "dismissed")}>Dismiss</button>}
+          {r.status !== "open" && <button style={s.ghost} onClick={() => onAct(r.id, "open")}>Reopen</button>}
+        </div>
+      </div>
+    );
+  };
+  return (
+    <div style={s.scrim} onClick={onClose}>
+      <div style={{ ...s.apPanel, maxWidth: 620 }} onClick={(e) => e.stopPropagation()} className="rise">
+        <div style={s.apHead}>
+          <div>
+            <div style={s.apEyebrow}>Bug reports</div>
+            <div style={s.apTitle}>{open.length} open · {reports.length} total</div>
+          </div>
+          <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
+        </div>
+        <div style={s.apBody}>
+          {reports.length === 0 && <p style={s.apEmpty}>No reports yet. 🎉</p>}
+          {open.map(row)}
+          {done.length > 0 && <div style={{ ...s.apEyebrow, margin: "16px 0 4px" }}>Closed</div>}
+          {done.map(row)}
+        </div>
       </div>
     </div>
   );
@@ -2862,6 +3020,16 @@ const s: Record<string, React.CSSProperties> = {
   apSelect: { background: "#fff", color: T.text, border: `1px solid ${T.paperEdge}`, borderRadius: 8, padding: "6px 8px", fontSize: 12.5, cursor: "pointer" },
   apBlock: { display: "grid", placeItems: "center", width: 30, height: 30, borderRadius: 8, background: "#fff", color: T.wrongLine, border: `1px solid ${T.paperEdge}`, cursor: "pointer" },
   apEmpty: { fontSize: 13.5, color: T.muted, lineHeight: 1.5, margin: "0 4px", fontStyle: "italic" },
+  reportSelect: { width: "100%", padding: "9px 11px", borderRadius: 9, border: `1px solid ${T.paperEdge}`, background: "#fff", color: T.text, fontSize: 14, fontFamily: "inherit", boxSizing: "border-box" },
+  reportText: { width: "100%", padding: "10px 12px", borderRadius: 9, border: `1px solid ${T.paperEdge}`, background: "#fff", color: T.text, fontSize: 14, fontFamily: "inherit", lineHeight: 1.5, resize: "vertical", boxSizing: "border-box" },
+  bugRow: { padding: "12px 4px", borderBottom: `1px solid ${T.paperEdge}`, display: "flex", flexDirection: "column", gap: 7 },
+  bugMeta: { display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap", fontSize: 12 },
+  bugKind: { fontWeight: 700, color: T.text },
+  bugQ: { fontFamily: "'JetBrains Mono', monospace", color: T.teal, background: T.tealSoft, padding: "1px 7px", borderRadius: 6 },
+  bugWho: { color: T.faint },
+  bugStatus: { marginLeft: "auto", fontWeight: 700, textTransform: "uppercase", fontSize: 11, fontFamily: "'JetBrains Mono', monospace" },
+  bugStem: { fontFamily: "'Newsreader', Georgia, serif", fontSize: 14.5, color: T.muted, lineHeight: 1.4, maxHeight: 42, overflow: "hidden" },
+  bugMsg: { margin: 0, fontSize: 14, color: T.text, lineHeight: 1.5, whiteSpace: "pre-wrap" },
   missActions: { display: "flex", gap: 9, padding: "4px 22px 14px", borderBottom: `1px solid ${T.paperEdge}` },
   missClear: { display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: `1px solid ${T.wrongLine}`, color: T.wrongText, padding: "7px 12px", borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: "pointer" },
   missQ: { padding: "14px 6px", borderBottom: `1px solid ${T.paperEdge}` },
@@ -2975,6 +3143,7 @@ const s: Record<string, React.CSSProperties> = {
 
   progressRow: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 10 },
   qeyebrow: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: "0.04em", color: "#8c93a1", textTransform: "uppercase" },
+  reportBtn: { marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: "none", color: T.faint, fontSize: 12, cursor: "pointer", padding: "2px 4px" },
   multiTag: { display: "inline-flex", alignItems: "center", gap: 5, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: T.gold, background: T.goldSoft, borderRadius: 6, padding: "3px 9px" },
 
   qcard: { background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 16, padding: "26px 26px 22px", boxShadow: "0 1px 0 rgba(0,0,0,.04), 0 18px 40px -28px rgba(20,24,40,.5)" },
