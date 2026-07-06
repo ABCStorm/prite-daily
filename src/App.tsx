@@ -25,7 +25,7 @@ function MermaidDiagram({ code }: { code: string }) {
       .catch(() => { if (alive) setFailed(true); });
     return () => { alive = false; };
   }, [code]);
-  if (failed) return <pre style={{ whiteSpace: "pre-wrap", fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, overflowX: "auto" }}>{code}</pre>;
+  if (failed) return <pre style={{ whiteSpace: "pre-wrap", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 12.5, overflowX: "auto" }}>{code}</pre>;
   if (!svg) return null;
   return <div style={{ overflowX: "auto" }} dangerouslySetInnerHTML={{ __html: svg }} />;
 }
@@ -53,6 +53,7 @@ import {
   type QuestionStats, type LeaderRow, type Settings, type TagMissRow, type Flashcard, type HlRange, type BugReport,
 } from "./lib/db";
 import { exportMyNotes, exportGroupNotes, exportMissed, ankingLecture, exportPptx, exportPollTeams } from "./lib/exports";
+import { loadTests, saveTest, renameTest, deleteTest, type SavedTest } from "./lib/tests";
 
 /* ----------------------------------------------------------------------
    PRITE daily question screen — now driven by the REAL extracted bank
@@ -315,6 +316,11 @@ export default function App() {
   // --- live crowd poll (Supabase Realtime, see lib/poll.ts) ---
   const [hostCode, setHostCode] = useState<string | null>(null);   // big screen is hosting
   const [joinCode, setJoinCode] = useState<string | null>(null);   // this device is a participant
+  const [hostSet, setHostSet] = useState<RawQuestion[] | null>(null); // poll a saved test instead of the current set
+
+  // --- saved tests (hand-picked sets for class sessions, see lib/tests.ts) ---
+  const [savedTests, setSavedTests] = useState<SavedTest[]>(() => loadTests());
+  const [showTests, setShowTests] = useState(false);
   useEffect(() => { writePref("pd_exam_mode", examMode); }, [examMode]);
   useEffect(() => { writePref("pd_timer_on", timerOn); }, [timerOn]);
   useEffect(() => { writePref("pd_timer_secs", timerSecs); }, [timerSecs]);
@@ -462,10 +468,14 @@ export default function App() {
     return m;
   }, [all]);
   const inToday = persist && mode === "today";
-  const inCustom = persist && mode === "custom";
+  // custom sets work signed-out too (e.g. studying a saved test in local mode)
+  const inCustom = mode === "custom" && customQueue.length > 0;
   const inPractice = inToday || inCustom; // exam mode + timer apply only here
   const set = inToday ? todayQueue : inCustom ? customQueue : browseSet;
   const q = set[qi];
+  // stable id of the on-screen question — effects key on THIS (not qi/mode) so
+  // per-question state always resets, even when the set changes under an index
+  const navQid = q ? questionId(q.year, q.q_index) : null;
   // explanations stay hidden while answering an exam-mode set (until review)
   const examActive = examMode && inPractice && !examReview;
   const showAnswer = revealed && !examActive;
@@ -473,14 +483,12 @@ export default function App() {
   // reset tab + load this question's notes (mine + group) on navigation
   useEffect(() => {
     setTab("explanation"); setDraft(""); setStats(null); setCard(null); setEditCard(null); setContext(null); setCrossed([]);
-    const cur = set[qi];
-    const qid = cur ? questionId(cur.year, cur.q_index) : null;
-    if (qid && persist) {
-      getMyNote(qid).then(setMyNote);
-      getGroupNotes(qid).then(setGroupNotes);
-      getMyHighlights(qid).then(setHighlights);
+    if (navQid && persist) {
+      getMyNote(navQid).then(setMyNote);
+      getGroupNotes(navQid).then(setGroupNotes);
+      getMyHighlights(navQid).then(setHighlights);
     } else { setMyNote(""); setGroupNotes([]); setHighlights([]); }
-  }, [qi, year, persist, mode]); // eslint-disable-line
+  }, [navQid, persist]); // eslint-disable-line
 
   // lazy-load the shared historical-context blurb when its tab is opened
   useEffect(() => {
@@ -511,15 +519,14 @@ export default function App() {
 
   // restore a prior answer (reveal state) on navigation. In review mode the
   // question is presented FRESH (answer hidden) so you get another attempt.
-  // Keyed on qi/year/reviewMode/answersLoaded (not `answers`) so submitting an
-  // answer doesn't re-hide what you just revealed.
+  // Keyed on the question ID itself (not `answers`) so submitting an answer
+  // doesn't re-hide what you just revealed — and so picks always reset even
+  // when the set changes underneath the same index (stale-highlight bug).
   useEffect(() => {
-    const cur = set[qi];
-    const qid = cur ? questionId(cur.year, cur.q_index) : null;
-    const prior = qid ? answers[qid] : undefined;
+    const prior = navQid ? answers[navQid] : undefined;
     if (!reviewMode && prior) { setPicked(prior.picked); setRevealed(true); }
     else { setPicked([]); setRevealed(false); }
-  }, [qi, year, reviewMode, answersLoaded, mode]); // eslint-disable-line
+  }, [navQid, reviewMode, answersLoaded]); // eslint-disable-line
 
   useEffect(() => {
     if (qi >= set.length && set.length) setQi(0);
@@ -984,6 +991,9 @@ export default function App() {
           )}
           <button style={s.deckBtn} onClick={() => setShowDeck(true)} title="Search & filter questions">
             <Search size={13} strokeWidth={2.4} /> Search
+          </button>
+          <button style={s.deckBtn} onClick={() => setShowTests(true)} title="Saved tests — hand-picked sets for class sessions">
+            <ListChecks size={13} strokeWidth={2.4} /> Tests{savedTests.length ? ` (${savedTests.length})` : ""}
           </button>
           {inToday ? (
             <>
@@ -1565,6 +1575,52 @@ export default function App() {
             if (idx >= 0) { setMode("browse"); setYear("all"); setQi(idx); setShowDeck(false); }
           }}
           onStudy={startCustom}
+          onSaveTest={(qids) => {
+            const name = window.prompt(`Name this test (${qids.length} questions):`);
+            if (!name?.trim()) return;
+            saveTest(name, qids);
+            setSavedTests(loadTests());
+            setShowDeck(false);
+            fire(`Saved "${name.trim()}" — find it under Tests`);
+          }}
+        />
+      )}
+
+      {showTests && (
+        <TestsPanel
+          tests={savedTests}
+          byId={byId}
+          onClose={() => setShowTests(false)}
+          onStudy={(t) => {
+            const qs = t.qids.map((id) => byId.get(id)).filter(Boolean) as RawQuestion[];
+            if (!qs.length) { fire("None of this test's questions are in the current bank"); return; }
+            startCustom(qs, t.name);
+            setShowTests(false);
+          }}
+          onHost={(t) => {
+            const qs = t.qids.map((id) => byId.get(id)).filter(Boolean) as RawQuestion[];
+            if (!qs.length) { fire("None of this test's questions are in the current bank"); return; }
+            setHostSet(qs);
+            setHostCode(makePollCode());
+            setShowTests(false);
+          }}
+          onPptx={async (t) => {
+            const qs = t.qids.map((id) => byId.get(id)).filter(Boolean) as RawQuestion[];
+            if (!qs.length) { fire("None of this test's questions are in the current bank"); return; }
+            try {
+              await exportPptx(qs, `${t.name.replace(/[^\w\- ]+/g, "").trim() || "prite-test"}.pptx`);
+              fire(`Built "${t.name}" as PowerPoint`);
+            } catch (e) { fire("PowerPoint export failed"); console.warn(e); }
+          }}
+          onRename={(t) => {
+            const name = window.prompt("New name:", t.name);
+            if (!name?.trim()) return;
+            setSavedTests(renameTest(t.id, name));
+          }}
+          onDelete={(t) => {
+            if (!window.confirm(`Delete "${t.name}"? This can't be undone.`)) return;
+            setSavedTests(deleteTest(t.id));
+          }}
         />
       )}
 
@@ -1591,7 +1647,7 @@ export default function App() {
       )}
 
       {hostCode && (
-        <PollPresenter code={hostCode} set={set} startIndex={qi} timerSecs={timerSecs} onClose={() => setHostCode(null)} />
+        <PollPresenter code={hostCode} set={hostSet ?? set} startIndex={hostSet ? 0 : qi} timerSecs={timerSecs} onClose={() => { setHostCode(null); setHostSet(null); }} />
       )}
       {joinCode && (
         <PollParticipant code={joinCode} voter={profile?.id ?? session?.user?.id ?? "anon"} onClose={() => setJoinCode(null)} />
@@ -1636,12 +1692,15 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
 }) {
   const [index, setIndex] = useState(Math.max(0, Math.min(startIndex, set.length - 1)));
   const [revealed, setRevealed] = useState(false);
+  const [finished, setFinished] = useState(false);   // session over — final-standings screen
+  const [showAnswerKey, setShowAnswerKey] = useState(false); // answer key on the finish screen (hidden by default)
   const [, force] = useState(0); // re-render when votes arrive
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [qr, setQr] = useState<string | null>(null); // join-URL QR as a data URL
   const [qrBig, setQrBig] = useState(false);          // enlarged QR overlay
   const votesRef = useRef<Map<string, Map<string, string>>>(new Map()); // qid -> voter -> choice
   const teamRef = useRef<Map<string, string>>(new Map());   // voter -> team name
+  const joinedRef = useRef<Set<string>>(new Set());  // every voter who has said hello or voted
   const correctRef = useRef<Map<string, string[]>>(new Map()); // qid -> correct letters (recorded on reveal)
   const chanRef = useRef<ReturnType<NonNullable<typeof supabase>["channel"]> | null>(null);
 
@@ -1671,7 +1730,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
 
   // render the join URL into a QR once per room code
   useEffect(() => {
-    QRCode.toDataURL(pollJoinUrl(code), { margin: 1, width: 512, color: { dark: "#11131c", light: "#ffffff" } })
+    QRCode.toDataURL(pollJoinUrl(code), { margin: 2, width: 512, color: { dark: "#11131c", light: "#ffffff" } })
       .then(setQr)
       .catch(() => setQr(null));
   }, [code]);
@@ -1693,6 +1752,9 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
       nOptions: q?.options.length ?? 0, index, total, revealed,
       correct: revealed ? correctSet : [],
       standings: computeStandings(),
+      voted: votesRef.current.get(qid)?.size ?? 0,
+      joined: joinedRef.current.size,
+      finished,
     };
     chanRef.current?.send({ type: "broadcast", event: POLL_EVENTS.state, payload });
   };
@@ -1707,11 +1769,17 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
       let m = votesRef.current.get(v.qid);
       if (!m) { m = new Map(); votesRef.current.set(v.qid, m); }
       m.set(v.voter, v.choice);
+      joinedRef.current.add(v.voter);
       if (v.team) teamRef.current.set(v.voter, v.team);
       force((n) => n + 1);
+      broadcastRef.current(); // keep participants' voted/joined counters live
     });
     ch.on("broadcast", { event: POLL_EVENTS.hello }, ({ payload }: { payload: PollHello }) => {
-      if (payload?.voter && payload.team) { teamRef.current.set(payload.voter, payload.team); force((n) => n + 1); }
+      if (payload?.voter) {
+        joinedRef.current.add(payload.voter);
+        if (payload.team) teamRef.current.set(payload.voter, payload.team);
+        force((n) => n + 1);
+      }
       broadcastRef.current();
     });
     ch.subscribe((st) => { if (st === "SUBSCRIBED") broadcastRef.current(); });
@@ -1720,15 +1788,15 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
   }, [code]); // eslint-disable-line
 
   // re-broadcast the live question whenever it changes
-  useEffect(() => { broadcastRef.current(); }, [index, revealed]); // eslint-disable-line
+  useEffect(() => { broadcastRef.current(); }, [index, revealed, finished]); // eslint-disable-line
 
   // per-question countdown; auto-reveal when it hits zero
   useEffect(() => {
-    if (revealed || !q) { setTimeLeft(null); return; }
+    if (revealed || finished || !q) { setTimeLeft(null); return; }
     setTimeLeft(timerSecs);
     const id = setInterval(() => setTimeLeft((t) => (t == null ? t : t <= 1 ? 0 : t - 1)), 1000);
     return () => clearInterval(id);
-  }, [index, revealed, timerSecs, q?.year, q?.q_index]); // eslint-disable-line
+  }, [index, revealed, finished, timerSecs, q?.year, q?.q_index]); // eslint-disable-line
   useEffect(() => { if (timeLeft === 0 && !revealed) setRevealed(true); }, [timeLeft, revealed]);
 
   if (!q) return null;
@@ -1736,9 +1804,12 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
   const counts: Record<string, number> = {};
   for (const c of tally.values()) counts[c] = (counts[c] ?? 0) + 1;
   const voterCount = tally.size;
+  const joinedCount = joinedRef.current.size;
+  const allVoted = joinedCount > 0 && voterCount >= joinedCount;
   const standings = computeStandings();
   const goTo = (i: number) => { setRevealed(false); setIndex(Math.max(0, Math.min(i, total - 1))); };
   const joinHost = pollJoinUrl(code).replace(/^https?:\/\//, "");
+  const keyFor = (qq: RawQuestion) => qq.answer_letters?.length ? qq.answer_letters : qq.answer_letter ? [qq.answer_letter] : [];
 
   return (
     <div style={s.pollRoot}>
@@ -1751,7 +1822,9 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
         )}
         <span style={s.pollLive}><Radio size={16} strokeWidth={2.4} /> LIVE POLL</span>
         <span style={s.pollJoin}>Scan, or join at <b style={{ color: "#fff" }}>{joinHost}</b> · code <b style={s.pollCode}>{code}</b></span>
-        <span style={s.pollVoters}><Users size={16} strokeWidth={2.3} /> {voterCount} voted</span>
+        <span style={{ ...s.pollVoters, ...(allVoted && !revealed ? { color: "#48c78e" } : {}) }}>
+          <Users size={16} strokeWidth={2.3} /> {voterCount}{joinedCount > 0 ? ` of ${joinedCount}` : ""} voted{allVoted && !revealed ? " · all in!" : ""}
+        </span>
         {timeLeft != null && (
           <span style={{ ...s.timerPill, ...(timeLeft <= 10 ? s.timerPillLow : {}) }}><Clock size={14} strokeWidth={2.5} /> {fmtTime(timeLeft)}</span>
         )}
@@ -1759,6 +1832,52 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
       </div>
 
       <div style={s.pollBody}>
+        {finished ? (
+          <>
+            <div style={s.pollMeta}>Session complete · {total} question{total === 1 ? "" : "s"}{joinedCount > 0 ? ` · ${joinedCount} participant${joinedCount === 1 ? "" : "s"}` : ""}</div>
+            <p style={s.pollStem}>Final standings</p>
+            {standings.length > 0 ? (
+              <div style={s.pollStats}>
+                {standings.map((t, i) => (
+                  <div key={t.team} style={{ ...s.teamRow, ...(i === 0 ? s.teamRowLead : {}) }}>
+                    <span style={s.teamRank}>{i === 0 ? <Crown size={20} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
+                    <span style={s.teamName}>{t.team}</span>
+                    <span style={s.teamMembers}>{t.members} {t.members === 1 ? "player" : "players"}</span>
+                    <span style={s.teamScore}>{t.score}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ color: "#aeb4c0", fontSize: 15 }}>No teams joined this session.</p>
+            )}
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18 }}>
+              <button style={s.pollBtn} onClick={() => setShowAnswerKey((v) => !v)}>
+                <ListChecks size={15} strokeWidth={2.3} /> {showAnswerKey ? "Hide answer key" : "Show answer key"}
+              </button>
+              <button style={s.pollBtn} onClick={() => exportPptx(set, "prite-poll-set.pptx")} title="Question + reveal slide per question">
+                <Download size={15} strokeWidth={2.3} /> PowerPoint
+              </button>
+              {standings.length > 0 && (
+                <button style={s.pollBtn} onClick={() => exportPollTeams(standings, { code, index: total, total })}>
+                  <Download size={15} strokeWidth={2.3} /> Team stats (Excel)
+                </button>
+              )}
+            </div>
+            {showAnswerKey && (
+              <div style={{ marginTop: 16, display: "grid", gap: 6 }}>
+                {set.map((qq, i) => (
+                  <div key={i} style={{ display: "flex", gap: 10, alignItems: "baseline", minWidth: 0, fontSize: 14.5, color: "#c7ccd6", padding: "7px 10px", background: "rgba(255,255,255,.04)", borderRadius: 8 }}>
+                    <b style={{ color: "#7b8394", minWidth: 24 }}>{i + 1}.</b>
+                    <span style={{ color: "#7b8394", whiteSpace: "nowrap" }}>{qq.year} · Q{qq.q_index}</span>
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>{qq.stem}</span>
+                    <b style={{ color: "#48c78e", whiteSpace: "nowrap" }}>{keyFor(qq).join(", ")}</b>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
         {standings.length > 0 && (
           <div style={s.pollStats}>
             <div style={s.pollStatsHead}>
@@ -1786,25 +1905,42 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
             const isCorrect = revealed && correctSet.includes(o.letter);
             return (
               <div key={o.letter} style={{ ...s.pollOpt, ...(isCorrect ? s.pollOptCorrect : {}) }}>
-                <span style={{ ...s.pollBar, width: `${pct}%`, background: isCorrect ? "rgba(72,199,142,.22)" : "rgba(255,255,255,.08)" }} />
+                {/* tallies stay hidden until reveal so the room isn't biased by the crowd */}
+                <span style={{ ...s.pollBar, width: revealed ? `${pct}%` : 0, background: isCorrect ? "rgba(72,199,142,.22)" : "rgba(255,255,255,.08)" }} />
                 <span style={s.pollLetter}>{o.letter}</span>
                 <span style={s.pollOptText}>{o.text}</span>
-                <span style={s.pollOptCount}>{pct}% · {cnt}{isCorrect && <Check size={20} strokeWidth={3} color="#48c78e" style={{ marginLeft: 10 }} />}</span>
+                <span style={s.pollOptCount}>
+                  {revealed ? <>{pct}% · {cnt}{isCorrect && <Check size={20} strokeWidth={3} color="#48c78e" style={{ marginLeft: 10 }} />}</> : null}
+                </span>
               </div>
             );
           })}
         </div>
-
+          </>
+        )}
       </div>
 
       <div style={s.pollControls}>
+        {finished ? (
+          <>
+            <button style={s.pollBtn} onClick={() => { setFinished(false); setShowAnswerKey(false); }}><ArrowLeft size={16} strokeWidth={2.4} /> Back to questions</button>
+            <button style={{ ...s.pollBtn, ...s.pollBtnPrimary }} onClick={onClose}><X size={16} strokeWidth={2.4} /> End poll</button>
+          </>
+        ) : (
+          <>
         <button style={s.pollBtn} disabled={index === 0} onClick={() => goTo(index - 1)}><ArrowLeft size={16} strokeWidth={2.4} /> Prev</button>
         {!revealed ? (
           <button style={{ ...s.pollBtn, ...s.pollBtnPrimary }} onClick={() => setRevealed(true)}><Check size={16} strokeWidth={2.6} /> Reveal answer</button>
         ) : (
           <span style={s.pollAnswerLine}>Answer: <b style={{ color: "#48c78e" }}>{correctSet.join(", ")}</b>{q.answer_text ? ` — ${q.answer_text}` : ""}</span>
         )}
-        <button style={s.pollBtn} disabled={index >= total - 1} onClick={() => goTo(index + 1)}>Next <ArrowRight size={16} strokeWidth={2.4} /></button>
+        {index >= total - 1 && revealed ? (
+          <button style={{ ...s.pollBtn, ...s.pollBtnPrimary }} onClick={() => setFinished(true)}><Trophy size={16} strokeWidth={2.4} /> Finish · standings</button>
+        ) : (
+          <button style={s.pollBtn} disabled={index >= total - 1} onClick={() => goTo(index + 1)}>Next <ArrowRight size={16} strokeWidth={2.4} /></button>
+        )}
+          </>
+        )}
       </div>
 
       {qrBig && qr && (
@@ -1912,7 +2048,15 @@ function PollParticipant({ code, voter, onClose }: { code: string; voter: string
           <p style={s.joinMsg}>Joined poll <b style={{ color: "#fff" }}>{code}</b> — waiting for the host to start…</p>
         ) : (
           <>
-            <p style={s.joinMsg}>Question {remote.index + 1} of {remote.total} — read it on the big screen, then tap your answer.</p>
+            <p style={s.joinMsg}>
+              {remote.finished
+                ? <>Poll complete — thanks for playing! 🎉</>
+                : <>Question {remote.index + 1} of {remote.total} — read it on the big screen, then tap your answer.</>}
+            </p>
+            {!remote.finished && !remote.revealed && (remote.joined ?? 0) > 0 && (
+              <p style={{ ...s.joinState, marginTop: 0 }}>{remote.voted ?? 0} of {remote.joined} voted</p>
+            )}
+            {!remote.finished && (
             <div style={s.joinOpts}>
               {letters.map((L) => {
                 const mine = myVote === L;
@@ -1926,12 +2070,15 @@ function PollParticipant({ code, voter, onClose }: { code: string; voter: string
                 );
               })}
             </div>
+            )}
+            {!remote.finished && (
             <p style={s.joinState}>
               {remote.revealed
                 ? <>Answer: <b style={{ color: "#fff" }}>{remote.correct.join(", ")}</b>{myVote ? (remote.correct.includes(myVote) ? " — you got it! 🎉" : ` — you picked ${myVote}`) : " — you didn't vote"}</>
                 : myVote ? `You picked ${myVote}. Tap another to change it.` : "Tap a letter to cast your vote."}
             </p>
-            {remote.revealed && remote.standings?.length > 0 && (
+            )}
+            {(remote.finished || remote.revealed) && remote.standings?.length > 0 && (
               <div style={s.teamBoardMini}>
                 {remote.standings.slice(0, 5).map((t, i) => (
                   <div key={t.team} style={{ ...s.teamMiniRow, ...(i === 0 ? s.teamMiniLead : {}), ...(t.team === team ? s.teamMiniMine : {}) }}>
@@ -1985,7 +2132,7 @@ function Balloons() {
 
 function Center({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ ...s.root, display: "grid", placeItems: "center", color: "#c7ccd6", fontFamily: "'Space Grotesk', system-ui, sans-serif", padding: 40, textAlign: "center" }}>
+    <div style={{ ...s.root, display: "grid", placeItems: "center", color: "#c7ccd6", fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif", padding: 40, textAlign: "center" }}>
       <div>{children}</div>
     </div>
   );
@@ -2654,13 +2801,14 @@ function Insights({ onClose }: { onClose: () => void }) {
 }
 
 function DeckBuilder({
-  all, byId, onClose, onOpen, onStudy, fire,
+  all, byId, onClose, onOpen, onStudy, onSaveTest, fire,
 }: {
   all: RawQuestion[];
   byId: Map<string, RawQuestion>;
   onClose: () => void;
   onOpen: (id: string) => void;
   onStudy?: (qs: RawQuestion[], label: string) => void;
+  onSaveTest?: (qids: string[]) => void;
   fire: (m: string) => void;
 }) {
   const [search, setSearch] = useState("");
@@ -2819,6 +2967,16 @@ function DeckBuilder({
               <Target size={14} strokeWidth={2.3} /> Study these ({selected.size})
             </button>
           )}
+          {onSaveTest && (
+            <button
+              style={{ ...s.ghost, marginLeft: 0, opacity: selected.size ? 1 : 0.5 }}
+              disabled={!selected.size}
+              onClick={() => onSaveTest(matches.filter((q) => selected.has(questionId(q.year, q.q_index))).map((q) => questionId(q.year, q.q_index)))}
+              title="Save the checked questions as a named test — poll it live, restudy it, or export it later"
+            >
+              <ListChecks size={14} strokeWidth={2.2} /> Save as test
+            </button>
+          )}
           <button style={{ ...s.ghost, marginLeft: 0, opacity: selected.size && !busy ? 1 : 0.5 }} disabled={!selected.size || busy} onClick={download}>
             <Download size={14} strokeWidth={2.2} /> {busy ? "Building…" : `Anki (${selected.size})`}
           </button>
@@ -2827,6 +2985,76 @@ function DeckBuilder({
           </button>
           <span style={s.flashNote}>Study, or export the checked questions</span>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* Saved tests: named, hand-picked question sets (built in the Search modal).
+   From here a test can be studied, hosted as a live class poll, exported to
+   PowerPoint, renamed, or deleted. Stored per-device in localStorage. */
+function TestsPanel({
+  tests, byId, onClose, onStudy, onHost, onPptx, onRename, onDelete,
+}: {
+  tests: SavedTest[];
+  byId: Map<string, RawQuestion>;
+  onClose: () => void;
+  onStudy: (t: SavedTest) => void;
+  onHost: (t: SavedTest) => void;
+  onPptx: (t: SavedTest) => void;
+  onRename: (t: SavedTest) => void;
+  onDelete: (t: SavedTest) => void;
+}) {
+  return (
+    <div style={s.scrim} onClick={onClose}>
+      <div style={{ ...s.apPanel, maxWidth: 560 }} onClick={(e) => e.stopPropagation()} className="rise">
+        <div style={s.apHead}>
+          <div>
+            <div style={s.apEyebrow}>Class sessions · saved sets</div>
+            <div style={s.apTitle}>Tests</div>
+          </div>
+          <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
+        </div>
+        {tests.length === 0 ? (
+          <p style={{ ...s.apEmpty, fontStyle: "normal", fontSize: 14.5, lineHeight: 1.7, padding: "26px 22px 30px", textAlign: "center", margin: 0 }}>
+            <b style={{ display: "block", fontSize: 15.5, marginBottom: 8 }}>No saved tests yet</b>
+            Open <b>Search</b>, check the questions you want, and hit <b>Save as test</b> —
+            then run it here as a live poll, restudy it, or export it to PowerPoint.
+          </p>
+        ) : (
+          <div style={{ display: "grid", gap: 10 }}>
+            {tests.map((t) => {
+              const found = t.qids.filter((id) => byId.has(id)).length;
+              return (
+                <div key={t.id} style={{ border: `1px solid ${T.paperEdge}`, borderRadius: 12, padding: "12px 14px", background: "#fff" }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+                    <b style={{ fontSize: 15.5, color: T.text }}>{t.name}</b>
+                    <span style={{ fontSize: 12.5, color: T.faint }}>
+                      {found} question{found === 1 ? "" : "s"}{found !== t.qids.length ? ` (${t.qids.length - found} not in this bank)` : ""} · saved {new Date(t.created).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+                    <button style={s.primarySm} onClick={() => onHost(t)} title="Run this test as a live class poll">
+                      <Radio size={13} strokeWidth={2.3} /> Host poll
+                    </button>
+                    <button style={{ ...s.ghost, marginLeft: 0 }} onClick={() => onStudy(t)} title="Go through this test yourself">
+                      <Target size={13} strokeWidth={2.3} /> Study
+                    </button>
+                    <button style={{ ...s.ghost, marginLeft: 0 }} onClick={() => onPptx(t)} title="Download as PowerPoint (question + reveal slide per question)">
+                      <FileText size={13} strokeWidth={2.3} /> PowerPoint
+                    </button>
+                    <button style={{ ...s.ghost, marginLeft: 0 }} onClick={() => onRename(t)} title="Rename">
+                      <Pencil size={13} strokeWidth={2.3} /> Rename
+                    </button>
+                    <button style={{ ...s.ghost, marginLeft: 0, color: T.wrongLine }} onClick={() => onDelete(t)} title="Delete this test">
+                      <Trash2 size={13} strokeWidth={2.3} /> Delete
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2965,7 +3193,6 @@ function GoogleG() {
 
 /* ---------------------------------------------------------------------- */
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=JetBrains+Mono:wght@400;500;600&display=swap');
 * { box-sizing: border-box; }
 button { font-family: inherit; }
 .opt:hover:not(:disabled) { border-color: ${T.teal}33 !important; transform: translateY(-1px); }
@@ -3022,7 +3249,7 @@ button:focus-visible { outline: 2px solid ${T.teal}; outline-offset: 2px; }
 
 /* ---------------------------------------------------------------------- */
 const s: Record<string, React.CSSProperties> = {
-  root: { minHeight: "100vh", background: T.ink, fontFamily: "'Space Grotesk', system-ui, sans-serif", color: T.text },
+  root: { minHeight: "100vh", background: T.ink, fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif", color: T.text },
 
   top: { position: "sticky", top: 0, zIndex: 20, background: T.ink, borderBottom: `1px solid ${T.inkLine}` },
   topInner: { maxWidth: 880, margin: "0 auto", padding: "13px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14 },
@@ -3030,23 +3257,23 @@ const s: Record<string, React.CSSProperties> = {
   brandMark: { width: 28, height: 28, borderRadius: 8, background: T.teal, color: "#fff", display: "grid", placeItems: "center" },
   brandName: { color: "#fff", fontWeight: 600, fontSize: 16, letterSpacing: "-0.01em" },
   topMeta: { display: "flex", alignItems: "center", gap: 13 },
-  countdown: { color: "#c7ccd6", fontSize: 12.5, fontFamily: "'JetBrains Mono', monospace" },
+  countdown: { color: "#c7ccd6", fontSize: 12.5, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
   countNum: { color: T.gold, fontWeight: 700 },
   who: { display: "flex", alignItems: "center", gap: 7 },
   avatarSm: { width: 28, height: 28, borderRadius: 8, background: T.teal, color: "#fff", display: "grid", placeItems: "center", fontSize: 11.5, fontWeight: 700 },
   adminTag: { display: "inline-flex", alignItems: "center", gap: 4, color: "#9aa0ab", fontSize: 11, fontWeight: 500, textTransform: "capitalize" },
   signOut: { display: "grid", placeItems: "center", width: 28, height: 28, borderRadius: 8, background: T.inkSoft, color: "#aeb4c0", border: `1px solid ${T.inkLine}`, cursor: "pointer" },
   approveBtn: { position: "relative", display: "inline-flex", alignItems: "center", gap: 6, background: T.inkSoft, color: "#e7d9b4", border: `1px solid ${T.inkLine}`, padding: "6px 11px", borderRadius: 8, fontSize: 12.5, fontWeight: 500, cursor: "pointer" },
-  pendingBadge: { display: "inline-grid", placeItems: "center", minWidth: 18, height: 18, padding: "0 5px", borderRadius: 9, background: T.gold, color: "#fff", fontSize: 11, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" },
+  pendingBadge: { display: "inline-grid", placeItems: "center", minWidth: 18, height: 18, padding: "0 5px", borderRadius: 9, background: T.gold, color: "#fff", fontSize: 11, fontWeight: 700, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
 
   scrim: { position: "fixed", inset: 0, background: "rgba(15,17,26,.6)", backdropFilter: "blur(3px)", display: "grid", placeItems: "center", padding: 18, zIndex: 80 },
   apPanel: { width: "100%", maxWidth: 540, maxHeight: "84vh", display: "flex", flexDirection: "column", background: T.paper, borderRadius: 18, overflow: "hidden", border: `1px solid ${T.paperEdge}`, boxShadow: "0 30px 80px -30px rgba(0,0,0,.6)" },
   apHead: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "20px 22px 12px" },
-  apEyebrow: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: T.muted },
+  apEyebrow: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: T.muted },
   apTitle: { fontSize: 22, fontWeight: 700, color: T.text, marginTop: 3 },
   close: { background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 8, width: 32, height: 32, display: "grid", placeItems: "center", cursor: "pointer", color: T.muted },
   apBody: { padding: "0 18px 18px", overflowY: "auto" },
-  apSectionLbl: { display: "flex", alignItems: "center", gap: 8, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", color: T.faint, margin: "8px 4px 10px" },
+  apSectionLbl: { display: "flex", alignItems: "center", gap: 8, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", color: T.faint, margin: "8px 4px 10px" },
   apRow: { display: "flex", alignItems: "center", gap: 12, padding: "10px 8px", borderBottom: `1px solid ${T.paperEdge}` },
   apAvatar: { width: 34, height: 34, borderRadius: 9, background: T.inkSoft, color: "#fff", display: "grid", placeItems: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 },
   apName: { fontSize: 14.5, fontWeight: 600, color: T.text, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
@@ -3063,27 +3290,27 @@ const s: Record<string, React.CSSProperties> = {
   bugRow: { padding: "12px 4px", borderBottom: `1px solid ${T.paperEdge}`, display: "flex", flexDirection: "column", gap: 7 },
   bugMeta: { display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap", fontSize: 12 },
   bugKind: { fontWeight: 700, color: T.text },
-  bugQ: { fontFamily: "'JetBrains Mono', monospace", color: T.teal, background: T.tealSoft, padding: "1px 7px", borderRadius: 6 },
+  bugQ: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", color: T.teal, background: T.tealSoft, padding: "1px 7px", borderRadius: 6 },
   bugWho: { color: T.faint },
-  bugStatus: { marginLeft: "auto", fontWeight: 700, textTransform: "uppercase", fontSize: 11, fontFamily: "'JetBrains Mono', monospace" },
-  bugStem: { fontFamily: "'Newsreader', Georgia, serif", fontSize: 14.5, color: T.muted, lineHeight: 1.4, maxHeight: 42, overflow: "hidden" },
+  bugStatus: { marginLeft: "auto", fontWeight: 700, textTransform: "uppercase", fontSize: 11, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
+  bugStem: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 14.5, color: T.muted, lineHeight: 1.4, maxHeight: 42, overflow: "hidden" },
   bugMsg: { margin: 0, fontSize: 14, color: T.text, lineHeight: 1.5, whiteSpace: "pre-wrap" },
   missActions: { display: "flex", gap: 9, padding: "4px 22px 14px", borderBottom: `1px solid ${T.paperEdge}` },
   missClear: { display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: `1px solid ${T.wrongLine}`, color: T.wrongText, padding: "7px 12px", borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: "pointer" },
   missQ: { padding: "14px 6px", borderBottom: `1px solid ${T.paperEdge}` },
-  eyebrow2: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", color: T.faint, marginBottom: 6 },
-  missStem: { fontFamily: "'Newsreader', Georgia, serif", fontSize: 15.5, lineHeight: 1.5, color: T.text, margin: "0 0 8px" },
-  missMeta: { display: "flex", flexWrap: "wrap", gap: 8, fontSize: 13, fontFamily: "'JetBrains Mono', monospace" },
+  eyebrow2: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", color: T.faint, marginBottom: 6 },
+  missStem: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 15.5, lineHeight: 1.5, color: T.text, margin: "0 0 8px" },
+  missMeta: { display: "flex", flexWrap: "wrap", gap: 8, fontSize: 13, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
   missNote: { background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 8, padding: "9px 12px", marginTop: 9, fontSize: 14, lineHeight: 1.5, color: T.text, whiteSpace: "pre-wrap" },
 
   statGrid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, margin: "12px 4px 6px" },
   statCard: { background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 12, padding: "13px 15px" },
-  statNum: { fontFamily: "'Space Grotesk', system-ui, sans-serif", fontSize: 26, fontWeight: 700, lineHeight: 1.1, color: T.text },
+  statNum: { fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif", fontSize: 26, fontWeight: 700, lineHeight: 1.1, color: T.text },
   statLbl: { fontSize: 13, fontWeight: 600, color: T.text, marginTop: 4 },
   statSub: { fontSize: 11.5, color: T.muted, marginTop: 2 },
   chartCard: { background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 12, padding: "12px 14px 10px", margin: "12px 4px 6px" },
   predCard: { background: T.tealSoft, border: `1px solid ${T.paperEdge}`, borderRadius: 12, padding: "12px 14px 10px", margin: "10px 4px 6px" },
-  secHead: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: "0.04em", textTransform: "uppercase", color: T.faint, marginBottom: 8 } as React.CSSProperties,
+  secHead: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 11, letterSpacing: "0.04em", textTransform: "uppercase", color: T.faint, marginBottom: 8 } as React.CSSProperties,
   chartNote: { fontSize: 12.5, color: T.muted, lineHeight: 1.5, margin: "8px 2px 2px" },
   predRow: { display: "flex", alignItems: "center", gap: 14, margin: "2px 0 4px" },
   predOrd: { fontSize: 14, fontWeight: 600, marginLeft: 1, verticalAlign: "super" } as React.CSSProperties,
@@ -3091,31 +3318,31 @@ const s: Record<string, React.CSSProperties> = {
   insTab: { background: T.paper, color: T.muted, border: `1px solid ${T.paperEdge}`, padding: "6px 11px", borderRadius: 8, fontSize: 12.5, fontWeight: 500, cursor: "pointer" },
   insTabOn: { background: T.teal, color: "#fff", borderColor: T.teal },
   cohortSel: { background: "#fff", color: T.text, border: `1px solid ${T.paperEdge}`, borderRadius: 9, padding: "7px 10px", fontSize: 13, cursor: "pointer" },
-  insHead: { display: "flex", justifyContent: "space-between", fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: "0.04em", textTransform: "uppercase", color: T.faint, margin: "10px 4px 12px" },
+  insHead: { display: "flex", justifyContent: "space-between", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 11, letterSpacing: "0.04em", textTransform: "uppercase", color: T.faint, margin: "10px 4px 12px" },
   insHeadR: { textAlign: "right" },
   insRow: { display: "flex", alignItems: "center", gap: 10, padding: "7px 4px" },
   insLabel: { width: 168, fontSize: 13.5, color: T.text, textTransform: "capitalize", flexShrink: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
   insBarWrap: { flex: 1, height: 16, background: "#eef0f3", borderRadius: 5, overflow: "hidden" },
   insBar: { height: "100%", borderRadius: 5 },
-  insPct: { width: 40, textAlign: "right", fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 700, color: T.text },
-  insAtt: { width: 34, textAlign: "right", fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: T.faint },
+  insPct: { width: 40, textAlign: "right", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 13, fontWeight: 700, color: T.text },
+  insAtt: { width: 34, textAlign: "right", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 12, color: T.faint },
   insFoot: { fontSize: 12, color: T.muted, lineHeight: 1.5, margin: "14px 4px 0", paddingTop: 12, borderTop: `1px solid ${T.paperEdge}` },
   lbRow: { display: "flex", alignItems: "center", gap: 11, padding: "9px 10px", borderRadius: 10 },
   lbMe: { background: T.tealSoft, boxShadow: `inset 0 0 0 1px ${T.teal}55` },
-  lbRank: { fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: T.faint, width: 22, textAlign: "center", flexShrink: 0 },
+  lbRank: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 13, color: T.faint, width: 22, textAlign: "center", flexShrink: 0 },
   lbName: { flex: 1, fontSize: 14, fontWeight: 500, color: T.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-  lbAcc: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: T.muted, width: 44, textAlign: "right" },
-  lbDone: { fontFamily: "'JetBrains Mono', monospace", fontSize: 14, fontWeight: 700, color: T.text, width: 48, textAlign: "right" },
-  lbFoot: { display: "flex", justifyContent: "flex-end", gap: 12, padding: "10px 12px 2px", fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: T.faint },
+  lbAcc: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 12.5, color: T.muted, width: 44, textAlign: "right" },
+  lbDone: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 14, fontWeight: 700, color: T.text, width: 48, textAlign: "right" },
+  lbFoot: { display: "flex", justifyContent: "flex-end", gap: 12, padding: "10px 12px 2px", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 11, color: T.faint },
 
-  gateRoot: { minHeight: "100vh", background: T.ink, display: "grid", placeItems: "center", padding: 24, fontFamily: "'Space Grotesk', system-ui, sans-serif" },
+  gateRoot: { minHeight: "100vh", background: T.ink, display: "grid", placeItems: "center", padding: 24, fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif" },
   gateCard: { maxWidth: 400, width: "100%", background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 18, padding: "34px 30px", textAlign: "center", boxShadow: "0 30px 80px -30px rgba(0,0,0,.6)" },
   gateMark: { width: 52, height: 52, borderRadius: 14, background: T.teal, display: "inline-grid", placeItems: "center", marginBottom: 16 },
   gateTitle: { fontSize: 24, fontWeight: 700, color: T.text, margin: "0 0 8px", letterSpacing: "-0.01em" },
   gateSub: { fontSize: 14.5, lineHeight: 1.55, color: T.muted, margin: "0 0 22px" },
   googleBtn: { display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", background: "#fff", color: "#1f2330", border: `1px solid ${T.paperEdge}`, padding: "12px 18px", borderRadius: 11, fontSize: 15, fontWeight: 600, cursor: "pointer" },
   gateFine: { fontSize: 12, color: T.faint, lineHeight: 1.5, margin: "18px 0 0" },
-  tlHeading: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", color: T.faint, marginBottom: 7 },
+  tlHeading: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", color: T.faint, marginBottom: 7 },
   tlRow: { display: "flex", flexWrap: "wrap", gap: 7 },
   tlBtn: { flex: "1 1 auto", background: "#fff", color: T.text, border: `1px solid ${T.paperEdge}`, borderRadius: 9, padding: "10px 12px", fontSize: 13.5, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" },
 
@@ -3127,8 +3354,8 @@ const s: Record<string, React.CSSProperties> = {
   modeBtn: { display: "inline-flex", alignItems: "center", gap: 6, background: "transparent", color: "#8c93a1", border: "none", padding: "6px 12px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" },
   customEdit: { display: "inline-flex", alignItems: "center", gap: 4, marginLeft: 4, background: "transparent", color: T.teal, border: `1px solid ${T.inkLine}`, borderRadius: 7, padding: "3px 8px", fontSize: 12, fontWeight: 600, cursor: "pointer" },
   modeOn: { background: T.teal, color: "#fff" },
-  todayProg: { display: "inline-flex", alignItems: "center", gap: 7, fontFamily: "'JetBrains Mono', monospace", fontSize: 13.5 },
-  missChip: { display: "inline-flex", alignItems: "center", gap: 6, background: T.inkSoft, color: "#c9a35a", border: `1px solid ${T.inkLine}`, padding: "6px 11px", borderRadius: 8, fontSize: 12.5, fontWeight: 500, cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" },
+  todayProg: { display: "inline-flex", alignItems: "center", gap: 7, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 13.5 },
+  missChip: { display: "inline-flex", alignItems: "center", gap: 6, background: T.inkSoft, color: "#c9a35a", border: `1px solid ${T.inkLine}`, padding: "6px 11px", borderRadius: 8, fontSize: 12.5, fontWeight: 500, cursor: "pointer", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
 
   doneBanner: { display: "flex", alignItems: "center", gap: 11, flexWrap: "wrap", background: T.tealSoft, border: `1px solid ${T.teal}66`, borderRadius: 12, padding: "12px 15px", marginBottom: 16, fontSize: 14, color: T.text },
   doneIcon: { width: 22, height: 22, borderRadius: 6, background: T.teal, display: "grid", placeItems: "center", flexShrink: 0 },
@@ -3138,8 +3365,8 @@ const s: Record<string, React.CSSProperties> = {
   studyToggle: { display: "inline-flex", alignItems: "center", gap: 6, background: T.inkSoft, color: "#9aa0ab", border: `1px solid ${T.inkLine}`, padding: "6px 12px", borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: "pointer" },
   studyToggleOn: { background: T.teal, color: "#fff", borderColor: T.teal },
   studySecs: { display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, color: "#c7ccd6" },
-  secsInput: { width: 52, background: T.inkSoft, color: "#fff", border: `1px solid ${T.inkLine}`, borderRadius: 8, padding: "5px 8px", fontSize: 13, fontWeight: 600, textAlign: "center", fontFamily: "'JetBrains Mono', monospace" },
-  timerPill: { display: "inline-flex", alignItems: "center", gap: 5, marginLeft: "auto", background: T.inkSoft, color: "#e7eaf0", border: `1px solid ${T.inkLine}`, padding: "6px 12px", borderRadius: 9, fontSize: 14, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", fontVariantNumeric: "tabular-nums" },
+  secsInput: { width: 52, background: T.inkSoft, color: "#fff", border: `1px solid ${T.inkLine}`, borderRadius: 8, padding: "5px 8px", fontSize: 13, fontWeight: 600, textAlign: "center", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
+  timerPill: { display: "inline-flex", alignItems: "center", gap: 5, marginLeft: "auto", background: T.inkSoft, color: "#e7eaf0", border: `1px solid ${T.inkLine}`, padding: "6px 12px", borderRadius: 9, fontSize: 14, fontWeight: 700, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontVariantNumeric: "tabular-nums" },
   timerPillLow: { background: "#3a2018", color: "#ff9b80", borderColor: "#7a3a2a" },
   reviewBar: { display: "flex", alignItems: "center", gap: 11, flexWrap: "wrap", background: T.inkSoft, border: `1px solid ${T.inkLine}`, borderRadius: 12, padding: "11px 15px", marginBottom: 16, fontSize: 13.5, color: "#c7ccd6" },
 
@@ -3151,7 +3378,7 @@ const s: Record<string, React.CSSProperties> = {
   setLbl: { fontSize: 13.5, fontWeight: 600, color: T.text, marginBottom: 10 },
   setHint: { fontSize: 12, color: T.muted, marginTop: 5, lineHeight: 1.45 },
   segRow: { display: "inline-flex", background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 10, padding: 3, gap: 3 },
-  segBtn: { background: "transparent", color: T.muted, border: "none", padding: "8px 20px", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" },
+  segBtn: { background: "transparent", color: T.muted, border: "none", padding: "8px 20px", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
   segOn: { background: T.teal, color: "#fff" },
   dateInput: { border: `1px solid ${T.paperEdge}`, borderRadius: 9, padding: "9px 12px", fontSize: 14, background: "#fff", color: T.text },
   toggleRow: { display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", fontSize: 14, color: T.text },
@@ -3159,7 +3386,7 @@ const s: Record<string, React.CSSProperties> = {
   daysInput: { width: 60, border: `1px solid ${T.paperEdge}`, borderRadius: 8, padding: "6px 9px", fontSize: 14, background: "#fff", color: T.text, textAlign: "center" },
   navMid: { display: "flex", alignItems: "center", gap: 10, marginLeft: "auto" },
   navBtn: { width: 34, height: 34, display: "grid", placeItems: "center", background: T.inkSoft, color: "#e7eaf0", border: `1px solid ${T.inkLine}`, borderRadius: 9, cursor: "pointer" },
-  navInfo: { fontFamily: "'JetBrains Mono', monospace", fontSize: 13.5, color: "#e7eaf0", minWidth: 86, textAlign: "center" },
+  navInfo: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 13.5, color: "#e7eaf0", minWidth: 86, textAlign: "center" },
   jumpWrap: { display: "flex", alignItems: "center", gap: 6 },
   jump: { width: 78, background: T.inkSoft, color: "#e7eaf0", border: `1px solid ${T.inkLine}`, borderRadius: 9, padding: "8px 10px", fontSize: 13 },
   jumpBtn: { background: T.teal, color: "#fff", border: "none", borderRadius: 9, padding: "8px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer" },
@@ -3171,23 +3398,23 @@ const s: Record<string, React.CSSProperties> = {
   scopeBtn: { background: "transparent", color: T.muted, border: "none", padding: "7px 12px", borderRadius: 7, fontSize: 12.5, fontWeight: 600, cursor: "pointer" },
   scopeOn: { background: T.teal, color: "#fff" },
   deckSelRow: { display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 10 },
-  deckCount: { display: "flex", alignItems: "center", fontSize: 13, color: T.muted, fontFamily: "'JetBrains Mono', monospace" },
+  deckCount: { display: "flex", alignItems: "center", fontSize: 13, color: T.muted, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
   deckRow: { display: "flex", alignItems: "flex-start", gap: 11, padding: "11px 4px", borderBottom: `1px solid ${T.paperEdge}` },
   deckRowText: { display: "flex", flexDirection: "column", gap: 3, minWidth: 0, flex: 1, cursor: "pointer" },
-  deckRowMeta: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, letterSpacing: "0.04em", textTransform: "uppercase", color: T.faint },
+  deckRowMeta: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 10.5, letterSpacing: "0.04em", textTransform: "uppercase", color: T.faint },
   deckRowStem: { fontSize: 13.5, color: T.text, lineHeight: 1.45 },
   deckRowAns: { fontSize: 12.5, color: T.tealDeep, fontWeight: 500 },
   deckFoot: { display: "flex", alignItems: "center", gap: 13, padding: "14px 22px", borderTop: `1px solid ${T.paperEdge}`, flexWrap: "wrap" },
 
   progressRow: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 10 },
-  qeyebrow: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: "0.04em", color: "#8c93a1", textTransform: "uppercase" },
+  qeyebrow: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 12, letterSpacing: "0.04em", color: "#8c93a1", textTransform: "uppercase" },
   reportBtn: { marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: "none", color: T.faint, fontSize: 12, cursor: "pointer", padding: "2px 4px" },
-  multiTag: { display: "inline-flex", alignItems: "center", gap: 5, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: T.gold, background: T.goldSoft, borderRadius: 6, padding: "3px 9px" },
+  multiTag: { display: "inline-flex", alignItems: "center", gap: 5, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 11, color: T.gold, background: T.goldSoft, borderRadius: 6, padding: "3px 9px" },
 
   qcard: { background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 16, padding: "26px 26px 22px", boxShadow: "0 1px 0 rgba(0,0,0,.04), 0 18px 40px -28px rgba(20,24,40,.5)" },
   figRow: { display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 18, justifyContent: "center" },
   figImg: { maxWidth: "100%", maxHeight: 320, borderRadius: 10, border: `1px solid ${T.paperEdge}`, background: "#fff" },
-  stem: { fontFamily: "'Newsreader', Georgia, serif", fontSize: 20, lineHeight: 1.5, color: T.text, margin: "0 0 22px", fontWeight: 400 },
+  stem: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 20, lineHeight: 1.5, color: T.text, margin: "0 0 22px", fontWeight: 400 },
   stemSelectable: { cursor: "text", marginBottom: 8 },
   hlMark: { background: T.goldSoft, color: "inherit", borderRadius: 3, padding: "0 1px", boxShadow: `inset 0 -2px 0 ${T.gold}`, cursor: "pointer" },
   hlHint: { display: "flex", justifyContent: "center", alignItems: "center", gap: 5, fontSize: 11.5, color: T.faint, margin: "12px 0 0" },
@@ -3198,31 +3425,31 @@ const s: Record<string, React.CSSProperties> = {
   optCorrect: { borderColor: T.correctLine, background: T.correctBg },
   optWrong: { borderColor: T.wrongLine, background: T.wrongBg },
   optCrossed: { opacity: 0.55, background: "#f3f1ec" },
-  optKey: { flexShrink: 0, width: 26, height: 26, borderRadius: 7, border: "1.5px solid", display: "grid", placeItems: "center", fontSize: 13, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", background: "rgba(255,255,255,.7)" },
+  optKey: { flexShrink: 0, width: 26, height: 26, borderRadius: 7, border: "1.5px solid", display: "grid", placeItems: "center", fontSize: 13, fontWeight: 700, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", background: "rgba(255,255,255,.7)" },
   optText: { flex: 1, lineHeight: 1.35 },
   optTextCrossed: { textDecoration: "line-through", textDecorationThickness: "2px", color: T.muted },
   optRight: { display: "flex", alignItems: "center", gap: 9, flexShrink: 0 },
   dist: { position: "absolute", left: 0, top: 0, bottom: 0, zIndex: 0, borderRadius: "10px 0 0 10px" },
-  optPct: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, fontWeight: 600 },
+  optPct: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 12.5, fontWeight: 600 },
 
   actionRow: { display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 20, gap: 10 },
-  actionHint: { fontSize: 13, color: T.muted, fontFamily: "'JetBrains Mono', monospace" },
+  actionHint: { fontSize: 13, color: T.muted, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
   primary: { background: T.teal, color: "#fff", border: "none", padding: "11px 22px", borderRadius: 10, fontSize: 14.5, fontWeight: 600, cursor: "pointer" },
 
   verdict: { display: "flex", alignItems: "center", gap: 10, marginTop: 20, padding: "12px 15px", border: "1.5px solid", borderRadius: 11, flexWrap: "wrap" },
   verdictIcon: { width: 22, height: 22, borderRadius: 6, display: "grid", placeItems: "center", flexShrink: 0 },
-  verdictMeta: { marginLeft: "auto", fontSize: 12.5, color: T.muted, fontFamily: "'JetBrains Mono', monospace", maxWidth: "100%" },
+  verdictMeta: { marginLeft: "auto", fontSize: 12.5, color: T.muted, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", maxWidth: "100%" },
 
   below: { marginTop: 18 },
   tabs: { position: "relative", display: "flex", gap: 4, borderBottom: `1px solid ${T.inkLine}`, flexWrap: "wrap" },
   tab: { display: "flex", alignItems: "center", gap: 7, background: "transparent", border: "none", color: "#8c93a1", padding: "9px 13px", fontSize: 13.5, fontWeight: 500, cursor: "pointer", borderBottom: "2px solid transparent", marginBottom: -1 },
   tabActive: { color: "#fff" },
   tabInd: { position: "absolute", height: 2, background: T.teal, borderRadius: 2, pointerEvents: "none" },
-  tabCount: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, background: T.inkSoft, color: "#c7ccd6", borderRadius: 20, padding: "1px 7px" },
+  tabCount: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 11, background: T.inkSoft, color: "#c7ccd6", borderRadius: 20, padding: "1px 7px" },
 
   panel: { background: T.paper, border: `1px solid ${T.paperEdge}`, borderTop: "none", borderRadius: "0 0 14px 14px", padding: 22 },
 
-  expl: { fontFamily: "'Newsreader', Georgia, serif", fontSize: 16.5, lineHeight: 1.6, color: T.text, margin: "0 0 16px", whiteSpace: "pre-wrap" },
+  expl: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 16.5, lineHeight: 1.6, color: T.text, margin: "0 0 16px", whiteSpace: "pre-wrap" },
   explImg: { display: "block", maxWidth: "100%", borderRadius: 10, border: `1px solid ${T.paperEdge}`, background: "#fff", margin: "0 0 12px" },
   emptyExpl: { display: "flex", alignItems: "center", gap: 10, color: T.muted, fontSize: 14, background: "#fff", border: `1px dashed ${T.paperEdge}`, borderRadius: 11, padding: "14px 16px" },
   videoLink: { display: "flex", alignItems: "center", gap: 10, color: T.text, textDecoration: "none", fontSize: 14.5, background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 11, padding: "13px 15px" },
@@ -3236,20 +3463,20 @@ const s: Record<string, React.CSSProperties> = {
   flashEmpty: { textAlign: "center", padding: "10px 10px 6px" },
   cardChrome: { background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 12, padding: 18 },
   cardChromeHead: { display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" },
-  cardType: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 600, color: T.tealDeep, background: T.tealSoft, borderRadius: 6, padding: "3px 9px" },
+  cardType: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 11, fontWeight: 600, color: T.tealDeep, background: T.tealSoft, borderRadius: 6, padding: "3px 9px" },
   cardCached: { display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, color: T.faint },
   tinyBtn: { marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 5, background: T.paper, border: `1px solid ${T.paperEdge}`, color: T.muted, padding: "5px 10px", borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: "pointer" },
-  fieldLbl: { display: "block", fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", color: T.faint, marginBottom: 7 },
-  clozeRaw: { display: "block", fontFamily: "'JetBrains Mono', monospace", fontSize: 13, lineHeight: 1.6, background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 9, padding: "11px 13px", color: T.text, whiteSpace: "pre-wrap" },
-  clozePreview: { fontFamily: "'Newsreader', Georgia, serif", fontSize: 15.5, lineHeight: 1.55, color: T.text, marginTop: 10 },
-  clozeEdit: { width: "100%", minHeight: 70, fontFamily: "'JetBrains Mono', monospace", fontSize: 13, lineHeight: 1.6, border: `1px solid ${T.teal}66`, borderRadius: 9, padding: "11px 13px", background: T.paper, color: T.text, resize: "vertical" },
-  blank: { display: "inline-block", background: T.goldSoft, color: "#8a6414", borderRadius: 5, padding: "0 8px", margin: "0 2px", fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 600 },
+  fieldLbl: { display: "block", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", color: T.faint, marginBottom: 7 },
+  clozeRaw: { display: "block", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 13, lineHeight: 1.6, background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 9, padding: "11px 13px", color: T.text, whiteSpace: "pre-wrap" },
+  clozePreview: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 15.5, lineHeight: 1.55, color: T.text, marginTop: 10 },
+  clozeEdit: { width: "100%", minHeight: 70, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 13, lineHeight: 1.6, border: `1px solid ${T.teal}66`, borderRadius: 9, padding: "11px 13px", background: T.paper, color: T.text, resize: "vertical" },
+  blank: { display: "inline-block", background: T.goldSoft, color: "#8a6414", borderRadius: 5, padding: "0 8px", margin: "0 2px", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 13, fontWeight: 600 },
   extra: { background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 9, padding: "13px 15px", marginTop: 4 },
   extraLine: { fontSize: 14, lineHeight: 1.5, margin: "0 0 8px", color: T.text },
   flashActions: { display: "flex", alignItems: "center", gap: 13, marginTop: 14, flexWrap: "wrap" },
   flashNote: { fontSize: 12, color: T.muted },
 
-  lbl: { display: "block", fontSize: 12, color: T.muted, marginBottom: 9, fontFamily: "'JetBrains Mono', monospace" },
+  lbl: { display: "block", fontSize: 12, color: T.muted, marginBottom: 9, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
   textarea: { width: "100%", minHeight: 96, resize: "vertical", border: `1px solid ${T.paperEdge}`, borderRadius: 10, padding: "12px 14px", fontSize: 14.5, lineHeight: 1.5, background: "#fff", color: T.text },
   saveRow: { display: "flex", alignItems: "center", gap: 9, marginTop: 11 },
   savedDot: { width: 7, height: 7, borderRadius: 7, background: T.teal },
@@ -3263,7 +3490,7 @@ const s: Record<string, React.CSSProperties> = {
   noteMeta: { display: "flex", alignItems: "center", gap: 8 },
   noteAuthor: { fontSize: 13.5, color: T.text },
   roleTag: { fontSize: 10.5, fontWeight: 600, color: T.muted, background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 5, padding: "1px 6px" },
-  noteTime: { fontSize: 11.5, color: T.faint, fontFamily: "'JetBrains Mono', monospace" },
+  noteTime: { fontSize: 11.5, color: T.faint, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
   del: { marginLeft: "auto", background: "transparent", border: "none", color: T.faint, cursor: "pointer", padding: 3, display: "grid", placeItems: "center", borderRadius: 6 },
   noteText: { margin: "4px 0 0", fontSize: 14.5, lineHeight: 1.5, color: T.text },
   emptyNote: { fontSize: 13.5, color: T.faint, fontStyle: "italic", margin: 0 },
@@ -3281,7 +3508,7 @@ const s: Record<string, React.CSSProperties> = {
   disclaimer: { maxWidth: 620, margin: "44px auto 0", paddingTop: 16, borderTop: `1px solid ${T.inkLine}`, color: T.faint, fontSize: 11.5, lineHeight: 1.5, textAlign: "center" },
   siteReportBtn: { display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: `1px solid ${T.paperEdge}`, color: T.muted, fontSize: 12, padding: "6px 12px", borderRadius: 8, cursor: "pointer" },
 
-  streakChip: { display: "inline-flex", alignItems: "center", gap: 3, color: "#e07a5f", fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" },
+  streakChip: { display: "inline-flex", alignItems: "center", gap: 3, color: "#e07a5f", fontWeight: 700, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
 
   streakWrap: { position: "fixed", top: 86, left: 0, right: 0, display: "grid", placeItems: "center", zIndex: 80, pointerEvents: "none", padding: "0 16px" },
   streakCard: { display: "inline-flex", alignItems: "center", gap: 14, background: T.ink, border: `1px solid ${T.inkLine}`, borderRadius: 16, padding: "14px 20px 14px 14px", boxShadow: "0 24px 60px -20px rgba(0,0,0,.7)", maxWidth: "92vw" },
@@ -3292,42 +3519,42 @@ const s: Record<string, React.CSSProperties> = {
   streakSub: { color: "#c7ccd6", fontSize: 12.5, marginTop: 2 },
 
   // live crowd poll — host (big screen)
-  pollRoot: { position: "fixed", inset: 0, zIndex: 90, background: T.ink, color: "#fff", display: "flex", flexDirection: "column", fontFamily: "'Space Grotesk', system-ui, sans-serif" },
+  pollRoot: { position: "fixed", inset: 0, zIndex: 90, background: T.ink, color: "#fff", display: "flex", flexDirection: "column", fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif" },
   pollHead: { display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", padding: "16px 26px", borderBottom: `1px solid ${T.inkLine}`, fontSize: 16 },
   pollLive: { display: "inline-flex", alignItems: "center", gap: 7, color: "#e07a5f", fontWeight: 700, letterSpacing: "0.04em", fontSize: 14 },
   pollJoin: { color: "#c7ccd6", fontSize: 15 },
-  pollCode: { color: "#fff", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.18em", background: T.inkSoft, border: `1px solid ${T.inkLine}`, borderRadius: 8, padding: "3px 10px", fontSize: 18 },
-  pollVoters: { display: "inline-flex", alignItems: "center", gap: 7, marginLeft: "auto", color: "#e7eaf0", fontWeight: 600, fontFamily: "'JetBrains Mono', monospace" },
+  pollCode: { color: "#fff", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", letterSpacing: "0.18em", background: T.inkSoft, border: `1px solid ${T.inkLine}`, borderRadius: 8, padding: "3px 10px", fontSize: 18 },
+  pollVoters: { display: "inline-flex", alignItems: "center", gap: 7, marginLeft: "auto", color: "#e7eaf0", fontWeight: 600, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
   pollClose: { display: "grid", placeItems: "center", width: 38, height: 38, borderRadius: 10, background: T.inkSoft, color: "#aeb4c0", border: `1px solid ${T.inkLine}`, cursor: "pointer" },
   pollBody: { flex: 1, overflow: "auto", padding: "clamp(20px, 4vw, 48px)", maxWidth: 1100, width: "100%", margin: "0 auto" },
-  pollMeta: { color: T.faint, fontFamily: "'JetBrains Mono', monospace", fontSize: 15, marginBottom: 14 },
-  pollStem: { fontSize: "clamp(22px, 3.2vw, 38px)", lineHeight: 1.3, fontFamily: "'Newsreader', Georgia, serif", color: "#f4f5f7", margin: "0 0 28px" },
+  pollMeta: { color: T.faint, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 15, marginBottom: 14 },
+  pollStem: { fontSize: "clamp(22px, 3.2vw, 38px)", lineHeight: 1.3, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", color: "#f4f5f7", margin: "0 0 28px" },
   pollOpts: { display: "flex", flexDirection: "column", gap: 12 },
   pollOpt: { position: "relative", display: "flex", alignItems: "center", gap: 16, overflow: "hidden", background: T.inkSoft, border: `1.5px solid ${T.inkLine}`, borderRadius: 14, padding: "clamp(14px, 1.8vw, 22px) 22px", fontSize: "clamp(17px, 2vw, 24px)" },
   pollOptCorrect: { borderColor: "#48c78e" },
   pollBar: { position: "absolute", left: 0, top: 0, bottom: 0, zIndex: 0, borderRadius: "13px 0 0 13px", transition: "width .5s cubic-bezier(.22,.61,.36,1)" },
-  pollLetter: { position: "relative", zIndex: 1, flexShrink: 0, width: 44, height: 44, display: "grid", placeItems: "center", borderRadius: 11, background: "rgba(255,255,255,.06)", border: `1px solid ${T.inkLine}`, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" },
+  pollLetter: { position: "relative", zIndex: 1, flexShrink: 0, width: 44, height: 44, display: "grid", placeItems: "center", borderRadius: 11, background: "rgba(255,255,255,.06)", border: `1px solid ${T.inkLine}`, fontWeight: 700, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
   pollOptText: { position: "relative", zIndex: 1, flex: 1 },
-  pollOptCount: { position: "relative", zIndex: 1, display: "inline-flex", alignItems: "center", flexShrink: 0, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: "#e7eaf0" },
+  pollOptCount: { position: "relative", zIndex: 1, display: "inline-flex", alignItems: "center", flexShrink: 0, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 700, color: "#e7eaf0" },
   pollControls: { display: "flex", alignItems: "center", justifyContent: "center", gap: 16, flexWrap: "wrap", padding: "16px 26px", borderTop: `1px solid ${T.inkLine}` },
   pollBtn: { display: "inline-flex", alignItems: "center", gap: 8, background: T.inkSoft, color: "#e7eaf0", border: `1px solid ${T.inkLine}`, padding: "12px 22px", borderRadius: 11, fontSize: 16, fontWeight: 600, cursor: "pointer" },
   pollBtnPrimary: { background: T.teal, color: "#fff", borderColor: T.teal },
   pollAnswerLine: { fontSize: 18, color: "#c7ccd6" },
-  qrThumb: { padding: 0, border: "none", borderRadius: 10, background: "#fff", cursor: "pointer", lineHeight: 0, flexShrink: 0, boxShadow: "0 4px 14px -6px rgba(0,0,0,.5)" },
-  qrThumbImg: { display: "block", width: 56, height: 56, borderRadius: 10 },
+  qrThumb: { padding: 5, border: "none", borderRadius: 10, background: "#fff", cursor: "pointer", lineHeight: 0, flexShrink: 0, boxShadow: "0 4px 14px -6px rgba(0,0,0,.5)" },
+  qrThumbImg: { display: "block", width: 48, height: 48 },
   qrOverlay: { position: "absolute", inset: 0, zIndex: 5, background: "rgba(11,13,20,.86)", display: "grid", placeItems: "center", padding: 24 },
   qrCard: { display: "flex", flexDirection: "column", alignItems: "center", gap: 14, background: "#fff", borderRadius: 20, padding: "26px 26px 22px" },
-  qrBigImg: { display: "block", width: "min(60vh, 70vw, 420px)", height: "min(60vh, 70vw, 420px)", borderRadius: 12 },
-  qrCardCode: { fontFamily: "'JetBrains Mono', monospace", fontSize: 30, fontWeight: 700, letterSpacing: "0.22em", color: "#11131c" },
+  qrBigImg: { display: "block", width: "min(60vh, 70vw, 420px)", height: "min(60vh, 70vw, 420px)" },
+  qrCardCode: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 30, fontWeight: 700, letterSpacing: "0.22em", color: "#11131c" },
   qrCardUrl: { color: "#6c7280", fontSize: 14, marginTop: -6 },
 
   // live crowd poll — participant (phone)
-  joinRoot: { position: "fixed", inset: 0, zIndex: 90, background: T.ink, display: "grid", placeItems: "center", padding: 20, fontFamily: "'Space Grotesk', system-ui, sans-serif" },
+  joinRoot: { position: "fixed", inset: 0, zIndex: 90, background: T.ink, display: "grid", placeItems: "center", padding: 20, fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif" },
   joinCard: { width: "100%", maxWidth: 460, background: T.inkSoft, border: `1px solid ${T.inkLine}`, borderRadius: 18, padding: 22, boxShadow: "0 24px 60px -20px rgba(0,0,0,.7)" },
   joinHead: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 },
   joinMsg: { color: "#c7ccd6", fontSize: 15, lineHeight: 1.5, margin: "0 0 18px" },
   joinOpts: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(64px, 1fr))", gap: 12 },
-  joinOpt: { aspectRatio: "1 / 1", display: "grid", placeItems: "center", background: T.ink, color: "#e7eaf0", border: `2px solid ${T.inkLine}`, borderRadius: 16, fontSize: 30, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", cursor: "pointer" },
+  joinOpt: { aspectRatio: "1 / 1", display: "grid", placeItems: "center", background: T.ink, color: "#e7eaf0", border: `2px solid ${T.inkLine}`, borderRadius: 16, fontSize: 30, fontWeight: 700, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", cursor: "pointer" },
   joinOptMine: { background: T.teal, color: "#fff", borderColor: T.teal },
   joinOptCorrect: { background: "#1a7a4a", color: "#fff", borderColor: "#48c78e" },
   joinOptWrong: { background: "#7a2a2a", color: "#fff", borderColor: "#e07a5f" },
@@ -3340,15 +3567,15 @@ const s: Record<string, React.CSSProperties> = {
   teamBoardHead: { display: "inline-flex", alignItems: "center", gap: 9, color: "#f2c14e", fontWeight: 700, letterSpacing: "0.03em", fontSize: 15 },
   teamRow: { display: "flex", alignItems: "center", gap: 16, background: T.inkSoft, border: `1.5px solid ${T.inkLine}`, borderRadius: 12, padding: "12px 18px", fontSize: "clamp(16px, 1.7vw, 21px)" },
   teamRowLead: { borderColor: "#f2c14e", background: "rgba(242,193,78,.10)" },
-  teamRank: { flexShrink: 0, width: 34, display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: "#aeb4c0" },
+  teamRank: { flexShrink: 0, width: 34, display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 700, color: "#aeb4c0" },
   teamName: { flex: 1, color: "#f4f5f7", fontWeight: 600 },
-  teamMembers: { flexShrink: 0, color: T.faint, fontSize: 14, fontFamily: "'JetBrains Mono', monospace" },
-  teamScore: { flexShrink: 0, minWidth: 44, textAlign: "right", color: "#fff", fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" },
+  teamMembers: { flexShrink: 0, color: T.faint, fontSize: 14, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
+  teamScore: { flexShrink: 0, minWidth: 44, textAlign: "right", color: "#fff", fontWeight: 700, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
 
   // team picker + standings — participant (phone)
   teamBar: { display: "flex", alignItems: "center", gap: 10, marginBottom: 16, minHeight: 38 },
   teamForm: { display: "flex", alignItems: "center", gap: 8, width: "100%" },
-  teamInput: { flex: 1, minWidth: 0, background: T.ink, color: "#fff", border: `1.5px solid ${T.inkLine}`, borderRadius: 10, padding: "9px 12px", fontSize: 15, fontFamily: "'Space Grotesk', system-ui, sans-serif" },
+  teamInput: { flex: 1, minWidth: 0, background: T.ink, color: "#fff", border: `1.5px solid ${T.inkLine}`, borderRadius: 10, padding: "9px 12px", fontSize: 15, fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif" },
   teamSet: { flexShrink: 0, background: T.teal, color: "#fff", border: "none", borderRadius: 10, padding: "9px 16px", fontSize: 14.5, fontWeight: 700, cursor: "pointer" },
   teamSetOff: { opacity: 0.4, cursor: "default" },
   teamTag: { display: "inline-flex", alignItems: "center", gap: 7, color: "#c7ccd6", fontSize: 14.5 },
@@ -3358,7 +3585,7 @@ const s: Record<string, React.CSSProperties> = {
   teamMiniRow: { display: "flex", alignItems: "center", gap: 12, background: T.ink, border: `1px solid ${T.inkLine}`, borderRadius: 10, padding: "9px 13px", fontSize: 14.5 },
   teamMiniLead: { borderColor: "#f2c14e", background: "rgba(242,193,78,.10)" },
   teamMiniMine: { borderColor: T.teal },
-  teamMiniRank: { flexShrink: 0, width: 22, display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: "#aeb4c0" },
+  teamMiniRank: { flexShrink: 0, width: 22, display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 700, color: "#aeb4c0" },
   teamMiniName: { flex: 1, color: "#e7eaf0", fontWeight: 600 },
-  teamMiniScore: { flexShrink: 0, color: "#fff", fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" },
+  teamMiniScore: { flexShrink: 0, color: "#fff", fontWeight: 700, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
 };

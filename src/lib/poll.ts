@@ -33,6 +33,9 @@ export type PollState = {
   revealed: boolean;
   correct: string[]; // populated only once revealed
   standings: TeamStanding[]; // cumulative team leaderboard (highest first)
+  voted?: number;    // votes cast on the live question
+  joined?: number;   // participants the host knows about
+  finished?: boolean; // host ended the session — show final standings
 };
 
 // Participant → host. `team` is optional — a voter may compete solo.
