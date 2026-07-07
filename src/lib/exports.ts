@@ -193,6 +193,19 @@ function explImgSrc(p: string) {
   return p.startsWith("<") ? "" : "/" + p;
 }
 
+/* pptxgenjs's `sizing: {type: "contain"}` never actually measures the source
+   image — it substitutes the target box's own w/h as a stand-in, so "contain"
+   silently becomes a plain stretch and distorts non-matching aspect ratios.
+   We measure the real dimensions ourselves and compute an aspect-correct box. */
+function loadImageSize(src: string): Promise<{ w: number; h: number }> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({ w: img.naturalWidth || 1, h: img.naturalHeight || 1 });
+    img.onerror = () => resolve({ w: 1, h: 1 });
+    img.src = src;
+  });
+}
+
 /* PowerPoint export. Each question gets TWO slides: the question alone, then an
    identical slide with the answer revealed — so pressing space-bar in
    presentation mode "reveals" the answer. Pass reveal=false for one slide.
@@ -223,7 +236,7 @@ export async function exportPptx(questions: PptxQ[], filename = "prite-questions
     }
   };
 
-  const addExplanationSlide = (q: PptxQ, images: string[]) => {
+  const addExplanationSlide = async (q: PptxQ, images: string[]) => {
     const slide = pptx.addSlide();
     slide.addText(`PRITE ${q.year}  ·  Q${q.q_index}  ·  Explanation`, { x: 0.4, y: 0.2, fontSize: 10, color: "9AA0AB" });
     let y = 0.6;
@@ -233,11 +246,15 @@ export async function exportPptx(questions: PptxQ[], filename = "prite-questions
       y += textH + 0.1;
     }
     if (images.length) {
-      const boxH = 5.4 - y;
+      const slotH = 5.4 - y;
       const slotW = 9.2 / images.length;
+      const sizes = await Promise.all(images.map(loadImageSize));
       images.forEach((src, i) => {
-        const w = slotW - 0.2;
-        slide.addImage({ path: src, x: 0.4 + i * slotW, y, w, h: boxH, sizing: { type: "contain", w, h: boxH } });
+        const { w: natW, h: natH } = sizes[i];
+        const scale = Math.min((slotW - 0.2) / natW, slotH / natH);
+        const w = natW * scale, h = natH * scale;
+        const slotX = 0.4 + i * slotW;
+        slide.addImage({ path: src, x: slotX + (slotW - 0.2 - w) / 2, y: y + (slotH - h) / 2, w, h });
       });
     }
   };
@@ -247,7 +264,7 @@ export async function exportPptx(questions: PptxQ[], filename = "prite-questions
     addSlide(q, true);               // reveal slide (answer shown)
     if (includeExplanation) {
       const images = (q.explanation_images ?? []).map(explImgSrc).filter(Boolean);
-      if (q.explanation_text || images.length) addExplanationSlide(q, images);
+      if (q.explanation_text || images.length) await addExplanationSlide(q, images);
     }
   }
   await pptx.writeFile({ fileName: filename });

@@ -1909,7 +1909,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
                                 <p style={{ margin: "0 0 10px", fontSize: 14, lineHeight: 1.55, color: "#aeb4c0", whiteSpace: "pre-wrap" }}>{qq.explanation_text}</p>
                               )}
                               {qq.explanation_images.filter((p) => imgSrc(p)).map((p, i) => (
-                                <img key={i} src={imgSrc(p)} alt="explanation" style={s.explImg} loading="lazy" />
+                                <img key={i} src={imgSrc(p)} alt="explanation" style={{ ...s.explImg, maxWidth: 420, maxHeight: 240, width: "auto", height: "auto", objectFit: "contain" }} loading="lazy" />
                               ))}
                             </>
                           ) : (
