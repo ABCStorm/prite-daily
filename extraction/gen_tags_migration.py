@@ -46,6 +46,10 @@ def main():
         for dim, table in DIMS:
             for tag in C.extract(stem, table):
                 rows.append((qid, dim, tag, label_of(dim, tag)))
+        # AI-classified DSM/PRITE topics (see topic_classify pipeline) are read
+        # straight off the question, not re-derived from a keyword dictionary.
+        for topic in (q.get("tags", {}).get("topics") or []):
+            rows.append((qid, "topics", topic, topic))
         setting = C.extract(stem, C.SETTING, multi=False)
         if setting:
             rows.append((qid, "setting", setting, setting.capitalize()))

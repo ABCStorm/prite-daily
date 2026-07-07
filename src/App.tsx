@@ -82,6 +82,10 @@ type RawOption = { letter: string; text: string };
 type QTags = {
   diagnosis?: string[]; medication?: string[]; psychotherapy?: string[];
   neuro?: string[]; historical?: string[]; setting?: string | null;
+  /** Curated DSM/PRITE topic taxonomy (multi-label), AI-classified — see
+      extraction/topic_classify pipeline. Distinct from prite_category, which
+      is the broad exam-blueprint section. */
+  topics?: string[];
 };
 type RawQuestion = {
   deck: string; year: string; q_index: number; slide_number: number;
@@ -3070,7 +3074,7 @@ function Stats({
 
 function Insights({ onClose }: { onClose: () => void }) {
   const DIMS: [string, string][] = [
-    ["prite", "PRITE category"], ["diagnosis", "Diagnosis"], ["medication", "Medication"],
+    ["prite", "PRITE category"], ["topics", "Topic"], ["diagnosis", "Diagnosis"], ["medication", "Medication"],
     ["psychotherapy", "Psychotherapy"], ["neuro", "Neuro concept"], ["historical", "Historical"],
   ];
   const COHORTS: [string, string][] = [
@@ -3143,6 +3147,7 @@ function DeckBuilder({
   const [cat, setCat] = useState("all");
   const [med, setMed] = useState("all");
   const [dx, setDx] = useState("all");
+  const [topic, setTopic] = useState("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
 
@@ -3152,16 +3157,18 @@ function DeckBuilder({
     all.forEach((q) => { if (q.prite_category) m.set(q.prite_category, q.prite_label || q.prite_category); });
     return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]));
   }, [all]);
-  const uniq = (key: "medication" | "diagnosis") =>
+  const uniq = (key: "medication" | "diagnosis" | "topics") =>
     Array.from(new Set(all.flatMap((q) => q.tags?.[key] ?? []))).sort();
   const meds = useMemo(() => uniq("medication"), [all]);
   const dxs = useMemo(() => uniq("diagnosis"), [all]);
+  const topics = useMemo(() => uniq("topics"), [all]);
 
   const matches = useMemo(() => all.filter((q) => {
     if (year !== "all" && q.year !== year) return false;
     if (cat !== "all" && q.prite_category !== cat) return false;
     if (med !== "all" && !(q.tags?.medication ?? []).includes(med)) return false;
     if (dx !== "all" && !(q.tags?.diagnosis ?? []).includes(dx)) return false;
+    if (topic !== "all" && !(q.tags?.topics ?? []).includes(topic)) return false;
     if (search.trim()) {
       const s = search.toLowerCase();
       const inStem = q.stem.toLowerCase().includes(s);
@@ -3172,10 +3179,10 @@ function DeckBuilder({
       if (!hit) return false;
     }
     return true;
-  }), [all, year, cat, med, dx, search, scope]);
+  }), [all, year, cat, med, dx, topic, search, scope]);
 
   // when the filter changes, select all matches by default
-  useEffect(() => { setSelected(new Set(matches.map((q) => questionId(q.year, q.q_index)))); }, [year, cat, med, dx, search, scope]); // eslint-disable-line
+  useEffect(() => { setSelected(new Set(matches.map((q) => questionId(q.year, q.q_index)))); }, [year, cat, med, dx, topic, search, scope]); // eslint-disable-line
 
   const toggle = (id: string) => setSelected((cur) => {
     const n = new Set(cur); n.has(id) ? n.delete(id) : n.add(id); return n;
@@ -3251,6 +3258,9 @@ function DeckBuilder({
             </select>
             <select value={cat} onChange={(e) => setCat(e.target.value)} style={s.cohortSel}>
               <option value="all">Any category</option>{cats.map(([c, l]) => <option key={c} value={c}>{l}</option>)}
+            </select>
+            <select value={topic} onChange={(e) => setTopic(e.target.value)} style={s.cohortSel}>
+              <option value="all">Any topic</option>{topics.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
             <select value={med} onChange={(e) => setMed(e.target.value)} style={s.cohortSel}>
               <option value="all">Any medication</option>{meds.map((m) => <option key={m} value={m}>{m}</option>)}
