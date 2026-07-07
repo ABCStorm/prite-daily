@@ -127,6 +127,16 @@ function wrongPctColor(pct: number): string {
   return `rgb(${mix(0)}, ${mix(1)}, ${mix(2)})`;
 }
 
+// Fisher-Yates — unbiased shuffle, doesn't mutate the input.
+function shuffled<T>(arr: T[]): T[] {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 // Daily sets lead with the most recently tested exams (2022 → 2025), since those
 // best reflect what's likely on the upcoming PRITE. Older years follow,
 // most-recent-first. Lower rank = served sooner.
@@ -2075,7 +2085,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
                           {qq.explanation_text || qq.explanation_images.length > 0 ? (
                             <>
                               {qq.explanation_text && (
-                                <p style={{ margin: "0 0 10px", fontSize: 14, lineHeight: 1.55, color: "#aeb4c0", whiteSpace: "pre-wrap" }}>{qq.explanation_text}</p>
+                                <p style={{ margin: "0 0 10px", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 16.5, lineHeight: 1.6, color: "#aeb4c0", whiteSpace: "pre-wrap" }}>{qq.explanation_text}</p>
                               )}
                               {qq.explanation_images.filter((p) => imgSrc(p)).map((p, i) => (
                                 <img
@@ -3150,6 +3160,9 @@ function DeckBuilder({
   const [topic, setTopic] = useState("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  const [shuffleOrder, setShuffleOrder] = useState(false);
+  const [sampleN, setSampleN] = useState(20);
+  const [pptxWithExpl, setPptxWithExpl] = useState(false);
 
   const years = useMemo(() => Array.from(new Set(all.map((q) => q.year))).sort(), [all]);
   const cats = useMemo(() => {
@@ -3190,15 +3203,24 @@ function DeckBuilder({
 
   // hand the picked questions (in list order) to a custom study session
   const study = () => {
-    const ordered = matches.filter((q) => selected.has(questionId(q.year, q.q_index)));
+    let ordered = matches.filter((q) => selected.has(questionId(q.year, q.q_index)));
     if (!ordered.length) return;
+    if (shuffleOrder) ordered = shuffled(ordered);
     const parts: string[] = [];
     if (cat !== "all") parts.push(cats.find(([k]) => k === cat)?.[1] ?? cat);
     if (dx !== "all") parts.push(dx);
     if (med !== "all") parts.push(med);
     if (year !== "all") parts.push(year);
+    if (topic !== "all") parts.push(topic);
     if (search.trim()) parts.push(`"${search.trim()}"`);
     onStudy?.(ordered, parts.join(" · "));
+  };
+
+  // randomly select N of the current matches (capped to however many match)
+  const pickRandom = () => {
+    const n = Math.max(1, Math.min(sampleN, matches.length));
+    const pick = shuffled(matches).slice(0, n);
+    setSelected(new Set(pick.map((q) => questionId(q.year, q.q_index))));
   };
 
   const download = async () => {
@@ -3223,7 +3245,7 @@ function DeckBuilder({
     if (!qsel.length) return;
     setBusy(true);
     try {
-      await exportPptx(qsel, "prite-questions.pptx");
+      await exportPptx(qsel, "prite-questions.pptx", true, pptxWithExpl);
       fire(`Built a ${qsel.length}-slide PowerPoint`);
       onClose();
     } catch (e) { fire("PowerPoint export failed"); console.warn(e); }
@@ -3271,7 +3293,15 @@ function DeckBuilder({
           </div>
           <div style={s.deckCount}>
             <span><b style={{ color: T.text }}>{matches.length}</b> match · <b style={{ color: T.teal }}>{selected.size}</b> selected</span>
-            <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+            <span style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+              <input
+                type="number" min={1} max={Math.max(1, matches.length)}
+                value={sampleN}
+                onChange={(e) => setSampleN(Math.max(1, parseInt(e.target.value || "1", 10)))}
+                style={{ ...s.daysInput, width: 52 }}
+                title="How many random questions to select"
+              />
+              <button style={s.tinyBtn} onClick={pickRandom} disabled={!matches.length} title="Randomly select this many from the current matches">Pick random</button>
               <button style={s.tinyBtn} onClick={() => setSelected(new Set(matches.map((q) => questionId(q.year, q.q_index))))}>Select all</button>
               <button style={s.tinyBtn} onClick={() => setSelected(new Set())}>Clear</button>
             </span>
@@ -3299,9 +3329,15 @@ function DeckBuilder({
         </div>
         <div style={s.deckFoot}>
           {onStudy && (
-            <button style={{ ...s.primarySm, opacity: selected.size ? 1 : 0.5 }} disabled={!selected.size} onClick={study} title="Practice the selected questions">
-              <Target size={14} strokeWidth={2.3} /> Study these ({selected.size})
-            </button>
+            <>
+              <button style={{ ...s.primarySm, opacity: selected.size ? 1 : 0.5 }} disabled={!selected.size} onClick={study} title="Practice the selected questions">
+                <Target size={14} strokeWidth={2.3} /> Study these ({selected.size})
+              </button>
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, color: T.muted, cursor: "pointer" }}>
+                <input type="checkbox" checked={shuffleOrder} onChange={(e) => setShuffleOrder(e.target.checked)} />
+                Shuffle order
+              </label>
+            </>
           )}
           {onSaveTest && (
             <button
@@ -3319,6 +3355,10 @@ function DeckBuilder({
           <button style={{ ...s.ghost, marginLeft: 0, opacity: selected.size && !busy ? 1 : 0.5 }} disabled={!selected.size || busy} onClick={downloadPptx}>
             <FileText size={14} strokeWidth={2.2} /> PowerPoint
           </button>
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, color: T.muted, cursor: "pointer" }}>
+            <input type="checkbox" checked={pptxWithExpl} onChange={(e) => setPptxWithExpl(e.target.checked)} />
+            Include explanations
+          </label>
           <span style={s.flashNote}>Study, or export the checked questions</span>
         </div>
       </div>
@@ -3565,6 +3605,8 @@ button:not(.opt):active { transform: scale(.96); }
 .tabInd { transition: left .32s cubic-bezier(.5,.1,.2,1), width .32s cubic-bezier(.5,.1,.2,1), top .25s ease; }
 textarea, input, select { font-family: inherit; }
 textarea:focus, input:focus, select:focus { outline: 2px solid ${T.teal}55; outline-offset: 1px; }
+button { -webkit-tap-highlight-color: transparent; }
+button:focus { outline: none; }
 button:focus-visible { outline: 2px solid ${T.teal}; outline-offset: 2px; }
 ::selection { background: ${T.tealSoft}; }
 @media (prefers-reduced-motion: reduce) {
