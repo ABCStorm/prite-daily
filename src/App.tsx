@@ -366,7 +366,10 @@ export default function App() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [stats, setStats] = useState<QuestionStats | null>(null);
   const [showBoard, setShowBoard] = useState(false);
-  const [showCapite, setShowCapite] = useState(false); // "Child Psychiatry" toggle — CAPITE bank isn't built yet
+  const [showCapite, setShowCapite] = useState(false); // "coming soon" modal — CAPITE bank isn't built yet
+  const [psychMode, setPsychMode] = useState<"general" | "child">("general"); // General/Child Psychiatry toggle
+  const selectChildPsych = () => { setPsychMode("child"); setShowCapite(true); };
+  const closeCapite = () => { setShowCapite(false); setPsychMode("general"); }; // bounces back — nothing to switch to yet
   const [leaders, setLeaders] = useState<LeaderRow[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -1010,9 +1013,20 @@ export default function App() {
             </span>
             {persist ? (
               <span style={s.who} className="topActions">
-                <button style={s.approveBtn} className="topActBtn" onClick={() => setShowCapite(true)} title="Switch to CAPITE (Child & Adolescent Psychiatry) questions">
-                  <Baby size={13} strokeWidth={2.3} /> <span className="btnTxt">Child Psychiatry</span>
-                </button>
+                <span style={s.navSegRow} className="topActBtn" title="General Psychiatry (PRITE) vs. Child & Adolescent Psychiatry (CAPITE)">
+                  <button
+                    style={{ ...s.navSegBtn, ...(psychMode === "general" ? s.navSegOn : {}) }}
+                    onClick={() => setPsychMode("general")}
+                  >
+                    <Stethoscope size={12} strokeWidth={2.3} /> <span className="btnTxt">General</span>
+                  </button>
+                  <button
+                    style={{ ...s.navSegBtn, ...(psychMode === "child" ? s.navSegOn : {}) }}
+                    onClick={selectChildPsych}
+                  >
+                    <Baby size={12} strokeWidth={2.3} /> <span className="btnTxt">Child</span>
+                  </button>
+                </span>
                 <button style={s.approveBtn} className="topActBtn" onClick={() => setShowBoard(true)} title="Leaderboard">
                   <Trophy size={13} strokeWidth={2.3} /> <span className="btnTxt">Leaderboard</span>
                 </button>
@@ -1677,7 +1691,7 @@ export default function App() {
         />
       )}
 
-      {showCapite && <CapiteComingSoon onClose={() => setShowCapite(false)} />}
+      {showCapite && <CapiteComingSoon onClose={closeCapite} />}
 
       {showBoard && (
         <Leaderboard rows={leaders} meId={session?.user.id} onClose={() => setShowBoard(false)} />
@@ -3682,6 +3696,9 @@ const s: Record<string, React.CSSProperties> = {
   adminTag: { display: "inline-flex", alignItems: "center", gap: 4, color: "#9aa0ab", fontSize: 11, fontWeight: 500, textTransform: "capitalize" },
   signOut: { display: "grid", placeItems: "center", width: 28, height: 28, borderRadius: 8, background: T.inkSoft, color: "#aeb4c0", border: `1px solid ${T.inkLine}`, cursor: "pointer" },
   approveBtn: { position: "relative", display: "inline-flex", alignItems: "center", gap: 6, background: T.inkSoft, color: "#e7d9b4", border: `1px solid ${T.inkLine}`, padding: "6px 11px", borderRadius: 8, fontSize: 12.5, fontWeight: 500, cursor: "pointer" },
+  navSegRow: { display: "inline-flex", background: T.inkSoft, border: `1px solid ${T.inkLine}`, borderRadius: 9, padding: 2, gap: 2 },
+  navSegBtn: { display: "inline-flex", alignItems: "center", gap: 5, background: "transparent", color: "#aeb4c0", border: "none", padding: "5px 10px", borderRadius: 7, fontSize: 12.5, fontWeight: 500, cursor: "pointer" },
+  navSegOn: { background: T.teal, color: "#fff" },
   pendingBadge: { display: "inline-grid", placeItems: "center", minWidth: 18, height: 18, padding: "0 5px", borderRadius: 9, background: T.gold, color: "#fff", fontSize: 11, fontWeight: 700, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
 
   scrim: { position: "fixed", inset: 0, background: "rgba(15,17,26,.6)", backdropFilter: "blur(3px)", display: "grid", placeItems: "center", padding: 18, zIndex: 80 },
