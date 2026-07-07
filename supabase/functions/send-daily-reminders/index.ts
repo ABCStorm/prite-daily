@@ -9,7 +9,9 @@
 //     on days where daysSinceEpoch % reminder_every_days === 0.
 // Each email also reports the recipient's rank in the residency (distinct
 // questions done over the trailing 14 days), a rotating dad joke, and
-// one-click Unsubscribe / Change frequency links.
+// one-click Unsubscribe / Change frequency links. The opening greeting and
+// rank-recap sentence are also picked from rotating pools (greetings.ts) so
+// regular recipients don't see identical wording every day.
 //
 // Secrets (Project Settings -> Edge Functions):
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY  (auto-injected)
@@ -25,6 +27,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { signUnsubscribeToken } from "../_shared/unsubToken.ts";
 import { jokeForToday } from "./jokes.ts";
 import { isAutoReminderActive } from "./reminderWindow.ts";
+import { greetingForToday, rankLineForToday } from "./greetings.ts";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -116,15 +119,16 @@ Deno.serve(async (req) => {
   let sent = 0; const failures: string[] = [];
   for (const r of recipients) {
     const first = (r.name || "").split(" ")[0] || "there";
+    const greeting = greetingForToday(first);
     const rankLine = r.total > 1
-      ? `Over the past 2 weeks you've done <b>${r.answered}</b> question${r.answered === 1 ? "" : "s"} — ranked <b>#${r.rank} of ${r.total}</b> in the residency.`
+      ? rankLineForToday(r.answered, r.rank, r.total)
       : `Over the past 2 weeks you've done <b>${r.answered}</b> question${r.answered === 1 ? "" : "s"}.`;
     const unsubToken = await signUnsubscribeToken(r.id, unsubSecret);
     const unsubUrl = `${supabaseUrl}/functions/v1/unsubscribe-reminder?u=${encodeURIComponent(r.id)}&t=${unsubToken}`;
     const settingsUrl = `${appUrl}/?openSettings=1`;
     const html = `<div style="font-family:-apple-system,Segoe UI,system-ui,sans-serif;max-width:520px;margin:0 auto">
       <h2 style="color:#0e7a6b;margin:0 0 6px">PRITE Daily</h2>
-      <p style="font-size:15px;line-height:1.5;color:#23262f">Good morning, ${first} — time for today's PRITE practice. A few questions a day keeps the in-training exam from sneaking up on you.</p>
+      <p style="font-size:15px;line-height:1.5;color:#23262f">${greeting}</p>
       <p style="font-size:15px;line-height:1.5;color:#23262f">${rankLine}</p>
       <p style="margin:18px 0"><a href="${appUrl}" style="background:#0e7a6b;color:#fff;text-decoration:none;font-weight:700;padding:11px 20px;border-radius:10px;font-size:15px">Do today's set →</a></p>
       <p style="font-size:13.5px;line-height:1.5;color:#6c7280;background:#f5f3ee;border-radius:10px;padding:12px 14px">😄 <b>Dad joke of the day:</b> ${joke}</p>
