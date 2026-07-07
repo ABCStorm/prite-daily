@@ -5,7 +5,7 @@ import {
   ArrowLeft, ListChecks, LogOut, Clock, Settings as SettingsIcon,
   Sparkles, Target, RotateCcw, BarChart3, Pencil, Search, FileText, ExternalLink,
   TrendingUp, Youtube, Network, Zap, Crown, Radio, Lightbulb, Highlighter, Bug,
-  ChevronDown, ChevronRight,
+  ChevronDown, ChevronRight, Share2,
 } from "lucide-react";
 import mermaid from "mermaid";
 import QRCode from "qrcode";
@@ -1525,6 +1525,12 @@ export default function App() {
               </button>
             </div>
           )}
+          <div style={{ marginTop: 14 }}>
+            <a href="https://quizapine.com" target="_blank" rel="noopener noreferrer" style={s.quizapineAd} title="More practice questions at Quizapine">
+              <span style={s.quizapineBadge}><Share2 size={10} strokeWidth={2.6} color="#fff" /></span>
+              Need more questions? Try <span style={s.quizapineWordmark}>Quiz</span>apine
+            </a>
+          </div>
         </footer>
       </main>
 
@@ -3567,6 +3573,9 @@ const s: Record<string, React.CSSProperties> = {
 
   disclaimer: { maxWidth: 620, margin: "44px auto 0", paddingTop: 16, borderTop: `1px solid ${T.inkLine}`, color: T.faint, fontSize: 11.5, lineHeight: 1.5, textAlign: "center" },
   siteReportBtn: { display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: `1px solid ${T.paperEdge}`, color: T.muted, fontSize: 12, padding: "6px 12px", borderRadius: 8, cursor: "pointer" },
+  quizapineAd: { display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, color: T.faint, textDecoration: "none", opacity: 0.85 },
+  quizapineBadge: { display: "grid", placeItems: "center", width: 15, height: 15, borderRadius: 4.5, background: "linear-gradient(135deg, #a855f7, #ec4899)", flexShrink: 0 },
+  quizapineWordmark: { background: "linear-gradient(90deg, #8b6cf0, #d15fd6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", fontWeight: 700 },
 
   streakChip: { display: "inline-flex", alignItems: "center", gap: 3, color: "#e07a5f", fontWeight: 700, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
 
