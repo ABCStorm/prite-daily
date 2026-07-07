@@ -35,6 +35,7 @@ import { useAuth } from "./lib/useAuth";
 import { matchRoster } from "./lib/roster";
 import { recordToday, peekStreak, totalDays, ymd } from "./lib/streaks";
 import { dueReminderPromptStage, markReminderPromptShown } from "./lib/reminderPrompt";
+import { isAutoReminderActive, guessedExamDate } from "./lib/reminderWindow";
 import {
   makePollCode, channelName, pollJoinUrl, pollCodeFromUrl, clearPollParam,
   POLL_EVENTS, type PollState, type PollVote, type PollHello, type TeamStanding,
@@ -652,11 +653,15 @@ export default function App() {
   }, [persist, profile?.id, session?.user?.id]);
 
   // Nudge to opt into daily reminder emails: on day 2 of use, again at 2 weeks,
-  // again at 4 weeks, then never again — skipped entirely once opted in.
+  // again at 4 weeks, then never again — skipped entirely if reminders are
+  // already effectively on (explicit true, or auto-on within the exam window).
   useEffect(() => {
     if (!persist || !settings || reminderPromptCheckedRef.current) return;
     reminderPromptCheckedRef.current = true;
-    if (settings.daily_reminder) return;
+    const effectiveOn = settings.daily_reminder === true ? true
+      : settings.daily_reminder === false ? false
+      : isAutoReminderActive(settings.exam_date);
+    if (effectiveOn) return;
     const uid = profile?.id ?? session?.user?.id ?? "anon";
     const stage = dueReminderPromptStage(uid, totalDays(uid, "login"));
     if (stage) setReminderPromptStage(stage);
@@ -724,6 +729,18 @@ export default function App() {
     const code = pollCodeFromUrl();
     if (code) { setJoinCode(code); clearPollParam(); }
   }, [persist]);
+
+  // Auto-open Settings when arriving via the reminder email's "Change
+  // frequency" link (?openSettings=1).
+  useEffect(() => {
+    if (!persist || !settings) return;
+    const u = new URL(window.location.href);
+    if (u.searchParams.get("openSettings")) {
+      setShowSettings(true);
+      u.searchParams.delete("openSettings");
+      window.history.replaceState({}, "", u.toString());
+    }
+  }, [persist, settings]);
 
   // --- auth gate (only when Supabase is configured) ---
   if (isConfigured && authLoading) return <Center>Signing you in…</Center>;
@@ -2549,17 +2566,42 @@ function SettingsPanel({
           </div>
 
           <div style={s.setBlock}>
-            <label style={s.toggleRow}>
-              <input
-                type="checkbox"
-                checked={!!settings.daily_reminder}
-                onChange={(e) => onChange({ daily_reminder: e.target.checked })}
-              />
-              <span>
-                <b>Email me a daily reminder</b>
-                <div style={s.setHint}>A nudge each morning to do your practice questions, sent to your sign-in email. Unsubscribe anytime by turning this off.</div>
-              </span>
-            </label>
+            {(() => {
+              const effectiveOn = settings.daily_reminder === true ? true
+                : settings.daily_reminder === false ? false
+                : isAutoReminderActive(settings.exam_date);
+              return (
+                <>
+                  <label style={s.toggleRow}>
+                    <input
+                      type="checkbox"
+                      checked={effectiveOn}
+                      onChange={(e) => onChange({ daily_reminder: e.target.checked })}
+                    />
+                    <span>
+                      <b>Email me practice reminders</b>
+                      <div style={s.setHint}>
+                        {settings.daily_reminder === null
+                          ? <>Automatic: on during the 90 days before your exam{settings.exam_date ? "" : ` (using ${guessedExamDate()} since you haven't set one)`}, off after. Toggle to override.</>
+                          : "Sent to your sign-in email. Toggle off anytime."}
+                      </div>
+                    </span>
+                  </label>
+                  {effectiveOn && (
+                    <div style={{ ...s.afterRow, marginTop: 10 }}>
+                      every
+                      <input
+                        type="number" min={1} max={30}
+                        value={settings.reminder_every_days ?? 1}
+                        onChange={(e) => onChange({ reminder_every_days: Math.max(1, parseInt(e.target.value || "1", 10)) })}
+                        style={s.daysInput}
+                      />
+                      day{(settings.reminder_every_days ?? 1) === 1 ? "" : "s"}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
       </div>

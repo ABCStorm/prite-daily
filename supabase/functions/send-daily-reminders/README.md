@@ -2,8 +2,20 @@
 
 **Status: live.** Deployed, scheduled, and sending.
 
-Emails every approved member who opts in (Settings → "Email me a daily reminder",
-or the in-app prompt — see below). Each email includes:
+`settings.daily_reminder` is tri-state:
+- `null` (the default for every new signup) = **auto** — on during the 90 days
+  before the user's exam date, off after. If they haven't set an exam date,
+  a guessed **Oct 15** is used instead (`reminderWindow.ts`, mirrored client-side
+  in `src/lib/reminderWindow.ts`).
+- `true` / `false` = the user explicitly overrode it — via the Settings
+  toggle, the in-app prompt, or the email's Unsubscribe link — and auto mode
+  no longer applies to them.
+
+`settings.reminder_every_days` (default 1) throttles frequency: a user is only
+actually emailed on days where `daysSinceEpoch % reminder_every_days === 0`.
+Editable in Settings, or via the email's **Change frequency** link.
+
+Each email includes:
 - the recipient's rank in the residency, by distinct questions done over the
   trailing 14 days — computed fresh from `answers` at send time, no separate
   leaderboard table needed;
@@ -11,13 +23,15 @@ or the in-app prompt — see below). Each email includes:
   day before repeating);
 - a one-click **Unsubscribe** button — no login required. It links to the
   sibling `unsubscribe-reminder` function, which verifies a signed token
-  (`UNSUB_SECRET`) before flipping `settings.daily_reminder` off for that user.
+  (`UNSUB_SECRET`) before flipping `settings.daily_reminder` to `false`;
+- a **Change frequency** button linking to `${APP_URL}/?openSettings=1`, which
+  auto-opens the Settings panel once the user is signed in (App.tsx).
 
 ## In-app opt-in prompt
 Besides the Settings toggle, `src/lib/reminderPrompt.ts` + the modal in
 `App.tsx` nudge each user to opt in at most 3 times — day 2 of use, day 14,
-and day 28 — tracked in localStorage, and skipped entirely once opted in or
-once all 3 nudges have been shown.
+and day 28 — tracked in localStorage, and skipped entirely once reminders are
+already effectively on (explicit true, or auto-on within the exam window).
 
 ## ⚠️ Deliverability caveat (read first)
 Wright State's Microsoft 365 filtering blocks mail to **@wright.edu** even from a

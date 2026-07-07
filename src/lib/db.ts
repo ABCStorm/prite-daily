@@ -46,7 +46,10 @@ export type Settings = {
   recycle_after_days: number;
   review_per_day: number;
   exam_date: string | null;
-  daily_reminder: boolean;
+  /** null = auto-managed (on in the 90 days before the exam date, off after);
+      true/false = the user explicitly overrode it. */
+  daily_reminder: boolean | null;
+  reminder_every_days: number;
 };
 
 export type AnswerRow = {
