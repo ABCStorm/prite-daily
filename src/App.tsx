@@ -5,7 +5,7 @@ import {
   ArrowLeft, ListChecks, LogOut, Clock, Settings as SettingsIcon,
   Sparkles, Target, RotateCcw, BarChart3, Pencil, Search, FileText, ExternalLink,
   TrendingUp, Youtube, Network, Zap, Crown, Radio, Lightbulb, Highlighter, Bug,
-  ChevronDown, ChevronRight, Share2, Archive,
+  ChevronDown, ChevronRight, Share2, Archive, Baby, Mail,
 } from "lucide-react";
 import mermaid from "mermaid";
 import QRCode from "qrcode";
@@ -366,6 +366,7 @@ export default function App() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [stats, setStats] = useState<QuestionStats | null>(null);
   const [showBoard, setShowBoard] = useState(false);
+  const [showCapite, setShowCapite] = useState(false); // "Child Psychiatry" toggle — CAPITE bank isn't built yet
   const [leaders, setLeaders] = useState<LeaderRow[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -1009,6 +1010,9 @@ export default function App() {
             </span>
             {persist ? (
               <span style={s.who} className="topActions">
+                <button style={s.approveBtn} className="topActBtn" onClick={() => setShowCapite(true)} title="Switch to CAPITE (Child & Adolescent Psychiatry) questions">
+                  <Baby size={13} strokeWidth={2.3} /> <span className="btnTxt">Child Psychiatry</span>
+                </button>
                 <button style={s.approveBtn} className="topActBtn" onClick={() => setShowBoard(true)} title="Leaderboard">
                   <Trophy size={13} strokeWidth={2.3} /> <span className="btnTxt">Leaderboard</span>
                 </button>
@@ -1672,6 +1676,8 @@ export default function App() {
           onCleared={() => listOfficialPollResults().then(setOfficialResults)}
         />
       )}
+
+      {showCapite && <CapiteComingSoon onClose={() => setShowCapite(false)} />}
 
       {showBoard && (
         <Leaderboard rows={leaders} meId={session?.user.id} onClose={() => setShowBoard(false)} />
@@ -2597,6 +2603,38 @@ function OfficialResultsPanel({ results, onClose, onCleared }: {
               </div>
             );
           })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// "Child Psychiatry" nav toggle — the CAPITE bank doesn't exist yet, so this
+// is a friendly placeholder pointing volunteers at who's driving the effort.
+function CapiteComingSoon({ onClose }: { onClose: () => void }) {
+  return (
+    <div style={s.scrim} onClick={onClose}>
+      <div style={{ ...s.apPanel, maxWidth: 420 }} onClick={(e) => e.stopPropagation()} className="rise">
+        <div style={{ padding: "34px 28px 28px", textAlign: "center" }}>
+          <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 18 }}>
+            <span className="penguinDance" style={{ fontSize: 52, animationDelay: "0s" }}>🐧</span>
+            <span className="penguinDance" style={{ fontSize: 52, animationDelay: "0.15s" }}>🐧</span>
+            <span className="penguinDance" style={{ fontSize: 52, animationDelay: "0.3s" }}>🐧</span>
+          </div>
+          <div style={{ fontWeight: 800, fontSize: 19, marginBottom: 10, color: T.text }}>CAPITE questions are coming!</div>
+          <p style={{ fontSize: 14.5, color: T.muted, lineHeight: 1.6, margin: "0 0 22px" }}>
+            Pending and in process — please contact <b style={{ color: T.text }}>Dr. Tyler Yorgason</b> via
+            email if you'd like to help make this happen!
+          </p>
+          <a
+            href="mailto:tyler.yorgason@wright.edu?subject=Helping%20build%20the%20CAPITE%20question%20bank"
+            style={{ ...s.primarySm, textDecoration: "none", justifyContent: "center" }}
+          >
+            <Mail size={14} strokeWidth={2.3} /> Email Dr. Yorgason
+          </a>
+          <div style={{ marginTop: 14 }}>
+            <button style={s.ghost} onClick={onClose}>Close</button>
+          </div>
         </div>
       </div>
     </div>
@@ -3602,6 +3640,8 @@ button:not(.opt):active { transform: scale(.96); }
 .balloonRiseB { animation-name: balloonRiseB; }
 @keyframes balloonRiseA { 0% { transform: translateY(0) rotate(-6deg); opacity: 0; } 12% { opacity: .95; } 88% { opacity: .95; } 100% { transform: translateY(-118vh) translateX(26px) rotate(6deg); opacity: 0; } }
 @keyframes balloonRiseB { 0% { transform: translateY(0) rotate(6deg); opacity: 0; } 12% { opacity: .95; } 88% { opacity: .95; } 100% { transform: translateY(-118vh) translateX(-26px) rotate(-6deg); opacity: 0; } }
+.penguinDance { display: inline-block; animation: penguinDance 0.9s ease-in-out infinite; }
+@keyframes penguinDance { 0%, 100% { transform: translateY(0) rotate(-10deg); } 50% { transform: translateY(-16px) rotate(10deg); } }
 .tabInd { transition: left .32s cubic-bezier(.5,.1,.2,1), width .32s cubic-bezier(.5,.1,.2,1), top .25s ease; }
 textarea, input, select { font-family: inherit; }
 textarea:focus, input:focus, select:focus { outline: 2px solid ${T.teal}55; outline-offset: 1px; }
