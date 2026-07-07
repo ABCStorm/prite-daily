@@ -1,6 +1,8 @@
 // Daily practice-reminder emailer. Invoked once a day by a scheduler (pg_cron +
 // pg_net, or any external cron) — see README.md. Emails every approved member who
-// opted in (settings.daily_reminder = true), via Resend.
+// opted in (settings.daily_reminder = true), via Resend. Each email also reports
+// the recipient's rank in the residency, by distinct questions done over the
+// trailing 14 days.
 //
 // Secrets (Project Settings -> Edge Functions):
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY  (auto-injected)
@@ -16,6 +18,8 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
+const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
+
 Deno.serve(async (req) => {
   // Only the scheduler (holding CRON_SECRET) may trigger a send.
   const secret = Deno.env.get("CRON_SECRET");
@@ -28,24 +32,69 @@ Deno.serve(async (req) => {
 
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-  // Opted-in + approved members, with their email.
-  const { data, error } = await admin
-    .from("settings")
-    .select("user_id, daily_reminder, profiles!inner(email, full_name, status)")
-    .eq("daily_reminder", true)
-    .eq("profiles.status", "approved");
-  if (error) return json({ error: error.message }, 500);
+  // Whole residency (approved members), for the leaderboard denominator — not
+  // just the opted-in subset who actually get emailed.
+  const { data: profiles, error: profErr } = await admin
+    .from("profiles")
+    .select("id, email, full_name")
+    .eq("status", "approved");
+  if (profErr) return json({ error: profErr.message }, 500);
 
-  const recipients = (data ?? [])
-    .map((r: any) => ({ email: r.profiles?.email as string, name: (r.profiles?.full_name as string) || "" }))
-    .filter((r) => r.email);
+  const { data: optIn, error: optErr } = await admin
+    .from("settings")
+    .select("user_id")
+    .eq("daily_reminder", true);
+  if (optErr) return json({ error: optErr.message }, 500);
+  const optedInIds = new Set((optIn ?? []).map((r: any) => r.user_id as string));
+
+  // Distinct questions first-answered (created_at, immutable per question) in
+  // the trailing 14 days — a proxy for "questions done" that isn't inflated by
+  // re-attempts on already-answered questions.
+  const since = new Date(Date.now() - TWO_WEEKS_MS).toISOString();
+  const { data: recent, error: ansErr } = await admin
+    .from("answers")
+    .select("user_id, question_id")
+    .gte("created_at", since);
+  if (ansErr) return json({ error: ansErr.message }, 500);
+
+  const doneByUser = new Map<string, Set<string>>();
+  for (const row of (recent ?? []) as any[]) {
+    if (!doneByUser.has(row.user_id)) doneByUser.set(row.user_id, new Set());
+    doneByUser.get(row.user_id)!.add(row.question_id);
+  }
+
+  // Rank every approved member by that 14-day count (desc); ties share a rank.
+  const board = (profiles ?? [])
+    .map((p: any) => ({ id: p.id as string, answered: doneByUser.get(p.id)?.size ?? 0 }))
+    .sort((a, b) => b.answered - a.answered);
+  const rankOf = new Map<string, number>();
+  let rank = 0, lastCount = -1;
+  board.forEach((row, i) => {
+    if (row.answered !== lastCount) { rank = i + 1; lastCount = row.answered; }
+    rankOf.set(row.id, rank);
+  });
+  const total = board.length;
+
+  const recipients = (profiles ?? [])
+    .filter((p: any) => optedInIds.has(p.id) && p.email)
+    .map((p: any) => ({
+      email: p.email as string,
+      name: (p.full_name as string) || "",
+      answered: doneByUser.get(p.id)?.size ?? 0,
+      rank: rankOf.get(p.id) ?? total,
+      total,
+    }));
 
   let sent = 0; const failures: string[] = [];
   for (const r of recipients) {
     const first = (r.name || "").split(" ")[0] || "there";
+    const rankLine = r.total > 1
+      ? `Over the past 2 weeks you've done <b>${r.answered}</b> question${r.answered === 1 ? "" : "s"} — ranked <b>#${r.rank} of ${r.total}</b> in the residency.`
+      : `Over the past 2 weeks you've done <b>${r.answered}</b> question${r.answered === 1 ? "" : "s"}.`;
     const html = `<div style="font-family:-apple-system,Segoe UI,system-ui,sans-serif;max-width:520px;margin:0 auto">
       <h2 style="color:#0e7a6b;margin:0 0 6px">PRITE Daily</h2>
       <p style="font-size:15px;line-height:1.5;color:#23262f">Good morning, ${first} — time for today's PRITE practice. A few questions a day keeps the in-training exam from sneaking up on you.</p>
+      <p style="font-size:15px;line-height:1.5;color:#23262f">${rankLine}</p>
       <p style="margin:18px 0"><a href="${appUrl}" style="background:#0e7a6b;color:#fff;text-decoration:none;font-weight:700;padding:11px 20px;border-radius:10px;font-size:15px">Do today's set →</a></p>
       <p style="font-size:12px;color:#9aa0ab">You're getting this because you turned on daily reminders. Turn them off anytime in Settings.</p>
     </div>`;

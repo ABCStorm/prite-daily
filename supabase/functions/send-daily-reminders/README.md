@@ -1,8 +1,11 @@
 # Daily practice reminders — setup
 
 Emails every approved member who opts in (Settings → "Email me a daily reminder").
-The app side (opt-in toggle, `settings.daily_reminder` column via migration 0018)
-is already live. To actually send mail, do the three steps below.
+Each email includes the recipient's rank in the residency — by distinct
+questions done over the trailing 14 days — computed fresh from `answers` at
+send time, no separate leaderboard table needed. The app side (opt-in toggle,
+`settings.daily_reminder` column via migration 0018) is already live. To
+actually send mail, do the three steps below.
 
 ## ⚠️ Deliverability caveat (read first)
 Wright State's Microsoft 365 filtering blocks mail to **@wright.edu** even from a
@@ -20,8 +23,9 @@ them.** No way around that without Wright IT involvement.
   - `APP_URL` = `https://pritedaily.com` (optional)
 
 ## 2. Deploy the function (no JWT — it's gated by CRON_SECRET)
-Needs the Supabase CLI (not installed on this Mac; install via Homebrew or run
-elsewhere), or paste the function in the dashboard's Edge Functions editor.
+Needs the Supabase CLI, logged into the account that owns this project (`supabase
+login`, then `supabase link --project-ref <PROJECT_REF>` from the repo root) —
+or paste the function in the dashboard's Edge Functions editor instead.
 ```bash
 supabase functions deploy send-daily-reminders --no-verify-jwt
 ```
