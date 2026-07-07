@@ -5,6 +5,7 @@ import {
   ArrowLeft, ListChecks, LogOut, Clock, Settings as SettingsIcon,
   Sparkles, Target, RotateCcw, BarChart3, Pencil, Search, FileText, ExternalLink,
   TrendingUp, Youtube, Network, Zap, Crown, Radio, Lightbulb, Highlighter, Bug,
+  ChevronDown, ChevronRight,
 } from "lucide-react";
 import mermaid from "mermaid";
 import QRCode from "qrcode";
@@ -1694,6 +1695,12 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
   const [revealed, setRevealed] = useState(false);
   const [finished, setFinished] = useState(false);   // session over — final-standings screen
   const [showAnswerKey, setShowAnswerKey] = useState(false); // answer key on the finish screen (hidden by default)
+  const [expandedKey, setExpandedKey] = useState<Set<number>>(new Set()); // answer-key rows expanded to show the full question + explanation
+  const toggleKey = (i: number) => setExpandedKey((prev) => {
+    const next = new Set(prev);
+    next.has(i) ? next.delete(i) : next.add(i);
+    return next;
+  });
   const [, force] = useState(0); // re-render when votes arrive
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [qr, setQr] = useState<string | null>(null); // join-URL QR as a data URL
@@ -1740,13 +1747,16 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
   const correctSet = q ? (q.answer_letters?.length ? q.answer_letters : q.answer_letter ? [q.answer_letter] : []) : [];
   const qid = q ? questionId(q.year, q.q_index) : "";
 
-  // Once a question is revealed, lock in its correct answers so the cumulative
-  // team scoring can credit every vote against it (even after we move on).
-  if (revealed && qid) correctRef.current.set(qid, correctSet);
+  // Lock in each question's correct answers as soon as we're on it (not
+  // gated on "revealed") so a vote still counts even if the presenter clicks
+  // Next without ever clicking Reveal — otherwise those votes are stranded:
+  // recorded in votesRef but never credited because correctRef never learned
+  // the answer key for that qid.
+  if (qid) correctRef.current.set(qid, correctSet);
 
   const broadcastRef = useRef<() => void>(() => {});
   broadcastRef.current = () => {
-    if (revealed && qid) correctRef.current.set(qid, correctSet);
+    if (qid) correctRef.current.set(qid, correctSet);
     const payload: PollState = {
       qid, year: q?.year ?? "", qIndex: q?.q_index ?? 0,
       nOptions: q?.options.length ?? 0, index, total, revealed,
@@ -1854,7 +1864,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
               <button style={s.pollBtn} onClick={() => setShowAnswerKey((v) => !v)}>
                 <ListChecks size={15} strokeWidth={2.3} /> {showAnswerKey ? "Hide answer key" : "Show answer key"}
               </button>
-              <button style={s.pollBtn} onClick={() => exportPptx(set, "prite-poll-set.pptx")} title="Question + reveal slide per question">
+              <button style={s.pollBtn} onClick={() => exportPptx(set, "prite-poll-set.pptx", true, true)} title="Question + reveal + explanation slide per question">
                 <Download size={15} strokeWidth={2.3} /> PowerPoint
               </button>
               {standings.length > 0 && (
@@ -1865,14 +1875,44 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
             </div>
             {showAnswerKey && (
               <div style={{ marginTop: 16, display: "grid", gap: 6 }}>
-                {set.map((qq, i) => (
-                  <div key={i} style={{ display: "flex", gap: 10, alignItems: "baseline", minWidth: 0, fontSize: 14.5, color: "#c7ccd6", padding: "7px 10px", background: "rgba(255,255,255,.04)", borderRadius: 8 }}>
-                    <b style={{ color: "#7b8394", minWidth: 24 }}>{i + 1}.</b>
-                    <span style={{ color: "#7b8394", whiteSpace: "nowrap" }}>{qq.year} · Q{qq.q_index}</span>
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>{qq.stem}</span>
-                    <b style={{ color: "#48c78e", whiteSpace: "nowrap" }}>{keyFor(qq).join(", ")}</b>
-                  </div>
-                ))}
+                {set.map((qq, i) => {
+                  const open = expandedKey.has(i);
+                  const correct = keyFor(qq);
+                  return (
+                    <div key={i} style={{ background: "rgba(255,255,255,.04)", borderRadius: 8 }}>
+                      <button
+                        onClick={() => toggleKey(i)}
+                        style={{ display: "flex", width: "100%", gap: 10, alignItems: "baseline", minWidth: 0, fontSize: 14.5, color: "#c7ccd6", padding: "7px 10px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", font: "inherit" }}
+                      >
+                        {open ? <ChevronDown size={14} strokeWidth={2.4} color="#7b8394" style={{ flexShrink: 0 }} /> : <ChevronRight size={14} strokeWidth={2.4} color="#7b8394" style={{ flexShrink: 0 }} />}
+                        <b style={{ color: "#7b8394", minWidth: 24 }}>{i + 1}.</b>
+                        <span style={{ color: "#7b8394", whiteSpace: "nowrap" }}>{qq.year} · Q{qq.q_index}</span>
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>{qq.stem}</span>
+                        <b style={{ color: "#48c78e", whiteSpace: "nowrap" }}>{correct.join(", ")}</b>
+                      </button>
+                      {open && (
+                        <div style={{ padding: "2px 16px 16px 34px" }}>
+                          <p style={{ margin: "0 0 10px", fontSize: 14.5, lineHeight: 1.55, color: "#e7eaf0" }}>{qq.stem}</p>
+                          <div style={{ display: "grid", gap: 3, marginBottom: 12 }}>
+                            {qq.options.map((o) => {
+                              const isC = correct.includes(o.letter);
+                              return (
+                                <div key={o.letter} style={{ fontSize: 14, color: isC ? "#48c78e" : "#c7ccd6", fontWeight: isC ? 700 : 400 }}>
+                                  {o.letter}. {o.text}{isC ? " ✓" : ""}
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {qq.explanation_text ? (
+                            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: "#aeb4c0", whiteSpace: "pre-wrap" }}>{qq.explanation_text}</p>
+                          ) : (
+                            <p style={{ margin: 0, fontSize: 14, color: "#7b8394", fontStyle: "italic" }}>No explanation available for this question.</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </>

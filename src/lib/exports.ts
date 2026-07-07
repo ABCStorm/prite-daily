@@ -184,12 +184,16 @@ type PptxQ = {
   year: string; q_index: number; stem: string;
   options: { letter: string; text: string }[];
   answer_letters: string[]; answer_letter: string | null; answer_text: string;
+  explanation_text?: string;
 };
 
 /* PowerPoint export. Each question gets TWO slides: the question alone, then an
    identical slide with the answer revealed — so pressing space-bar in
-   presentation mode "reveals" the answer. Pass reveal=false for one slide. */
-export async function exportPptx(questions: PptxQ[], filename = "prite-questions.pptx", reveal = true) {
+   presentation mode "reveals" the answer. Pass reveal=false for one slide.
+   Pass includeExplanation=true to append a third slide with the main
+   explanation after the reveal slide (skipped for questions with none), so a
+   presenter can review a set without switching back to the webpage. */
+export async function exportPptx(questions: PptxQ[], filename = "prite-questions.pptx", reveal = true, includeExplanation = false) {
   const { default: PptxGenJS } = await import("pptxgenjs");
   const pptx = new PptxGenJS();
   pptx.defineLayout({ name: "W", width: 10, height: 5.63 });
@@ -213,9 +217,16 @@ export async function exportPptx(questions: PptxQ[], filename = "prite-questions
     }
   };
 
+  const addExplanationSlide = (q: PptxQ) => {
+    const slide = pptx.addSlide();
+    slide.addText(`PRITE ${q.year}  ·  Q${q.q_index}  ·  Explanation`, { x: 0.4, y: 0.2, fontSize: 10, color: "9AA0AB" });
+    slide.addText(q.explanation_text!, { x: 0.4, y: 0.6, w: 9.2, h: 4.8, fontSize: 14, valign: "top", color: "23262F" });
+  };
+
   for (const q of questions) {
     if (reveal) addSlide(q, false);  // question, no answer
     addSlide(q, true);               // reveal slide (answer shown)
+    if (includeExplanation && q.explanation_text) addExplanationSlide(q);
   }
   await pptx.writeFile({ fileName: filename });
 }
