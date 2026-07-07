@@ -53,6 +53,37 @@ export function exportPollTeams(
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/* Admin archive of official group-review poll sessions → CSV, one row per
+   (session, question) so per-question performance is comparable across
+   sessions and years. */
+export function exportOfficialPollResults(rows: {
+  submitted_at: string; poll_code: string; total_participants: number;
+  submitter?: { full_name: string | null; email: string } | null;
+  question_stats: { year: string; q_index: number; stem: string; correct: string[]; totalVotes: number; wrongVotes: number }[];
+}[]) {
+  const cell = (v: string | number) => {
+    const s = String(v ?? "");
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const header = ["Submitted", "Poll Code", "Presenter", "Participants", "Year", "Q#", "Stem", "Correct", "Total Votes", "Wrong Votes", "Wrong %"];
+  const out: (string | number)[][] = [header];
+  for (const r of rows) {
+    const who = r.submitter?.full_name || r.submitter?.email || "—";
+    const when = new Date(r.submitted_at).toLocaleString();
+    for (const qs of r.question_stats) {
+      const wrongPct = qs.totalVotes > 0 ? Math.round((100 * qs.wrongVotes) / qs.totalVotes) : 0;
+      out.push([when, r.poll_code, who, r.total_participants, qs.year, qs.q_index, qs.stem, qs.correct.join(", "), qs.totalVotes, qs.wrongVotes, wrongPct]);
+    }
+  }
+  const csv = out.map((r) => r.map(cell).join(",")).join("\r\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "prite-official-poll-results.csv";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 const STYLE = `
   *{box-sizing:border-box} body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#23262f;max-width:760px;margin:0 auto;padding:40px 28px;line-height:1.5}
   h1{font-size:22px;margin:0 0 4px} .sub{color:#6c7280;font-size:13px;margin:0 0 26px}

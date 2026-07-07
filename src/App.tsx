@@ -5,7 +5,7 @@ import {
   ArrowLeft, ListChecks, LogOut, Clock, Settings as SettingsIcon,
   Sparkles, Target, RotateCcw, BarChart3, Pencil, Search, FileText, ExternalLink,
   TrendingUp, Youtube, Network, Zap, Crown, Radio, Lightbulb, Highlighter, Bug,
-  ChevronDown, ChevronRight, Share2,
+  ChevronDown, ChevronRight, Share2, Archive,
 } from "lucide-react";
 import mermaid from "mermaid";
 import QRCode from "qrcode";
@@ -52,10 +52,12 @@ import {
   getFlashcard, generateFlashcard, saveFlashcard, getFlashcardsForIds,
   getMyHighlights, saveMyHighlights, getQuestionContext,
   submitBugReport, listBugReports, updateBugReport,
+  submitOfficialPollResults, listOfficialPollResults, clearOfficialPollResults,
   type AnswerRow, type GroupNote as DbGroupNote, type Profile,
   type QuestionStats, type LeaderRow, type Settings, type TagMissRow, type Flashcard, type HlRange, type BugReport,
+  type OfficialPollResult, type QuestionStat,
 } from "./lib/db";
-import { exportMyNotes, exportGroupNotes, exportMissed, ankingLecture, exportPptx, exportPollTeams } from "./lib/exports";
+import { exportMyNotes, exportGroupNotes, exportMissed, ankingLecture, exportPptx, exportPollTeams, exportOfficialPollResults } from "./lib/exports";
 import { loadTests, saveTest, renameTest, deleteTest, type SavedTest } from "./lib/tests";
 
 /* ----------------------------------------------------------------------
@@ -110,6 +112,15 @@ function ago(iso: string) {
   if (s < 3600) return `${Math.floor(s / 60)}m ago`;
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   return `${Math.floor(s / 86400)}d ago`;
+}
+
+// Green (few wrong answers, fine to skip) → orange (many wrong, review this
+// one) — for the poll answer-key's at-a-glance review-priority accent.
+function wrongPctColor(pct: number): string {
+  const t = Math.max(0, Math.min(1, pct));
+  const from = [72, 199, 142], to = [224, 138, 60];
+  const mix = (i: number) => Math.round(from[i] + (to[i] - from[i]) * t);
+  return `rgb(${mix(0)}, ${mix(1)}, ${mix(2)})`;
 }
 
 // Daily sets lead with the most recently tested exams (2022 → 2025), since those
@@ -364,6 +375,8 @@ export default function App() {
   const [showSiteReport, setShowSiteReport] = useState(false); // general "report a site problem" (footer)
   const [showBugs, setShowBugs] = useState(false);        // admin bug-report triage
   const [bugs, setBugs] = useState<BugReport[]>([]);
+  const [showOfficialResults, setShowOfficialResults] = useState(false); // admin "official" poll-results archive
+  const [officialResults, setOfficialResults] = useState<OfficialPollResult[]>([]);
   const answersRef = useRef(answers);
   useEffect(() => { answersRef.current = answers; }, [answers]);
 
@@ -440,6 +453,11 @@ export default function App() {
     await updateBugReport(id, status);
     listBugReports().then(setBugs);
   };
+
+  // admins: load official poll-result submissions (for the archive panel)
+  useEffect(() => {
+    if (adminLoggedIn) listOfficialPollResults().then(setOfficialResults);
+  }, [adminLoggedIn, showOfficialResults]);
 
   const actOnProfile = async (id: string, patch: Partial<Pick<Profile, "status" | "role">>) => {
     await updateProfile(id, patch);
@@ -996,6 +1014,11 @@ export default function App() {
                   <button style={s.approveBtn} className="topActBtn" onClick={() => setShowBugs(true)} title="Bug reports">
                     <Bug size={13} strokeWidth={2.3} /> <span className="btnTxt">Reports</span>
                     {openBugs > 0 && <span style={s.pendingBadge}>{openBugs}</span>}
+                  </button>
+                )}
+                {isAdmin && (
+                  <button style={s.approveBtn} className="topActBtn" onClick={() => setShowOfficialResults(true)} title="Official poll results">
+                    <Archive size={13} strokeWidth={2.3} /> <span className="btnTxt">Poll Results</span>
                   </button>
                 )}
                 <button style={s.signOut} title="Settings" onClick={() => setShowSettings(true)}>
@@ -1628,6 +1651,14 @@ export default function App() {
         <BugReportsPanel reports={bugs} byId={byId} onAct={actOnBug} onClose={() => setShowBugs(false)} />
       )}
 
+      {showOfficialResults && isAdmin && (
+        <OfficialResultsPanel
+          results={officialResults}
+          onClose={() => setShowOfficialResults(false)}
+          onCleared={() => listOfficialPollResults().then(setOfficialResults)}
+        />
+      )}
+
       {showBoard && (
         <Leaderboard rows={leaders} meId={session?.user.id} onClose={() => setShowBoard(false)} />
       )}
@@ -1771,6 +1802,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
     return next;
   });
   const [zoomImg, setZoomImg] = useState<string | null>(null); // answer-key explanation image, enlarged on click
+  const [officialStatus, setOfficialStatus] = useState<"idle" | "confirm" | "sending" | "done">("idle"); // "mark as official" submit flow
   const [, force] = useState(0); // re-render when votes arrive
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [qr, setQr] = useState<string | null>(null); // join-URL QR as a data URL
@@ -1891,6 +1923,31 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
   const joinHost = pollJoinUrl(code).replace(/^https?:\/\//, "");
   const keyFor = (qq: RawQuestion) => qq.answer_letters?.length ? qq.answer_letters : qq.answer_letter ? [qq.answer_letter] : [];
 
+  // Snapshot this session's vote breakdown + standings and file it as an
+  // official class review, for the admin archive (only meant for real class
+  // sessions, not casual practice polls — gated behind a confirm step in the UI).
+  const submitOfficial = async () => {
+    setOfficialStatus("sending");
+    const questionStats: QuestionStat[] = set.map((qq) => {
+      const qqid = questionId(qq.year, qq.q_index);
+      const correct = keyFor(qq);
+      const tally = votesRef.current.get(qqid) ?? new Map<string, string>();
+      const counts: Record<string, number> = {};
+      for (const c of tally.values()) counts[c] = (counts[c] ?? 0) + 1;
+      const totalVotes = tally.size;
+      const wrongVotes = [...tally.values()].filter((c) => !correct.includes(c)).length;
+      return { qid: qqid, year: qq.year, q_index: qq.q_index, stem: qq.stem, correct, counts, totalVotes, wrongVotes };
+    });
+    const ok = await submitOfficialPollResults({
+      poll_code: code,
+      total_questions: set.length,
+      total_participants: joinedRef.current.size,
+      standings: computeStandings(),
+      question_stats: questionStats,
+    });
+    setOfficialStatus(ok ? "done" : "idle");
+  };
+
   return (
     <div style={s.pollRoot}>
       <style>{CSS}</style>
@@ -1942,14 +1999,47 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
                   <Download size={15} strokeWidth={2.3} /> Team stats (Excel)
                 </button>
               )}
+              {officialStatus === "idle" && (
+                <button style={s.pollBtn} onClick={() => setOfficialStatus("confirm")} title="Only for an official class group-review session">
+                  <Archive size={15} strokeWidth={2.3} /> Mark as official
+                </button>
+              )}
+              {officialStatus === "sending" && (
+                <span style={{ display: "inline-flex", alignItems: "center", color: "#9aa0ab", fontSize: 14 }}>Submitting…</span>
+              )}
+              {officialStatus === "done" && (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "#48c78e", fontSize: 14, fontWeight: 600 }}>
+                  <Check size={15} strokeWidth={2.6} /> Marked as official — sent to admin
+                </span>
+              )}
             </div>
+            {officialStatus === "confirm" && (
+              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", background: "rgba(224,138,60,.12)", border: "1px solid rgba(224,138,60,.35)", borderRadius: 10, padding: "12px 14px", marginTop: -6, marginBottom: 18, fontSize: 13.5, color: "#e7eaf0" }}>
+                <span>Only do this if you're sharing results of an official class PRITE review session — it's sent to the site admin.</span>
+                <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
+                  <button style={{ ...s.pollBtn, ...s.pollBtnPrimary }} onClick={submitOfficial}>Yes, submit</button>
+                  <button style={s.pollBtn} onClick={() => setOfficialStatus("idle")}>Cancel</button>
+                </div>
+              </div>
+            )}
             {showAnswerKey && (
-              <div style={{ marginTop: 16, display: "grid", gap: 6 }}>
+              <div style={{ marginTop: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, fontSize: 12, color: "#7b8394" }}>
+                  <span>Review priority:</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", height: 8, width: 90, borderRadius: 4, background: "linear-gradient(90deg, rgb(72,199,142), rgb(224,138,60))" }} />
+                  <span>fewer wrong → more wrong</span>
+                </div>
+                <div style={{ display: "grid", gap: 6 }}>
                 {set.map((qq, i) => {
                   const open = expandedKey.has(i);
                   const correct = keyFor(qq);
+                  const qqid = questionId(qq.year, qq.q_index);
+                  const qTally = votesRef.current.get(qqid) ?? new Map<string, string>();
+                  const qTotalVotes = qTally.size;
+                  const qWrongVotes = [...qTally.values()].filter((c) => !correct.includes(c)).length;
+                  const reviewColor = qTotalVotes > 0 ? wrongPctColor(qWrongVotes / qTotalVotes) : "transparent";
                   return (
-                    <div key={i} style={{ background: "rgba(255,255,255,.04)", borderRadius: 8 }}>
+                    <div key={i} style={{ background: "rgba(255,255,255,.04)", borderRadius: 8, borderLeft: `4px solid ${reviewColor}` }}>
                       <button
                         onClick={() => toggleKey(i)}
                         style={{ display: "flex", width: "100%", gap: 10, alignItems: "baseline", minWidth: 0, fontSize: 14.5, color: "#c7ccd6", padding: "7px 10px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", font: "inherit" }}
@@ -1958,6 +2048,11 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
                         <b style={{ color: "#7b8394", minWidth: 24 }}>{i + 1}.</b>
                         <span style={{ color: "#7b8394", whiteSpace: "nowrap" }}>{qq.year} · Q{qq.q_index}</span>
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>{qq.stem}</span>
+                        {qTotalVotes > 0 && (
+                          <span style={{ fontSize: 12, color: "#9aa0ab", whiteSpace: "nowrap" }} title="Wrong votes / total votes">
+                            {qWrongVotes}/{qTotalVotes} wrong
+                          </span>
+                        )}
                         <b style={{ color: "#48c78e", whiteSpace: "nowrap" }}>{correct.join(", ")}</b>
                       </button>
                       {open && (
@@ -1995,6 +2090,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
                     </div>
                   );
                 })}
+                </div>
               </div>
             )}
           </>
@@ -2411,6 +2507,82 @@ function BugReportsPanel({ reports, byId, onAct, onClose }: {
           {open.map(row)}
           {done.length > 0 && <div style={{ ...s.apEyebrow, margin: "16px 0 4px" }}>Closed</div>}
           {done.map(row)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Admin archive of "Mark as official" poll submissions — download everything
+// as one CSV, or wipe the archive (e.g. once a year's group-review sessions
+// are all done and safely downloaded).
+function OfficialResultsPanel({ results, onClose, onCleared }: {
+  results: OfficialPollResult[];
+  onClose: () => void;
+  onCleared: () => void;
+}) {
+  const [clearStage, setClearStage] = useState<"idle" | "confirm" | "clearing">("idle");
+  const doClear = async () => {
+    setClearStage("clearing");
+    await clearOfficialPollResults();
+    setClearStage("idle");
+    onCleared();
+  };
+  return (
+    <div style={s.scrim} onClick={onClose}>
+      <div style={{ ...s.apPanel, maxWidth: 620 }} onClick={(e) => e.stopPropagation()} className="rise">
+        <div style={s.apHead}>
+          <div>
+            <div style={s.apEyebrow}>Admin · poll results</div>
+            <div style={s.apTitle}>{results.length} official session{results.length === 1 ? "" : "s"}</div>
+          </div>
+          <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
+        </div>
+        <div style={s.apBody}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+            <button
+              style={{ ...s.apApprove, opacity: results.length ? 1 : 0.5 }}
+              disabled={!results.length}
+              onClick={() => exportOfficialPollResults(results)}
+            >
+              Download all (CSV)
+            </button>
+            {clearStage === "idle" && (
+              <button
+                style={{ ...s.apApprove, background: T.wrongLine, opacity: results.length ? 1 : 0.5 }}
+                disabled={!results.length}
+                onClick={() => setClearStage("confirm")}
+              >
+                Clear all results
+              </button>
+            )}
+            {clearStage === "clearing" && <span style={{ fontSize: 13, color: T.muted }}>Clearing…</span>}
+          </div>
+          {clearStage === "confirm" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", background: T.wrongBg, border: `1px solid ${T.wrongLine}`, borderRadius: 10, padding: "12px 14px", marginBottom: 16, fontSize: 13.5, color: T.wrongText }}>
+              <span>Permanently delete all {results.length} submitted session{results.length === 1 ? "" : "s"}? Make sure you've downloaded them first — this can't be undone.</span>
+              <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
+                <button style={s.apApprove} onClick={doClear}>Yes, clear all</button>
+                <button style={s.ghost} onClick={() => setClearStage("idle")}>Cancel</button>
+              </div>
+            </div>
+          )}
+          {results.length === 0 && <p style={s.apEmpty}>No official sessions submitted yet.</p>}
+          {results.map((r) => {
+            const worst = [...r.question_stats].sort((a, b) => b.wrongVotes - a.wrongVotes)[0];
+            return (
+              <div key={r.id} style={s.bugRow}>
+                <div style={s.bugMeta}>
+                  <span style={s.bugKind}>{r.poll_code}</span>
+                  <span style={s.bugWho}>{r.submitter?.full_name || r.submitter?.email || "—"} · {ago(r.submitted_at)}</span>
+                </div>
+                <div style={{ fontSize: 13.5, color: T.muted }}>
+                  {r.total_questions} question{r.total_questions === 1 ? "" : "s"} · {r.total_participants} participant{r.total_participants === 1 ? "" : "s"}
+                  {worst && worst.totalVotes > 0 && ` · toughest: ${worst.year} Q${worst.q_index} (${worst.wrongVotes}/${worst.totalVotes} wrong)`}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

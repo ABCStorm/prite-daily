@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import type { TeamStanding } from "./poll";
 
 /* Typed data access over the Supabase tables + RPCs. Every function is a no-op
    (returns null / []) when Supabase isn't configured, so callers don't have to
@@ -196,6 +197,65 @@ export async function updateBugReport(id: string, status: string): Promise<void>
   await supabase.from("bug_reports")
     .update({ status, resolved_at: status === "open" ? null : new Date().toISOString() })
     .eq("id", id);
+}
+
+/** Per-question vote breakdown, snapshotted when a presenter marks a live
+    poll session as an official class review. */
+export type QuestionStat = {
+  qid: string; year: string; q_index: number; stem: string;
+  correct: string[]; counts: Record<string, number>; totalVotes: number; wrongVotes: number;
+};
+export type OfficialPollResult = {
+  id: string;
+  submitted_by: string | null;
+  submitted_at: string;
+  poll_code: string;
+  total_questions: number;
+  total_participants: number;
+  standings: TeamStanding[];
+  question_stats: QuestionStat[];
+  submitter?: { full_name: string | null; email: string } | null;
+};
+
+/** File a completed live-poll session as an official class review (as the current user). */
+export async function submitOfficialPollResults(r: {
+  poll_code: string; total_questions: number; total_participants: number;
+  standings: TeamStanding[]; question_stats: QuestionStat[];
+}): Promise<boolean> {
+  if (!supabase) return false;
+  const { data: u } = await supabase.auth.getUser();
+  if (!u.user) return false;
+  const { error } = await supabase.from("official_poll_results").insert({
+    submitted_by: u.user.id,
+    poll_code: r.poll_code,
+    total_questions: r.total_questions,
+    total_participants: r.total_participants,
+    standings: r.standings,
+    question_stats: r.question_stats,
+  });
+  if (error) { console.warn("submitOfficialPollResults", error.message); return false; }
+  return true;
+}
+
+/** Admin: every submitted official session, newest first. */
+export async function listOfficialPollResults(): Promise<OfficialPollResult[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("official_poll_results")
+    .select("*, submitter:profiles(full_name, email)")
+    .order("submitted_at", { ascending: false });
+  if (error) { console.warn("listOfficialPollResults", error.message); return []; }
+  return (data ?? []) as OfficialPollResult[];
+}
+
+/** Admin: permanently delete every submitted official session (e.g. once a
+    year's PRITE review sessions are done and downloaded). */
+export async function clearOfficialPollResults(): Promise<boolean> {
+  if (!supabase) return false;
+  const { error } = await supabase.from("official_poll_results")
+    .delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  if (error) { console.warn("clearOfficialPollResults", error.message); return false; }
+  return true;
 }
 
 export async function getMyNote(questionId: string): Promise<string> {
