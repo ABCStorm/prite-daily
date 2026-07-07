@@ -1903,8 +1903,15 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
                               );
                             })}
                           </div>
-                          {qq.explanation_text ? (
-                            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: "#aeb4c0", whiteSpace: "pre-wrap" }}>{qq.explanation_text}</p>
+                          {qq.explanation_text || qq.explanation_images.length > 0 ? (
+                            <>
+                              {qq.explanation_text && (
+                                <p style={{ margin: "0 0 10px", fontSize: 14, lineHeight: 1.55, color: "#aeb4c0", whiteSpace: "pre-wrap" }}>{qq.explanation_text}</p>
+                              )}
+                              {qq.explanation_images.filter((p) => imgSrc(p)).map((p, i) => (
+                                <img key={i} src={imgSrc(p)} alt="explanation" style={s.explImg} loading="lazy" />
+                              ))}
+                            </>
                           ) : (
                             <p style={{ margin: 0, fontSize: 14, color: "#7b8394", fontStyle: "italic" }}>No explanation available for this question.</p>
                           )}

@@ -184,8 +184,14 @@ type PptxQ = {
   year: string; q_index: number; stem: string;
   options: { letter: string; text: string }[];
   answer_letters: string[]; answer_letter: string | null; answer_text: string;
-  explanation_text?: string;
+  explanation_text?: string; explanation_images?: string[];
 };
+
+// Explanation images are stored as bank-relative paths; "<...>" entries mark a
+// failed export and have no real file (mirrors imgSrc() in App.tsx).
+function explImgSrc(p: string) {
+  return p.startsWith("<") ? "" : "/" + p;
+}
 
 /* PowerPoint export. Each question gets TWO slides: the question alone, then an
    identical slide with the answer revealed — so pressing space-bar in
@@ -217,16 +223,32 @@ export async function exportPptx(questions: PptxQ[], filename = "prite-questions
     }
   };
 
-  const addExplanationSlide = (q: PptxQ) => {
+  const addExplanationSlide = (q: PptxQ, images: string[]) => {
     const slide = pptx.addSlide();
     slide.addText(`PRITE ${q.year}  ·  Q${q.q_index}  ·  Explanation`, { x: 0.4, y: 0.2, fontSize: 10, color: "9AA0AB" });
-    slide.addText(q.explanation_text!, { x: 0.4, y: 0.6, w: 9.2, h: 4.8, fontSize: 14, valign: "top", color: "23262F" });
+    let y = 0.6;
+    if (q.explanation_text) {
+      const textH = images.length ? 2.2 : 4.8;
+      slide.addText(q.explanation_text, { x: 0.4, y, w: 9.2, h: textH, fontSize: 14, valign: "top", color: "23262F" });
+      y += textH + 0.1;
+    }
+    if (images.length) {
+      const boxH = 5.4 - y;
+      const slotW = 9.2 / images.length;
+      images.forEach((src, i) => {
+        const w = slotW - 0.2;
+        slide.addImage({ path: src, x: 0.4 + i * slotW, y, w, h: boxH, sizing: { type: "contain", w, h: boxH } });
+      });
+    }
   };
 
   for (const q of questions) {
     if (reveal) addSlide(q, false);  // question, no answer
     addSlide(q, true);               // reveal slide (answer shown)
-    if (includeExplanation && q.explanation_text) addExplanationSlide(q);
+    if (includeExplanation) {
+      const images = (q.explanation_images ?? []).map(explImgSrc).filter(Boolean);
+      if (q.explanation_text || images.length) addExplanationSlide(q, images);
+    }
   }
   await pptx.writeFile({ fileName: filename });
 }
