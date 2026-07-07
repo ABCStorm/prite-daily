@@ -1701,6 +1701,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
     next.has(i) ? next.delete(i) : next.add(i);
     return next;
   });
+  const [zoomImg, setZoomImg] = useState<string | null>(null); // answer-key explanation image, enlarged on click
   const [, force] = useState(0); // re-render when votes arrive
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [qr, setQr] = useState<string | null>(null); // join-URL QR as a data URL
@@ -1909,7 +1910,12 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
                                 <p style={{ margin: "0 0 10px", fontSize: 14, lineHeight: 1.55, color: "#aeb4c0", whiteSpace: "pre-wrap" }}>{qq.explanation_text}</p>
                               )}
                               {qq.explanation_images.filter((p) => imgSrc(p)).map((p, i) => (
-                                <img key={i} src={imgSrc(p)} alt="explanation" style={{ ...s.explImg, maxWidth: 420, maxHeight: 240, width: "auto", height: "auto", objectFit: "contain" }} loading="lazy" />
+                                <img
+                                  key={i} src={imgSrc(p)} alt="explanation" loading="lazy"
+                                  title="Click to enlarge"
+                                  onClick={() => setZoomImg(imgSrc(p))}
+                                  style={{ ...s.explImg, maxWidth: 420, maxHeight: 240, width: "auto", height: "auto", objectFit: "contain", cursor: "zoom-in" }}
+                                />
                               ))}
                             </>
                           ) : (
@@ -1998,6 +2004,13 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
             <div style={s.qrCardUrl}>{joinHost}</div>
             <button style={s.pollBtn} onClick={() => setQrBig(false)}>Close</button>
           </div>
+        </div>
+      )}
+
+      {zoomImg && (
+        <div style={s.qrOverlay} onClick={() => setZoomImg(null)}>
+          <img src={zoomImg} alt="Explanation, enlarged" style={s.zoomImg} onClick={(e) => e.stopPropagation()} />
+          <button style={{ ...s.pollClose, position: "absolute", top: 20, right: 20 }} onClick={() => setZoomImg(null)} title="Close"><X size={18} strokeWidth={2.4} /></button>
         </div>
       )}
     </div>
@@ -3594,6 +3607,7 @@ const s: Record<string, React.CSSProperties> = {
   qrBigImg: { display: "block", width: "min(60vh, 70vw, 420px)", height: "min(60vh, 70vw, 420px)" },
   qrCardCode: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 30, fontWeight: 700, letterSpacing: "0.22em", color: "#11131c" },
   qrCardUrl: { color: "#6c7280", fontSize: 14, marginTop: -6 },
+  zoomImg: { display: "block", maxWidth: "92vw", maxHeight: "88vh", width: "auto", height: "auto", objectFit: "contain", borderRadius: 12, background: "#fff", cursor: "default" },
 
   // live crowd poll — participant (phone)
   joinRoot: { position: "fixed", inset: 0, zIndex: 90, background: T.ink, display: "grid", placeItems: "center", padding: 20, fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif" },
