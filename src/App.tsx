@@ -33,7 +33,8 @@ function MermaidDiagram({ code }: { code: string }) {
 import { isConfigured, supabase, signInWithGoogle, signOut, questionId } from "./lib/supabase";
 import { useAuth } from "./lib/useAuth";
 import { matchRoster } from "./lib/roster";
-import { recordToday, peekStreak, ymd } from "./lib/streaks";
+import { recordToday, peekStreak, totalDays, ymd } from "./lib/streaks";
+import { dueReminderPromptStage, markReminderPromptShown } from "./lib/reminderPrompt";
 import {
   makePollCode, channelName, pollJoinUrl, pollCodeFromUrl, clearPollParam,
   POLL_EVENTS, type PollState, type PollVote, type PollHello, type TeamStanding,
@@ -304,6 +305,8 @@ export default function App() {
   const [doneStreak, setDoneStreak] = useState(0); // current daily-completion streak, for the top-bar chip
   const loginCheckedRef = useRef(false);
   const completionCelebratedRef = useRef<string | null>(null);
+  const [reminderPromptStage, setReminderPromptStage] = useState<1 | 2 | 3 | null>(null);
+  const reminderPromptCheckedRef = useRef(false);
 
   // --- exam mode + timer (UI prefs, kept in localStorage to avoid a DB migration) ---
   const [examMode, setExamMode] = useState<boolean>(() => readPref("pd_exam_mode", false));
@@ -647,6 +650,29 @@ export default function App() {
       fireCelebration(level);
     }
   }, [persist, profile?.id, session?.user?.id]);
+
+  // Nudge to opt into daily reminder emails: on day 2 of use, again at 2 weeks,
+  // again at 4 weeks, then never again — skipped entirely once opted in.
+  useEffect(() => {
+    if (!persist || !settings || reminderPromptCheckedRef.current) return;
+    reminderPromptCheckedRef.current = true;
+    if (settings.daily_reminder) return;
+    const uid = profile?.id ?? session?.user?.id ?? "anon";
+    const stage = dueReminderPromptStage(uid, totalDays(uid, "login"));
+    if (stage) setReminderPromptStage(stage);
+  }, [persist, settings, profile?.id, session?.user?.id]);
+
+  const dismissReminderPrompt = () => {
+    const uid = profile?.id ?? session?.user?.id ?? "anon";
+    if (reminderPromptStage) markReminderPromptShown(uid, reminderPromptStage);
+    setReminderPromptStage(null);
+  };
+  const acceptReminderPrompt = () => {
+    const uid = profile?.id ?? session?.user?.id ?? "anon";
+    if (reminderPromptStage) markReminderPromptShown(uid, reminderPromptStage);
+    saveSettingsNow({ daily_reminder: true });
+    setReminderPromptStage(null);
+  };
 
   // Completion streak: fires the first time the daily target is reached each day.
   useEffect(() => {
@@ -1533,6 +1559,26 @@ export default function App() {
           </div>
         </footer>
       </main>
+
+      {reminderPromptStage && (
+        <div style={s.scrim} onClick={dismissReminderPrompt}>
+          <div style={{ ...s.apPanel, maxWidth: 380 }} onClick={(e) => e.stopPropagation()} className="rise">
+            <div style={{ padding: "28px 26px 24px", textAlign: "center" }}>
+              <div style={{ fontSize: 32, marginBottom: 10 }}>📬</div>
+              <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 8, color: T.text }}>Want a daily nudge?</div>
+              <p style={{ fontSize: 14, color: T.muted, lineHeight: 1.5, margin: "0 0 22px" }}>
+                {reminderPromptStage === 1 && "You've come back for a second day — nice. Want PRITE Daily to email you a quick reminder each morning so you don't lose momentum?"}
+                {reminderPromptStage === 2 && "You've been at this for 2 weeks now. A daily reminder email can help keep the habit going through exam season."}
+                {reminderPromptStage === 3 && "Last nudge about this, promise — want a daily reminder email? You can always turn it on later in Settings."}
+              </p>
+              <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+                <button style={{ ...s.ghost, marginLeft: 0 }} onClick={dismissReminderPrompt}>Not now</button>
+                <button style={s.primarySm} onClick={acceptReminderPrompt}><Check size={14} strokeWidth={2.4} /> Yes, email me daily</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showApprovals && isAdmin && (
         <Approvals

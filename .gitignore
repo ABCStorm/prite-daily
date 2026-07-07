@@ -13,3 +13,6 @@ dist
 extraction/context_gen/in/
 extraction/context_gen/out/
 extraction/context_gen/sql_parts/
+
+# Supabase CLI local link/cache state (machine-specific)
+supabase/.temp/

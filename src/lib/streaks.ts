@@ -88,6 +88,11 @@ export function peekStreak(uid: string, kind: StreakKind): number {
   return currentStreak(load(uid, kind));
 }
 
+/** Total distinct calendar days ever recorded for `kind` (not necessarily consecutive). */
+export function totalDays(uid: string, kind: StreakKind): number {
+  return load(uid, kind).length;
+}
+
 /** Record today for `kind` and return the resulting streak info. */
 export function recordToday(uid: string, kind: StreakKind): StreakResult {
   const today = ymd();

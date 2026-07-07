@@ -1,19 +1,22 @@
 // Daily practice-reminder emailer. Invoked once a day by a scheduler (pg_cron +
 // pg_net, or any external cron) — see README.md. Emails every approved member who
 // opted in (settings.daily_reminder = true), via Resend. Each email also reports
-// the recipient's rank in the residency, by distinct questions done over the
-// trailing 14 days.
+// the recipient's rank in the residency (distinct questions done over the
+// trailing 14 days), a rotating dad joke, and a one-click unsubscribe link.
 //
 // Secrets (Project Settings -> Edge Functions):
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY  (auto-injected)
 //   RESEND_API_KEY    — Resend key
 //   REMINDER_FROM     — e.g. "PRITE Daily <noreply@pritedaily.com>" (verified domain)
 //   CRON_SECRET       — shared secret; the caller must send it as x-cron-secret
+//   UNSUB_SECRET      — signs one-click unsubscribe links (see unsubscribe-reminder function)
 //   APP_URL           — optional, defaults to https://pritedaily.com
 //
 // Deploy WITHOUT JWT verification (it's gated by CRON_SECRET instead):
 //   supabase functions deploy send-daily-reminders --no-verify-jwt
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { signUnsubscribeToken } from "../_shared/unsubToken.ts";
+import { jokeForToday } from "./jokes.ts";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -27,10 +30,12 @@ Deno.serve(async (req) => {
 
   const resendKey = Deno.env.get("RESEND_API_KEY");
   const from = Deno.env.get("REMINDER_FROM");
-  if (!resendKey || !from) return json({ error: "RESEND_API_KEY / REMINDER_FROM not set" }, 500);
+  const unsubSecret = Deno.env.get("UNSUB_SECRET");
+  if (!resendKey || !from || !unsubSecret) return json({ error: "RESEND_API_KEY / REMINDER_FROM / UNSUB_SECRET not set" }, 500);
   const appUrl = Deno.env.get("APP_URL") || "https://pritedaily.com";
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 
-  const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   // Whole residency (approved members), for the leaderboard denominator — not
   // just the opted-in subset who actually get emailed.
@@ -78,6 +83,7 @@ Deno.serve(async (req) => {
   const recipients = (profiles ?? [])
     .filter((p: any) => optedInIds.has(p.id) && p.email)
     .map((p: any) => ({
+      id: p.id as string,
       email: p.email as string,
       name: (p.full_name as string) || "",
       answered: doneByUser.get(p.id)?.size ?? 0,
@@ -85,18 +91,24 @@ Deno.serve(async (req) => {
       total,
     }));
 
+  const joke = jokeForToday();
+
   let sent = 0; const failures: string[] = [];
   for (const r of recipients) {
     const first = (r.name || "").split(" ")[0] || "there";
     const rankLine = r.total > 1
       ? `Over the past 2 weeks you've done <b>${r.answered}</b> question${r.answered === 1 ? "" : "s"} — ranked <b>#${r.rank} of ${r.total}</b> in the residency.`
       : `Over the past 2 weeks you've done <b>${r.answered}</b> question${r.answered === 1 ? "" : "s"}.`;
+    const unsubToken = await signUnsubscribeToken(r.id, unsubSecret);
+    const unsubUrl = `${supabaseUrl}/functions/v1/unsubscribe-reminder?u=${encodeURIComponent(r.id)}&t=${unsubToken}`;
     const html = `<div style="font-family:-apple-system,Segoe UI,system-ui,sans-serif;max-width:520px;margin:0 auto">
       <h2 style="color:#0e7a6b;margin:0 0 6px">PRITE Daily</h2>
       <p style="font-size:15px;line-height:1.5;color:#23262f">Good morning, ${first} — time for today's PRITE practice. A few questions a day keeps the in-training exam from sneaking up on you.</p>
       <p style="font-size:15px;line-height:1.5;color:#23262f">${rankLine}</p>
       <p style="margin:18px 0"><a href="${appUrl}" style="background:#0e7a6b;color:#fff;text-decoration:none;font-weight:700;padding:11px 20px;border-radius:10px;font-size:15px">Do today's set →</a></p>
-      <p style="font-size:12px;color:#9aa0ab">You're getting this because you turned on daily reminders. Turn them off anytime in Settings.</p>
+      <p style="font-size:13.5px;line-height:1.5;color:#6c7280;background:#f5f3ee;border-radius:10px;padding:12px 14px">😄 <b>Dad joke of the day:</b> ${joke}</p>
+      <p style="font-size:12px;color:#9aa0ab;margin:20px 0 8px">You're getting this because you turned on daily reminders.</p>
+      <p style="margin:0"><a href="${unsubUrl}" style="display:inline-block;border:1px solid #d8dbe2;color:#6c7280;text-decoration:none;font-size:12.5px;font-weight:600;padding:8px 16px;border-radius:8px">Unsubscribe</a></p>
     </div>`;
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
