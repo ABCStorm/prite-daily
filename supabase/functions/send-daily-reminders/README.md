@@ -16,9 +16,19 @@ actually emailed on days where `daysSinceEpoch % reminder_every_days === 0`.
 Editable in Settings, or via the email's **Change frequency** link.
 
 Each email includes:
-- the recipient's rank in the residency, by distinct questions done over the
-  trailing 14 days — computed fresh from `answers` at send time, no separate
-  leaderboard table needed;
+- the recipient's rank in the residency, by distinct questions done during the
+  current discrete 2-week **contest period** — computed fresh from `answers`
+  at send time, no separate leaderboard table needed. Contest periods
+  (`contestPeriods.ts`) are non-overlapping 2-week blocks tiling *backward*
+  from a fixed cutoff of **Oct 7** (8 days before the guessed/real Oct 15 exam
+  date) — not a rolling window, so each period has an actual winner. No
+  periods run past Oct 7; the final stretch before the exam is left as
+  individual cram time. Once the season's over, ranking falls back to a
+  rolling trailing-14-day window;
+- **the morning after each contest period ends**, every recipient also gets a
+  fun trophy/confetti winner-announcement card (framed as "You won!" for the
+  winner(s), or "<name> took the crown!" for everyone else; ties share the
+  win and are listed by first name);
 - a countdown-to-exam badge — days until the recipient's real `exam_date`, or
   the same guessed Oct 15 used for the auto window if they haven't set one
   (labeled "estimated" in that case); hidden once the date has passed;

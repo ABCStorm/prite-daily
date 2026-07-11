@@ -7,13 +7,16 @@
 //     (or a guessed Oct 15 if unset), off otherwise (see reminderWindow.ts).
 //   - frequency: settings.reminder_every_days (default 1 = daily); only sent
 //     on days where daysSinceEpoch % reminder_every_days === 0.
-// Each email also reports the recipient's rank in the residency (distinct
-// questions done over the trailing 14 days), a countdown-to-exam badge (real
+// Each email also reports the recipient's rank in the residency for the
+// current discrete 2-week contest period (contestPeriods.ts — non-overlapping
+// periods tiling backward from Oct 7, not a rolling window, so there's an
+// actual winner to declare at each boundary), a countdown-to-exam badge (real
 // exam_date if set, else the same guessed Oct 15 used for the auto window —
 // hidden once the date has passed), a rotating dad joke, and one-click
-// Unsubscribe / Change frequency links. The opening greeting and rank-recap
-// sentence are also picked from rotating pools (greetings.ts) so regular
-// recipients don't see identical wording every day.
+// Unsubscribe / Change frequency links. The morning after each contest period
+// ends, everyone also gets a fun winner-announcement card. The opening
+// greeting and rank-recap sentence are picked from rotating pools
+// (greetings.ts) so regular recipients don't see identical wording every day.
 //
 // Secrets (Project Settings -> Edge Functions):
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY  (auto-injected)
@@ -30,11 +33,30 @@ import { signUnsubscribeToken } from "../_shared/unsubToken.ts";
 import { jokeForToday } from "./jokes.ts";
 import { isAutoReminderActive, daysUntilExam } from "./reminderWindow.ts";
 import { greetingForToday, rankLineForToday } from "./greetings.ts";
+import { currentContestPeriod, periodEndingYesterday } from "./contestPeriods.ts";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
 const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
+
+/** Distinct questions first-answered per user within [startYmd, endYmd] inclusive. */
+async function distinctQuestionsByUser(
+  admin: ReturnType<typeof createClient>,
+  startYmd: string,
+  endYmd: string,
+): Promise<Map<string, Set<string>>> {
+  const gte = `${startYmd}T00:00:00.000Z`;
+  const lt = new Date(new Date(endYmd + "T00:00:00").getTime() + 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await admin.from("answers").select("user_id, question_id").gte("created_at", gte).lt("created_at", lt);
+  if (error) throw new Error(error.message);
+  const map = new Map<string, Set<string>>();
+  for (const row of (data ?? []) as any[]) {
+    if (!map.has(row.user_id)) map.set(row.user_id, new Set());
+    map.get(row.user_id)!.add(row.question_id);
+  }
+  return map;
+}
 
 Deno.serve(async (req) => {
   // Only the scheduler (holding CRON_SECRET) may trigger a send.
@@ -49,6 +71,7 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 
   const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const today = new Date();
 
   // Whole residency (approved members), for the leaderboard denominator — not
   // just the opted-in subset who actually get emailed.
@@ -65,20 +88,42 @@ Deno.serve(async (req) => {
   const settingsByUser = new Map<string, { daily_reminder: boolean | null; exam_date: string | null; reminder_every_days: number }>();
   for (const row of (settingsRows ?? []) as any[]) settingsByUser.set(row.user_id, row);
 
-  // Distinct questions first-answered (created_at, immutable per question) in
-  // the trailing 14 days — a proxy for "questions done" that isn't inflated by
-  // re-attempts on already-answered questions.
-  const since = new Date(Date.now() - TWO_WEEKS_MS).toISOString();
-  const { data: recent, error: ansErr } = await admin
-    .from("answers")
-    .select("user_id, question_id")
-    .gte("created_at", since);
-  if (ansErr) return json({ error: ansErr.message }, 500);
+  // Distinct questions first-answered (created_at, immutable per question)
+  // within the current discrete 2-week contest period — or a rolling 14-day
+  // window once the contest season is over (past the final Oct 7 cutoff).
+  const period = currentContestPeriod(today);
+  let doneByUser: Map<string, Set<string>>;
+  try {
+    doneByUser = period
+      ? await distinctQuestionsByUser(admin, period.start, period.end)
+      : await distinctQuestionsByUser(
+          admin,
+          new Date(today.getTime() - TWO_WEEKS_MS).toISOString().slice(0, 10),
+          today.toISOString().slice(0, 10),
+        );
+  } catch (e) {
+    return json({ error: (e as Error).message }, 500);
+  }
 
-  const doneByUser = new Map<string, Set<string>>();
-  for (const row of (recent ?? []) as any[]) {
-    if (!doneByUser.has(row.user_id)) doneByUser.set(row.user_id, new Set());
-    doneByUser.get(row.user_id)!.add(row.question_id);
+  // If today is the morning after a contest period ended, find that period's
+  // winner(s) (ties share the win) for the announcement card.
+  const justEnded = periodEndingYesterday(today);
+  let winnerNames: string[] = [];
+  let winnerCount = 0;
+  let winnerIds = new Set<string>();
+  if (justEnded) {
+    try {
+      const finishedDoneByUser = await distinctQuestionsByUser(admin, justEnded.start, justEnded.end);
+      const finishedBoard = (profiles ?? [])
+        .map((p: any) => ({ id: p.id as string, name: (p.full_name as string) || "", answered: finishedDoneByUser.get(p.id)?.size ?? 0 }))
+        .sort((a, b) => b.answered - a.answered);
+      winnerCount = finishedBoard[0]?.answered ?? 0;
+      if (winnerCount > 0) {
+        const winners = finishedBoard.filter((p) => p.answered === winnerCount);
+        winnerNames = winners.map((p) => p.name.split(" ")[0] || "Someone");
+        winnerIds = new Set(winners.map((p) => p.id));
+      }
+    } catch { /* winner card is a nice-to-have; never block the send over it */ }
   }
 
   // Rank every approved member by that 14-day count (desc); ties share a rank.
@@ -92,8 +137,6 @@ Deno.serve(async (req) => {
     rankOf.set(row.id, rank);
   });
   const total = board.length;
-
-  const today = new Date();
   const daysSinceEpoch = Math.floor(today.getTime() / 86_400_000);
 
   const recipients = (profiles ?? [])
@@ -136,6 +179,30 @@ Deno.serve(async (req) => {
       </tr></table>${note}`;
   };
 
+  // Winner-announcement card — only rendered the one morning after a contest
+  // period ends. Framed differently for the winner(s) themselves vs. everyone
+  // else, so it reads as a personal result, not a generic broadcast.
+  const winnerCardHtml = (recipientId: string): string => {
+    if (!justEnded || winnerCount === 0 || winnerNames.length === 0) return "";
+    const iWon = winnerIds.has(recipientId);
+    const tied = winnerNames.length > 1;
+    const namesJoined = !tied ? winnerNames[0]
+      : winnerNames.length === 2 ? `${winnerNames[0]} & ${winnerNames[1]}`
+      : `${winnerNames.slice(0, -1).join(", ")} & ${winnerNames[winnerNames.length - 1]}`;
+    const qWord = `question${winnerCount === 1 ? "" : "s"}`;
+    const headline = iWon ? (tied ? "You tied for the win! 🎉" : "You won! 🎉") : `${namesJoined} ${tied ? "tied for" : "took"} the crown!`;
+    const sub = iWon
+      ? `${winnerCount} ${qWord} over the last 2 weeks — nice work! A new 2-week round just started.`
+      : `${winnerCount} ${qWord} over the last 2 weeks. Think you can take it next round?`;
+    return `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 20px"><tr>
+        <td style="background:#fdf3d8;border:2px solid #f0d488;border-radius:14px;padding:16px 18px;text-align:center;font-family:-apple-system,Segoe UI,system-ui,sans-serif">
+          <div style="font-size:26px;line-height:1;margin:0 0 6px">🏆🎉🏆</div>
+          <div style="font-size:16px;font-weight:800;color:#8a6a1e;margin:0 0 4px">${headline}</div>
+          <div style="font-size:13.5px;color:#9c7d33">${sub}</div>
+        </td>
+      </tr></table>`;
+  };
+
   let sent = 0; const failures: string[] = [];
   for (const r of recipients) {
     const first = (r.name || "").split(" ")[0] || "there";
@@ -151,6 +218,8 @@ Deno.serve(async (req) => {
         <td style="width:32px;height:32px;background:#0e7a6b;border-radius:9px;text-align:center;vertical-align:middle;font-size:15px;font-weight:800;color:#fff;font-family:-apple-system,Segoe UI,system-ui,sans-serif">P</td>
         <td style="padding-left:9px;font-size:18px;font-weight:800;color:#0e7a6b;font-family:-apple-system,Segoe UI,system-ui,sans-serif;vertical-align:middle">PRITE Daily</td>
       </tr></table>
+
+      ${winnerCardHtml(r.id)}
 
       <p style="font-size:15px;line-height:1.55;color:#23262f;margin:0 0 12px">${greeting}</p>
       <p style="font-size:15px;line-height:1.55;color:#23262f;margin:0 0 18px">${rankLine}</p>
