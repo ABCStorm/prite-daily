@@ -19,6 +19,9 @@ Each email includes:
 - the recipient's rank in the residency, by distinct questions done over the
   trailing 14 days — computed fresh from `answers` at send time, no separate
   leaderboard table needed;
+- a countdown-to-exam badge — days until the recipient's real `exam_date`, or
+  the same guessed Oct 15 used for the auto window if they haven't set one
+  (labeled "estimated" in that case); hidden once the date has passed;
 - a rotating "dad joke of the day" (`jokes.ts`, 90-entry pool, one per calendar
   day before repeating);
 - a one-click **Unsubscribe** button — no login required. It links to the

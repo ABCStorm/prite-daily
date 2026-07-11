@@ -29,3 +29,16 @@ export function isAutoReminderActive(examDate: string | null, today: Date = new 
   const t = new Date(ymd(today) + "T00:00:00");
   return t >= start && t <= exam;
 }
+
+/** The real exam date if set, else the guessed Oct 15. */
+export function resolvedExamDate(examDate: string | null, today: Date = new Date()): string {
+  return examDate || guessedExamDate(today);
+}
+
+/** Whole calendar days from today to the (real or guessed) exam date. Can be
+    negative if the exam date has already passed. */
+export function daysUntilExam(examDate: string | null, today: Date = new Date()): number {
+  const exam = new Date(resolvedExamDate(examDate, today) + "T00:00:00");
+  const t = new Date(ymd(today) + "T00:00:00");
+  return Math.round((exam.getTime() - t.getTime()) / DAY_MS);
+}

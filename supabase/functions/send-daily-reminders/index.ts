@@ -8,10 +8,12 @@
 //   - frequency: settings.reminder_every_days (default 1 = daily); only sent
 //     on days where daysSinceEpoch % reminder_every_days === 0.
 // Each email also reports the recipient's rank in the residency (distinct
-// questions done over the trailing 14 days), a rotating dad joke, and
-// one-click Unsubscribe / Change frequency links. The opening greeting and
-// rank-recap sentence are also picked from rotating pools (greetings.ts) so
-// regular recipients don't see identical wording every day.
+// questions done over the trailing 14 days), a countdown-to-exam badge (real
+// exam_date if set, else the same guessed Oct 15 used for the auto window —
+// hidden once the date has passed), a rotating dad joke, and one-click
+// Unsubscribe / Change frequency links. The opening greeting and rank-recap
+// sentence are also picked from rotating pools (greetings.ts) so regular
+// recipients don't see identical wording every day.
 //
 // Secrets (Project Settings -> Edge Functions):
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY  (auto-injected)
@@ -26,7 +28,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { signUnsubscribeToken } from "../_shared/unsubToken.ts";
 import { jokeForToday } from "./jokes.ts";
-import { isAutoReminderActive } from "./reminderWindow.ts";
+import { isAutoReminderActive, daysUntilExam } from "./reminderWindow.ts";
 import { greetingForToday, rankLineForToday } from "./greetings.ts";
 
 const json = (body: unknown, status = 200) =>
@@ -106,6 +108,7 @@ Deno.serve(async (req) => {
         id: p.id as string,
         email: p.email as string,
         name: (p.full_name as string) || "",
+        examDate: (st?.exam_date as string | null) ?? null,
         dueToday,
         answered: doneByUser.get(p.id)?.size ?? 0,
         rank: rankOf.get(p.id) ?? total,
@@ -115,6 +118,21 @@ Deno.serve(async (req) => {
     .filter((r) => r.dueToday);
 
   const joke = jokeForToday();
+
+  // Countdown "badge" to the recipient's (real or guessed) exam date. Built as
+  // an HTML table for email-client compatibility (Outlook's Word engine
+  // ignores border-radius gracefully but still lays the table out fine).
+  const countdownHtml = (examDate: string | null): string => {
+    const n = daysUntilExam(examDate, today);
+    if (n < 0) return ""; // exam date has passed — nothing useful to show
+    const label = n === 0 ? "Exam day is today!" : `day${n === 1 ? "" : "s"} until your PRITE exam`;
+    const big = n === 0 ? "🎉" : String(n);
+    const note = examDate ? "" : `<p style="text-align:center;font-size:11.5px;color:#9aa0ab;margin:0 0 4px">(estimated — set your real exam date in Settings for an exact countdown)</p>`;
+    return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:18px auto"><tr><td style="background:#0e7a6b;border-radius:14px;padding:16px 30px;text-align:center">
+        <div style="font-size:34px;font-weight:800;color:#fff;line-height:1;font-family:-apple-system,Segoe UI,system-ui,sans-serif">${big}</div>
+        <div style="font-size:11.5px;color:#cdeee5;text-transform:uppercase;letter-spacing:.06em;margin-top:4px;font-family:-apple-system,Segoe UI,system-ui,sans-serif">${label}</div>
+      </td></tr></table>${note}`;
+  };
 
   let sent = 0; const failures: string[] = [];
   for (const r of recipients) {
@@ -130,7 +148,8 @@ Deno.serve(async (req) => {
       <h2 style="color:#0e7a6b;margin:0 0 6px">PRITE Daily</h2>
       <p style="font-size:15px;line-height:1.5;color:#23262f">${greeting}</p>
       <p style="font-size:15px;line-height:1.5;color:#23262f">${rankLine}</p>
-      <p style="margin:18px 0"><a href="${appUrl}" style="background:#0e7a6b;color:#fff;text-decoration:none;font-weight:700;padding:11px 20px;border-radius:10px;font-size:15px">Do today's set →</a></p>
+      ${countdownHtml(r.examDate)}
+      <p style="margin:18px 0;text-align:center"><a href="${appUrl}" style="background:#0e7a6b;color:#fff;text-decoration:none;font-weight:700;padding:11px 20px;border-radius:10px;font-size:15px">Do today's set →</a></p>
       <p style="font-size:13.5px;line-height:1.5;color:#6c7280;background:#f5f3ee;border-radius:10px;padding:12px 14px">😄 <b>Dad joke of the day:</b> ${joke}</p>
       <p style="font-size:12px;color:#9aa0ab;margin:20px 0 8px">You're getting this because daily reminders are on for your account.</p>
       <p style="margin:0">
