@@ -4,15 +4,15 @@
 //   - on/off: settings.daily_reminder is tri-state. true/false = the user
 //     explicitly overrode it (Settings toggle, or the email's Unsubscribe
 //     link); null = auto — on during the 90 days before the user's exam date
-//     (or a guessed Oct 15 if unset), off otherwise (see reminderWindow.ts).
+//     (or a guessed Oct 6 if unset), off otherwise (see reminderWindow.ts).
 //   - frequency: settings.reminder_every_days (default 1 = daily); only sent
 //     on days where daysSinceEpoch % reminder_every_days === 0.
 // Each email also reports the recipient's rank in the residency for the
 // current discrete 2-week contest period (contestPeriods.ts — non-overlapping
-// periods tiling backward from Oct 7, not a rolling window, so there's an
-// actual winner to declare at each boundary), a countdown-to-exam badge (real
-// exam_date if set, else the same guessed Oct 15 used for the auto window —
-// hidden once the date has passed), a rotating dad joke, and one-click
+// periods tiling backward from a fixed Oct 7 cutoff, not a rolling window, so
+// there's an actual winner to declare at each boundary), a countdown-to-exam
+// badge (real exam_date if set, else the same guessed Oct 6 used for the auto
+// window — hidden once the date has passed), a rotating dad joke, and one-click
 // Unsubscribe / Change frequency links. The morning after each contest period
 // ends, everyone also gets a fun winner-announcement card. The opening
 // greeting and rank-recap sentence are picked from rotating pools

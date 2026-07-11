@@ -5,7 +5,7 @@
 `settings.daily_reminder` is tri-state:
 - `null` (the default for every new signup) = **auto** — on during the 90 days
   before the user's exam date, off after. If they haven't set an exam date,
-  a guessed **Oct 15** is used instead (`reminderWindow.ts`, mirrored client-side
+  a guessed **Oct 6** is used instead (`reminderWindow.ts`, mirrored client-side
   in `src/lib/reminderWindow.ts`).
 - `true` / `false` = the user explicitly overrode it — via the Settings
   toggle, the in-app prompt, or the email's Unsubscribe link — and auto mode
@@ -20,17 +20,17 @@ Each email includes:
   current discrete 2-week **contest period** — computed fresh from `answers`
   at send time, no separate leaderboard table needed. Contest periods
   (`contestPeriods.ts`) are non-overlapping 2-week blocks tiling *backward*
-  from a fixed cutoff of **Oct 7** (8 days before the guessed/real Oct 15 exam
-  date) — not a rolling window, so each period has an actual winner. No
-  periods run past Oct 7; the final stretch before the exam is left as
-  individual cram time. Once the season's over, ranking falls back to a
-  rolling trailing-14-day window;
+  from a fixed cutoff of **Oct 7** — pinned to that calendar date on its own,
+  independent of the guessed/real exam date — not a rolling window, so each
+  period has an actual winner. No periods run past Oct 7; the final stretch
+  before the exam is left as individual cram time. Once the season's over,
+  ranking falls back to a rolling trailing-14-day window;
 - **the morning after each contest period ends**, every recipient also gets a
   fun trophy/confetti winner-announcement card (framed as "You won!" for the
   winner(s), or "<name> took the crown!" for everyone else; ties share the
   win and are listed by first name);
 - a countdown-to-exam badge — days until the recipient's real `exam_date`, or
-  the same guessed Oct 15 used for the auto window if they haven't set one
+  the same guessed Oct 6 used for the auto window if they haven't set one
   (labeled "estimated" in that case); hidden once the date has passed;
 - a rotating "dad joke of the day" (`jokes.ts`, 90-entry pool, one per calendar
   day before repeating);
