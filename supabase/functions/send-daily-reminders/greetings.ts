@@ -82,5 +82,6 @@ export function rankLineForToday(answered: number, rank: number, total: number):
     .replace(/\{answered\}/g, String(answered))
     .replace(/\{qWord\}/g, qWord)
     .replace(/\{rank\}/g, String(rank))
-    .replace(/\{total\}/g, String(total));
+    .replace(/\{total\}/g, String(total))
+    .replace(/<b>/g, '<b style="color:#0e7a6b">'); // teal highlight, centralized here rather than in all 24 templates
 }

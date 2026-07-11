@@ -119,19 +119,21 @@ Deno.serve(async (req) => {
 
   const joke = jokeForToday();
 
-  // Countdown "badge" to the recipient's (real or guessed) exam date. Built as
+  // Countdown "pill" to the recipient's (real or guessed) exam date. Built as
   // an HTML table for email-client compatibility (Outlook's Word engine
   // ignores border-radius gracefully but still lays the table out fine).
   const countdownHtml = (examDate: string | null): string => {
     const n = daysUntilExam(examDate, today);
     if (n < 0) return ""; // exam date has passed — nothing useful to show
-    const label = n === 0 ? "Exam day is today!" : `day${n === 1 ? "" : "s"} until your PRITE exam`;
-    const big = n === 0 ? "🎉" : String(n);
-    const note = examDate ? "" : `<p style="text-align:center;font-size:11.5px;color:#9aa0ab;margin:0 0 4px">(estimated — set your real exam date in Settings for an exact countdown)</p>`;
-    return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:18px auto"><tr><td style="background:#0e7a6b;border-radius:14px;padding:16px 30px;text-align:center">
-        <div style="font-size:34px;font-weight:800;color:#fff;line-height:1;font-family:-apple-system,Segoe UI,system-ui,sans-serif">${big}</div>
-        <div style="font-size:11.5px;color:#cdeee5;text-transform:uppercase;letter-spacing:.06em;margin-top:4px;font-family:-apple-system,Segoe UI,system-ui,sans-serif">${label}</div>
-      </td></tr></table>${note}`;
+    const inner = n === 0
+      ? `<span style="font-size:15px;font-weight:800;color:#0e7a6b">🎉 Exam day is today — good luck!</span>`
+      : `<span style="font-size:15px;font-weight:800;color:#0e7a6b">🗓️ ${n} day${n === 1 ? "" : "s"}</span><span style="font-size:13px;color:#5c6d6a"> until your PRITE exam</span>`;
+    const note = examDate ? "" : `<p style="font-size:11.5px;color:#9aa0ab;margin:6px 0 0;font-family:-apple-system,Segoe UI,system-ui,sans-serif">Estimated — set your real exam date in Settings for an exact countdown.</p>`;
+    return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 6px"><tr>
+        <td style="background:#eaf5f2;border:1px solid #c3e2da;border-radius:999px;padding:8px 16px;font-family:-apple-system,Segoe UI,system-ui,sans-serif;white-space:nowrap">
+          ${inner}
+        </td>
+      </tr></table>${note}`;
   };
 
   let sent = 0; const failures: string[] = [];
@@ -145,17 +147,35 @@ Deno.serve(async (req) => {
     const unsubUrl = `${supabaseUrl}/functions/v1/unsubscribe-reminder?u=${encodeURIComponent(r.id)}&t=${unsubToken}`;
     const settingsUrl = `${appUrl}/?openSettings=1`;
     const html = `<div style="font-family:-apple-system,Segoe UI,system-ui,sans-serif;max-width:520px;margin:0 auto">
-      <h2 style="color:#0e7a6b;margin:0 0 6px">PRITE Daily</h2>
-      <p style="font-size:15px;line-height:1.5;color:#23262f">${greeting}</p>
-      <p style="font-size:15px;line-height:1.5;color:#23262f">${rankLine}</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px"><tr>
+        <td style="width:32px;height:32px;background:#0e7a6b;border-radius:9px;text-align:center;vertical-align:middle;font-size:15px;font-weight:800;color:#fff;font-family:-apple-system,Segoe UI,system-ui,sans-serif">P</td>
+        <td style="padding-left:9px;font-size:18px;font-weight:800;color:#0e7a6b;font-family:-apple-system,Segoe UI,system-ui,sans-serif;vertical-align:middle">PRITE Daily</td>
+      </tr></table>
+
+      <p style="font-size:15px;line-height:1.55;color:#23262f;margin:0 0 12px">${greeting}</p>
+      <p style="font-size:15px;line-height:1.55;color:#23262f;margin:0 0 18px">${rankLine}</p>
+
       ${countdownHtml(r.examDate)}
-      <p style="margin:18px 0;text-align:center"><a href="${appUrl}" style="background:#0e7a6b;color:#fff;text-decoration:none;font-weight:700;padding:11px 20px;border-radius:10px;font-size:15px">Do today's set →</a></p>
-      <p style="font-size:13.5px;line-height:1.5;color:#6c7280;background:#f5f3ee;border-radius:10px;padding:12px 14px">😄 <b>Dad joke of the day:</b> ${joke}</p>
-      <p style="font-size:12px;color:#9aa0ab;margin:20px 0 8px">You're getting this because daily reminders are on for your account.</p>
-      <p style="margin:0">
-        <a href="${unsubUrl}" style="display:inline-block;border:1px solid #d8dbe2;color:#6c7280;text-decoration:none;font-size:12.5px;font-weight:600;padding:8px 16px;border-radius:8px">Unsubscribe</a>
-        <a href="${settingsUrl}" style="display:inline-block;border:1px solid #d8dbe2;color:#6c7280;text-decoration:none;font-size:12.5px;font-weight:600;padding:8px 16px;border-radius:8px;margin-left:8px">Change frequency</a>
-      </p>
+
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:16px 0 22px"><tr>
+        <td style="background:#0e7a6b;border-radius:10px;padding:12px 22px">
+          <a href="${appUrl}" style="color:#fff;text-decoration:none;font-weight:700;font-size:15px;font-family:-apple-system,Segoe UI,system-ui,sans-serif">Do today's set →</a>
+        </td>
+      </tr></table>
+
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 22px"><tr>
+        <td style="background:#f7f4ee;border-left:3px solid #d8b45a;border-radius:0 10px 10px 0;padding:13px 15px;font-family:-apple-system,Segoe UI,system-ui,sans-serif">
+          <div style="font-size:13.5px;color:#6c7280;line-height:1.5"><span style="font-size:15px">😄</span> <b style="color:#4a4030">Dad joke of the day</b><br>${joke}</div>
+        </td>
+      </tr></table>
+
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-top:1px solid #ece5d8;margin:0 0 14px"><tr><td style="padding-top:14px"></td></tr></table>
+
+      <p style="font-size:11.5px;color:#9aa0ab;margin:0 0 12px;font-family:-apple-system,Segoe UI,system-ui,sans-serif">You're getting this because daily reminders are on for your account.</p>
+      <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+        <td style="padding-right:8px"><a href="${unsubUrl}" style="display:inline-block;border:1px solid #e2e5ea;color:#6c7280;text-decoration:none;font-size:12px;font-weight:600;padding:7px 14px;border-radius:8px;font-family:-apple-system,Segoe UI,system-ui,sans-serif">Unsubscribe</a></td>
+        <td><a href="${settingsUrl}" style="display:inline-block;border:1px solid #e2e5ea;color:#6c7280;text-decoration:none;font-size:12px;font-weight:600;padding:7px 14px;border-radius:8px;font-family:-apple-system,Segoe UI,system-ui,sans-serif">Change frequency</a></td>
+      </tr></table>
     </div>`;
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
