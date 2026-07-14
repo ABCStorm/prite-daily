@@ -6923,50 +6923,50 @@
     "answer_raw": "A. Make a will",
     "explanation_text": "",
     "figure_images": [],
-    "explanation_images": [],
+    "explanation_images": [
+      "images/2025/2025_q161_exp309_1.png"
+    ],
     "flags": []
   },
   {
     "deck": "2025 PRITE.pptx",
     "year": "2025",
     "q_index": 161,
-    "slide_number": 308,
-    "stem": "The term \"testamentary capacity\" refers to the ability of a person to carry out which of the following actions?",
+    "slide_number": 17,
+    "stem": "Which of the following characteristics of sleep occurs late in life?",
     "options": [
       {
         "letter": "A",
-        "text": "Make a will"
+        "text": "Less frequent arousals"
       },
       {
         "letter": "B",
-        "text": "Make a monetary gift"
+        "text": "Increased total sleep time"
       },
       {
         "letter": "C",
-        "text": "Refuse a medical procedure"
+        "text": "Decreased rapid eye movement sleep"
       },
       {
         "letter": "D",
-        "text": "Designate a power of attorney"
+        "text": "Increased percentage of stage four sleep"
       },
       {
         "letter": "E",
-        "text": "Serve as a witness in a criminal trial"
+        "text": "Decreased percentage of stage two sleep"
       }
     ],
-    "answer_letter": "A",
+    "answer_letter": "C",
     "answer_letters": [
-      "A"
+      "C"
     ],
     "multi_select": false,
-    "answer_text": "Make a will",
+    "answer_text": "Decreased rapid eye movement sleep",
     "answer_source": "letter",
-    "answer_raw": "A. Make a will",
-    "explanation_text": "",
+    "answer_raw": "C. Decreased rapid eye movement sleep",
+    "explanation_text": "Aging is associated with a decreased percentage of REM sleep, along with reduced slow-wave (stage N3) sleep, more nighttime awakenings, and reduced total sleep time.\n\nWhy not the others:\n• Arousals become MORE frequent with age, not less.\n• Total sleep time decreases, not increases.\n• Stage four (slow-wave) sleep percentage decreases, not increases.\n• Stage two sleep changes are less prominent than the REM and slow-wave declines.\n\nMemory hook: Older sleep is lighter and shorter — REM and deep (N3) sleep both shrink with age.",
     "figure_images": [],
-    "explanation_images": [
-      "images/2025/2025_q161_exp309_1.png"
-    ],
+    "explanation_images": [],
     "flags": []
   },
   {
@@ -9303,39 +9303,39 @@
     "deck": "2025 PRITE.pptx",
     "year": "2025",
     "q_index": 216,
-    "slide_number": 425,
-    "stem": "Which of the following is a root cause of the phenomenon of infantile amnesia?",
+    "slide_number": 20,
+    "stem": "In patients with Trisomy 21 (Down syndrome), there are three copies of the gene coding for which of the following proteins?",
     "options": [
       {
         "letter": "A",
-        "text": "Immaturity of the medial temporal brain regions"
+        "text": "Presenilin 1 protein"
       },
       {
         "letter": "B",
-        "text": "Gradual maturation of the neocortex during infancy"
+        "text": "Presenilin 2 protein"
       },
       {
         "letter": "C",
-        "text": "Capacity for skill learning not developing until age three"
+        "text": "Apolipoprotein, (APOE)-e2"
       },
       {
         "letter": "D",
-        "text": "Inability of adults to access early stored conscious memories"
+        "text": "Apolipoprotein, (APOE)-e4"
       },
       {
         "letter": "E",
-        "text": "Declarative memory emerges before nondeclarative memory"
+        "text": "Amyloid precursor protein (APP)"
       }
     ],
-    "answer_letter": "B",
+    "answer_letter": "E",
     "answer_letters": [
-      "B"
+      "E"
     ],
     "multi_select": false,
-    "answer_text": "Gradual maturation of the neocortex during infancy",
+    "answer_text": "Amyloid precursor protein (APP)",
     "answer_source": "letter",
-    "answer_raw": "B. Gradual maturation of the neocortex during infancy",
-    "explanation_text": "",
+    "answer_raw": "E. Amyloid precursor protein (APP)",
+    "explanation_text": "The APP gene is located on chromosome 21. Trisomy 21 therefore produces an extra copy (three total) of APP, leading to lifelong APP overexpression and a markedly increased risk of early-onset Alzheimer-type neuropathology (amyloid plaques) — most people with Down syndrome develop Alzheimer's neuropathology by their 40s.\n\nWhy not the others:\n• Presenilin 1 is on chromosome 14, presenilin 2 on chromosome 1 — not triplicated in Down syndrome.\n• APOE (both e2 and e4 alleles) is on chromosome 19; APOE genotype modifies risk but isn't triplicated.\n\nMemory hook: 21 causes Down syndrome AND carries APP — trisomy 21 = triple APP = early Alzheimer pathology.",
     "figure_images": [],
     "explanation_images": [],
     "flags": []
@@ -12688,5 +12688,333 @@
       "multi_select",
       "many_7_options"
     ]
+  },
+  {
+    "deck": "2025 PRITE.pptx",
+    "year": "2025",
+    "q_index": 293,
+    "slide_number": 21,
+    "stem": "The behavioral and visceral responses in fear are mediated by projections to the brainstem and hypothalamic nuclei from which of the following?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Locus coeruleus"
+      },
+      {
+        "letter": "B",
+        "text": "Medial prefrontal cortex"
+      },
+      {
+        "letter": "C",
+        "text": "Dentate gyrus of the hippocampus"
+      },
+      {
+        "letter": "D",
+        "text": "The shell of the nucleus accumbens"
+      },
+      {
+        "letter": "E",
+        "text": "Centromedial nuclei of the amygdala"
+      }
+    ],
+    "answer_letter": "E",
+    "answer_letters": [
+      "E"
+    ],
+    "multi_select": false,
+    "answer_text": "Centromedial nuclei of the amygdala",
+    "answer_source": "letter",
+    "answer_raw": "E. Centromedial nuclei of the amygdala",
+    "explanation_text": "The central (centromedial) nucleus of the amygdala is the main output station of the fear circuit: it projects to the hypothalamus and brainstem nuclei to generate the autonomic (visceral) and behavioral (freezing, startle) components of the fear response.\n\nWhy not the others:\n• Locus coeruleus is a noradrenergic output nucleus, not the amygdalar integration site.\n• Medial prefrontal cortex modulates/inhibits amygdala output rather than driving it.\n• Dentate gyrus is involved in memory encoding, not fear output.\n• Nucleus accumbens shell is central to reward, not fear expression.\n\nMemory hook: Central = the amygdala's \"central\" output nucleus for fear.",
+    "figure_images": [],
+    "explanation_images": [],
+    "flags": []
+  },
+  {
+    "deck": "2025 PRITE.pptx",
+    "year": "2025",
+    "q_index": 294,
+    "slide_number": 23,
+    "stem": "What is the most likely impact on children raised by gay or lesbian parents?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Increased rates of personality disorders"
+      },
+      {
+        "letter": "B",
+        "text": "Decreased prevalence of anxiety disorders"
+      },
+      {
+        "letter": "C",
+        "text": "Increased prevalence of depressive disorders"
+      },
+      {
+        "letter": "D",
+        "text": "Absence of adverse psychological consequences"
+      },
+      {
+        "letter": "E",
+        "text": "Increased likelihood of influencing eventual sexual orientation"
+      }
+    ],
+    "answer_letter": "D",
+    "answer_letters": [
+      "D"
+    ],
+    "multi_select": false,
+    "answer_text": "Absence of adverse psychological consequences",
+    "answer_source": "letter",
+    "answer_raw": "D. Absence of adverse psychological consequences",
+    "explanation_text": "A large body of research consistently finds no significant differences in psychological adjustment, gender identity, or sexual orientation between children raised by gay/lesbian parents versus heterosexual parents.\n\nWhy not the others:\n• Rates of personality disorders, anxiety, and depression are not shown to differ.\n• Parental sexual orientation does not predict the child's eventual sexual orientation.\n\nMemory hook: The research finding here is a null finding — no adverse effect, not a positive or negative one.",
+    "figure_images": [],
+    "explanation_images": [],
+    "flags": []
+  },
+  {
+    "deck": "2025 PRITE.pptx",
+    "year": "2025",
+    "q_index": 295,
+    "slide_number": 34,
+    "stem": "The psychoeducation component of cognitive behavioral therapy for adolescents often utilizes which of the following treatment strategies?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Eliciting information about family dynamics"
+      },
+      {
+        "letter": "B",
+        "text": "Self-monitoring of emotional states with daily diaries"
+      },
+      {
+        "letter": "C",
+        "text": "Social skills training to enhance psychosocial interactions with peers"
+      },
+      {
+        "letter": "D",
+        "text": "Behavioral assessment through clinical interview and screening tools"
+      },
+      {
+        "letter": "E",
+        "text": "Obtaining information about the patient's academic performance from teachers"
+      }
+    ],
+    "answer_letter": "B",
+    "answer_letters": [
+      "B"
+    ],
+    "multi_select": false,
+    "answer_text": "Self-monitoring of emotional states with daily diaries",
+    "answer_source": "letter",
+    "answer_raw": "B. Self-monitoring of emotional states with daily diaries",
+    "explanation_text": "Psychoeducation in CBT teaches the patient the cognitive model (thoughts-feelings-behaviors) and typically includes self-monitoring tools, such as mood/thought diaries, so the adolescent learns to identify and track their own emotional states and triggers in real time.\n\nWhy not the others:\n• Eliciting family dynamics and academic information from teachers are assessment/collateral-history steps, not psychoeducation.\n• Social skills training and formal behavioral assessment are distinct treatment components, not the psychoeducation piece itself.\n\nMemory hook: Psychoeducation = teaching the patient the model + giving them a self-monitoring tool (diary) to apply it.",
+    "figure_images": [],
+    "explanation_images": [],
+    "flags": []
+  },
+  {
+    "deck": "2025 PRITE.pptx",
+    "year": "2025",
+    "q_index": 296,
+    "slide_number": 37,
+    "stem": "Which of the following best describes the function of microRNA?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Regulates gene expression"
+      },
+      {
+        "letter": "B",
+        "text": "Stops parasitic genetic elements"
+      },
+      {
+        "letter": "C",
+        "text": "Directly chemically modifies other RNAs"
+      },
+      {
+        "letter": "D",
+        "text": "Carries the transcribed message from DNA"
+      },
+      {
+        "letter": "E",
+        "text": "Splices the immature RNAs to reach their final form"
+      }
+    ],
+    "answer_letter": "A",
+    "answer_letters": [
+      "A"
+    ],
+    "multi_select": false,
+    "answer_text": "Regulates gene expression",
+    "answer_source": "letter",
+    "answer_raw": "A. Regulates gene expression",
+    "explanation_text": "microRNAs are small non-coding RNAs that bind complementary sequences on messenger RNA to post-transcriptionally regulate (typically silence/degrade) gene expression.\n\nWhy not the others:\n• Restricting parasitic genetic elements (transposons) is more characteristic of piRNAs.\n• Chemical modification of other RNAs describes small nucleolar RNAs (snoRNAs).\n• Carrying the transcribed message from DNA is the role of messenger RNA (mRNA) itself.\n• Splicing immature RNA into final form is performed by the spliceosome (snRNPs), not microRNA.\n\nMemory hook: microRNA = micromanager of gene expression, silencing target mRNAs.",
+    "figure_images": [],
+    "explanation_images": [],
+    "flags": []
+  },
+  {
+    "deck": "2025 PRITE.pptx",
+    "year": "2025",
+    "q_index": 297,
+    "slide_number": 41,
+    "stem": "Cortical brain areas form connections between cerebral hemispheres via which of the following?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Projection Fibers"
+      },
+      {
+        "letter": "B",
+        "text": "Commissural Fibers"
+      },
+      {
+        "letter": "C",
+        "text": "Associational Fibers"
+      },
+      {
+        "letter": "D",
+        "text": "Corticobulbar tracts"
+      },
+      {
+        "letter": "E",
+        "text": "Corticopontine tracts"
+      }
+    ],
+    "answer_letter": "B",
+    "answer_letters": [
+      "B"
+    ],
+    "multi_select": false,
+    "answer_text": "Commissural Fibers",
+    "answer_source": "letter",
+    "answer_raw": "B. Commissural Fibers",
+    "explanation_text": "Commissural fibers (e.g., the corpus callosum, anterior commissure) connect homologous cortical areas across the two cerebral hemispheres.\n\nWhy not the others:\n• Projection fibers connect cortex to subcortical structures/spinal cord (e.g., internal capsule).\n• Associational fibers connect cortical areas within the same hemisphere.\n• Corticobulbar and corticopontine tracts are projection fibers descending to the brainstem, not interhemispheric connections.\n\nMemory hook: Commissural = a \"co-mission\" between the two hemispheres; corpus callosum is the classic example.",
+    "figure_images": [],
+    "explanation_images": [],
+    "flags": []
+  },
+  {
+    "deck": "2025 PRITE.pptx",
+    "year": "2025",
+    "q_index": 298,
+    "slide_number": 45,
+    "stem": "An effectiveness study differs from an efficacy study in that it includes which of the following?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Blind assessments"
+      },
+      {
+        "letter": "B",
+        "text": "Random assignment"
+      },
+      {
+        "letter": "C",
+        "text": "Real-world conditions"
+      },
+      {
+        "letter": "D",
+        "text": "Restrictive inclusion criteria"
+      },
+      {
+        "letter": "E",
+        "text": "Circumscribed clinical population"
+      }
+    ],
+    "answer_letter": "C",
+    "answer_letters": [
+      "C"
+    ],
+    "multi_select": false,
+    "answer_text": "Real-world conditions",
+    "answer_source": "letter",
+    "answer_raw": "C. Real-world conditions",
+    "explanation_text": "Effectiveness studies test how an intervention performs under real-world clinical conditions (heterogeneous patients, comorbidities, routine practice settings), whereas efficacy studies test how well it works under ideal, tightly-controlled conditions.\n\nWhy not the others:\n• Blind assessment and random assignment are design features common to both efficacy and (many) effectiveness/pragmatic trials.\n• Restrictive inclusion criteria and a circumscribed clinical population are hallmarks of efficacy trials, the opposite of what defines effectiveness studies.\n\nMemory hook: Efficacy = ideal/\"in the lab,\" Effectiveness = \"in everyday practice/real world.\"",
+    "figure_images": [],
+    "explanation_images": [],
+    "flags": []
+  },
+  {
+    "deck": "2025 PRITE.pptx",
+    "year": "2025",
+    "q_index": 299,
+    "slide_number": 92,
+    "stem": "Which of the following medications has the greatest teratogenic risk?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Lithium"
+      },
+      {
+        "letter": "B",
+        "text": "Quetiapine"
+      },
+      {
+        "letter": "C",
+        "text": "Aripiprazole"
+      },
+      {
+        "letter": "D",
+        "text": "Lamotrigine"
+      },
+      {
+        "letter": "E",
+        "text": "Valproic acid"
+      }
+    ],
+    "answer_letter": "E",
+    "answer_letters": [
+      "E"
+    ],
+    "multi_select": false,
+    "answer_text": "Valproic acid",
+    "answer_source": "letter",
+    "answer_raw": "E. Valproic acid",
+    "explanation_text": "Valproic acid carries the highest teratogenic risk among mood stabilizers, including neural tube defects (spina bifida), craniofacial anomalies, and significant risk of long-term neurodevelopmental/cognitive impairment — it is generally avoided in women of childbearing potential when alternatives exist.\n\nWhy not the others:\n• Lithium carries a real but comparatively lower risk (Ebstein's anomaly, dose- and trimester-dependent).\n• Lamotrigine has one of the more favorable reproductive safety profiles among mood stabilizers.\n• Quetiapine and aripiprazole (atypical antipsychotics) have comparatively lower known teratogenic risk than valproate.\n\nMemory hook: Valproate = highest teratogenic risk of the mood stabilizers — avoid in women who could become pregnant.",
+    "figure_images": [],
+    "explanation_images": [],
+    "flags": []
+  },
+  {
+    "deck": "2025 PRITE.pptx",
+    "year": "2025",
+    "q_index": 300,
+    "slide_number": 461,
+    "stem": "Which of the following refers to the epigenetic phenomenon that permits non-Mendelian inheritance?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "aneuploidy"
+      },
+      {
+        "letter": "B",
+        "text": "microdeletions"
+      },
+      {
+        "letter": "C",
+        "text": "ring chromosomes"
+      },
+      {
+        "letter": "D",
+        "text": "genomic imprinting"
+      },
+      {
+        "letter": "E",
+        "text": "segmental translocation"
+      }
+    ],
+    "answer_letter": "D",
+    "answer_letters": [
+      "D"
+    ],
+    "multi_select": false,
+    "answer_text": "genomic imprinting",
+    "answer_source": "letter",
+    "answer_raw": "D. genomic imprinting",
+    "explanation_text": "Genomic imprinting is an epigenetic process (via DNA methylation) in which genes are expressed in a parent-of-origin-specific manner — only the maternal or only the paternal copy is active — producing inheritance patterns that don't follow classic Mendelian rules (e.g., Prader-Willi/Angelman syndromes arising from the same 15q11-13 deletion, depending on which parent's chromosome is affected).\n\nWhy not the others:\n• Aneuploidy, microdeletions, ring chromosomes, and segmental translocations are structural/numerical chromosomal abnormalities, not parent-of-origin epigenetic silencing.\n\nMemory hook: Imprinting = an epigenetic \"stamp\" marking which parent's gene copy gets expressed.",
+    "figure_images": [],
+    "explanation_images": [],
+    "flags": []
   }
 ]
