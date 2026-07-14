@@ -11,7 +11,7 @@ export const ROSTER: RosterEntry[] = [
   { first: "Hunter", last: "Smothers", year: "2026" }, { first: "Benjamin", last: "Wise", year: "2026" },
   { first: "David", last: "Zealley", year: "2026" },
   { first: "Samantha", last: "Achauer", year: "2027" }, { first: "Ryan", last: "Bernal", year: "2027" },
-  { first: "Katie", last: "Clark", year: "2027" }, { first: "Samantha", last: "Courtney", year: "2027" },
+  { first: "Katie", last: "Clark", year: "2027" }, { first: "Samantha", last: "Peralta", year: "2027" },
   { first: "Sarah", last: "Craft", year: "2027" }, { first: "Smiti", last: "Gupta", year: "2027" },
   { first: "Saagar", last: "Kulkarni", year: "2027" }, { first: "Sondos", last: "Mishal", year: "2027" },
   { first: "Robert", last: "Rodgers", year: "2027" }, { first: "Samantha", last: "Ruffe", year: "2027" },

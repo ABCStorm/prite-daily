@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import type { TeamStanding } from "./poll";
+import { sm2Next, SRS_DEFAULT, type SrsGrade, type SrsState } from "./srs";
 
 /* Typed data access over the Supabase tables + RPCs. Every function is a no-op
    (returns null / []) when Supabase isn't configured, so callers don't have to
@@ -197,6 +198,29 @@ export async function updateBugReport(id: string, status: string): Promise<void>
   await supabase.from("bug_reports")
     .update({ status, resolved_at: status === "open" ? null : new Date().toISOString() })
     .eq("id", id);
+}
+
+/* --- stable (season-long) poll teams --- */
+
+/** profile_id -> team name, for the fixed roster that stays the same across
+    every poll session until an admin regenerates it (see lib/poll.ts). */
+export async function getStableTeams(): Promise<Record<string, string>> {
+  if (!supabase) return {};
+  const { data, error } = await supabase.from("stable_teams").select("profile_id, team_name");
+  if (error) { console.warn("getStableTeams", error.message); return {}; }
+  const out: Record<string, string> = {};
+  for (const row of data ?? []) out[row.profile_id as string] = row.team_name as string;
+  return out;
+}
+
+/** Admin: wipe and replace the whole stable-team roster in one transaction
+    (via an RPC so a failure can't leave it half-deleted). */
+export async function regenerateStableTeams(assignments: Record<string, string>): Promise<boolean> {
+  if (!supabase) return false;
+  const rows = Object.entries(assignments).map(([profile_id, team_name]) => ({ profile_id, team_name }));
+  const { error } = await supabase.rpc("regenerate_stable_teams", { rows });
+  if (error) { console.warn("regenerateStableTeams", error.message); return false; }
+  return true;
 }
 
 /** Per-question vote breakdown, snapshotted when a presenter marks a live
@@ -428,6 +452,76 @@ export async function saveFlashcard(questionId: string, cloze: string, extra: st
     { question_id: questionId, cloze_text: cloze, extra, updated_at: new Date().toISOString() },
     { onConflict: "question_id" }
   );
+}
+
+/* --- spaced repetition (private, per user + question) — SM-2 review queue over
+   missed questions. Card content (front/back) is the existing `flashcards`
+   cloze card for the same question_id; this table only tracks scheduling. --- */
+export type SrsRow = {
+  user_id: string;
+  question_id: string;
+  ease_factor: number;
+  interval_days: number;
+  repetitions: number;
+  due_at: string;
+  last_grade: SrsGrade | null;
+  reviewed_count: number;
+  last_reviewed_at: string | null;
+};
+
+/** Start tracking a question for review (called when it's missed). No-op if
+    already tracked — grading progress is never reset by re-missing a question
+    in the regular quiz, only by grading "Again" in the Review panel itself. */
+export async function ensureTrackedForReview(questionId: string): Promise<void> {
+  if (!supabase) return;
+  const { data: u } = await supabase.auth.getUser();
+  if (!u.user) return;
+  const { error } = await supabase.from("spaced_repetition").upsert(
+    { user_id: u.user.id, question_id: questionId, due_at: new Date().toISOString() },
+    { onConflict: "user_id,question_id", ignoreDuplicates: true }
+  );
+  if (error) console.warn("ensureTrackedForReview", error.message);
+}
+
+/** Every card due for review right now (due_at <= now), oldest-due first. */
+export async function getDueReviewCards(): Promise<SrsRow[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("spaced_repetition").select("*")
+    .lte("due_at", new Date().toISOString())
+    .order("due_at", { ascending: true });
+  if (error) { console.warn("getDueReviewCards", error.message); return []; }
+  return (data ?? []) as SrsRow[];
+}
+
+/** Apply a grade to a review card via SM-2 and reschedule it. Returns the new
+    due date (ISO) so the caller can show a "next review in..." confirmation. */
+export async function gradeReviewCard(questionId: string, grade: SrsGrade): Promise<string | null> {
+  if (!supabase) return null;
+  const { data: u } = await supabase.auth.getUser();
+  if (!u.user) return null;
+  const uid = u.user.id;
+  const { data: existing } = await supabase
+    .from("spaced_repetition").select("ease_factor, interval_days, repetitions, reviewed_count")
+    .eq("user_id", uid).eq("question_id", questionId).maybeSingle();
+  const prev: SrsState = existing
+    ? { ease_factor: existing.ease_factor, interval_days: existing.interval_days, repetitions: existing.repetitions }
+    : SRS_DEFAULT;
+  const next = sm2Next(prev, grade);
+  const now = new Date();
+  const dueAt = new Date(now.getTime() + next.interval_days * 86400000).toISOString();
+  const { error } = await supabase.from("spaced_repetition").upsert(
+    {
+      user_id: uid, question_id: questionId,
+      ease_factor: next.ease_factor, interval_days: next.interval_days, repetitions: next.repetitions,
+      due_at: dueAt, last_grade: grade,
+      reviewed_count: (existing?.reviewed_count ?? 0) + 1, last_reviewed_at: now.toISOString(),
+      updated_at: now.toISOString(),
+    },
+    { onConflict: "user_id,question_id" }
+  );
+  if (error) { console.warn("gradeReviewCard", error.message); return null; }
+  return dueAt;
 }
 
 export type TagMissRow = { tag: string; label: string; attempts: number; missed: number; miss_pct: number };

@@ -5,7 +5,9 @@ import {
   ArrowLeft, ListChecks, LogOut, Clock, Settings as SettingsIcon,
   Sparkles, Target, RotateCcw, BarChart3, Pencil, Search, FileText, ExternalLink,
   TrendingUp, Youtube, Network, Zap, Crown, Radio, Lightbulb, Highlighter, Bug,
-  ChevronDown, ChevronRight, Share2, Archive, Baby, Mail,
+  ChevronDown, ChevronRight, Share2, Archive, Baby, Mail, Minus, Plus, Repeat,
+  Eye, EyeOff, PanelRight, PanelBottom,
+  BookOpen, Volume2, Play, Pause, Square, Copy,
 } from "lucide-react";
 import mermaid from "mermaid";
 import QRCode from "qrcode";
@@ -37,14 +39,14 @@ import { recordToday, peekStreak, totalDays, ymd } from "./lib/streaks";
 import { dueReminderPromptStage, markReminderPromptShown } from "./lib/reminderPrompt";
 import { isAutoReminderActive, guessedExamDate } from "./lib/reminderWindow";
 import {
-  makePollCode, channelName, pollJoinUrl, pollCodeFromUrl, clearPollParam,
-  POLL_EVENTS, type PollState, type PollVote, type PollHello, type TeamStanding,
+  makePollCode, channelName, pollJoinUrl, pollCodeFromUrl, clearPollParam, assignBalancedTeams, stableTeamLevel,
+  POLL_EVENTS, type PollState, type PollVote, type PollHello, type PollAssign, type TeamStanding, type TeamMode,
 } from "./lib/poll";
 import {
   loadQuestionBank,
   getMyAnswers, saveAnswer, clearMissedAnswers, getMyNote, saveMyNote,
   getGroupNotes, addGroupNote, deleteGroupNote,
-  listProfiles, updateProfile, setTrainingLevel,
+  listProfiles, updateProfile, setTrainingLevel, getStableTeams, regenerateStableTeams,
   getQuestionStats, getLeaderboard,
   getMySettings, saveSettings,
   getAllMyNotes, getAllGroupNotes,
@@ -53,12 +55,18 @@ import {
   getMyHighlights, saveMyHighlights, getQuestionContext,
   submitBugReport, listBugReports, updateBugReport,
   submitOfficialPollResults, listOfficialPollResults, clearOfficialPollResults,
+  ensureTrackedForReview, getDueReviewCards, gradeReviewCard,
   type AnswerRow, type GroupNote as DbGroupNote, type Profile,
   type QuestionStats, type LeaderRow, type Settings, type TagMissRow, type Flashcard, type HlRange, type BugReport,
-  type OfficialPollResult, type QuestionStat,
+  type OfficialPollResult, type QuestionStat, type SrsRow,
 } from "./lib/db";
-import { exportMyNotes, exportGroupNotes, exportMissed, ankingLecture, exportPptx, exportPollTeams, exportOfficialPollResults } from "./lib/exports";
+import { exportMyNotes, exportGroupNotes, exportMissed, ankingLecture, exportPptx, exportPollTeams, exportOfficialPollResults, exportPollMissed } from "./lib/exports";
 import { loadTests, saveTest, renameTest, deleteTest, type SavedTest } from "./lib/tests";
+import {
+  generateStudyGuide, getStudyGuideForTest, getStudyGuide, getStudyGuideAudioUrl, studyGuideUrl,
+  studyGuideIdFromUrl, clearStudyParam, type StudyGuide,
+} from "./lib/studyGuides";
+import { SRS_GRADES, intervalLabel, sm2Next, SRS_DEFAULT, type SrsGrade, type SrsState } from "./lib/srs";
 
 /* ----------------------------------------------------------------------
    PRITE daily question screen — now driven by the REAL extracted bank
@@ -244,6 +252,15 @@ function renderClozePreview(text: string) {
     return <span key={i} style={s.blank}>[ {m[1]} ]</span>;
   });
 }
+/** The fully "solved" sentence — cloze markup resolved to plain text, with
+    the previously-blanked words called out. Used once a card is revealed. */
+function renderClozeResolved(text: string) {
+  return text.split(/(\{\{c\d::[^}]*\}\})/g).map((p, i) => {
+    const m = p.match(/^\{\{(c\d)::([^}]*)\}\}$/);
+    if (!m) return <span key={i}>{p}</span>;
+    return <b key={i} style={{ color: T.teal }}>{m[2]}</b>;
+  });
+}
 
 function isSameDay(iso: string) {
   const d = new Date(iso), n = new Date();
@@ -343,13 +360,42 @@ export default function App() {
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const commitSecs = () => { const n = clampSecs(Number(secsDraft)); setTimerSecs(n); setSecsDraft(String(n)); };
 
+  // --- study guides (prep page + audio overview generated from a saved test) ---
+  const [openStudyGuideId, setOpenStudyGuideId] = useState<string | null>(null); // reading/listening the shared page
+  const [pendingGuideTest, setPendingGuideTest] = useState<SavedTest | null>(null); // generating one now
+  const [guideToShare, setGuideToShare] = useState<{ guide: StudyGuide; test: SavedTest } | null>(null); // just (re)generated — show the link
+
   // --- live crowd poll (Supabase Realtime, see lib/poll.ts) ---
   const [hostCode, setHostCode] = useState<string | null>(null);   // big screen is hosting
   const [joinCode, setJoinCode] = useState<string | null>(null);   // this device is a participant
   const [hostSet, setHostSet] = useState<RawQuestion[] | null>(null); // poll a saved test instead of the current set
+  const [teamMode, setTeamMode] = useState<TeamMode>("self");      // how teams get formed for the session about to start
+  const [teamModePrompt, setTeamModePrompt] = useState<RawQuestion[] | null | false>(false); // pending "Host poll" click, awaiting the team-mode choice (false = not prompting; null/array = the set to host once chosen)
+  const [stableTeams, setStableTeams] = useState<Record<string, string>>({}); // profile_id -> team name, the season-long roster
+  const startHosting = (mode: TeamMode) => {
+    if (teamModePrompt === false) return;
+    setTeamMode(mode);
+    setHostSet(teamModePrompt);
+    setHostCode(makePollCode());
+    setTeamModePrompt(false);
+  };
+  // Admin: (re)build the season-long roster from everyone's current training
+  // level — one R1, one R2, one R3, one R4-or-fellow per team — and persist it
+  // so it stays the same across sessions until this is run again.
+  const runGenerateStableTeams = async (): Promise<boolean> => {
+    const all = await listProfiles();
+    const entries = all
+      .filter((p) => p.status === "approved")
+      .map((p) => ({ voter: p.id, level: stableTeamLevel(p.training_level) }))
+      .filter((e): e is { voter: string; level: string } => e.level !== null);
+    if (!entries.length) return false;
+    const ok = await regenerateStableTeams(assignBalancedTeams(entries));
+    if (ok) setStableTeams(await getStableTeams());
+    return ok;
+  };
 
   // --- saved tests (hand-picked sets for class sessions, see lib/tests.ts) ---
-  const [savedTests, setSavedTests] = useState<SavedTest[]>(() => loadTests());
+  const [savedTests, setSavedTests] = useState<SavedTest[]>([]);
   const [showTests, setShowTests] = useState(false);
   useEffect(() => { writePref("pd_exam_mode", examMode); }, [examMode]);
   useEffect(() => { writePref("pd_timer_on", timerOn); }, [timerOn]);
@@ -395,6 +441,9 @@ export default function App() {
   const [bugs, setBugs] = useState<BugReport[]>([]);
   const [showOfficialResults, setShowOfficialResults] = useState(false); // admin "official" poll-results archive
   const [officialResults, setOfficialResults] = useState<OfficialPollResult[]>([]);
+  const [showSrs, setShowSrs] = useState(false);          // spaced-repetition review panel
+  const [srsDue, setSrsDue] = useState<SrsRow[]>([]);      // cards due right now (drives the header badge + panel queue)
+  const refreshSrsDue = () => { if (persist) getDueReviewCards().then(setSrsDue); };
   const answersRef = useRef(answers);
   useEffect(() => { answersRef.current = answers; }, [answers]);
 
@@ -404,7 +453,9 @@ export default function App() {
       setAnswersLoaded(false);
       getMyAnswers().then((a) => { setAnswers(a); setAnswersLoaded(true); });
       getMySettings().then(setSettings);
-    } else { setAnswers({}); setAnswersLoaded(false); setSettings(null); }
+      getDueReviewCards().then(setSrsDue);
+      loadTests().then(setSavedTests);
+    } else { setAnswers({}); setAnswersLoaded(false); setSettings(null); setSrsDue([]); setSavedTests([]); }
   }, [persist]);
 
   // build today's set: due-review (missed, past the recycle interval) first,
@@ -461,6 +512,12 @@ export default function App() {
   useEffect(() => {
     if (adminLoggedIn) listProfiles().then(setProfiles);
   }, [adminLoggedIn, showApprovals]);
+
+  // Season-long stable-team roster: any approved member may need to look up
+  // their own team, and admins need it to show/regenerate it from the modal.
+  useEffect(() => {
+    if (isConfigured && signedIn && approved) getStableTeams().then(setStableTeams);
+  }, [isConfigured, signedIn, approved]);
 
   // admins: load bug reports (for the triage panel + open-count badge)
   useEffect(() => {
@@ -766,6 +823,13 @@ export default function App() {
     if (code) { setJoinCode(code); clearPollParam(); }
   }, [persist]);
 
+  // Auto-open a study guide when arriving via a ?study=<id> link.
+  useEffect(() => {
+    if (!persist) return;
+    const id = studyGuideIdFromUrl();
+    if (id) { setOpenStudyGuideId(id); clearStudyParam(); }
+  }, [persist]);
+
   // Auto-open Settings when arriving via the reminder email's "Change
   // frequency" link (?openSettings=1).
   useEffect(() => {
@@ -839,6 +903,7 @@ export default function App() {
       const qid = questionId(q.year, q.q_index);
       const saved = await saveAnswer(qid, picked, right);
       if (saved) setAnswers((m) => ({ ...m, [qid]: saved }));
+      if (!right) { ensureTrackedForReview(qid).then(refreshSrsDue); }
     }
     // Exam mode hides the result, so move straight to the next question.
     if (examActive && qi < set.length - 1) {
@@ -897,6 +962,20 @@ export default function App() {
     setShowDeck(false);
     fire(`Studying ${qs.length} question${qs.length === 1 ? "" : "s"}${label ? ` · ${label}` : ""}`);
   };
+  // Generate (or regenerate) the study guide for a saved test, then show the
+  // share-link modal. Only stem + topic tags are sent to the model — never
+  // options/answer/explanation — so the result can't spoil the quiz.
+  const buildStudyGuide = async (t: SavedTest, force = false) => {
+    const qs = t.qids.map((id) => byId.get(id)).filter(Boolean) as RawQuestion[];
+    if (!qs.length) { fire("None of this test's questions are in the current bank"); return; }
+    setPendingGuideTest(t);
+    const topics = qs.map((q) => ({ stem: q.stem, prite_category: q.prite_category, prite_label: q.prite_label, topics: q.tags?.topics }));
+    const result = await generateStudyGuide(t.id, t.name, topics, force);
+    setPendingGuideTest(null);
+    if ("error" in result) { fire(`Couldn't build the study guide: ${result.error}`); return; }
+    setGuideToShare({ guide: result, test: t });
+  };
+
   // clicking the Custom toggle: jump back into an existing set, or open the picker
   const goCustom = () => {
     if (customQueue.length) switchMode("custom");
@@ -934,6 +1013,10 @@ export default function App() {
     const notes = await getAllMyNotes();
     setAllMyNotes(Object.fromEntries(notes.map((n) => [n.question_id, n.text])));
     setShowMissed(true);
+  };
+  const onGradeSrs = async (qid: string, grade: SrsGrade) => {
+    await gradeReviewCard(qid, grade);
+    setSrsDue((cur) => cur.filter((r) => r.question_id !== qid));
   };
   const doExportMissed = () => {
     exportMissed(missedIds, byId, answers, allMyNotes, displayName);
@@ -1094,6 +1177,11 @@ export default function App() {
           <button style={s.deckBtn} onClick={() => setShowTests(true)} title="Saved tests — hand-picked sets for class sessions">
             <ListChecks size={13} strokeWidth={2.4} /> Tests{savedTests.length ? ` (${savedTests.length})` : ""}
           </button>
+          {persist && (
+            <button style={s.deckBtn} onClick={() => setShowSrs(true)} title="Spaced-repetition flashcard review of questions you've missed">
+              <Repeat size={13} strokeWidth={2.4} /> Review{srsDue.length ? ` (${srsDue.length})` : ""}
+            </button>
+          )}
           {inToday ? (
             <>
               <span style={s.todayProg}>
@@ -1181,7 +1269,7 @@ export default function App() {
             )}
             <button
               style={s.studyToggle}
-              onClick={() => setHostCode(makePollCode())}
+              onClick={() => setTeamModePrompt(null)}
               title="Run a live poll on a big screen — residents vote from their phones"
             >
               <Radio size={13} strokeWidth={2.3} /> Host poll
@@ -1710,11 +1798,12 @@ export default function App() {
             if (idx >= 0) { setMode("browse"); setYear("all"); setQi(idx); setShowDeck(false); }
           }}
           onStudy={startCustom}
-          onSaveTest={(qids) => {
+          onSaveTest={async (qids) => {
             const name = window.prompt(`Name this test (${qids.length} questions):`);
             if (!name?.trim()) return;
-            saveTest(name, qids);
-            setSavedTests(loadTests());
+            const saved = await saveTest(name, qids);
+            if (!saved) { fire("Couldn't save test — try signing in again"); return; }
+            setSavedTests(await loadTests());
             setShowDeck(false);
             fire(`Saved "${name.trim()}" — find it under Tests`);
           }}
@@ -1735,8 +1824,7 @@ export default function App() {
           onHost={(t) => {
             const qs = t.qids.map((id) => byId.get(id)).filter(Boolean) as RawQuestion[];
             if (!qs.length) { fire("None of this test's questions are in the current bank"); return; }
-            setHostSet(qs);
-            setHostCode(makePollCode());
+            setTeamModePrompt(qs);
             setShowTests(false);
           }}
           onPptx={async (t) => {
@@ -1747,16 +1835,37 @@ export default function App() {
               fire(`Built "${t.name}" as PowerPoint`);
             } catch (e) { fire("PowerPoint export failed"); console.warn(e); }
           }}
-          onRename={(t) => {
+          onRename={async (t) => {
             const name = window.prompt("New name:", t.name);
             if (!name?.trim()) return;
-            setSavedTests(renameTest(t.id, name));
+            await renameTest(t.id, name);
+            setSavedTests(await loadTests());
           }}
-          onDelete={(t) => {
+          onDelete={async (t) => {
             if (!window.confirm(`Delete "${t.name}"? This can't be undone.`)) return;
-            setSavedTests(deleteTest(t.id));
+            await deleteTest(t.id);
+            setSavedTests(await loadTests());
           }}
+          onStudyGuide={async (t) => {
+            const existing = await getStudyGuideForTest(t.id);
+            if (existing) { setGuideToShare({ guide: existing, test: t }); return; }
+            await buildStudyGuide(t);
+          }}
+          generatingGuideId={pendingGuideTest?.id ?? null}
         />
+      )}
+
+      {guideToShare && (
+        <StudyGuideShareModal
+          guide={guideToShare.guide}
+          onClose={() => setGuideToShare(null)}
+          onRegenerate={() => buildStudyGuide(guideToShare.test, true)}
+          regenerating={pendingGuideTest?.id === guideToShare.test.id}
+        />
+      )}
+
+      {openStudyGuideId && (
+        <StudyGuideView id={openStudyGuideId} onClose={() => setOpenStudyGuideId(null)} />
       )}
 
       {showSettings && settings && (
@@ -1781,11 +1890,37 @@ export default function App() {
         />
       )}
 
+      {showSrs && (
+        <ReviewPanel
+          due={srsDue}
+          byId={byId}
+          onGrade={onGradeSrs}
+          onClose={() => setShowSrs(false)}
+        />
+      )}
+
+      {teamModePrompt !== false && (
+        <TeamModeModal
+          onChoose={startHosting}
+          onClose={() => setTeamModePrompt(false)}
+          isAdmin={isAdmin}
+          stableCount={Object.keys(stableTeams).length}
+          onGenerate={runGenerateStableTeams}
+        />
+      )}
       {hostCode && (
-        <PollPresenter code={hostCode} set={hostSet ?? set} startIndex={hostSet ? 0 : qi} timerSecs={timerSecs} onClose={() => { setHostCode(null); setHostSet(null); }} />
+        <PollPresenter code={hostCode} set={hostSet ?? set} startIndex={hostSet ? 0 : qi} timerSecs={timerSecs} onTimerSecsChange={setTimerSecs} teamMode={teamMode} onClose={() => { setHostCode(null); setHostSet(null); }} />
       )}
       {joinCode && (
-        <PollParticipant code={joinCode} voter={profile?.id ?? session?.user?.id ?? "anon"} onClose={() => setJoinCode(null)} />
+        <PollParticipant
+          code={joinCode}
+          voter={profile?.id ?? session?.user?.id ?? "anon"}
+          trainingLevel={profile?.training_level ?? null}
+          stableTeam={profile ? stableTeams[profile.id] ?? null : null}
+          byId={byId}
+          displayName={displayName}
+          onClose={() => setJoinCode(null)}
+        />
       )}
 
       <canvas ref={confettiRef} style={s.confetti} />
@@ -1818,17 +1953,105 @@ export default function App() {
   );
 }
 
+// Asked the instant "Host poll" is clicked, before the room code is even
+// generated — how should teams be formed for this session?
+function TeamModeModal({ onChoose, onClose, isAdmin, stableCount, onGenerate }: {
+  onChoose: (mode: TeamMode) => void; onClose: () => void;
+  isAdmin: boolean; stableCount: number; onGenerate: () => Promise<boolean>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const hasStable = stableCount > 0;
+  const stableDisabled = !hasStable && !isAdmin;
+
+  const chooseStable = async () => {
+    if (busy || stableDisabled) return;
+    if (hasStable) { onChoose("stable"); return; }
+    setBusy(true);
+    const ok = await onGenerate();
+    setBusy(false);
+    if (ok) onChoose("stable");
+  };
+  const regenerate = async () => {
+    if (busy) return;
+    setBusy(true);
+    const ok = await onGenerate();
+    setBusy(false);
+    if (ok) onChoose("stable");
+  };
+
+  return (
+    <div style={s.scrim} onClick={onClose}>
+      <div style={{ ...s.apPanel, maxWidth: 460 }} onClick={(e) => e.stopPropagation()} className="rise">
+        <div style={s.apHead}>
+          <div>
+            <div style={s.apEyebrow}>Host poll</div>
+            <div style={s.apTitle}>How should teams be formed?</div>
+          </div>
+          <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
+        </div>
+        <div style={{ padding: "4px 22px 22px", display: "flex", flexDirection: "column", gap: 10 }}>
+          <button style={s.teamModeOpt} onClick={() => onChoose("self")}>
+            <Users size={18} strokeWidth={2.2} />
+            <span>
+              <b style={{ display: "block", color: T.text }}>Residents pick their own teams</b>
+              <span style={{ fontSize: 12.5, color: T.muted }}>Everyone types in a team name of their choosing when they join.</span>
+            </span>
+          </button>
+          <button style={s.teamModeOpt} onClick={() => onChoose("auto")}>
+            <Repeat size={18} strokeWidth={2.2} />
+            <span>
+              <b style={{ display: "block", color: T.text }}>Auto-assign for today</b>
+              <span style={{ fontSize: 12.5, color: T.muted }}>Randomly group today's joiners so each team gets one R1, R2, R3 and R4 — reshuffled fresh each session; they can still rename their team.</span>
+            </span>
+          </button>
+          <div>
+            <button
+              style={{ ...s.teamModeOpt, width: "100%", ...(stableDisabled ? { opacity: 0.5, cursor: "default" } : {}) }}
+              onClick={chooseStable}
+              disabled={busy || stableDisabled}
+            >
+              <Crown size={18} strokeWidth={2.2} />
+              <span>
+                <b style={{ display: "block", color: T.text }}>Stable teams — all season</b>
+                <span style={{ fontSize: 12.5, color: T.muted }}>
+                  {busy
+                    ? "Generating…"
+                    : hasStable
+                    ? `Fixed one R1, R2, R3 and R4/fellow per team (${stableCount} on rosters) — same teams every session until this year's PRITE.`
+                    : isAdmin
+                    ? "Not set up yet — generates fixed rosters from everyone's current PGY year, then keeps using them all season."
+                    : "Ask an admin to generate the fixed season-long rosters first."}
+                </span>
+              </span>
+            </button>
+            {hasStable && isAdmin && (
+              <button style={s.teamModeRegen} onClick={regenerate} disabled={busy}>
+                <Repeat size={11} strokeWidth={2.4} /> Regenerate rosters (e.g. a new academic year)
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ---------------------------------------------------------------------- */
 /* Live crowd poll. Host = big screen (owns the question + tallies votes);  */
 /* participants = phones (tap A–E). All over an ephemeral Realtime channel. */
 
-function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
-  code: string; set: RawQuestion[]; startIndex: number; timerSecs: number; onClose: () => void;
+function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, teamMode, onClose }: {
+  code: string; set: RawQuestion[]; startIndex: number; timerSecs: number; onTimerSecsChange: (n: number) => void; teamMode: TeamMode; onClose: () => void;
 }) {
   const [index, setIndex] = useState(Math.max(0, Math.min(startIndex, set.length - 1)));
   const [revealed, setRevealed] = useState(false);
   const [finished, setFinished] = useState(false);   // session over — final-standings screen
   const [showAnswerKey, setShowAnswerKey] = useState(false); // answer key on the finish screen (hidden by default)
+  const [standingsFontSize, setStandingsFontSize] = useState(20); // adjustable text size for the answer-key stem/options/explanation
+  const [pollStemScale, setPollStemScale] = useState(1); // adjustable text size for the question, independent of the choices
+  const [pollOptScale, setPollOptScale] = useState(1);    // adjustable text size for the answer choices, independent of the question
+  const [hideChoices, setHideChoices] = useState(true); // default: choices off the big screen, shown on phones instead
+  const [choicesLayout, setChoicesLayout] = useState<"side" | "bottom">("side"); // default: choices beside the question
   const [expandedKey, setExpandedKey] = useState<Set<number>>(new Set()); // answer-key rows expanded to show the full question + explanation
   const toggleKey = (i: number) => setExpandedKey((prev) => {
     const next = new Set(prev);
@@ -1843,19 +2066,23 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
   const [qrBig, setQrBig] = useState(false);          // enlarged QR overlay
   const votesRef = useRef<Map<string, Map<string, string>>>(new Map()); // qid -> voter -> choice
   const teamRef = useRef<Map<string, string>>(new Map());   // voter -> team name
+  const levelRef = useRef<Map<string, string>>(new Map());  // voter -> PGY year (R1–R4), if known
   const joinedRef = useRef<Set<string>>(new Set());  // every voter who has said hello or voted
   const correctRef = useRef<Map<string, string[]>>(new Map()); // qid -> correct letters (recorded on reveal)
   const chanRef = useRef<ReturnType<NonNullable<typeof supabase>["channel"]> | null>(null);
 
-  // Cumulative team leaderboard: 1 point per correct vote, summed over every
-  // question revealed so far. Derived fresh from the raw vote log each call, so
+  // Cumulative team leaderboard: ranked by correct answers per person who
+  // actually answered — not raw point total, and not per-vote accuracy —
+  // so a team that fields more players (or gets more of them to vote) doesn't
+  // win on headcount alone. Derived fresh from the raw vote log each call, so
   // it's idempotent (re-reveals and re-renders never double-count).
   const computeStandings = (): TeamStanding[] => {
-    const score = new Map<string, number>();
+    const correctCount = new Map<string, number>();
+    const answerers = new Map<string, Set<string>>();
     const members = new Map<string, Set<string>>();
     for (const [vId, team] of teamRef.current) {
       if (!team) continue;
-      if (!members.has(team)) { members.set(team, new Set()); score.set(team, 0); }
+      if (!members.has(team)) { members.set(team, new Set()); answerers.set(team, new Set()); correctCount.set(team, 0); }
       members.get(team)!.add(vId);
     }
     for (const [qId, correct] of correctRef.current) {
@@ -1863,12 +2090,18 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
       if (!m) continue;
       for (const [vId, choice] of m) {
         const team = teamRef.current.get(vId);
-        if (team && correct.includes(choice)) score.set(team, (score.get(team) ?? 0) + 1);
+        if (!team) continue;
+        answerers.get(team)?.add(vId);
+        if (correct.includes(choice)) correctCount.set(team, (correctCount.get(team) ?? 0) + 1);
       }
     }
-    return [...score.entries()]
-      .map(([team, sc]) => ({ team, score: sc, members: members.get(team)?.size ?? 0 }))
-      .sort((a, b) => b.score - a.score || b.members - a.members || a.team.localeCompare(b.team));
+    return [...members.keys()]
+      .map((team) => {
+        const n = answerers.get(team)?.size ?? 0;
+        const c = correctCount.get(team) ?? 0;
+        return { team, score: n > 0 ? Math.round((c / n) * 10) / 10 : 0, members: members.get(team)?.size ?? 0, correct: c, answerers: n };
+      })
+      .sort((a, b) => b.score - a.score || b.answerers - a.answerers || a.team.localeCompare(b.team));
   };
 
   // render the join URL into a QR once per room code
@@ -1895,9 +2128,12 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
     if (qid) correctRef.current.set(qid, correctSet);
     const payload: PollState = {
       qid, year: q?.year ?? "", qIndex: q?.q_index ?? 0,
-      nOptions: q?.options.length ?? 0, index, total, revealed,
+      nOptions: q?.options.length ?? 0,
+      options: q?.options.map((o) => ({ letter: o.letter, text: o.text })) ?? [],
+      index, total, revealed,
       correct: revealed ? correctSet : [],
       standings: computeStandings(),
+      teamMode,
       voted: votesRef.current.get(qid)?.size ?? 0,
       joined: joinedRef.current.size,
       finished,
@@ -1917,6 +2153,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
       m.set(v.voter, v.choice);
       joinedRef.current.add(v.voter);
       if (v.team) teamRef.current.set(v.voter, v.team);
+      if (v.level) levelRef.current.set(v.voter, v.level);
       force((n) => n + 1);
       broadcastRef.current(); // keep participants' voted/joined counters live
     });
@@ -1924,6 +2161,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
       if (payload?.voter) {
         joinedRef.current.add(payload.voter);
         if (payload.team) teamRef.current.set(payload.voter, payload.team);
+        if (payload.level) levelRef.current.set(payload.voter, payload.level);
         force((n) => n + 1);
       }
       broadcastRef.current();
@@ -1954,8 +2192,28 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
   const allVoted = joinedCount > 0 && voterCount >= joinedCount;
   const standings = computeStandings();
   const goTo = (i: number) => { setRevealed(false); setIndex(Math.max(0, Math.min(i, total - 1))); };
+  // Nudge the running countdown (and the baseline used for every question
+  // after this one) up or down — the default one-minute timer isn't right
+  // for every question, and there was previously no way to change it mid-poll.
+  const bumpTimer = (delta: number) => {
+    setTimeLeft((t) => (t == null ? t : Math.max(0, t + delta)));
+    onTimerSecsChange(Math.max(10, Math.min(600, timerSecs + delta)));
+  };
   const joinHost = pollJoinUrl(code).replace(/^https?:\/\//, "");
   const keyFor = (qq: RawQuestion) => qq.answer_letters?.length ? qq.answer_letters : qq.answer_letter ? [qq.answer_letter] : [];
+
+  // Auto-assign mode: shuffle everyone who has joined so far into teams with
+  // at most one resident per PGY year each, and push the result to every phone.
+  // Safe to re-run later (e.g. stragglers join) — it just reshuffles again.
+  const runAutoAssign = () => {
+    const entries = [...joinedRef.current].map((voter) => ({ voter, level: levelRef.current.get(voter) }));
+    if (!entries.length) return;
+    const assignments = assignBalancedTeams(entries);
+    for (const [voter, team] of Object.entries(assignments)) teamRef.current.set(voter, team);
+    chanRef.current?.send({ type: "broadcast", event: POLL_EVENTS.assign, payload: { assignments } as PollAssign });
+    force((n) => n + 1);
+    broadcastRef.current();
+  };
 
   // Snapshot this session's vote breakdown + standings and file it as an
   // official class review, for the admin archive (only meant for real class
@@ -1982,6 +2240,31 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
     setOfficialStatus(ok ? "done" : "idle");
   };
 
+  // Votes/standings live only in this component's memory (votesRef etc.) —
+  // ending the poll before the results/review-priority heat map has actually
+  // been seen throws that session away for good. Confirm first so a stray
+  // click on the header X doesn't accidentally do that.
+  const confirmClose = () => {
+    if (!finished) {
+      if (!window.confirm("End the poll now? The results and review-priority heat map for this session haven't been shown yet — ending now discards them.")) return;
+      onClose();
+      return;
+    }
+    if (!showAnswerKey) {
+      if (!window.confirm("End poll without viewing the answer key / review-priority heat map?")) return;
+    }
+    // Last chance to file this session with the admin archive before it's gone
+    // for good — easy to miss the separate "Mark as official" button, so ask
+    // for it right here on the way out.
+    if (officialStatus === "idle" && standings.length > 0) {
+      if (window.confirm("Mark this session as an official class review before ending? It's filed in the admin archive for the whole residency to reference.")) {
+        submitOfficial();
+        return; // stay open so the submit result — and the End poll button to finish closing — are still visible
+      }
+    }
+    onClose();
+  };
+
   return (
     <div style={s.pollRoot}>
       <style>{CSS}</style>
@@ -1996,10 +2279,88 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
         <span style={{ ...s.pollVoters, ...(allVoted && !revealed ? { color: "#48c78e" } : {}) }}>
           <Users size={16} strokeWidth={2.3} /> {voterCount}{joinedCount > 0 ? ` of ${joinedCount}` : ""} voted{allVoted && !revealed ? " · all in!" : ""}
         </span>
-        {timeLeft != null && (
-          <span style={{ ...s.timerPill, ...(timeLeft <= 10 ? s.timerPillLow : {}) }}><Clock size={14} strokeWidth={2.5} /> {fmtTime(timeLeft)}</span>
+        {teamMode === "auto" && !finished && (
+          <button
+            style={{ ...s.pollBtn, padding: "6px 10px" }}
+            onClick={runAutoAssign}
+            disabled={!joinedCount}
+            title="Shuffle everyone who has joined so far into teams with one R1, R2, R3 and R4 apiece"
+          >
+            <Repeat size={13} strokeWidth={2.4} /> {joinedCount ? `Assign teams (${joinedCount} joined)` : "Assign teams"}
+          </button>
         )}
-        <button style={s.pollClose} onClick={onClose} title="End poll"><X size={18} strokeWidth={2.4} /></button>
+        {timeLeft != null && (
+          <>
+            <span style={{ ...s.timerPill, ...(timeLeft <= 10 ? s.timerPillLow : {}) }}><Clock size={14} strokeWidth={2.5} /> {fmtTime(timeLeft)}</span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 2 }} title="Add or remove time — also becomes the default for questions after this one">
+              <button style={{ ...s.pollBtn, padding: "6px 8px" }} onClick={() => bumpTimer(-15)} title="-15 seconds"><Minus size={13} strokeWidth={2.4} /></button>
+              <button style={{ ...s.pollBtn, padding: "6px 8px" }} onClick={() => bumpTimer(15)} title="+15 seconds"><Plus size={13} strokeWidth={2.4} /></button>
+            </span>
+          </>
+        )}
+        {!finished && (
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,.04)", border: `1px solid ${T.inkLine}`, borderRadius: 10, padding: "4px 8px" }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 2 }} title="Question text size">
+              <span style={{ fontSize: 11, color: "#7b8394", marginRight: 2 }}>Q</span>
+              <button
+                style={{ ...s.pollBtn, padding: "6px 8px", opacity: pollStemScale <= 0.6 ? 0.4 : 1 }}
+                onClick={() => setPollStemScale((v) => Math.max(0.6, +(v - 0.1).toFixed(2)))}
+                disabled={pollStemScale <= 0.6}
+                title="Decrease question text size"
+              >
+                <Minus size={13} strokeWidth={2.3} />
+              </button>
+              <span style={{ fontSize: 12, color: "#9aa0ab", width: 36, textAlign: "center" }}>{Math.round(pollStemScale * 100)}%</span>
+              <button
+                style={{ ...s.pollBtn, padding: "6px 8px", opacity: pollStemScale >= 1.8 ? 0.4 : 1 }}
+                onClick={() => setPollStemScale((v) => Math.min(1.8, +(v + 0.1).toFixed(2)))}
+                disabled={pollStemScale >= 1.8}
+                title="Increase question text size"
+              >
+                <Plus size={13} strokeWidth={2.3} />
+              </button>
+            </span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 2, opacity: hideChoices ? 0.5 : 1 }} title={hideChoices ? "Answer choices text size — turn on \"Choices shown\" to see the effect on this screen" : "Answer choices text size"}>
+              <span style={{ fontSize: 11, color: "#7b8394", marginRight: 2 }}>ABC</span>
+              <button
+                style={{ ...s.pollBtn, padding: "6px 8px", opacity: pollOptScale <= 0.5 ? 0.4 : 1 }}
+                onClick={() => setPollOptScale((v) => Math.max(0.5, +(v - 0.1).toFixed(2)))}
+                disabled={pollOptScale <= 0.5}
+                title="Decrease answer choices text size"
+              >
+                <Minus size={13} strokeWidth={2.3} />
+              </button>
+              <span style={{ fontSize: 12, color: "#9aa0ab", width: 36, textAlign: "center" }}>{Math.round(pollOptScale * 100)}%</span>
+              <button
+                style={{ ...s.pollBtn, padding: "6px 8px", opacity: pollOptScale >= 2.2 ? 0.4 : 1 }}
+                onClick={() => setPollOptScale((v) => Math.min(2.2, +(v + 0.1).toFixed(2)))}
+                disabled={pollOptScale >= 2.2}
+                title="Increase answer choices text size"
+              >
+                <Plus size={13} strokeWidth={2.3} />
+              </button>
+            </span>
+            <button
+              style={{ ...s.pollBtn, padding: "6px 10px" }}
+              onClick={() => setHideChoices((v) => !v)}
+              title={hideChoices ? "Choices are hidden on this screen — shown on phones instead" : "Choices are shown on this screen"}
+            >
+              {hideChoices ? <EyeOff size={13} strokeWidth={2.4} /> : <Eye size={13} strokeWidth={2.4} />}
+              {hideChoices ? "Choices hidden" : "Choices shown"}
+            </button>
+            {!hideChoices && (
+              <button
+                style={{ ...s.pollBtn, padding: "6px 10px" }}
+                onClick={() => setChoicesLayout((v) => (v === "side" ? "bottom" : "side"))}
+                title="Where choices sit relative to the question"
+              >
+                {choicesLayout === "side" ? <PanelRight size={13} strokeWidth={2.4} /> : <PanelBottom size={13} strokeWidth={2.4} />}
+                {choicesLayout === "side" ? "Side" : "Bottom"}
+              </button>
+            )}
+          </div>
+        )}
+        <button style={s.pollClose} onClick={confirmClose} title="End poll"><X size={18} strokeWidth={2.4} /></button>
       </div>
 
       <div style={s.pollBody}>
@@ -2013,8 +2374,8 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
                   <div key={t.team} style={{ ...s.teamRow, ...(i === 0 ? s.teamRowLead : {}) }}>
                     <span style={s.teamRank}>{i === 0 ? <Crown size={20} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
                     <span style={s.teamName}>{t.team}</span>
-                    <span style={s.teamMembers}>{t.members} {t.members === 1 ? "player" : "players"}</span>
-                    <span style={s.teamScore}>{t.score}</span>
+                    <span style={s.teamMembers}>{t.members} {t.members === 1 ? "player" : "players"} · {t.correct} correct · {t.answerers} answered</span>
+                    <span style={s.teamScore}>{t.score}/player</span>
                   </div>
                 ))}
               </div>
@@ -2038,6 +2399,25 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
                   <Archive size={15} strokeWidth={2.3} /> Mark as official
                 </button>
               )}
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 2 }} title="Adjust answer-key text size">
+                <button
+                  style={{ ...s.pollBtn, padding: "8px 10px", opacity: standingsFontSize <= 14 ? 0.4 : 1, cursor: standingsFontSize <= 14 ? "default" : "pointer" }}
+                  onClick={() => setStandingsFontSize((v) => Math.max(14, v - 2))}
+                  disabled={standingsFontSize <= 14}
+                  title="Decrease text size"
+                >
+                  <Minus size={15} strokeWidth={2.3} />
+                </button>
+                <span style={{ fontSize: 13, color: "#9aa0ab", width: 30, textAlign: "center" }}>{standingsFontSize}px</span>
+                <button
+                  style={{ ...s.pollBtn, padding: "8px 10px", opacity: standingsFontSize >= 32 ? 0.4 : 1, cursor: standingsFontSize >= 32 ? "default" : "pointer" }}
+                  onClick={() => setStandingsFontSize((v) => Math.min(32, v + 2))}
+                  disabled={standingsFontSize >= 32}
+                  title="Increase text size"
+                >
+                  <Plus size={15} strokeWidth={2.3} />
+                </button>
+              </div>
               {officialStatus === "sending" && (
                 <span style={{ display: "inline-flex", alignItems: "center", color: "#9aa0ab", fontSize: 14 }}>Submitting…</span>
               )}
@@ -2063,7 +2443,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
                   <span style={{ display: "inline-flex", alignItems: "center", height: 8, width: 90, borderRadius: 4, background: "linear-gradient(90deg, rgb(72,199,142), rgb(224,138,60))" }} />
                   <span>fewer wrong → more wrong</span>
                 </div>
-                <div style={{ display: "grid", gap: 6 }}>
+                <div style={{ display: "grid", gap: 6, gridTemplateColumns: "minmax(0, 1fr)" }}>
                 {set.map((qq, i) => {
                   const open = expandedKey.has(i);
                   const correct = keyFor(qq);
@@ -2081,7 +2461,10 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
                         {open ? <ChevronDown size={14} strokeWidth={2.4} color="#7b8394" style={{ flexShrink: 0 }} /> : <ChevronRight size={14} strokeWidth={2.4} color="#7b8394" style={{ flexShrink: 0 }} />}
                         <b style={{ color: "#7b8394", minWidth: 24 }}>{i + 1}.</b>
                         <span style={{ color: "#7b8394", whiteSpace: "nowrap" }}>{qq.year} · Q{qq.q_index}</span>
-                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>{qq.stem}</span>
+                        {!open && (
+                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>{qq.stem}</span>
+                        )}
+                        {open && <span style={{ flex: 1 }} />}
                         {qTotalVotes > 0 && (
                           <span style={{ fontSize: 12, color: "#9aa0ab", whiteSpace: "nowrap" }} title="Wrong votes / total votes">
                             {qWrongVotes}/{qTotalVotes} wrong
@@ -2091,12 +2474,12 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
                       </button>
                       {open && (
                         <div style={{ padding: "2px 16px 16px 34px" }}>
-                          <p style={{ margin: "0 0 10px", fontSize: 14.5, lineHeight: 1.55, color: "#e7eaf0" }}>{qq.stem}</p>
+                          <p style={{ margin: "0 0 10px", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: standingsFontSize, lineHeight: 1.5, color: "#e7eaf0" }}>{qq.stem}</p>
                           <div style={{ display: "grid", gap: 3, marginBottom: 12 }}>
                             {qq.options.map((o) => {
                               const isC = correct.includes(o.letter);
                               return (
-                                <div key={o.letter} style={{ fontSize: 14, color: isC ? "#48c78e" : "#c7ccd6", fontWeight: isC ? 700 : 400 }}>
+                                <div key={o.letter} style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: standingsFontSize, color: isC ? "#48c78e" : "#c7ccd6", fontWeight: isC ? 700 : 400 }}>
                                   {o.letter}. {o.text}{isC ? " ✓" : ""}
                                 </div>
                               );
@@ -2105,7 +2488,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
                           {qq.explanation_text || qq.explanation_images.length > 0 ? (
                             <>
                               {qq.explanation_text && (
-                                <p style={{ margin: "0 0 10px", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 16.5, lineHeight: 1.6, color: "#aeb4c0", whiteSpace: "pre-wrap" }}>{qq.explanation_text}</p>
+                                <p style={{ margin: "0 0 10px", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: standingsFontSize, lineHeight: 1.6, color: "#aeb4c0", whiteSpace: "pre-wrap" }}>{qq.explanation_text}</p>
                               )}
                               {qq.explanation_images.filter((p) => imgSrc(p)).map((p, i) => (
                                 <img
@@ -2142,31 +2525,51 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
               <div key={t.team} style={{ ...s.teamRow, ...(i === 0 ? s.teamRowLead : {}) }}>
                 <span style={s.teamRank}>{i === 0 ? <Crown size={20} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
                 <span style={s.teamName}>{t.team}</span>
-                <span style={s.teamMembers}>{t.members} {t.members === 1 ? "player" : "players"}</span>
-                <span style={s.teamScore}>{t.score}</span>
+                <span style={s.teamMembers}>{t.members} {t.members === 1 ? "player" : "players"} · {t.correct} correct · {t.answerers} answered</span>
+                <span style={s.teamScore}>{t.score}/player</span>
               </div>
             ))}
           </div>
         )}
         <div style={s.pollMeta}>{q.year} · Q{q.q_index} · Question {index + 1} of {total}</div>
-        <p style={s.pollStem}>{q.stem}</p>
-        <div style={s.pollOpts}>
-          {q.options.map((o) => {
-            const cnt = counts[o.letter] ?? 0;
-            const pct = voterCount > 0 ? Math.round((cnt / voterCount) * 100) : 0;
-            const isCorrect = revealed && correctSet.includes(o.letter);
-            return (
-              <div key={o.letter} style={{ ...s.pollOpt, ...(isCorrect ? s.pollOptCorrect : {}) }}>
-                {/* tallies stay hidden until reveal so the room isn't biased by the crowd */}
-                <span style={{ ...s.pollBar, width: revealed ? `${pct}%` : 0, background: isCorrect ? "rgba(72,199,142,.22)" : "rgba(255,255,255,.08)" }} />
-                <span style={s.pollLetter}>{o.letter}</span>
-                <span style={s.pollOptText}>{o.text}</span>
-                <span style={s.pollOptCount}>
-                  {revealed ? <>{pct}% · {cnt}{isCorrect && <Check size={20} strokeWidth={3} color="#48c78e" style={{ marginLeft: 10 }} />}</> : null}
-                </span>
-              </div>
-            );
-          })}
+        <div style={{
+          display: "flex",
+          flexDirection: !hideChoices && choicesLayout === "side" ? "row" : "column",
+          gap: !hideChoices && choicesLayout === "side" ? 40 : 0,
+          alignItems: "flex-start",
+        }}>
+          <p style={{
+            ...s.pollStem,
+            fontSize: `calc(clamp(22px, 3.2vw, 38px) * ${pollStemScale})`,
+            margin: !hideChoices && choicesLayout === "side" ? 0 : "0 0 28px",
+            flex: !hideChoices && choicesLayout === "side" ? "1 1 46%" : undefined,
+          }}>
+            {q.stem}
+          </p>
+          {hideChoices ? (
+            <p style={{ color: T.faint, fontStyle: "italic", fontSize: 15, margin: 0 }}>
+              Answer choices are shown on participants' phones, not here.
+            </p>
+          ) : (
+            <div style={{ ...s.pollOpts, flex: choicesLayout === "side" ? "1 1 50%" : undefined, width: choicesLayout === "side" ? undefined : "100%" }}>
+              {q.options.map((o) => {
+                const cnt = counts[o.letter] ?? 0;
+                const pct = voterCount > 0 ? Math.round((cnt / voterCount) * 100) : 0;
+                const isCorrect = revealed && correctSet.includes(o.letter);
+                return (
+                  <div key={o.letter} style={{ ...s.pollOpt, ...(isCorrect ? s.pollOptCorrect : {}), fontSize: `calc(clamp(17px, 2vw, 24px) * ${pollOptScale})` }}>
+                    {/* tallies stay hidden until reveal so the room isn't biased by the crowd */}
+                    <span style={{ ...s.pollBar, width: revealed ? `${pct}%` : 0, background: isCorrect ? "rgba(72,199,142,.22)" : "rgba(255,255,255,.08)" }} />
+                    <span style={s.pollLetter}>{o.letter}</span>
+                    <span style={s.pollOptText}>{o.text}</span>
+                    <span style={s.pollOptCount}>
+                      {revealed ? <>{pct}% · {cnt}{isCorrect && <Check size={20} strokeWidth={3} color="#48c78e" style={{ marginLeft: 10 }} />}</> : null}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
           </>
         )}
@@ -2176,7 +2579,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
         {finished ? (
           <>
             <button style={s.pollBtn} onClick={() => { setFinished(false); setShowAnswerKey(false); }}><ArrowLeft size={16} strokeWidth={2.4} /> Back to questions</button>
-            <button style={{ ...s.pollBtn, ...s.pollBtnPrimary }} onClick={onClose}><X size={16} strokeWidth={2.4} /> End poll</button>
+            <button style={{ ...s.pollBtn, ...s.pollBtnPrimary }} onClick={confirmClose}><X size={16} strokeWidth={2.4} /> End poll</button>
           </>
         ) : (
           <>
@@ -2218,7 +2621,10 @@ function PollPresenter({ code, set, startIndex, timerSecs, onClose }: {
 
 const TEAM_KEY = "prite_poll_team";
 
-function PollParticipant({ code, voter, onClose }: { code: string; voter: string; onClose: () => void; }) {
+function PollParticipant({ code, voter, trainingLevel, stableTeam, byId, displayName, onClose }: {
+  code: string; voter: string; trainingLevel: string | null; stableTeam: string | null;
+  byId: Map<string, RawQuestion>; displayName: string; onClose: () => void;
+}) {
   const [remote, setRemote] = useState<PollState | null>(null);
   const [myVote, setMyVote] = useState<string | null>(null);
   const [status, setStatus] = useState<"connecting" | "joined" | "error">("connecting");
@@ -2229,21 +2635,15 @@ function PollParticipant({ code, voter, onClose }: { code: string; voter: string
   const lastQid = useRef<string>("");
   const teamRef = useRef(team);
   teamRef.current = team;
-
-  useEffect(() => {
-    if (!supabase) { setStatus("error"); return; }
-    const ch = supabase.channel(channelName(code), { config: { broadcast: { self: false } } });
-    ch.on("broadcast", { event: POLL_EVENTS.state }, ({ payload }: { payload: PollState }) => {
-      setRemote(payload);
-      if (payload.qid !== lastQid.current) { lastQid.current = payload.qid; setMyVote(null); }
-    });
-    ch.subscribe((st) => {
-      if (st === "SUBSCRIBED") { setStatus("joined"); ch.send({ type: "broadcast", event: POLL_EVENTS.hello, payload: { voter, team: teamRef.current || undefined } as PollHello }); }
-      else if (st === "CHANNEL_ERROR" || st === "TIMED_OUT") setStatus("error");
-    });
-    chanRef.current = ch;
-    return () => { supabase?.removeChannel(ch); chanRef.current = null; };
-  }, [code, voter]);
+  const myVoteRef = useRef<string | null>(null);
+  // My own answer history for this session, keyed by qid — snapshotted the
+  // moment each question is revealed (myVoteRef still reflects that question;
+  // it's reset only once the NEXT qid comes in). Drives the missed-questions
+  // download at the end, and lets me flip back through past questions (with
+  // their full explanation, pulled from the local question bank) while the
+  // live question is still on the clock.
+  const historyRef = useRef<Map<string, { correct: string[]; myChoice: string | null; index: number }>>(new Map());
+  const [reviewQid, setReviewQid] = useState<string | null>(null); // set while browsing a past question instead of the live one
 
   // Set/clear my team and tell the host right away so it can roster me even
   // before I vote.
@@ -2251,17 +2651,65 @@ function PollParticipant({ code, voter, onClose }: { code: string; voter: string
     const t = name.trim().slice(0, 24);
     setTeamState(t); setDraft(t); setEditing(false);
     try { t ? localStorage.setItem(TEAM_KEY, t) : localStorage.removeItem(TEAM_KEY); } catch { /* no-op */ }
-    chanRef.current?.send({ type: "broadcast", event: POLL_EVENTS.hello, payload: { voter, team: t || undefined } as PollHello });
+    chanRef.current?.send({ type: "broadcast", event: POLL_EVENTS.hello, payload: { voter, team: t || undefined, level: trainingLevel || undefined } as PollHello });
   };
+
+  useEffect(() => {
+    if (!supabase) { setStatus("error"); return; }
+    const ch = supabase.channel(channelName(code), { config: { broadcast: { self: false } } });
+    ch.on("broadcast", { event: POLL_EVENTS.state }, ({ payload }: { payload: PollState }) => {
+      if (payload.revealed && payload.qid) {
+        historyRef.current.set(payload.qid, { correct: payload.correct, myChoice: myVoteRef.current, index: payload.index });
+      }
+      setRemote(payload);
+      if (payload.qid !== lastQid.current) { lastQid.current = payload.qid; setMyVote(null); myVoteRef.current = null; setReviewQid(null); }
+    });
+    // Host ran the auto-assign shuffle — take the team it picked for me, unless
+    // I've already got one (either from a prior shuffle or my own rename).
+    ch.on("broadcast", { event: POLL_EVENTS.assign }, ({ payload }: { payload: PollAssign }) => {
+      const assigned = payload?.assignments?.[voter];
+      if (assigned && !teamRef.current) saveTeam(assigned);
+    });
+    ch.subscribe((st) => {
+      if (st === "SUBSCRIBED") { setStatus("joined"); ch.send({ type: "broadcast", event: POLL_EVENTS.hello, payload: { voter, team: teamRef.current || undefined, level: trainingLevel || undefined } as PollHello }); }
+      else if (st === "CHANNEL_ERROR" || st === "TIMED_OUT") setStatus("error");
+    });
+    chanRef.current = ch;
+    return () => { supabase?.removeChannel(ch); chanRef.current = null; };
+  }, [code, voter]); // eslint-disable-line
+
+  // Stable mode: always use the season-long roster's pick for me, not
+  // whatever I last typed in for a self/auto session.
+  useEffect(() => {
+    if (remote?.teamMode === "stable" && stableTeam && team !== stableTeam) saveTeam(stableTeam);
+  }, [remote?.teamMode, stableTeam]); // eslint-disable-line
 
   const vote = (letter: string) => {
     if (!remote || remote.revealed) return;
     setMyVote(letter);
-    chanRef.current?.send({ type: "broadcast", event: POLL_EVENTS.vote, payload: { qid: remote.qid, choice: letter, voter, team: team || undefined } });
+    myVoteRef.current = letter;
+    chanRef.current?.send({ type: "broadcast", event: POLL_EVENTS.vote, payload: { qid: remote.qid, choice: letter, voter, team: team || undefined, level: trainingLevel || undefined } });
+  };
+
+  // Every question I saw revealed, that I either missed or never voted on —
+  // built once the poll finishes, from the local question bank (byId) so the
+  // export can include the full explanation (never broadcast over the poll
+  // channel itself).
+  const missedRows = () => {
+    const rows: { q: RawQuestion; myChoice: string | null }[] = [];
+    for (const [qid, h] of historyRef.current) {
+      const q = byId.get(qid);
+      if (!q) continue;
+      if (!h.myChoice || !h.correct.includes(h.myChoice)) rows.push({ q, myChoice: h.myChoice });
+    }
+    return rows;
   };
 
   const letters = remote ? Array.from({ length: remote.nOptions }, (_, i) => String.fromCharCode(65 + i)) : [];
-  const showTeamEditor = editing || !team;
+  const isStableMode = remote?.teamMode === "stable";
+  const awaitingAutoAssign = remote?.teamMode === "auto" && !team;
+  const awaitingStableTeam = isStableMode && !team;
+  const showTeamEditor = !isStableMode && (editing || (!team && !awaitingAutoAssign));
 
   return (
     <div style={s.joinRoot}>
@@ -2292,13 +2740,20 @@ function PollParticipant({ code, voter, onClose }: { code: string; voter: string
                   {team ? "Save" : "Join"}
                 </button>
               </form>
+            ) : awaitingAutoAssign ? (
+              <span style={s.teamTag}><Users size={15} strokeWidth={2.3} /> Waiting for the host to assign teams…</span>
+            ) : awaitingStableTeam ? (
+              <span style={s.teamTag}><Users size={15} strokeWidth={2.3} /> No season team on file — ask an admin to set your PGY year.</span>
             ) : (
               <>
                 <span style={s.teamTag}><Users size={15} strokeWidth={2.3} /> Team <b style={{ color: "#fff" }}>{team}</b></span>
-                <button style={s.teamChange} onClick={() => { setDraft(team); setEditing(true); }}>change</button>
+                {!isStableMode && <button style={s.teamChange} onClick={() => { setDraft(team); setEditing(true); }}>change</button>}
               </>
             )}
           </div>
+        )}
+        {status !== "error" && !team && (
+          <p style={s.teamScoreHint}>Teams are ranked by correct answers per person who answers — a bigger team doesn't get an edge.</p>
         )}
 
         {status === "error" ? (
@@ -2307,35 +2762,103 @@ function PollParticipant({ code, voter, onClose }: { code: string; voter: string
           <p style={s.joinMsg}>Joined poll <b style={{ color: "#fff" }}>{code}</b> — waiting for the host to start…</p>
         ) : (
           <>
-            <p style={s.joinMsg}>
-              {remote.finished
-                ? <>Poll complete — thanks for playing! 🎉</>
-                : <>Question {remote.index + 1} of {remote.total} — read it on the big screen, then tap your answer.</>}
-            </p>
-            {!remote.finished && !remote.revealed && (remote.joined ?? 0) > 0 && (
-              <p style={{ ...s.joinState, marginTop: 0 }}>{remote.voted ?? 0} of {remote.joined} voted</p>
+            {reviewQid ? (() => {
+              const rq = byId.get(reviewQid);
+              const rh = historyRef.current.get(reviewQid);
+              if (!rq) return <p style={s.joinMsg}>That question isn't available to review.</p>;
+              const rCorrect = rh?.correct ?? [];
+              const rMine = rh?.myChoice ?? null;
+              return (
+                <>
+                  <div style={s.pollReviewHead}>
+                    <span style={s.joinMsg}>Reviewing question {(rh?.index ?? 0) + 1}</span>
+                    <button style={s.teamChange} onClick={() => setReviewQid(null)}><RotateCcw size={13} strokeWidth={2.4} /> Back to live</button>
+                  </div>
+                  <p style={s.joinMsg}>{rq.stem}</p>
+                  <div style={s.joinOptsFull}>
+                    {rq.options.map((o) => {
+                      const isCorrect = rCorrect.includes(o.letter);
+                      const isMine = rMine === o.letter;
+                      return (
+                        <div key={o.letter} style={{ ...s.joinOptFull, cursor: "default", ...(isMine ? s.joinOptMine : {}), ...(isCorrect ? s.joinOptCorrect : {}), ...(isMine && !isCorrect ? s.joinOptWrong : {}) }}>
+                          <span style={s.joinOptFullLetter}>{o.letter}</span>
+                          <span style={{ flex: 1 }}>{o.text}</span>
+                          {isCorrect && <Check size={18} strokeWidth={3} />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p style={s.joinState}>
+                    Answer: <b style={{ color: "#fff" }}>{rCorrect.join(", ")}</b>
+                    {rMine ? (rCorrect.includes(rMine) ? " — you got it! 🎉" : ` — you picked ${rMine}`) : " — you didn't vote"}
+                  </p>
+                  {(rq.explanation_text || rq.explanation_images.length > 0) && (
+                    <div style={s.joinExplBox}>
+                      <span style={s.joinExplLabel}><Lightbulb size={13} strokeWidth={2.3} /> Explanation</span>
+                      {rq.explanation_text && <p style={s.joinExpl}>{rq.explanation_text}</p>}
+                      {rq.explanation_images.map((src, i) => <img key={i} src={src} alt="" style={s.joinExplImg} />)}
+                    </div>
+                  )}
+                </>
+              );
+            })() : (
+              <>
+                <p style={s.joinMsg}>
+                  {remote.finished
+                    ? <>Poll complete — thanks for playing! 🎉</>
+                    : <>Question {remote.index + 1} of {remote.total} — read it on the big screen, then tap your answer.</>}
+                </p>
+                {!remote.finished && !remote.revealed && (remote.joined ?? 0) > 0 && (
+                  <p style={{ ...s.joinState, marginTop: 0 }}>{remote.voted ?? 0} of {remote.joined} voted</p>
+                )}
+                {!remote.finished && (
+                <div style={s.joinOptsFull}>
+                  {(remote.options?.length ? remote.options : letters.map((L) => ({ letter: L, text: "" }))).map((o) => {
+                    const mine = myVote === o.letter;
+                    const correct = remote.revealed && remote.correct.includes(o.letter);
+                    const wrong = remote.revealed && mine && !correct;
+                    return (
+                      <button key={o.letter} onClick={() => vote(o.letter)} disabled={remote.revealed}
+                        style={{ ...s.joinOptFull, ...(mine ? s.joinOptMine : {}), ...(correct ? s.joinOptCorrect : {}), ...(wrong ? s.joinOptWrong : {}) }}>
+                        <span style={s.joinOptFullLetter}>{o.letter}</span>
+                        <span style={{ flex: 1 }}>{o.text}</span>
+                        {(correct || wrong) && <span>{correct ? "✓" : "✗"}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+                )}
+                {!remote.finished && (
+                <p style={s.joinState}>
+                  {remote.revealed
+                    ? <>Answer: <b style={{ color: "#fff" }}>{remote.correct.join(", ")}</b>{myVote ? (remote.correct.includes(myVote) ? " — you got it! 🎉" : ` — you picked ${myVote}`) : " — you didn't vote"}</>
+                    : myVote ? `You picked ${myVote}. Tap another to change it.` : "Tap a letter to cast your vote."}
+                </p>
+                )}
+                {!remote.finished && remote.revealed && (() => {
+                  const cq = byId.get(remote.qid);
+                  if (!cq || (!cq.explanation_text && cq.explanation_images.length === 0)) return null;
+                  return (
+                    <div style={s.joinExplBox}>
+                      <span style={s.joinExplLabel}><Lightbulb size={13} strokeWidth={2.3} /> Explanation</span>
+                      {cq.explanation_text && <p style={s.joinExpl}>{cq.explanation_text}</p>}
+                      {cq.explanation_images.map((src, i) => <img key={i} src={src} alt="" style={s.joinExplImg} />)}
+                    </div>
+                  );
+                })()}
+              </>
             )}
-            {!remote.finished && (
-            <div style={s.joinOpts}>
-              {letters.map((L) => {
-                const mine = myVote === L;
-                const correct = remote.revealed && remote.correct.includes(L);
-                const wrong = remote.revealed && mine && !correct;
-                return (
-                  <button key={L} onClick={() => vote(L)} disabled={remote.revealed}
-                    style={{ ...s.joinOpt, ...(mine ? s.joinOptMine : {}), ...(correct ? s.joinOptCorrect : {}), ...(wrong ? s.joinOptWrong : {}) }}>
-                    {L}{correct ? " ✓" : wrong ? " ✗" : ""}
-                  </button>
-                );
-              })}
-            </div>
-            )}
-            {!remote.finished && (
-            <p style={s.joinState}>
-              {remote.revealed
-                ? <>Answer: <b style={{ color: "#fff" }}>{remote.correct.join(", ")}</b>{myVote ? (remote.correct.includes(myVote) ? " — you got it! 🎉" : ` — you picked ${myVote}`) : " — you didn't vote"}</>
-                : myVote ? `You picked ${myVote}. Tap another to change it.` : "Tap a letter to cast your vote."}
-            </p>
+            {historyRef.current.size > 0 && (
+              <div style={s.pollReviewBar}>
+                <span style={s.pollReviewBarLabel}><ListChecks size={13} strokeWidth={2.3} /> Review a past question{!remote.finished ? " while you wait" : ""}:</span>
+                <div style={s.pollReviewChipsRow}>
+                  {[...historyRef.current.entries()].sort((a, b) => a[1].index - b[1].index).map(([qid, h]) => (
+                    <button key={qid} style={{ ...s.pollReviewChip, ...(qid === reviewQid ? s.pollReviewChipActive : {}) }} onClick={() => setReviewQid(qid)}>
+                      Q{h.index + 1}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
             {(remote.finished || remote.revealed) && remote.standings?.length > 0 && (
               <div style={s.teamBoardMini}>
@@ -2343,7 +2866,7 @@ function PollParticipant({ code, voter, onClose }: { code: string; voter: string
                   <div key={t.team} style={{ ...s.teamMiniRow, ...(i === 0 ? s.teamMiniLead : {}), ...(t.team === team ? s.teamMiniMine : {}) }}>
                     <span style={s.teamMiniRank}>{i === 0 ? <Crown size={15} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
                     <span style={s.teamMiniName}>{t.team}{t.team === team ? " (you)" : ""}</span>
-                    <span style={s.teamMiniScore}>{t.score}</span>
+                    <span style={s.teamMiniScore}>{t.score}/player</span>
                   </div>
                 ))}
               </div>
@@ -2354,6 +2877,15 @@ function PollParticipant({ code, voter, onClose }: { code: string; voter: string
                 onClick={() => exportPollTeams(remote.standings, { code, index: remote.index + 1, total: remote.total })}
               >
                 <Download size={13} strokeWidth={2.3} /> Download team stats (Excel)
+              </button>
+            )}
+            {remote.finished && (
+              <button
+                style={s.teamDownload}
+                onClick={() => exportPollMissed(missedRows(), { code, who: displayName })}
+                title="A study sheet of just the questions you missed, with the full explanation for each"
+              >
+                <Download size={13} strokeWidth={2.3} /> Download my missed questions
               </button>
             )}
           </>
@@ -3422,7 +3954,7 @@ function DeckBuilder({
    From here a test can be studied, hosted as a live class poll, exported to
    PowerPoint, renamed, or deleted. Stored per-device in localStorage. */
 function TestsPanel({
-  tests, byId, onClose, onStudy, onHost, onPptx, onRename, onDelete,
+  tests, byId, onClose, onStudy, onHost, onPptx, onRename, onDelete, onStudyGuide, generatingGuideId,
 }: {
   tests: SavedTest[];
   byId: Map<string, RawQuestion>;
@@ -3432,6 +3964,8 @@ function TestsPanel({
   onPptx: (t: SavedTest) => void;
   onRename: (t: SavedTest) => void;
   onDelete: (t: SavedTest) => void;
+  onStudyGuide: (t: SavedTest) => void;
+  generatingGuideId: string | null;
 }) {
   return (
     <div style={s.scrim} onClick={onClose}>
@@ -3471,6 +4005,14 @@ function TestsPanel({
                     <button style={{ ...s.ghost, marginLeft: 0 }} onClick={() => onPptx(t)} title="Download as PowerPoint (question + reveal slide per question)">
                       <FileText size={13} strokeWidth={2.3} /> PowerPoint
                     </button>
+                    <button
+                      style={{ ...s.ghost, marginLeft: 0, opacity: generatingGuideId === t.id ? 0.6 : 1 }}
+                      disabled={generatingGuideId === t.id}
+                      onClick={() => onStudyGuide(t)}
+                      title="Generate a prep page + ~10-min audio overview to send the class before the session — background and context only, doesn't give away answers"
+                    >
+                      <BookOpen size={13} strokeWidth={2.3} /> {generatingGuideId === t.id ? "Writing…" : "Study guide"}
+                    </button>
                     <button style={{ ...s.ghost, marginLeft: 0 }} onClick={() => onRename(t)} title="Rename">
                       <Pencil size={13} strokeWidth={2.3} /> Rename
                     </button>
@@ -3482,6 +4024,204 @@ function TestsPanel({
               );
             })}
           </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* Shown right after a study guide is (re)generated: the shareable ?study=<id>
+   link to paste into an email/chat to the class, plus a regenerate option. */
+function StudyGuideShareModal({
+  guide, onClose, onRegenerate, regenerating,
+}: {
+  guide: StudyGuide;
+  onClose: () => void;
+  onRegenerate: () => void;
+  regenerating: boolean;
+}) {
+  const [copied, setCopied] = useState(false);
+  const link = studyGuideUrl(guide.id);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1800); }
+    catch { window.prompt("Copy this link:", link); }
+  };
+  return (
+    <div style={s.scrim} onClick={onClose}>
+      <div style={{ ...s.apPanel, maxWidth: 480 }} onClick={(e) => e.stopPropagation()} className="rise">
+        <div style={s.apHead}>
+          <div>
+            <div style={s.apEyebrow}>Ready to send</div>
+            <div style={s.apTitle}>{guide.title}</div>
+          </div>
+          <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
+        </div>
+        <div style={{ padding: "4px 22px 22px" }}>
+          <p style={{ fontSize: 13.5, color: T.muted, lineHeight: 1.6, margin: "0 0 14px" }}>
+            Send this link to the class to read (and listen to, ~10 min) before the session.
+            It's background and context only — it won't give away the quiz answers.
+          </p>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input readOnly value={link} onFocus={(e) => e.currentTarget.select()}
+              style={{ flex: 1, minWidth: 0, padding: "9px 10px", borderRadius: 9, border: `1px solid ${T.paperEdge}`, fontSize: 13, color: T.text, background: "#fff" }} />
+            <button style={s.primarySm} onClick={copy}>
+              <Copy size={13} strokeWidth={2.3} /> {copied ? "Copied!" : "Copy"}
+            </button>
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <a href={link} target="_blank" rel="noreferrer" style={{ ...s.ghost, marginLeft: 0, textDecoration: "none", display: "inline-flex" }}>
+              <ExternalLink size={13} strokeWidth={2.3} /> Preview
+            </a>
+            <button style={{ ...s.ghost, marginLeft: 0, opacity: regenerating ? 0.6 : 1 }} disabled={regenerating} onClick={onRegenerate}>
+              <Sparkles size={13} strokeWidth={2.3} /> {regenerating ? "Rewriting…" : "Regenerate"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* The prep page itself, opened either from the share modal's Preview link or
+   by anyone the speaker sent the ?study=<id> link to. Reads the generated
+   material aloud via the browser's built-in text-to-speech (no server cost,
+   plays through whatever the phone/car is routed to) — chunked sentence by
+   sentence so Play/Pause/Stop stay responsive on a ~10-minute script. */
+function StudyGuideView({ id, onClose }: { id: string; onClose: () => void }) {
+  const [guide, setGuide] = useState<StudyGuide | null | undefined>(undefined); // undefined = loading
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioError, setAudioError] = useState<string | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [current, setCurrent] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [rate, setRate] = useState(1);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Same 0.5x-2.5x speed range as the AcademicWiki read-aloud player.
+  useEffect(() => { if (audioRef.current) audioRef.current.playbackRate = rate; }, [rate, audioUrl]);
+
+  useEffect(() => {
+    let alive = true;
+    getStudyGuide(id).then((g) => { if (alive) setGuide(g); });
+    return () => { alive = false; };
+  }, [id]);
+
+  // Lazily fetch the generated MP3 once the guide (and its audio_path) load;
+  // revoke the blob: URL on unmount so it doesn't leak memory.
+  useEffect(() => {
+    if (!guide?.audio_path) return;
+    let alive = true;
+    let url: string | null = null;
+    getStudyGuideAudioUrl(guide.audio_path).then((u) => {
+      if (!alive) return;
+      if (!u) { setAudioError("Couldn't load the audio for this guide."); return; }
+      url = u; setAudioUrl(u);
+    });
+    return () => { alive = false; if (url) URL.revokeObjectURL(url); };
+  }, [guide?.audio_path]);
+
+  const toggle = () => {
+    const el = audioRef.current;
+    if (!el) return;
+    if (playing) el.pause(); else el.play().catch(() => setAudioError("Couldn't play the audio."));
+  };
+  const stop = () => {
+    const el = audioRef.current;
+    if (!el) return;
+    el.pause(); el.currentTime = 0;
+  };
+  const seek = (secs: number) => {
+    const el = audioRef.current;
+    if (el) el.currentTime = secs;
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: T.paper, zIndex: 60, overflowY: "auto" }}>
+      <div style={{ maxWidth: 680, margin: "0 auto", padding: "28px 20px 60px" }}>
+        <button style={{ ...s.ghost, marginLeft: 0, marginBottom: 18 }} onClick={onClose}>
+          <ArrowLeft size={14} strokeWidth={2.3} /> Back to Prite Daily
+        </button>
+
+        {guide === undefined && <p style={{ color: T.muted }}>Loading…</p>}
+        {guide === null && <p style={{ color: T.muted }}>This study guide link isn't valid, or you may need to sign in.</p>}
+
+        {guide && (
+          <>
+            <div style={{ fontSize: 12.5, letterSpacing: 0.4, textTransform: "uppercase", color: T.teal, fontWeight: 700, marginBottom: 6 }}>
+              Prep material · doesn't give away the quiz
+            </div>
+            <h1 style={{ fontSize: 30, lineHeight: 1.2, margin: "0 0 14px", color: T.ink }}>{guide.title}</h1>
+            <p style={{ fontSize: 16, lineHeight: 1.65, color: T.text, margin: "0 0 22px" }}>{guide.intro}</p>
+
+            <div style={{ padding: "14px 16px", borderRadius: 14, background: T.tealSoft, marginBottom: 28 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <Volume2 size={18} strokeWidth={2.2} color={T.tealDeep} />
+                <div style={{ flex: 1, fontSize: 13.5, color: T.tealDeep }}>
+                  <b>Listen instead</b> — a ~10-minute audio overview. Good for the car.
+                </div>
+                {audioUrl ? (
+                  <>
+                    <button style={s.primarySm} onClick={toggle}>
+                      {playing ? <Pause size={13} strokeWidth={2.3} /> : <Play size={13} strokeWidth={2.3} />} {playing ? "Pause" : current > 0 ? "Resume" : "Play"}
+                    </button>
+                    <button style={{ ...s.ghost, marginLeft: 0 }} onClick={stop}><Square size={13} strokeWidth={2.3} /> Stop</button>
+                  </>
+                ) : !audioError ? (
+                  <span style={{ fontSize: 12.5, color: T.tealDeep }}>Loading audio…</span>
+                ) : null}
+              </div>
+              {audioUrl && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+                  <span style={{ fontSize: 12, color: T.tealDeep, minWidth: 34 }}>{fmtTime(Math.floor(current))}</span>
+                  <input
+                    type="range" min={0} max={duration || 0} step={1} value={Math.min(current, duration || 0)}
+                    onChange={(e) => seek(Number(e.target.value))}
+                    style={{ flex: 1, accentColor: T.teal }}
+                  />
+                  <span style={{ fontSize: 12, color: T.tealDeep, minWidth: 34 }}>{fmtTime(Math.floor(duration))}</span>
+                </div>
+              )}
+              {audioUrl && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+                  <span style={{ fontSize: 12, color: T.tealDeep }}>Speed</span>
+                  <input
+                    type="range" min={0.5} max={2.5} step={0.1} value={rate}
+                    onChange={(e) => setRate(Number(e.target.value))}
+                    style={{ width: 100, accentColor: T.teal }}
+                  />
+                  <span style={{ fontSize: 12, color: T.tealDeep, minWidth: 30 }}>{rate.toFixed(1)}×</span>
+                </div>
+              )}
+              <audio
+                ref={audioRef} src={audioUrl ?? undefined} preload="metadata"
+                onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
+                onEnded={() => setPlaying(false)}
+                onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+                onTimeUpdate={(e) => setCurrent(e.currentTarget.currentTime)}
+                onError={() => setAudioError("Couldn't play the audio.")}
+                style={{ display: "none" }}
+              />
+            </div>
+            {audioError && <p style={{ fontSize: 13, color: T.wrongLine, marginTop: -18, marginBottom: 24 }}>{audioError}</p>}
+
+            {guide.sections.map((sec, i) => (
+              <div key={i} style={{ marginBottom: 24 }}>
+                <h2 style={{ fontSize: 19, color: T.ink, margin: "0 0 8px" }}>{sec.heading}</h2>
+                <p style={{ fontSize: 15.5, lineHeight: 1.7, color: T.text, margin: 0, whiteSpace: "pre-wrap" }}>{sec.body}</p>
+              </div>
+            ))}
+
+            {guide.key_terms.length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <div style={{ fontSize: 12.5, letterSpacing: 0.3, textTransform: "uppercase", color: T.faint, fontWeight: 700, marginBottom: 8 }}>Key terms</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {guide.key_terms.map((term, i) => (
+                    <span key={i} style={{ fontSize: 13, padding: "5px 11px", borderRadius: 999, background: T.card, border: `1px solid ${T.paperEdge}`, color: T.text }}>{term}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -3535,6 +4275,129 @@ function MissedPanel({
               </div>
             );
           })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Spaced-repetition (SM-2) flashcard review of missed questions. Card
+    content is the shared AI cloze card for the question (front = cloze_text,
+    back = extra); if one hasn't been generated yet it's created on the fly,
+    same as the per-question Flashcard tab. */
+function ReviewPanel({
+  due, byId, onGrade, onClose,
+}: {
+  due: SrsRow[];
+  byId: Map<string, RawQuestion>;
+  onGrade: (qid: string, grade: SrsGrade) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [i, setI] = useState(0);
+  const [revealed, setRevealed] = useState(false);
+  const [card, setCard] = useState<Flashcard | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [grading, setGrading] = useState(false);
+
+  const row = due[i];
+  const q = row ? byId.get(row.question_id) : undefined;
+
+  useEffect(() => {
+    setRevealed(false); setCard(null);
+    if (!row || !q) return;
+    let cancelled = false;
+    setBusy(true);
+    getFlashcard(row.question_id).then(async (existing) => {
+      if (cancelled) return;
+      if (existing) { setCard(existing); setBusy(false); return; }
+      // No cached card yet (rare — mainly very recently added questions) — generate one.
+      const gen = await generateFlashcard({
+        question_id: row.question_id, stem: q.stem, options: q.options,
+        answer_letter: q.answer_letter, answer_text: q.answer_text,
+      });
+      if (cancelled) return;
+      if (!("error" in gen)) setCard(gen);
+      setBusy(false);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [row?.question_id]);
+
+  const prevState: SrsState = row
+    ? { ease_factor: row.ease_factor, interval_days: row.interval_days, repetitions: row.repetitions }
+    : SRS_DEFAULT;
+
+  const grade = async (g: SrsGrade) => {
+    if (!row || grading) return;
+    setGrading(true);
+    await onGrade(row.question_id, g);
+    setGrading(false);
+    setI((n) => n); // due[] shrinks under us (filtered by the parent); i stays put so the next card slides into this slot
+  };
+
+  return (
+    <div style={s.scrim} onClick={onClose}>
+      <div style={{ ...s.apPanel, maxWidth: 620 }} onClick={(e) => e.stopPropagation()} className="rise">
+        <div style={s.apHead}>
+          <div>
+            <div style={s.apEyebrow}>Spaced repetition · SM-2</div>
+            <div style={s.apTitle}>Review{due.length ? ` (${due.length} due)` : ""}</div>
+          </div>
+          <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
+        </div>
+        <div style={s.apBody}>
+          {due.length === 0 && (
+            <p style={s.apEmpty}>Nothing due right now — cards resurface here after you miss a question, on an increasing schedule as you get them right.</p>
+          )}
+          {due.length > 0 && !q && (
+            <p style={s.apEmpty}>All caught up for this session. 🎉</p>
+          )}
+          {row && q && (
+            <div>
+              <div style={s.eyebrow2}>{q.year} · Q{q.q_index}{row.repetitions > 0 ? ` · reviewed ${row.reviewed_count}x` : " · new"}</div>
+              {busy && !card ? (
+                <p style={{ ...s.apEmpty, fontStyle: "normal" }}>Loading card…</p>
+              ) : card ? (
+                <>
+                  <p style={s.stem}>{revealed ? renderClozeResolved(card.cloze_text) : renderClozePreview(card.cloze_text)}</p>
+                  {!revealed ? (
+                    <button style={{ ...s.apApprove, padding: "10px 20px", fontSize: 14 }} onClick={() => setRevealed(true)}>
+                      Show answer
+                    </button>
+                  ) : (
+                    <>
+                      <p style={s.expl}>{card.extra}</p>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
+                        {SRS_GRADES.map(({ grade: g, label }) => {
+                          const next = sm2Next(prevState, g);
+                          const color =
+                            g === "again" ? T.wrongText : g === "hard" ? T.gold : g === "good" ? T.teal : T.correctText;
+                          return (
+                            <button
+                              key={g}
+                              disabled={grading}
+                              onClick={() => grade(g)}
+                              style={{
+                                flex: "1 1 100px", display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+                                background: "#fff", border: `1.5px solid ${color}`, color, borderRadius: 10,
+                                padding: "9px 6px", fontSize: 13.5, fontWeight: 700, cursor: grading ? "default" : "pointer",
+                                opacity: grading ? 0.6 : 1,
+                              }}
+                            >
+                              {label}
+                              <span style={{ fontSize: 11, fontWeight: 500, color: T.muted }}>{intervalLabel(next.interval_days)}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </>
+              ) : (
+                <p style={s.apEmpty}>Couldn't load a card for this question — try again shortly.</p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -3917,6 +4780,8 @@ const s: Record<string, React.CSSProperties> = {
   savedDot: { width: 7, height: 7, borderRadius: 7, background: T.teal },
   savedTxt: { fontSize: 12.5, color: T.muted },
   ghost: { marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: `1px solid ${T.paperEdge}`, color: T.text, padding: "7px 12px", borderRadius: 9, fontSize: 12.5, fontWeight: 500, cursor: "pointer" },
+  teamModeOpt: { display: "flex", alignItems: "flex-start", gap: 12, textAlign: "left", background: "#fff", border: `1px solid ${T.paperEdge}`, color: T.text, padding: "14px 16px", borderRadius: 12, cursor: "pointer" },
+  teamModeRegen: { display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: "none", color: T.muted, fontSize: 11.5, padding: "6px 4px 0", cursor: "pointer", textDecoration: "underline" },
 
   threadHead: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 10 },
   thread: { display: "flex", flexDirection: "column", gap: 14 },
@@ -3964,7 +4829,7 @@ const s: Record<string, React.CSSProperties> = {
   pollCode: { color: "#fff", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", letterSpacing: "0.18em", background: T.inkSoft, border: `1px solid ${T.inkLine}`, borderRadius: 8, padding: "3px 10px", fontSize: 18 },
   pollVoters: { display: "inline-flex", alignItems: "center", gap: 7, marginLeft: "auto", color: "#e7eaf0", fontWeight: 600, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
   pollClose: { display: "grid", placeItems: "center", width: 38, height: 38, borderRadius: 10, background: T.inkSoft, color: "#aeb4c0", border: `1px solid ${T.inkLine}`, cursor: "pointer" },
-  pollBody: { flex: 1, overflow: "auto", padding: "clamp(20px, 4vw, 48px)", maxWidth: 1100, width: "100%", margin: "0 auto" },
+  pollBody: { flex: 1, overflow: "auto", padding: "clamp(20px, 4vw, 48px)", width: "100%" },
   pollMeta: { color: T.faint, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 15, marginBottom: 14 },
   pollStem: { fontSize: "clamp(22px, 3.2vw, 38px)", lineHeight: 1.3, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", color: "#f4f5f7", margin: "0 0 28px" },
   pollOpts: { display: "flex", flexDirection: "column", gap: 12 },
@@ -3994,6 +4859,9 @@ const s: Record<string, React.CSSProperties> = {
   joinMsg: { color: "#c7ccd6", fontSize: 15, lineHeight: 1.5, margin: "0 0 18px" },
   joinOpts: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(64px, 1fr))", gap: 12 },
   joinOpt: { aspectRatio: "1 / 1", display: "grid", placeItems: "center", background: T.ink, color: "#e7eaf0", border: `2px solid ${T.inkLine}`, borderRadius: 16, fontSize: 30, fontWeight: 700, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", cursor: "pointer" },
+  joinOptsFull: { display: "flex", flexDirection: "column", gap: 10 },
+  joinOptFull: { display: "flex", alignItems: "center", gap: 12, width: "100%", textAlign: "left", background: T.ink, color: "#e7eaf0", border: `2px solid ${T.inkLine}`, borderRadius: 14, padding: "13px 16px", fontSize: 16.5, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", cursor: "pointer" },
+  joinOptFullLetter: { flexShrink: 0, width: 30, height: 30, display: "grid", placeItems: "center", borderRadius: 9, background: "rgba(255,255,255,.1)", fontWeight: 700 },
   joinOptMine: { background: T.teal, color: "#fff", borderColor: T.teal },
   joinOptCorrect: { background: "#1a7a4a", color: "#fff", borderColor: "#48c78e" },
   joinOptWrong: { background: "#7a2a2a", color: "#fff", borderColor: "#e07a5f" },
@@ -4019,6 +4887,7 @@ const s: Record<string, React.CSSProperties> = {
   teamSetOff: { opacity: 0.4, cursor: "default" },
   teamTag: { display: "inline-flex", alignItems: "center", gap: 7, color: "#c7ccd6", fontSize: 14.5 },
   teamChange: { marginLeft: "auto", background: "none", border: `1px solid ${T.inkLine}`, color: "#aeb4c0", borderRadius: 8, padding: "5px 11px", fontSize: 13, cursor: "pointer" },
+  teamScoreHint: { margin: "-8px 0 16px", color: T.faint, fontSize: 12.5, lineHeight: 1.4 },
   teamDownload: { marginTop: 14, width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, background: T.ink, color: "#c7ccd6", border: `1px solid ${T.inkLine}`, borderRadius: 10, padding: "10px 12px", fontSize: 13.5, fontWeight: 600, cursor: "pointer" },
   teamBoardMini: { marginTop: 16, display: "flex", flexDirection: "column", gap: 6 },
   teamMiniRow: { display: "flex", alignItems: "center", gap: 12, background: T.ink, border: `1px solid ${T.inkLine}`, borderRadius: 10, padding: "9px 13px", fontSize: 14.5 },
@@ -4027,4 +4896,14 @@ const s: Record<string, React.CSSProperties> = {
   teamMiniRank: { flexShrink: 0, width: 22, display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 700, color: "#aeb4c0" },
   teamMiniName: { flex: 1, color: "#e7eaf0", fontWeight: 600 },
   teamMiniScore: { flexShrink: 0, color: "#fff", fontWeight: 700, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
+  joinExplBox: { marginTop: 12, marginBottom: 4, background: T.ink, border: `1px solid ${T.inkLine}`, borderRadius: 12, padding: "12px 14px" },
+  joinExplLabel: { display: "inline-flex", alignItems: "center", gap: 6, color: "#f2c14e", fontWeight: 700, fontSize: 12.5, letterSpacing: "0.02em", textTransform: "uppercase" },
+  joinExpl: { margin: "8px 0 0", color: "#c7ccd6", fontSize: 14.5, lineHeight: 1.55, whiteSpace: "pre-wrap" },
+  joinExplImg: { display: "block", maxWidth: "100%", borderRadius: 8, marginTop: 10 },
+  pollReviewHead: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 4 },
+  pollReviewBar: { marginTop: 16, paddingTop: 14, borderTop: `1px solid ${T.inkLine}` },
+  pollReviewBarLabel: { display: "inline-flex", alignItems: "center", gap: 6, color: T.faint, fontSize: 12.5, marginBottom: 8 },
+  pollReviewChipsRow: { display: "flex", flexWrap: "wrap", gap: 8 },
+  pollReviewChip: { background: T.ink, color: "#c7ccd6", border: `1px solid ${T.inkLine}`, borderRadius: 8, padding: "6px 11px", fontSize: 13, fontWeight: 600, cursor: "pointer" },
+  pollReviewChipActive: { background: T.teal, color: "#fff", borderColor: T.teal },
 };

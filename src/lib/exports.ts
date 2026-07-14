@@ -30,7 +30,7 @@ function download(filename: string, html: string) {
    dependency; the leading BOM makes Excel read UTF-8 correctly. Open to anyone
    on either the host or a participant device. */
 export function exportPollTeams(
-  standings: { team: string; score: number; members: number }[],
+  standings: { team: string; score: number; members: number; correct: number; answerers: number }[],
   meta: { code: string; index: number; total: number },
 ) {
   const cell = (v: string | number) => {
@@ -40,9 +40,10 @@ export function exportPollTeams(
   const rows: (string | number)[][] = [
     [`Live poll ${meta.code} — team statistics`],
     [`Through question ${meta.index} of ${meta.total}`],
+    [`Ranked by correct answers per person who answered, not total points`],
     [],
-    ["Rank", "Team", "Players", "Score"],
-    ...standings.map((t, i) => [i + 1, t.team, t.members, t.score]),
+    ["Rank", "Team", "Players", "Answered", "Correct", "Avg per player"],
+    ...standings.map((t, i) => [i + 1, t.team, t.members, t.answerers, t.correct, t.score]),
   ];
   const csv = rows.map((r) => r.map(cell).join(",")).join("\r\n");
   const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
@@ -92,7 +93,12 @@ const STYLE = `
   .stem{font-family:Georgia,serif;font-size:15.5px;margin:0 0 10px}
   .opt{font-size:14px;padding:2px 0;color:#3a3f4b} .opt b{color:#155f39}
   .correct{color:#155f39;font-weight:600} .meta{font-size:13px;color:#6c7280;margin-top:6px}
+  .wrong{color:#a33131}
   .note{background:#faf7f1;border:1px solid #ece5d8;border-radius:8px;padding:10px 13px;margin-top:9px;font-size:14px;white-space:pre-wrap}
+  .expl{background:#f4f7fb;border:1px solid #dde6f0;border-radius:8px;padding:10px 13px;margin-top:9px;font-size:14px}
+  .expl p{margin:0 0 8px;white-space:pre-wrap} .expl p:last-child{margin-bottom:0}
+  .expl-img{max-width:100%;height:auto;display:block;margin-top:8px;border-radius:6px}
+  .noexpl{font-size:13px;color:#9aa0ab;font-style:italic;margin-top:9px}
   .thread{margin-top:8px} .cmt{font-size:14px;margin:8px 0;padding-left:12px;border-left:2px solid #e2efeb}
   .cmt .who{font-weight:600;font-size:12.5px} .cmt .who span{color:#9aa0ab;font-weight:400;font-family:ui-monospace,monospace}
   @media print{body{padding:0} .q{border-color:#ddd}}
@@ -152,6 +158,42 @@ export function exportMissed(
   }).join("");
   const sub = `${who} · ${rows.length} missed question${rows.length === 1 ? "" : "s"} · exported ${new Date().toLocaleDateString()}`;
   download("prite-missed-questions.html", shell("My missed PRITE questions", sub, body || "<p>Nothing missed yet.</p>"));
+}
+
+type PollExplQ = RawQuestion & { explanation_text?: string; explanation_images?: string[] };
+
+function pollMissedBlock(q: PollExplQ, myChoice: string | null) {
+  const correct = q.answer_letters?.length ? q.answer_letters : q.answer_letter ? [q.answer_letter] : [];
+  const opts = q.options.map((o) => {
+    const isC = correct.includes(o.letter);
+    const isMine = myChoice === o.letter;
+    return `<div class="opt${isC ? " correct" : ""}${isMine && !isC ? " wrong" : ""}">${esc(o.letter)}. ${esc(o.text)}${isC ? " ✓" : ""}${isMine && !isC ? " ← your answer" : ""}</div>`;
+  }).join("");
+  const images = (q.explanation_images ?? [])
+    .filter((p) => !p.startsWith("<"))
+    .map((p) => `<img class="expl-img" src="${esc(window.location.origin + "/" + p)}" alt="explanation figure">`)
+    .join("");
+  const explanation = q.explanation_text || images
+    ? `<div class="expl">${q.explanation_text ? `<p>${esc(q.explanation_text)}</p>` : ""}${images}</div>`
+    : `<p class="noexpl">No explanation available for this question.</p>`;
+  return `<div class="q">
+    <div class="eyebrow">${esc(q.year)} · Q${q.q_index}</div>
+    <div class="stem">${esc(q.stem)}</div>
+    ${opts}
+    <div class="meta">Correct answer: <b>${correct.join(", ")}</b>${q.answer_text ? " — " + esc(q.answer_text) : ""} · ${myChoice ? `You picked ${esc(myChoice)}` : "You didn't vote"}</div>
+    ${explanation}
+  </div>`;
+}
+
+/* A live-poll participant's own missed questions, with explanations — unlike
+   exportMissed() (personal practice history), a poll session is transient and
+   nowhere else to revisit afterward, so this is the one export that includes
+   the AI explanation. Images are linked back to the live site by absolute URL
+   (the downloaded file is opened standalone, so a relative path would break). */
+export function exportPollMissed(rows: { q: PollExplQ; myChoice: string | null }[], meta: { code: string; who: string }) {
+  const body = rows.map(({ q, myChoice }) => pollMissedBlock(q, myChoice)).join("");
+  const sub = `${meta.who} · Poll ${meta.code} · ${rows.length} missed question${rows.length === 1 ? "" : "s"} · exported ${new Date().toLocaleDateString()}`;
+  download(`prite-poll-${meta.code}-missed.html`, shell("Questions I missed", sub, body || "<p>You didn't miss anything — nice work! 🎉</p>"));
 }
 
 export function exportGroupNotes(
