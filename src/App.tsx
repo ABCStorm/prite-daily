@@ -1026,7 +1026,10 @@ export default function App() {
   const setAnswered = setRows.filter(Boolean).length;
   const examSetComplete = examMode && inPractice && set.length > 0 && setAnswered >= set.length;
   const examScore = setRows.filter((r) => r && r.correct).length;
-  const examDays = settings?.exam_date ? daysUntil(settings.exam_date) : null;
+  // Falls back to the residency's assumed PRITE date (Oct 6, see
+  // reminderWindow.ts) when the user hasn't set their own — same default the
+  // Settings date box now displays.
+  const examDays = settings ? daysUntil(settings.exam_date || guessedExamDate()) : null;
   const switchMode = (m: "today" | "browse" | "custom") => { setMode(m); setQi(0); setReviewMode(false); };
   // start a custom study session from a hand-picked set (from the Search modal)
   const startCustom = (qs: RawQuestion[], label: string) => {
@@ -3630,11 +3633,14 @@ function SettingsPanel({
             <div style={s.setLbl}>Exam date</div>
             <input
               type="date"
-              value={settings.exam_date ?? ""}
+              value={settings.exam_date ?? guessedExamDate()}
               onChange={(e) => onChange({ exam_date: e.target.value || null })}
               style={s.dateInput}
             />
-            <div style={s.setHint}>Drives the countdown in the header.</div>
+            <div style={s.setHint}>
+              Drives the countdown in the header. Pre-filled with the assumed PRITE date
+              {settings.exam_date ? "" : " (edit if yours differs)"}.
+            </div>
           </div>
 
           <div style={s.setBlock}>
@@ -3692,7 +3698,7 @@ function SettingsPanel({
                       <b>Email me practice reminders</b>
                       <div style={s.setHint}>
                         {settings.daily_reminder === null
-                          ? <>Automatic: on during the 90 days before your exam{settings.exam_date ? "" : ` (using ${guessedExamDate()} since you haven't set one)`}, off after. Toggle to override.</>
+                          ? <>Automatic: on during the 90 days before the exam date above, off after. Toggle to override.</>
                           : "Sent to your sign-in email. Toggle off anytime."}
                       </div>
                     </span>
