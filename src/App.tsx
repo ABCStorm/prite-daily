@@ -35,7 +35,7 @@ function MermaidDiagram({ code }: { code: string }) {
 }
 import { isConfigured, supabase, signInWithGoogle, signOut, questionId } from "./lib/supabase";
 import { useAuth } from "./lib/useAuth";
-import { matchRoster } from "./lib/roster";
+import { matchRoster, matchPlannedTeam } from "./lib/roster";
 import { recordToday, peekStreak, totalDays, ymd } from "./lib/streaks";
 import { dueReminderPromptStage, markReminderPromptShown } from "./lib/reminderPrompt";
 import { dueAiDisclaimerStage, markAiDisclaimerShown } from "./lib/aiDisclaimerPrompt";
@@ -2280,6 +2280,23 @@ function TeamRosterEditor({ onClose }: { onClose: () => void }) {
       .sort(memberSort);
   const unassigned = profiles.filter((p) => !teams[p.id]).sort(memberSort);
 
+  // Suggested team for someone not yet placed: the seat that was announced
+  // for them before they had an account (PLANNED_TEAMS), else the thinnest
+  // team that lacks their PGY-year bucket, else simply the thinnest team.
+  const suggestFor = (p: Profile): string | null => {
+    const planned = matchPlannedTeam(p.full_name);
+    if (planned) return planned;
+    if (!teamNames.length) return null;
+    const bySize = [...teamNames].sort((a, b) =>
+      membersOf(a).length - membersOf(b).length || a.length - b.length || a.localeCompare(b));
+    const bucket = stableTeamLevel(p.training_level);
+    if (bucket) {
+      const gap = bySize.find((t) => !membersOf(t).some((m) => stableTeamLevel(m.training_level) === bucket));
+      if (gap) return gap;
+    }
+    return bySize[0];
+  };
+
   const move = async (pid: string, team: string) => {
     if (!team || teams[pid] === team) return;
     setBusyId(pid); setFailedId(null);
@@ -2351,23 +2368,39 @@ function TeamRosterEditor({ onClose }: { onClose: () => void }) {
               <div style={{ ...s.teamEdSection, marginTop: 18 }}>
                 <div style={s.teamEdHead}>Not on a team <span style={{ color: T.faint, fontWeight: 500 }}>· {unassigned.length}</span></div>
                 {unassigned.length === 0 && <div style={{ ...s.apEmpty, padding: "4px 0 8px" }}>Every approved member is placed.</div>}
-                {unassigned.map((p) => (
-                  <div key={p.id} style={{ ...s.teamEdRow, opacity: busyId === p.id ? 0.5 : 1 }}>
-                    <span style={s.teamEdName}>{label(p)}</span>
-                    <span style={s.teamEdLvl}>{tag(p)}</span>
-                    {failedId === p.id && <span style={{ color: T.wrongLine, fontSize: 11.5 }}>couldn't save — retry</span>}
-                    <select
-                      style={s.teamEdSel}
-                      value=""
-                      disabled={busyId === p.id}
-                      onChange={(e) => move(p.id, e.target.value)}
-                      title="Add to a team"
-                    >
-                      <option value="" disabled>Add to…</option>
-                      {teamNames.map((t) => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                  </div>
-                ))}
+                {unassigned.map((p) => {
+                  const suggested = suggestFor(p);
+                  const promised = !!matchPlannedTeam(p.full_name);
+                  return (
+                    <div key={p.id} style={{ ...s.teamEdRow, opacity: busyId === p.id ? 0.5 : 1 }}>
+                      <span style={s.teamEdName}>{label(p)}</span>
+                      <span style={s.teamEdLvl}>{tag(p)}</span>
+                      {failedId === p.id && <span style={{ color: T.wrongLine, fontSize: 11.5 }}>couldn't save — retry</span>}
+                      {suggested && (
+                        <button
+                          style={s.teamEdSuggest}
+                          onClick={() => move(p.id, suggested)}
+                          disabled={busyId === p.id}
+                          title={promised
+                            ? "This seat was announced for them before they had an account"
+                            : "Best fit: the thinnest team missing their year"}
+                        >
+                          <Sparkles size={11} strokeWidth={2.4} /> {suggested}{promised ? " · promised" : ""}
+                        </button>
+                      )}
+                      <select
+                        style={s.teamEdSel}
+                        value=""
+                        disabled={busyId === p.id}
+                        onChange={(e) => move(p.id, e.target.value)}
+                        title="Add to a team"
+                      >
+                        <option value="" disabled>Other…</option>
+                        {teamNames.map((t) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                  );
+                })}
               </div>
             </>
           )}
@@ -5658,6 +5691,7 @@ const s: Record<string, React.CSSProperties> = {
   teamEdSel: { flexShrink: 0, background: "#fff", color: T.text, border: `1px solid ${T.paperEdge}`, borderRadius: 8, padding: "5px 8px", fontSize: 12.5, fontFamily: "inherit", cursor: "pointer" },
   teamEdRemove: { flexShrink: 0, display: "grid", placeItems: "center", width: 26, height: 26, borderRadius: 8, background: "none", border: `1px solid ${T.paperEdge}`, color: T.muted, cursor: "pointer" },
   teamEdAddTeam: { display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: `1px solid ${T.paperEdge}`, color: T.text, borderRadius: 9, padding: "7px 13px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" },
+  teamEdSuggest: { flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 5, background: T.tealSoft, border: `1px solid ${T.teal}55`, color: T.tealDeep, borderRadius: 8, padding: "5px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" },
 
   threadHead: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 10 },
   thread: { display: "flex", flexDirection: "column", gap: 14 },

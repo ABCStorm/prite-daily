@@ -54,3 +54,34 @@ export function matchRoster(displayName?: string | null): string | null {
   );
   return hit ? hit.year : null;
 }
+
+/* Season-team seats promised to residents who hadn't made an account yet
+   (announced 2026-07-15 for the Tuesday review sessions). The roster editor
+   surfaces the match as the suggested team once they finally sign up.
+   Safe to prune entries as people get seated — or wholesale after the PRITE. */
+export const PLANNED_TEAMS: { first: string; last: string; team: string }[] = [
+  { first: "Joseph", last: "Griffin", team: "Team 9" },
+  { first: "Needa", last: "Toofanny", team: "Team 9" },
+  { first: "Geoffrey", last: "McLatchey", team: "Team 8" },
+  { first: "Logan", last: "Heckart", team: "Team 11" },
+  { first: "Adam", last: "Quinn", team: "Team 10" },
+  { first: "Ryan", last: "Bernal", team: "Team 3" },
+  { first: "Samantha", last: "Ruffe", team: "Team 5" },
+  { first: "Holland", last: "Arnold", team: "Team 1" },
+  { first: "Emily", last: "Murphy", team: "Team 2" },
+  { first: "James", last: "Pike", team: "Team 4" },
+];
+
+/** The pre-announced team for a display name (same matching rule as above),
+    or null if none was promised. */
+export function matchPlannedTeam(displayName?: string | null): string | null {
+  if (!displayName) return null;
+  const toks = strip(displayName).toLowerCase().split(/\s+/).filter(Boolean);
+  if (!toks.length) return null;
+  const first = toks[0], last = toks[toks.length - 1];
+  const hit = PLANNED_TEAMS.find(
+    (e) => e.last.toLowerCase() === last &&
+      (e.first.toLowerCase() === first || e.first[0].toLowerCase() === first[0])
+  );
+  return hit ? hit.team : null;
+}
