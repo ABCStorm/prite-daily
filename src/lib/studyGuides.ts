@@ -23,6 +23,8 @@ export type StudyGuide = {
   audio_path: string | null;  // path in the private "study-audio" bucket
   status: StudyGuideStatus;
   stage: StudyGuideStage;
+  text_ready: boolean;        // the written guide is populated and viewable (audio may still be pending/failed)
+  session_date: string | null; // date of the upcoming review session this is prep for (YYYY-MM-DD)
   error_message: string | null;
   generation_started_at: string | null;  // when THIS run began (survives refresh; anchors the progress bar)
   created_at: string;
@@ -79,16 +81,16 @@ export async function listStudyGuidesForTests(savedTestIds: string[]): Promise<R
 
 export type LibraryStudyGuide = StudyGuide & { creator_name: string | null };
 
-/** Every finished study guide any speaker in the residency has generated,
-    newest first — the shared library so residents can find past sessions'
-    prep material without needing the original share link. RLS already lets
-    any approved member read study_guides and profiles, so this is a plain
-    read for whoever calls it. */
-export async function listAllReadyStudyGuides(): Promise<LibraryStudyGuide[]> {
+/** Every study guide any speaker in the residency has generated whose TEXT is
+    ready (audio may still be rendering or may have failed — the written guide
+    is readable either way), newest first. The shared library so residents can
+    find past sessions' prep material without needing the original share link.
+    RLS already lets any approved member read study_guides and profiles. */
+export async function listLibraryStudyGuides(): Promise<LibraryStudyGuide[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
-    .from("study_guides").select("*").eq("status", "ready").order("created_at", { ascending: false });
-  if (error) { console.warn("listAllReadyStudyGuides", error.message); return []; }
+    .from("study_guides").select("*").eq("text_ready", true).order("created_at", { ascending: false });
+  if (error) { console.warn("listLibraryStudyGuides", error.message); return []; }
   const guides = (data as StudyGuide[]) ?? [];
   const creatorIds = [...new Set(guides.map((g) => g.created_by).filter((id): id is string => Boolean(id)))];
   let names: Record<string, string> = {};
@@ -116,10 +118,11 @@ export async function generateStudyGuide(
   testName: string,
   topics: { stem: string; prite_category?: string; prite_label?: string; topics?: string[] }[],
   force = false,
+  sessionDate: string | null = null,
 ): Promise<StudyGuide | { error: string }> {
   if (!supabase) return { error: "not configured" };
   const { data, error } = await supabase.functions.invoke("generate-study-guide", {
-    body: { saved_test_id: savedTestId, test_name: testName, topics, force },
+    body: { saved_test_id: savedTestId, test_name: testName, topics, force, session_date: sessionDate },
   });
   if (error) {
     // FunctionsHttpError's own .message is just "Edge Function returned a

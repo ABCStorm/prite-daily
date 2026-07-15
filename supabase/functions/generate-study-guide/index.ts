@@ -95,8 +95,8 @@ async function synthesizeSpeech(text: string, apiKey: string, voice: string): Pr
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
-    const { saved_test_id, test_name, topics, force } = await req.json() as {
-      saved_test_id: string; test_name: string; topics: TopicInput[]; force?: boolean;
+    const { saved_test_id, test_name, topics, force, session_date } = await req.json() as {
+      saved_test_id: string; test_name: string; topics: TopicInput[]; force?: boolean; session_date?: string | null;
     };
     if (!saved_test_id) return json({ error: "saved_test_id required" }, 400);
     if (!Array.isArray(topics) || !topics.length) return json({ error: "topics required" }, 400);
@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
     const { data: placeholder, error: placeholderErr } = await admin
       .from("study_guides")
       .upsert(
-        { saved_test_id, created_by: uid, title: test_name, status: "generating", stage: "writing", error_message: null, generation_started_at: new Date().toISOString() },
+        { saved_test_id, created_by: uid, title: test_name, status: "generating", stage: "writing", error_message: null, generation_started_at: new Date().toISOString(), session_date: session_date ?? null },
         { onConflict: "saved_test_id" },
       )
       .select("*").single();
@@ -196,29 +196,34 @@ Respond with ONLY a JSON object, no markdown fencing:
         let guide: { title: string; intro: string; sections: { heading: string; body: string }[]; key_terms: string[]; audio_script: string };
         try { guide = JSON.parse(raw); } catch { await fail("Claude returned unparseable output"); return; }
 
-        // 6. render the narration to speech (OpenAI TTS) and store the MP3
+        // 6. write the TEXT now — before audio — and flip text_ready. The page
+        //    and the library can show the material immediately; audio catches
+        //    up (or, if it fails below, the text stays viewable regardless).
+        const { error: textErr } = await admin.from("study_guides").update({
+          title: guide.title, intro: guide.intro,
+          sections: guide.sections ?? [], key_terms: guide.key_terms ?? [],
+          audio_script: guide.audio_script ?? "",
+          text_ready: true, stage: "narrating",
+        }).eq("saved_test_id", saved_test_id);
+        if (textErr) { await fail("saving the guide text failed: " + textErr.message); return; }
+
+        // 7. render the narration to speech (OpenAI TTS) and store the MP3.
+        //    A failure here leaves status='error' but text_ready stays true,
+        //    so the written guide remains readable — only the audio is missing.
         const openaiKey = Deno.env.get("OPENAI_API_KEY");
         if (!openaiKey) { await fail("OPENAI_API_KEY not set"); return; }
         const voice = Deno.env.get("OPENAI_TTS_VOICE") || DEFAULT_VOICE;
         const audioPath = `${saved_test_id}.mp3`;
 
-        await admin.from("study_guides").update({ stage: "narrating" }).eq("saved_test_id", saved_test_id);
         const audioBytes = await synthesizeSpeech(guide.audio_script ?? "", openaiKey, voice);
         const { error: upErr } = await admin.storage.from("study-audio")
           .upload(audioPath, audioBytes, { contentType: "audio/mpeg", upsert: true });
         if (upErr) { await fail("storage upload failed: " + upErr.message); return; }
 
-        // 7. done — fill in the real content (service role bypasses RLS)
-        const row = {
-          saved_test_id,
-          created_by: uid,
-          title: guide.title, intro: guide.intro,
-          sections: guide.sections ?? [], key_terms: guide.key_terms ?? [],
-          audio_script: guide.audio_script ?? "",
-          audio_path: audioPath,
-          status: "ready", stage: null, error_message: null,
-        };
-        const { error: finalErr } = await admin.from("study_guides").upsert(row, { onConflict: "saved_test_id" });
+        // 8. done — mark audio ready
+        const { error: finalErr } = await admin.from("study_guides").update({
+          audio_path: audioPath, status: "ready", stage: null, error_message: null,
+        }).eq("saved_test_id", saved_test_id);
         if (finalErr) await fail("saving the finished guide failed: " + finalErr.message);
       } catch (e) {
         await fail(String(e));

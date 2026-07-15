@@ -66,7 +66,7 @@ import {
 import { exportMyNotes, exportGroupNotes, exportMissed, ankingLecture, exportPptx, exportPollTeams, exportOfficialPollResults, exportPollMissed } from "./lib/exports";
 import { loadTests, saveTest, renameTest, deleteTest, type SavedTest } from "./lib/tests";
 import {
-  generateStudyGuide, getStudyGuide, getStudyGuideAudioUrl, listStudyGuidesForTests, listAllReadyStudyGuides,
+  generateStudyGuide, getStudyGuide, getStudyGuideAudioUrl, listStudyGuidesForTests, listLibraryStudyGuides,
   studyGuideUrl, studyGuideIdFromUrl, clearStudyParam, type StudyGuide, type LibraryStudyGuide,
 } from "./lib/studyGuides";
 import { SRS_GRADES, intervalLabel, sm2Next, SRS_DEFAULT, type SrsGrade, type SrsState } from "./lib/srs";
@@ -368,6 +368,7 @@ export default function App() {
   // --- study guides (prep page + audio overview generated from a saved test) ---
   const [openStudyGuideId, setOpenStudyGuideId] = useState<string | null>(null); // reading/listening the shared page
   const [guideToShare, setGuideToShare] = useState<{ guide: StudyGuide; test: SavedTest } | null>(null); // opened from the panel to view/copy the link
+  const [guideCreateFor, setGuideCreateFor] = useState<{ test: SavedTest; force: boolean } | null>(null); // date-picker modal before kicking off generation
   // latest known guide per saved_test_id — generation runs in the background
   // (see generate-study-guide's use of EdgeRuntime.waitUntil), so this is kept
   // fresh by polling rather than by awaiting the kickoff call.
@@ -443,12 +444,12 @@ export default function App() {
     return () => { alive = false; clearTimeout(timer); };
   }, [persist, savedTestIdsKey, pollGen]);
 
-  const readyUnseenGuideCount = Object.values(guidesByTest).filter((g) => g.status === "ready" && !seenGuideIds.has(g.id)).length;
+  const readyUnseenGuideCount = Object.values(guidesByTest).filter((g) => g.text_ready && !seenGuideIds.has(g.id)).length;
 
   // load the residency-wide library lazily, the first time the panel opens
   useEffect(() => {
     if (!showGuideLibrary || libraryGuides !== null) return;
-    listAllReadyStudyGuides().then(setLibraryGuides);
+    listLibraryStudyGuides().then(setLibraryGuides);
   }, [showGuideLibrary, libraryGuides]);
 
   const [answers, setAnswers] = useState<Record<string, AnswerRow>>({});
@@ -1033,7 +1034,7 @@ export default function App() {
   // You can close the panel; the poll loop above picks up progress, and the
   // Tests button badges once it's ready. Only stem + topic tags are sent to
   // the model — never options/answer/explanation — so it can't spoil the quiz.
-  const buildStudyGuide = async (t: SavedTest, force = false) => {
+  const buildStudyGuide = async (t: SavedTest, force = false, sessionDate: string | null = null) => {
     const qs = t.qids.map((id) => byId.get(id)).filter(Boolean) as RawQuestion[];
     if (!qs.length) { fire("None of this test's questions are in the current bank"); return; }
     // regenerating: forget we'd already "seen" the old ready guide, so the
@@ -1041,7 +1042,7 @@ export default function App() {
     const existingId = guidesByTest[t.id]?.id;
     if (existingId) setSeenGuideIds((prev) => { const n = new Set(prev); n.delete(existingId); return n; });
     const topics = qs.map((q) => ({ stem: q.stem, prite_category: q.prite_category, prite_label: q.prite_label, topics: q.tags?.topics }));
-    const result = await generateStudyGuide(t.id, t.name, topics, force);
+    const result = await generateStudyGuide(t.id, t.name, topics, force, sessionDate);
     if ("error" in result) { fire(`Couldn't build the study guide: ${result.error}`); return; }
     setGuidesByTest((prev) => ({ ...prev, [t.id]: result }));
     setPollGen((n) => n + 1);
@@ -1254,7 +1255,7 @@ export default function App() {
               // opening the panel is the "I've seen it" signal — clear the badge
               setSeenGuideIds((prev) => {
                 const next = new Set(prev);
-                for (const g of Object.values(guidesByTest)) if (g.status === "ready") next.add(g.id);
+                for (const g of Object.values(guidesByTest)) if (g.text_ready) next.add(g.id);
                 return next;
               });
             }}
@@ -1999,8 +2000,21 @@ export default function App() {
             setSavedTests(await loadTests());
           }}
           guidesByTest={guidesByTest}
-          onStudyGuide={(t) => buildStudyGuide(t, guidesByTest[t.id]?.status === "generating")}
+          onStudyGuide={(t) => setGuideCreateFor({ test: t, force: guidesByTest[t.id]?.status === "generating" })}
           onOpenGuide={(t, guide) => setGuideToShare({ guide, test: t })}
+        />
+      )}
+
+      {guideCreateFor && (
+        <StudyGuideCreateModal
+          test={guideCreateFor.test}
+          existingDate={guidesByTest[guideCreateFor.test.id]?.session_date ?? null}
+          onClose={() => setGuideCreateFor(null)}
+          onConfirm={(sessionDate) => {
+            const { test, force } = guideCreateFor;
+            setGuideCreateFor(null);
+            buildStudyGuide(test, force, sessionDate);
+          }}
         />
       )}
 
@@ -2008,7 +2022,7 @@ export default function App() {
         <StudyGuideShareModal
           guide={guidesByTest[guideToShare.test.id] ?? guideToShare.guide}
           onClose={() => setGuideToShare(null)}
-          onRegenerate={() => buildStudyGuide(guideToShare.test, true)}
+          onRegenerate={() => { setGuideToShare(null); setGuideCreateFor({ test: guideToShare.test, force: true }); }}
         />
       )}
 
@@ -4303,6 +4317,69 @@ function guideIsStuck(guide: StudyGuide): boolean {
 }
 const guideStageLabel: Record<string, string> = { writing: "Writing the guide", narrating: "Recording the audio" };
 
+// YYYY-MM-DD for the next upcoming Tuesday (sessions are on Tuesdays) — the
+// default the date picker opens on.
+function nextTuesdayYmd(): string {
+  const d = new Date();
+  const delta = (2 - d.getDay() + 7) % 7 || 7; // days until the *next* Tuesday (never today)
+  d.setDate(d.getDate() + delta);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+// A YYYY-MM-DD date rendered as "Tue, Nov 12" — parsed as local, not UTC, so
+// it doesn't slip a day.
+function fmtSessionDate(ymd: string | null): string {
+  if (!ymd) return "";
+  const [y, m, d] = ymd.split("-").map(Number);
+  if (!y || !m || !d) return "";
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+}
+
+/* Shown before generation kicks off: pick the date of the upcoming review
+   session this guide is prep for. Defaults to the next Tuesday. */
+function StudyGuideCreateModal({
+  test, existingDate, onClose, onConfirm,
+}: {
+  test: SavedTest;
+  existingDate: string | null;
+  onClose: () => void;
+  onConfirm: (sessionDate: string | null) => void;
+}) {
+  const [date, setDate] = useState<string>(existingDate || nextTuesdayYmd());
+  return (
+    <div style={s.scrim} onClick={onClose}>
+      <div style={{ ...s.apPanel, maxWidth: 420 }} onClick={(e) => e.stopPropagation()} className="rise">
+        <div style={s.apHead}>
+          <div>
+            <div style={s.apEyebrow}>Study guide · {test.name}</div>
+            <div style={s.apTitle}>When's the session?</div>
+          </div>
+          <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
+        </div>
+        <div style={{ padding: "4px 22px 22px" }}>
+          <p style={{ fontSize: 13.5, color: T.muted, lineHeight: 1.6, margin: "0 0 14px" }}>
+            Label this guide with the date of the review session it's prep for — it'll show on the guide and in the Study guides library.
+          </p>
+          <label style={{ display: "block", fontSize: 12.5, color: T.faint, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3, marginBottom: 6 }}>
+            Review session date
+          </label>
+          <input
+            type="date" value={date} onChange={(e) => setDate(e.target.value)}
+            style={{ width: "100%", padding: "9px 10px", borderRadius: 9, border: `1px solid ${T.paperEdge}`, fontSize: 14, color: T.text, background: "#fff" }}
+          />
+          <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+            <button style={{ ...s.primarySm, opacity: date ? 1 : 0.5 }} disabled={!date} onClick={() => onConfirm(date || null)}>
+              <BookOpen size={13} strokeWidth={2.3} /> Generate study guide
+            </button>
+            <button style={{ ...s.ghost, marginLeft: 0 }} onClick={() => onConfirm(null)} title="Generate without a session date">
+              Skip date
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TestsPanel({
   tests, byId, onClose, onStudy, onHost, onPptx, onRename, onDelete, guidesByTest, onStudyGuide, onOpenGuide,
 }: {
@@ -4358,6 +4435,26 @@ function TestsPanel({
                     </button>
                     {(() => {
                       const guide = guidesByTest[t.id];
+                      // Text is ready → the guide is already "made". Show a
+                      // distinct check-marked View button (not the plain
+                      // generate button) so nobody re-triggers it by mistake.
+                      // Audio may still be rendering, or have failed — noted
+                      // alongside, but the written guide is viewable now.
+                      if (guide?.text_ready) {
+                        return (
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                            <button
+                              style={{ ...s.ghost, marginLeft: 0, borderColor: T.teal, color: T.tealDeep, background: T.tealSoft }}
+                              onClick={() => onOpenGuide(t, guide)}
+                              title="Study guide already made — view it or copy the share link (Regenerate is inside)"
+                            >
+                              <Check size={13} strokeWidth={2.6} /> Study guide
+                            </button>
+                            {guide.status === "generating" && <span style={{ fontSize: 11.5, color: T.faint }}>audio…</span>}
+                            {guide.status === "error" && <span style={{ fontSize: 11.5, color: T.wrongLine }} title={guide.error_message ?? ""}>audio failed</span>}
+                          </span>
+                        );
+                      }
                       if (guide?.status === "generating") {
                         if (guideIsStuck(guide)) {
                           return (
@@ -4375,13 +4472,6 @@ function TestsPanel({
                             </div>
                             {guideStageLabel[guide.stage ?? ""] ?? "Working"}… <span style={{ color: T.faint }}>({guideEtaLabel(guide)})</span>
                           </div>
-                        );
-                      }
-                      if (guide?.status === "ready") {
-                        return (
-                          <button style={{ ...s.ghost, marginLeft: 0, borderColor: T.teal, color: T.tealDeep }} onClick={() => onOpenGuide(t, guide)} title="Study guide ready — view or copy the share link">
-                            <BookOpen size={13} strokeWidth={2.3} /> Study guide
-                          </button>
                         );
                       }
                       return (
@@ -4434,7 +4524,7 @@ function StudyGuideShareModal({
       <div style={{ ...s.apPanel, maxWidth: 480 }} onClick={(e) => e.stopPropagation()} className="rise">
         <div style={s.apHead}>
           <div>
-            <div style={s.apEyebrow}>{regenerating ? "Rewriting — the old link still works meanwhile" : "Ready to send"}</div>
+            <div style={s.apEyebrow}>{regenerating ? "Rewriting — the old link still works meanwhile" : "Ready to send"}{guide.session_date ? ` · ${fmtSessionDate(guide.session_date)} session` : ""}</div>
             <div style={s.apTitle}>{guide.title}</div>
           </div>
           <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
@@ -4489,6 +4579,15 @@ function StudyGuideView({ id, onClose }: { id: string; onClose: () => void }) {
     return () => { alive = false; };
   }, [id]);
 
+  // If opened while still generating (text ready, audio rendering), keep
+  // polling so the audio player appears on its own once it's done — no manual
+  // refresh needed.
+  useEffect(() => {
+    if (!guide || guide.status !== "generating") return;
+    const timer = setInterval(() => { getStudyGuide(id).then((g) => { if (g) setGuide(g); }); }, 4000);
+    return () => clearInterval(timer);
+  }, [id, guide?.status]);
+
   // Lazily fetch the generated MP3 once the guide (and its audio_path) load;
   // revoke the blob: URL on unmount so it doesn't leak memory.
   useEffect(() => {
@@ -4531,78 +4630,98 @@ function StudyGuideView({ id, onClose }: { id: string; onClose: () => void }) {
         {guide && (
           <>
             <div style={{ fontSize: 12.5, letterSpacing: 0.4, textTransform: "uppercase", color: T.teal, fontWeight: 700, marginBottom: 6 }}>
-              Prep material · doesn't give away the quiz
+              Prep material · doesn't give away the quiz{guide.session_date ? ` · ${fmtSessionDate(guide.session_date)} session` : ""}
             </div>
             <h1 style={{ fontSize: 30, lineHeight: 1.2, margin: "0 0 14px", color: T.ink }}>{guide.title}</h1>
-            <p style={{ fontSize: 16, lineHeight: 1.65, color: T.text, margin: "0 0 22px" }}>{guide.intro}</p>
+            {guide.intro && <p style={{ fontSize: 16, lineHeight: 1.65, color: T.text, margin: "0 0 22px" }}>{guide.intro}</p>}
 
-            <div style={{ padding: "14px 16px", borderRadius: 14, background: T.tealSoft, marginBottom: 28 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <Volume2 size={18} strokeWidth={2.2} color={T.tealDeep} />
-                <div style={{ flex: 1, fontSize: 13.5, color: T.tealDeep }}>
-                  <b>Listen instead</b> — a ~10-minute audio overview. Good for the car.
+            {/* Audio: full player once ready; a "still recording" note while it
+                renders (the written guide below is already readable); or a
+                "couldn't generate" note if audio failed. */}
+            {(guide.audio_path || guide.status === "generating") && (
+              <div style={{ padding: "14px 16px", borderRadius: 14, background: T.tealSoft, marginBottom: 28 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <Volume2 size={18} strokeWidth={2.2} color={T.tealDeep} />
+                  <div style={{ flex: 1, fontSize: 13.5, color: T.tealDeep }}>
+                    <b>Listen instead</b> — a ~10-minute audio overview. Good for the car.
+                  </div>
+                  {audioUrl ? (
+                    <>
+                      <button style={s.primarySm} onClick={toggle}>
+                        {playing ? <Pause size={13} strokeWidth={2.3} /> : <Play size={13} strokeWidth={2.3} />} {playing ? "Pause" : current > 0 ? "Resume" : "Play"}
+                      </button>
+                      <button style={{ ...s.ghost, marginLeft: 0 }} onClick={stop}><Square size={13} strokeWidth={2.3} /> Stop</button>
+                    </>
+                  ) : guide.audio_path && !audioError ? (
+                    <span style={{ fontSize: 12.5, color: T.tealDeep }}>Loading audio…</span>
+                  ) : (
+                    <span style={{ fontSize: 12.5, color: T.tealDeep }}>Recording… appears here when ready</span>
+                  )}
                 </div>
-                {audioUrl ? (
-                  <>
-                    <button style={s.primarySm} onClick={toggle}>
-                      {playing ? <Pause size={13} strokeWidth={2.3} /> : <Play size={13} strokeWidth={2.3} />} {playing ? "Pause" : current > 0 ? "Resume" : "Play"}
-                    </button>
-                    <button style={{ ...s.ghost, marginLeft: 0 }} onClick={stop}><Square size={13} strokeWidth={2.3} /> Stop</button>
-                  </>
-                ) : !audioError ? (
-                  <span style={{ fontSize: 12.5, color: T.tealDeep }}>Loading audio…</span>
-                ) : null}
+                {audioUrl && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+                    <span style={{ fontSize: 12, color: T.tealDeep, minWidth: 34 }}>{fmtTime(Math.floor(current))}</span>
+                    <input
+                      type="range" min={0} max={duration || 0} step={1} value={Math.min(current, duration || 0)}
+                      onChange={(e) => seek(Number(e.target.value))}
+                      style={{ flex: 1, accentColor: T.teal }}
+                    />
+                    <span style={{ fontSize: 12, color: T.tealDeep, minWidth: 34 }}>{fmtTime(Math.floor(duration))}</span>
+                  </div>
+                )}
+                {audioUrl && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+                    <span style={{ fontSize: 12, color: T.tealDeep }}>Speed</span>
+                    <input
+                      type="range" min={0.5} max={2.5} step={0.1} value={rate}
+                      onChange={(e) => setRate(Number(e.target.value))}
+                      style={{ width: 100, accentColor: T.teal }}
+                    />
+                    <span style={{ fontSize: 12, color: T.tealDeep, minWidth: 30 }}>{rate.toFixed(1)}×</span>
+                  </div>
+                )}
+                <audio
+                  ref={audioRef} src={audioUrl ?? undefined} preload="metadata"
+                  onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
+                  onEnded={() => setPlaying(false)}
+                  onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+                  onTimeUpdate={(e) => setCurrent(e.currentTarget.currentTime)}
+                  onError={() => setAudioError("Couldn't play the audio.")}
+                  style={{ display: "none" }}
+                />
               </div>
-              {audioUrl && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
-                  <span style={{ fontSize: 12, color: T.tealDeep, minWidth: 34 }}>{fmtTime(Math.floor(current))}</span>
-                  <input
-                    type="range" min={0} max={duration || 0} step={1} value={Math.min(current, duration || 0)}
-                    onChange={(e) => seek(Number(e.target.value))}
-                    style={{ flex: 1, accentColor: T.teal }}
-                  />
-                  <span style={{ fontSize: 12, color: T.tealDeep, minWidth: 34 }}>{fmtTime(Math.floor(duration))}</span>
-                </div>
-              )}
-              {audioUrl && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-                  <span style={{ fontSize: 12, color: T.tealDeep }}>Speed</span>
-                  <input
-                    type="range" min={0.5} max={2.5} step={0.1} value={rate}
-                    onChange={(e) => setRate(Number(e.target.value))}
-                    style={{ width: 100, accentColor: T.teal }}
-                  />
-                  <span style={{ fontSize: 12, color: T.tealDeep, minWidth: 30 }}>{rate.toFixed(1)}×</span>
-                </div>
-              )}
-              <audio
-                ref={audioRef} src={audioUrl ?? undefined} preload="metadata"
-                onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
-                onEnded={() => setPlaying(false)}
-                onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
-                onTimeUpdate={(e) => setCurrent(e.currentTarget.currentTime)}
-                onError={() => setAudioError("Couldn't play the audio.")}
-                style={{ display: "none" }}
-              />
-            </div>
+            )}
             {audioError && <p style={{ fontSize: 13, color: T.wrongLine, marginTop: -18, marginBottom: 24 }}>{audioError}</p>}
+            {guide.status === "error" && guide.text_ready && (
+              <p style={{ fontSize: 13, color: T.wrongLine, margin: "0 0 24px" }}>
+                Audio for this guide couldn't be generated — the written guide below is complete. (It can be regenerated from the Tests panel.)
+              </p>
+            )}
 
-            {guide.sections.map((sec, i) => (
-              <div key={i} style={{ marginBottom: 24 }}>
-                <h2 style={{ fontSize: 19, color: T.ink, margin: "0 0 8px" }}>{sec.heading}</h2>
-                <p style={{ fontSize: 15.5, lineHeight: 1.7, color: T.text, margin: 0, whiteSpace: "pre-wrap" }}>{sec.body}</p>
-              </div>
-            ))}
+            {!guide.text_ready ? (
+              <p style={{ fontSize: 15, color: T.muted, lineHeight: 1.6 }}>
+                The written guide is still being generated… this page updates automatically — hang tight.
+              </p>
+            ) : (
+              <>
+                {guide.sections.map((sec, i) => (
+                  <div key={i} style={{ marginBottom: 24 }}>
+                    <h2 style={{ fontSize: 19, color: T.ink, margin: "0 0 8px" }}>{sec.heading}</h2>
+                    <p style={{ fontSize: 15.5, lineHeight: 1.7, color: T.text, margin: 0, whiteSpace: "pre-wrap" }}>{sec.body}</p>
+                  </div>
+                ))}
 
-            {guide.key_terms.length > 0 && (
-              <div style={{ marginTop: 10 }}>
-                <div style={{ fontSize: 12.5, letterSpacing: 0.3, textTransform: "uppercase", color: T.faint, fontWeight: 700, marginBottom: 8 }}>Key terms</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {guide.key_terms.map((term, i) => (
-                    <span key={i} style={{ fontSize: 13, padding: "5px 11px", borderRadius: 999, background: T.card, border: `1px solid ${T.paperEdge}`, color: T.text }}>{term}</span>
-                  ))}
-                </div>
-              </div>
+                {guide.key_terms.length > 0 && (
+                  <div style={{ marginTop: 10 }}>
+                    <div style={{ fontSize: 12.5, letterSpacing: 0.3, textTransform: "uppercase", color: T.faint, fontWeight: 700, marginBottom: 8 }}>Key terms</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      {guide.key_terms.map((term, i) => (
+                        <span key={i} style={{ fontSize: 13, padding: "5px 11px", borderRadius: 999, background: T.card, border: `1px solid ${T.paperEdge}`, color: T.text }}>{term}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
@@ -4645,9 +4764,17 @@ function StudyGuideLibraryPanel({
               <div key={g.id} style={{ border: `1px solid ${T.paperEdge}`, borderRadius: 12, padding: "12px 14px", background: "#fff" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 10, justifyContent: "space-between" }}>
                   <div style={{ minWidth: 0 }}>
-                    <b style={{ fontSize: 15, color: T.text }}>{g.title}</b>
-                    <div style={{ fontSize: 12.5, color: T.faint, marginTop: 2 }}>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+                      <b style={{ fontSize: 15, color: T.text }}>{g.title}</b>
+                      {g.session_date && (
+                        <span style={{ fontSize: 11.5, fontWeight: 700, color: T.tealDeep, background: T.tealSoft, padding: "2px 8px", borderRadius: 999 }}>
+                          {fmtSessionDate(g.session_date)} session
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 12.5, color: T.faint, marginTop: 3 }}>
                       {g.creator_name ? `${g.creator_name} · ` : ""}{new Date(g.created_at).toLocaleDateString()}
+                      {g.audio_path ? " · 🔊 audio" : ""}
                     </div>
                     <p style={{ fontSize: 13, color: T.muted, lineHeight: 1.5, margin: "6px 0 0" }}>{g.intro}</p>
                   </div>
