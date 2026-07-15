@@ -29,7 +29,7 @@ export type Profile = {
   email: string;
   full_name: string | null;
   avatar_url: string | null;
-  role: "resident" | "faculty" | "alumni" | "admin";
+  role: "resident" | "faculty" | "alumni" | "admin" | "test";
   status: "pending" | "approved" | "blocked";
   training_level: string | null;
 };

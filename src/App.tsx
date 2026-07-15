@@ -1219,8 +1219,8 @@ export default function App() {
                   </button>
                 )}
                 {isAdmin && (
-                  <button style={s.approveBtn} className="topActBtn" onClick={() => setShowOfficialResults(true)} title="Official poll results">
-                    <Archive size={13} strokeWidth={2.3} /> <span className="btnTxt">Poll Results</span>
+                  <button style={s.approveBtn} className="topActBtn" onClick={() => setShowOfficialResults(true)} title="Official poll results & season team rosters">
+                    <Archive size={13} strokeWidth={2.3} /> <span className="btnTxt">Polls & Teams</span>
                   </button>
                 )}
                 <button style={s.signOut} title="Settings" onClick={() => setShowSettings(true)}>
@@ -1953,6 +1953,7 @@ export default function App() {
           results={officialResults}
           onClose={() => setShowOfficialResults(false)}
           onCleared={() => listOfficialPollResults().then(setOfficialResults)}
+          onEditTeams={() => setShowTeamEditor(true)}
         />
       )}
 
@@ -2259,7 +2260,9 @@ function TeamRosterEditor({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     (async () => {
       const [ps, st] = await Promise.all([listProfiles(), getStableTeams()]);
-      setProfiles(ps.filter((p) => p.status === "approved"));
+      // test accounts (duplicate sign-ins, demo Googles) never belong on
+      // review-poll teams — keep them out of the editor entirely
+      setProfiles(ps.filter((p) => p.status === "approved" && p.role !== "test"));
       setTeams(st);
       setLoading(false);
     })();
@@ -2278,7 +2281,12 @@ function TeamRosterEditor({ onClose }: { onClose: () => void }) {
     Object.entries(teams).filter(([, t]) => t === team)
       .map(([pid]) => byId.get(pid)).filter((p): p is Profile => !!p)
       .sort(memberSort);
+  // Unplaced residents surface immediately (they're who the admin is looking
+  // for on poll day); faculty/alumni/level-less accounts wait behind a toggle.
   const unassigned = profiles.filter((p) => !teams[p.id]).sort(memberSort);
+  const unassignedResidents = unassigned.filter((p) => stableTeamLevel(p.training_level) !== null || p.role === "resident");
+  const unassignedOthers = unassigned.filter((p) => !unassignedResidents.includes(p));
+  const [showOthers, setShowOthers] = useState(false);
 
   // Suggested team for someone not yet placed: the seat that was announced
   // for them before they had an account (PLANNED_TEAMS), else the thinnest
@@ -2366,9 +2374,9 @@ function TeamRosterEditor({ onClose }: { onClose: () => void }) {
               <button style={s.teamEdAddTeam} onClick={addTeam}><Plus size={13} strokeWidth={2.4} /> New team</button>
 
               <div style={{ ...s.teamEdSection, marginTop: 18 }}>
-                <div style={s.teamEdHead}>Not on a team <span style={{ color: T.faint, fontWeight: 500 }}>· {unassigned.length}</span></div>
-                {unassigned.length === 0 && <div style={{ ...s.apEmpty, padding: "4px 0 8px" }}>Every approved member is placed.</div>}
-                {unassigned.map((p) => {
+                <div style={s.teamEdHead}>Residents not on a team <span style={{ color: T.faint, fontWeight: 500 }}>· {unassignedResidents.length}</span></div>
+                {unassignedResidents.length === 0 && <div style={{ ...s.apEmpty, padding: "4px 0 8px" }}>Every approved resident is placed. 🎉</div>}
+                {unassignedResidents.map((p) => {
                   const suggested = suggestFor(p);
                   const promised = !!matchPlannedTeam(p.full_name);
                   return (
@@ -2402,6 +2410,32 @@ function TeamRosterEditor({ onClose }: { onClose: () => void }) {
                   );
                 })}
               </div>
+
+              {unassignedOthers.length > 0 && (
+                <div style={{ ...s.teamEdSection, marginTop: 4 }}>
+                  <button style={s.teamEdOthersToggle} onClick={() => setShowOthers((v) => !v)}>
+                    {showOthers ? <ChevronDown size={13} strokeWidth={2.4} /> : <ChevronRight size={13} strokeWidth={2.4} />}
+                    Faculty & alumni not on a team · {unassignedOthers.length}
+                  </button>
+                  {showOthers && unassignedOthers.map((p) => (
+                    <div key={p.id} style={{ ...s.teamEdRow, opacity: busyId === p.id ? 0.5 : 1 }}>
+                      <span style={s.teamEdName}>{label(p)}</span>
+                      <span style={s.teamEdLvl}>{tag(p)}</span>
+                      {failedId === p.id && <span style={{ color: T.wrongLine, fontSize: 11.5 }}>couldn't save — retry</span>}
+                      <select
+                        style={s.teamEdSel}
+                        value=""
+                        disabled={busyId === p.id}
+                        onChange={(e) => move(p.id, e.target.value)}
+                        title="Add to a team"
+                      >
+                        <option value="" disabled>Add to…</option>
+                        {teamNames.map((t) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -3606,10 +3640,11 @@ function BugReportsPanel({ reports, byId, onAct, onClose }: {
 // Admin archive of "Mark as official" poll submissions — download everything
 // as one CSV, or wipe the archive (e.g. once a year's group-review sessions
 // are all done and safely downloaded).
-function OfficialResultsPanel({ results, onClose, onCleared }: {
+function OfficialResultsPanel({ results, onClose, onCleared, onEditTeams }: {
   results: OfficialPollResult[];
   onClose: () => void;
   onCleared: () => void;
+  onEditTeams: () => void;
 }) {
   const [clearStage, setClearStage] = useState<"idle" | "confirm" | "clearing">("idle");
   const doClear = async () => {
@@ -3623,13 +3658,17 @@ function OfficialResultsPanel({ results, onClose, onCleared }: {
       <div style={{ ...s.apPanel, maxWidth: 620 }} onClick={(e) => e.stopPropagation()} className="rise">
         <div style={s.apHead}>
           <div>
-            <div style={s.apEyebrow}>Admin · poll results</div>
+            <div style={s.apEyebrow}>Admin · polls & teams</div>
             <div style={s.apTitle}>{results.length} official session{results.length === 1 ? "" : "s"}</div>
           </div>
           <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
         </div>
         <div style={s.apBody}>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+            <button style={s.apApprove} onClick={onEditTeams}>
+              <Users size={13} strokeWidth={2.4} style={{ marginRight: 5, verticalAlign: "-2px" }} />
+              Edit season team rosters
+            </button>
             <button
               style={{ ...s.apApprove, opacity: results.length ? 1 : 0.5 }}
               disabled={!results.length}
@@ -3747,6 +3786,7 @@ function Approvals({
               <option value="faculty">faculty</option>
               <option value="alumni">alumni</option>
               <option value="admin">admin</option>
+              <option value="test">test</option>
             </select>
           )}
           {p.status !== "blocked" && p.role !== "admin" && (
@@ -5692,6 +5732,7 @@ const s: Record<string, React.CSSProperties> = {
   teamEdRemove: { flexShrink: 0, display: "grid", placeItems: "center", width: 26, height: 26, borderRadius: 8, background: "none", border: `1px solid ${T.paperEdge}`, color: T.muted, cursor: "pointer" },
   teamEdAddTeam: { display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: `1px solid ${T.paperEdge}`, color: T.text, borderRadius: 9, padding: "7px 13px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" },
   teamEdSuggest: { flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 5, background: T.tealSoft, border: `1px solid ${T.teal}55`, color: T.tealDeep, borderRadius: 8, padding: "5px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" },
+  teamEdOthersToggle: { display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: "none", color: T.muted, fontSize: 12.5, fontWeight: 600, padding: "4px 0", cursor: "pointer" },
 
   threadHead: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 10 },
   thread: { display: "flex", flexDirection: "column", gap: 14 },
