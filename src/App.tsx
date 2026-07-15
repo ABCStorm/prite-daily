@@ -4568,7 +4568,14 @@ function StudyGuideView({ id, onClose }: { id: string; onClose: () => void }) {
   const [current, setCurrent] = useState(0);
   const [duration, setDuration] = useState(0);
   const [rate, setRate] = useState(1);
+  const [linkCopied, setLinkCopied] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const copyLink = async () => {
+    const link = studyGuideUrl(id);
+    try { await navigator.clipboard.writeText(link); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 1800); }
+    catch { window.prompt("Copy this link:", link); }
+  };
 
   // Same 0.5x-2.5x speed range as the AcademicWiki read-aloud player.
   useEffect(() => { if (audioRef.current) audioRef.current.playbackRate = rate; }, [rate, audioUrl]);
@@ -4620,9 +4627,16 @@ function StudyGuideView({ id, onClose }: { id: string; onClose: () => void }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: T.paper, zIndex: 60, overflowY: "auto" }}>
       <div style={{ maxWidth: 680, margin: "0 auto", padding: "28px 20px 60px" }}>
-        <button style={{ ...s.ghost, marginLeft: 0, marginBottom: 18 }} onClick={onClose}>
-          <ArrowLeft size={14} strokeWidth={2.3} /> Back to Prite Daily
-        </button>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
+          <button style={{ ...s.ghost, marginLeft: 0 }} onClick={onClose}>
+            <ArrowLeft size={14} strokeWidth={2.3} /> Back to Prite Daily
+          </button>
+          {guide && (
+            <button style={{ ...s.ghost, marginLeft: 0 }} onClick={copyLink} title="Copy this guide's shareable link to send the class">
+              <Copy size={14} strokeWidth={2.3} /> {linkCopied ? "Copied!" : "Copy link"}
+            </button>
+          )}
+        </div>
 
         {guide === undefined && <p style={{ color: T.muted }}>Loading…</p>}
         {guide === null && <p style={{ color: T.muted }}>This study guide link isn't valid, or you may need to sign in.</p>}
@@ -4741,6 +4755,12 @@ function StudyGuideLibraryPanel({
   onClose: () => void;
   onOpen: (id: string) => void;
 }) {
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const copyLink = async (id: string) => {
+    const link = studyGuideUrl(id);
+    try { await navigator.clipboard.writeText(link); setCopiedId(id); setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1800); }
+    catch { window.prompt("Copy this link:", link); }
+  };
   return (
     <div style={s.scrim} onClick={onClose}>
       <div style={{ ...s.apPanel, maxWidth: 600 }} onClick={(e) => e.stopPropagation()} className="rise">
@@ -4778,9 +4798,14 @@ function StudyGuideLibraryPanel({
                     </div>
                     <p style={{ fontSize: 13, color: T.muted, lineHeight: 1.5, margin: "6px 0 0" }}>{g.intro}</p>
                   </div>
-                  <button style={{ ...s.primarySm, flexShrink: 0 }} onClick={() => onOpen(g.id)} title="Read or listen to this guide">
-                    <BookOpen size={13} strokeWidth={2.3} /> Open
-                  </button>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
+                    <button style={s.primarySm} onClick={() => onOpen(g.id)} title="Read or listen to this guide">
+                      <BookOpen size={13} strokeWidth={2.3} /> Open
+                    </button>
+                    <button style={{ ...s.ghost, marginLeft: 0 }} onClick={() => copyLink(g.id)} title="Copy the shareable link to send the class">
+                      <Copy size={13} strokeWidth={2.3} /> {copiedId === g.id ? "Copied!" : "Copy link"}
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
