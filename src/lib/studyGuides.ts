@@ -85,7 +85,12 @@ export async function generateStudyGuide(
   const { data, error } = await supabase.functions.invoke("generate-study-guide", {
     body: { saved_test_id: savedTestId, test_name: testName, topics, force },
   });
-  if (error) return { error: error.message };
+  if (error) {
+    // FunctionsHttpError's own .message is just "Edge Function returned a
+    // non-2xx status code" — the actual reason is in the response body.
+    const body = await (error as { context?: Response }).context?.json?.().catch(() => null);
+    return { error: body?.error ?? error.message };
+  }
   if (data?.error) return { error: data.error };
   return data as StudyGuide;
 }
