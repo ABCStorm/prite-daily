@@ -1270,7 +1270,7 @@ export default function App() {
             }}
             title="Saved tests — hand-picked sets for class sessions"
           >
-            <ListChecks size={13} strokeWidth={2.4} /> Tests{savedTests.length ? ` (${savedTests.length})` : ""}
+            <ListChecks size={13} strokeWidth={2.4} /> Saved tests{savedTests.length ? ` (${savedTests.length})` : ""}
             {readyUnseenGuideCount > 0 && (
               <span
                 title={`${readyUnseenGuideCount} study guide${readyUnseenGuideCount === 1 ? "" : "s"} ready`}
@@ -1287,8 +1287,8 @@ export default function App() {
             </button>
           )}
           {persist && (
-            <button style={s.deckBtn} onClick={() => setShowSrs(true)} title="Spaced-repetition flashcard review of questions you've missed">
-              <Repeat size={13} strokeWidth={2.4} /> Review{srsDue.length ? ` (${srsDue.length})` : ""}
+            <button style={s.deckBtn} onClick={() => setShowSrs(true)} title="Spaced-repetition flashcard review of questions you've missed, right in the browser">
+              <Repeat size={13} strokeWidth={2.4} /> Web flashcards{srsDue.length ? ` (${srsDue.length})` : ""}
             </button>
           )}
           {inToday ? (
@@ -4918,6 +4918,10 @@ function ReviewPanel({
   const [card, setCard] = useState<Flashcard | null>(null);
   const [busy, setBusy] = useState(false);
   const [grading, setGrading] = useState(false);
+  // One-time expectations note: web cards are the low-friction option, Anki
+  // is probably the better one. Dismissal is remembered per device.
+  const [showAnkiNote, setShowAnkiNote] = useState<boolean>(() => !readPref("pd_webcards_note_dismissed", false));
+  const dismissAnkiNote = () => { setShowAnkiNote(false); writePref("pd_webcards_note_dismissed", true); };
 
   const row = due[i];
   const q = row ? byId.get(row.question_id) : undefined;
@@ -4961,11 +4965,22 @@ function ReviewPanel({
         <div style={s.apHead}>
           <div>
             <div style={s.apEyebrow}>Spaced repetition · SM-2</div>
-            <div style={s.apTitle}>Review{due.length ? ` (${due.length} due)` : ""}</div>
+            <div style={s.apTitle}>Web flashcards{due.length ? ` (${due.length} due)` : ""}</div>
           </div>
           <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
         </div>
         <div style={s.apBody}>
+          {showAnkiNote && (
+            <div style={s.webCardsNote}>
+              <Lightbulb size={14} strokeWidth={2.3} style={{ flexShrink: 0, marginTop: 1 }} />
+              <span style={{ flex: 1 }}>
+                Heads-up: these web flashcards probably aren't as effective as studying the same
+                cards in Anki — but they're a handy option if you don't want to go through the
+                Anki download and import process.
+              </span>
+              <button style={s.webCardsNoteBtn} onClick={dismissAnkiNote}>Got it</button>
+            </div>
+          )}
           {due.length === 0 && (
             <p style={s.apEmpty}>Nothing due right now — cards resurface here after you miss a question, on an increasing schedule as you get them right.</p>
           )}
@@ -5276,6 +5291,8 @@ const s: Record<string, React.CSSProperties> = {
   apSelect: { background: "#fff", color: T.text, border: `1px solid ${T.paperEdge}`, borderRadius: 8, padding: "6px 8px", fontSize: 12.5, cursor: "pointer" },
   apBlock: { display: "grid", placeItems: "center", width: 30, height: 30, borderRadius: 8, background: "#fff", color: T.wrongLine, border: `1px solid ${T.paperEdge}`, cursor: "pointer" },
   apEmpty: { fontSize: 13.5, color: T.muted, lineHeight: 1.5, margin: "0 4px", fontStyle: "italic" },
+  webCardsNote: { display: "flex", alignItems: "flex-start", gap: 9, background: T.goldSoft, border: `1px solid ${T.gold}55`, borderRadius: 10, padding: "10px 12px", margin: "0 0 14px", fontSize: 12.5, lineHeight: 1.5, color: "#6b5518" },
+  webCardsNoteBtn: { flexShrink: 0, background: "none", border: `1px solid ${T.gold}88`, color: "#6b5518", borderRadius: 8, padding: "4px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" },
   reportSelect: { width: "100%", padding: "9px 11px", borderRadius: 9, border: `1px solid ${T.paperEdge}`, background: "#fff", color: T.text, fontSize: 14, fontFamily: "inherit", boxSizing: "border-box" },
   reportText: { width: "100%", padding: "10px 12px", borderRadius: 9, border: `1px solid ${T.paperEdge}`, background: "#fff", color: T.text, fontSize: 14, fontFamily: "inherit", lineHeight: 1.5, resize: "vertical", boxSizing: "border-box" },
   bugRow: { padding: "12px 4px", borderBottom: `1px solid ${T.paperEdge}`, display: "flex", flexDirection: "column", gap: 7 },
