@@ -48,7 +48,7 @@ import {
   loadQuestionBank,
   getMyAnswers, saveAnswer, clearMissedAnswers, getMyNote, saveMyNote,
   getGroupNotes, addGroupNote, deleteGroupNote,
-  listProfiles, updateProfile, setTrainingLevel, getStableTeams, regenerateStableTeams,
+  listProfiles, updateProfile, setTrainingLevel, getStableTeams, regenerateStableTeams, setStableTeam, removeStableTeam,
   getQuestionStats, getLeaderboard,
   getMySettings, saveSettings,
   getAllMyNotes, getAllGroupNotes,
@@ -386,6 +386,7 @@ export default function App() {
   const [hostSet, setHostSet] = useState<RawQuestion[] | null>(null); // poll a saved test instead of the current set
   const [teamMode, setTeamMode] = useState<TeamMode>("self");      // how teams get formed for the session about to start
   const [teamModePrompt, setTeamModePrompt] = useState<RawQuestion[] | null | false>(false); // pending "Host poll" click, awaiting the team-mode choice (false = not prompting; null/array = the set to host once chosen)
+  const [showTeamEditor, setShowTeamEditor] = useState(false); // admin hand-editing of the season rosters
   const [stableTeams, setStableTeams] = useState<Record<string, string>>({}); // profile_id -> team name, the season-long roster
   const startHosting = (mode: TeamMode) => {
     if (teamModePrompt === false) return;
@@ -2099,6 +2100,12 @@ export default function App() {
           isAdmin={isAdmin}
           stableCount={Object.keys(stableTeams).length}
           onGenerate={runGenerateStableTeams}
+          onEditRosters={() => setShowTeamEditor(true)}
+        />
+      )}
+      {showTeamEditor && (
+        <TeamRosterEditor
+          onClose={async () => { setShowTeamEditor(false); setStableTeams(await getStableTeams()); }}
         />
       )}
       {hostCode && (
@@ -2148,9 +2155,10 @@ export default function App() {
 
 // Asked the instant "Host poll" is clicked, before the room code is even
 // generated — how should teams be formed for this session?
-function TeamModeModal({ onChoose, onClose, isAdmin, stableCount, onGenerate }: {
+function TeamModeModal({ onChoose, onClose, isAdmin, stableCount, onGenerate, onEditRosters }: {
   onChoose: (mode: TeamMode) => void; onClose: () => void;
   isAdmin: boolean; stableCount: number; onGenerate: () => Promise<boolean>;
+  onEditRosters: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const hasStable = stableCount > 0;
@@ -2218,11 +2226,151 @@ function TeamModeModal({ onChoose, onClose, isAdmin, stableCount, onGenerate }: 
               </span>
             </button>
             {hasStable && isAdmin && (
-              <button style={s.teamModeRegen} onClick={regenerate} disabled={busy}>
-                <Repeat size={11} strokeWidth={2.4} /> Regenerate rosters (e.g. a new academic year)
-              </button>
+              <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+                <button style={s.teamModeRegen} onClick={onEditRosters} disabled={busy}>
+                  <Pencil size={11} strokeWidth={2.4} /> Edit rosters (move / add / remove people)
+                </button>
+                <button style={s.teamModeRegen} onClick={regenerate} disabled={busy}>
+                  <Repeat size={11} strokeWidth={2.4} /> Regenerate rosters (e.g. a new academic year)
+                </button>
+              </div>
             )}
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Admin: hand-edit the season-long poll rosters — move members between
+    teams, pull them off entirely, or add any approved member who isn't
+    placed yet. Each action writes to stable_teams immediately (one row per
+    person; RLS restricts writes to admins), so there's no save step and a
+    dropped connection can't half-apply a batch. */
+const LEVEL_ORDER: Record<string, number> = { R1: 1, R2: 2, R3: 3, R4: 4, F1: 5, F2: 6 };
+function TeamRosterEditor({ onClose }: { onClose: () => void }) {
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [teams, setTeams] = useState<Record<string, string>>({}); // profile_id -> team name
+  const [extraTeams, setExtraTeams] = useState<string[]>([]);     // empty teams added this session (exist only until someone joins)
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [failedId, setFailedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const [ps, st] = await Promise.all([listProfiles(), getStableTeams()]);
+      setProfiles(ps.filter((p) => p.status === "approved"));
+      setTeams(st);
+      setLoading(false);
+    })();
+  }, []);
+
+  const teamNames = useMemo(() => {
+    const names = new Set<string>([...Object.values(teams), ...extraTeams]);
+    return [...names].sort((a, b) => a.length - b.length || a.localeCompare(b)); // "Team 2" before "Team 10"
+  }, [teams, extraTeams]);
+
+  const byId = useMemo(() => new Map(profiles.map((p) => [p.id, p])), [profiles]);
+  const memberSort = (a: Profile, b: Profile) =>
+    (LEVEL_ORDER[a.training_level ?? ""] ?? 9) - (LEVEL_ORDER[b.training_level ?? ""] ?? 9) ||
+    (a.full_name ?? a.email).localeCompare(b.full_name ?? b.email);
+  const membersOf = (team: string) =>
+    Object.entries(teams).filter(([, t]) => t === team)
+      .map(([pid]) => byId.get(pid)).filter((p): p is Profile => !!p)
+      .sort(memberSort);
+  const unassigned = profiles.filter((p) => !teams[p.id]).sort(memberSort);
+
+  const move = async (pid: string, team: string) => {
+    if (!team || teams[pid] === team) return;
+    setBusyId(pid); setFailedId(null);
+    const ok = await setStableTeam(pid, team);
+    if (ok) setTeams((t) => ({ ...t, [pid]: team }));
+    else setFailedId(pid);
+    setBusyId(null);
+  };
+  const remove = async (pid: string) => {
+    setBusyId(pid); setFailedId(null);
+    const ok = await removeStableTeam(pid);
+    if (ok) setTeams((t) => { const next = { ...t }; delete next[pid]; return next; });
+    else setFailedId(pid);
+    setBusyId(null);
+  };
+  const addTeam = () => {
+    const nums = teamNames.map((n) => parseInt(n.replace(/\D+/g, ""), 10)).filter((n) => !isNaN(n));
+    setExtraTeams((x) => [...x, `Team ${(nums.length ? Math.max(...nums) : 0) + 1}`]);
+  };
+
+  const label = (p: Profile) => p.full_name || p.email;
+  const tag = (p: Profile) => p.training_level ?? p.role;
+
+  return (
+    <div style={s.scrim} onClick={onClose}>
+      <div style={{ ...s.apPanel, maxWidth: 560 }} onClick={(e) => e.stopPropagation()} className="rise">
+        <div style={s.apHead}>
+          <div>
+            <div style={s.apEyebrow}>Season poll teams</div>
+            <div style={s.apTitle}>Edit rosters</div>
+          </div>
+          <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
+        </div>
+        <div style={s.apBody}>
+          <p style={{ ...s.apEmpty, marginBottom: 14 }}>
+            Changes save instantly. Pick a team to move someone; ✕ takes them off the roster.
+          </p>
+          {loading ? (
+            <p style={s.apEmpty}>Loading rosters…</p>
+          ) : (
+            <>
+              {teamNames.map((team) => (
+                <div key={team} style={s.teamEdSection}>
+                  <div style={s.teamEdHead}>{team} <span style={{ color: T.faint, fontWeight: 500 }}>· {membersOf(team).length} {membersOf(team).length === 1 ? "member" : "members"}</span></div>
+                  {membersOf(team).map((p) => (
+                    <div key={p.id} style={{ ...s.teamEdRow, opacity: busyId === p.id ? 0.5 : 1 }}>
+                      <span style={s.teamEdName}>{label(p)}</span>
+                      <span style={s.teamEdLvl}>{tag(p)}</span>
+                      {failedId === p.id && <span style={{ color: T.wrongLine, fontSize: 11.5 }}>couldn't save — retry</span>}
+                      <select
+                        style={s.teamEdSel}
+                        value={team}
+                        disabled={busyId === p.id}
+                        onChange={(e) => move(p.id, e.target.value)}
+                        title="Move to another team"
+                      >
+                        {teamNames.map((t) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                      <button style={s.teamEdRemove} onClick={() => remove(p.id)} disabled={busyId === p.id} title="Remove from the season roster">
+                        <X size={13} strokeWidth={2.6} />
+                      </button>
+                    </div>
+                  ))}
+                  {membersOf(team).length === 0 && <div style={{ ...s.apEmpty, padding: "4px 0 8px" }}>Empty — move someone here.</div>}
+                </div>
+              ))}
+              <button style={s.teamEdAddTeam} onClick={addTeam}><Plus size={13} strokeWidth={2.4} /> New team</button>
+
+              <div style={{ ...s.teamEdSection, marginTop: 18 }}>
+                <div style={s.teamEdHead}>Not on a team <span style={{ color: T.faint, fontWeight: 500 }}>· {unassigned.length}</span></div>
+                {unassigned.length === 0 && <div style={{ ...s.apEmpty, padding: "4px 0 8px" }}>Every approved member is placed.</div>}
+                {unassigned.map((p) => (
+                  <div key={p.id} style={{ ...s.teamEdRow, opacity: busyId === p.id ? 0.5 : 1 }}>
+                    <span style={s.teamEdName}>{label(p)}</span>
+                    <span style={s.teamEdLvl}>{tag(p)}</span>
+                    {failedId === p.id && <span style={{ color: T.wrongLine, fontSize: 11.5 }}>couldn't save — retry</span>}
+                    <select
+                      style={s.teamEdSel}
+                      value=""
+                      disabled={busyId === p.id}
+                      onChange={(e) => move(p.id, e.target.value)}
+                      title="Add to a team"
+                    >
+                      <option value="" disabled>Add to…</option>
+                      {teamNames.map((t) => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -5500,6 +5648,16 @@ const s: Record<string, React.CSSProperties> = {
   ghost: { marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: `1px solid ${T.paperEdge}`, color: T.text, padding: "7px 12px", borderRadius: 9, fontSize: 12.5, fontWeight: 500, cursor: "pointer" },
   teamModeOpt: { display: "flex", alignItems: "flex-start", gap: 12, textAlign: "left", background: "#fff", border: `1px solid ${T.paperEdge}`, color: T.text, padding: "14px 16px", borderRadius: 12, cursor: "pointer" },
   teamModeRegen: { display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: "none", color: T.muted, fontSize: 11.5, padding: "6px 4px 0", cursor: "pointer", textDecoration: "underline" },
+
+  // admin roster editor (inside the paper apPanel)
+  teamEdSection: { borderTop: `1px solid ${T.paperEdge}`, paddingTop: 10, marginBottom: 12 },
+  teamEdHead: { fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 6 },
+  teamEdRow: { display: "flex", alignItems: "center", gap: 8, padding: "4px 0" },
+  teamEdName: { flex: 1, minWidth: 0, fontSize: 13.5, color: T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  teamEdLvl: { flexShrink: 0, fontSize: 11, fontWeight: 700, color: T.tealDeep, background: T.tealSoft, borderRadius: 6, padding: "2px 7px", textTransform: "capitalize" },
+  teamEdSel: { flexShrink: 0, background: "#fff", color: T.text, border: `1px solid ${T.paperEdge}`, borderRadius: 8, padding: "5px 8px", fontSize: 12.5, fontFamily: "inherit", cursor: "pointer" },
+  teamEdRemove: { flexShrink: 0, display: "grid", placeItems: "center", width: 26, height: 26, borderRadius: 8, background: "none", border: `1px solid ${T.paperEdge}`, color: T.muted, cursor: "pointer" },
+  teamEdAddTeam: { display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: `1px solid ${T.paperEdge}`, color: T.text, borderRadius: 9, padding: "7px 13px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" },
 
   threadHead: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 10 },
   thread: { display: "flex", flexDirection: "column", gap: 14 },

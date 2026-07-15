@@ -223,6 +223,25 @@ export async function regenerateStableTeams(assignments: Record<string, string>)
   return true;
 }
 
+/** Admin: put one person on a team (moving them if they're already on one).
+    Row-level writes are RLS-gated to admins (see migration 0025). */
+export async function setStableTeam(profileId: string, teamName: string): Promise<boolean> {
+  if (!supabase) return false;
+  const { error } = await supabase
+    .from("stable_teams")
+    .upsert({ profile_id: profileId, team_name: teamName }, { onConflict: "profile_id" });
+  if (error) { console.warn("setStableTeam", error.message); return false; }
+  return true;
+}
+
+/** Admin: drop one person from the season roster entirely. */
+export async function removeStableTeam(profileId: string): Promise<boolean> {
+  if (!supabase) return false;
+  const { error } = await supabase.from("stable_teams").delete().eq("profile_id", profileId);
+  if (error) { console.warn("removeStableTeam", error.message); return false; }
+  return true;
+}
+
 /** Per-question vote breakdown, snapshotted when a presenter marks a live
     poll session as an official class review. */
 export type QuestionStat = {
