@@ -2888,6 +2888,16 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, byId, display
     if (remote?.teamMode === "stable" && stableTeam && team !== stableTeam) saveTeam(stableTeam);
   }, [remote?.teamMode, stableTeam]); // eslint-disable-line
 
+  // Drop lingering tap focus when the live question changes. The option
+  // <button>s are keyed by letter, so React reuses the same element across
+  // questions — the focus ring from last question's tap would carry onto the
+  // same letter of the next question and read as a pre-selected answer
+  // (same fix as the main practice view).
+  useEffect(() => {
+    const el = document.activeElement as HTMLElement | null;
+    if (el && el.tagName === "BUTTON") el.blur();
+  }, [remote?.qid]);
+
   const vote = (letter: string) => {
     if (!remote || remote.revealed) return;
     setMyVote(letter);
@@ -4455,7 +4465,7 @@ function TestsPanel({
                         return (
                           <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                             <button
-                              style={{ ...s.ghost, marginLeft: 0, borderColor: T.teal, color: T.tealDeep, background: T.tealSoft }}
+                              style={{ ...s.ghost, marginLeft: 0, border: `1px solid ${T.teal}`, color: T.tealDeep, background: T.tealSoft }}
                               onClick={() => onOpenGuide(t, guide)}
                               title="Study guide already made — view it or copy the share link (Regenerate is inside)"
                             >
@@ -5286,7 +5296,7 @@ const s: Record<string, React.CSSProperties> = {
   predOrd: { fontSize: 14, fontWeight: 600, marginLeft: 1, verticalAlign: "super" } as React.CSSProperties,
   insTabs: { display: "flex", gap: 4, flexWrap: "wrap", padding: "2px 20px 14px", borderBottom: `1px solid ${T.paperEdge}` },
   insTab: { background: T.paper, color: T.muted, border: `1px solid ${T.paperEdge}`, padding: "6px 11px", borderRadius: 8, fontSize: 12.5, fontWeight: 500, cursor: "pointer" },
-  insTabOn: { background: T.teal, color: "#fff", borderColor: T.teal },
+  insTabOn: { background: T.teal, color: "#fff", border: `1px solid ${T.teal}` },
   cohortSel: { background: "#fff", color: T.text, border: `1px solid ${T.paperEdge}`, borderRadius: 9, padding: "7px 10px", fontSize: 13, cursor: "pointer" },
   insHead: { display: "flex", justifyContent: "space-between", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 11, letterSpacing: "0.04em", textTransform: "uppercase", color: T.faint, margin: "10px 4px 12px" },
   insHeadR: { textAlign: "right" },
@@ -5335,11 +5345,11 @@ const s: Record<string, React.CSSProperties> = {
 
   studyBar: { display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap", marginBottom: 16 },
   studyToggle: { display: "inline-flex", alignItems: "center", gap: 6, background: T.inkSoft, color: "#9aa0ab", border: `1px solid ${T.inkLine}`, padding: "6px 12px", borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: "pointer" },
-  studyToggleOn: { background: T.teal, color: "#fff", borderColor: T.teal },
+  studyToggleOn: { background: T.teal, color: "#fff", border: `1px solid ${T.teal}` },
   studySecs: { display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, color: "#c7ccd6" },
   secsInput: { width: 52, background: T.inkSoft, color: "#fff", border: `1px solid ${T.inkLine}`, borderRadius: 8, padding: "5px 8px", fontSize: 13, fontWeight: 600, textAlign: "center", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
   timerPill: { display: "inline-flex", alignItems: "center", gap: 5, marginLeft: "auto", background: T.inkSoft, color: "#e7eaf0", border: `1px solid ${T.inkLine}`, padding: "6px 12px", borderRadius: 9, fontSize: 14, fontWeight: 700, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontVariantNumeric: "tabular-nums" },
-  timerPillLow: { background: "#3a2018", color: "#ff9b80", borderColor: "#7a3a2a" },
+  timerPillLow: { background: "#3a2018", color: "#ff9b80", border: "1px solid #7a3a2a" },
   reviewBar: { display: "flex", alignItems: "center", gap: 11, flexWrap: "wrap", background: T.inkSoft, border: `1px solid ${T.inkLine}`, borderRadius: 12, padding: "11px 15px", marginBottom: 16, fontSize: 13.5, color: "#c7ccd6" },
 
   lockedRow: { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginTop: 20, padding: "12px 15px", border: `1.5px solid ${T.paperEdge}`, borderRadius: 11, background: "#f4f5f7" },
@@ -5393,9 +5403,9 @@ const s: Record<string, React.CSSProperties> = {
 
   options: { display: "flex", flexDirection: "column", gap: 9 },
   opt: { position: "relative", overflow: "hidden", display: "flex", alignItems: "center", gap: 13, textAlign: "left", width: "100%", background: T.card, border: `1.5px solid ${T.paperEdge}`, borderRadius: 11, padding: "13px 15px", fontSize: 15, color: T.text, cursor: "pointer" },
-  optChosen: { borderColor: T.teal, background: T.tealSoft },
-  optCorrect: { borderColor: T.correctLine, background: T.correctBg },
-  optWrong: { borderColor: T.wrongLine, background: T.wrongBg },
+  optChosen: { border: `1.5px solid ${T.teal}`, background: T.tealSoft },
+  optCorrect: { border: `1.5px solid ${T.correctLine}`, background: T.correctBg },
+  optWrong: { border: `1.5px solid ${T.wrongLine}`, background: T.wrongBg },
   optCrossed: { opacity: 0.55, background: "#f3f1ec" },
   optKey: { flexShrink: 0, width: 26, height: 26, borderRadius: 7, border: "1.5px solid", display: "grid", placeItems: "center", fontSize: 13, fontWeight: 700, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", background: "rgba(255,255,255,.7)" },
   optText: { flex: 1, lineHeight: 1.35 },
@@ -5508,14 +5518,14 @@ const s: Record<string, React.CSSProperties> = {
   pollStem: { fontSize: "clamp(22px, 3.2vw, 38px)", lineHeight: 1.3, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", color: "#f4f5f7", margin: "0 0 28px" },
   pollOpts: { display: "flex", flexDirection: "column", gap: 12 },
   pollOpt: { position: "relative", display: "flex", alignItems: "center", gap: 16, overflow: "hidden", background: T.inkSoft, border: `1.5px solid ${T.inkLine}`, borderRadius: 14, padding: "clamp(14px, 1.8vw, 22px) 22px", fontSize: "clamp(17px, 2vw, 24px)" },
-  pollOptCorrect: { borderColor: "#48c78e" },
+  pollOptCorrect: { border: "1.5px solid #48c78e" },
   pollBar: { position: "absolute", left: 0, top: 0, bottom: 0, zIndex: 0, borderRadius: "13px 0 0 13px", transition: "width .5s cubic-bezier(.22,.61,.36,1)" },
   pollLetter: { position: "relative", zIndex: 1, flexShrink: 0, width: 44, height: 44, display: "grid", placeItems: "center", borderRadius: 11, background: "rgba(255,255,255,.06)", border: `1px solid ${T.inkLine}`, fontWeight: 700, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
   pollOptText: { position: "relative", zIndex: 1, flex: 1 },
   pollOptCount: { position: "relative", zIndex: 1, display: "inline-flex", alignItems: "center", flexShrink: 0, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 700, color: "#e7eaf0" },
   pollControls: { display: "flex", alignItems: "center", justifyContent: "center", gap: 16, flexWrap: "wrap", padding: "16px 26px", borderTop: `1px solid ${T.inkLine}` },
   pollBtn: { display: "inline-flex", alignItems: "center", gap: 8, background: T.inkSoft, color: "#e7eaf0", border: `1px solid ${T.inkLine}`, padding: "12px 22px", borderRadius: 11, fontSize: 16, fontWeight: 600, cursor: "pointer" },
-  pollBtnPrimary: { background: T.teal, color: "#fff", borderColor: T.teal },
+  pollBtnPrimary: { background: T.teal, color: "#fff", border: `1px solid ${T.teal}` },
   pollAnswerLine: { fontSize: 18, color: "#c7ccd6" },
   qrThumb: { padding: 5, border: "none", borderRadius: 10, background: "#fff", cursor: "pointer", lineHeight: 0, flexShrink: 0, boxShadow: "0 4px 14px -6px rgba(0,0,0,.5)" },
   qrThumbImg: { display: "block", width: 48, height: 48 },
@@ -5541,9 +5551,9 @@ const s: Record<string, React.CSSProperties> = {
   joinOptsFull: { display: "flex", flexDirection: "column", gap: 10 },
   joinOptFull: { display: "flex", alignItems: "center", gap: 12, width: "100%", textAlign: "left", background: T.ink, color: "#e7eaf0", border: `2px solid ${T.inkLine}`, borderRadius: 14, padding: "13px 16px", fontSize: 16.5, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", cursor: "pointer" },
   joinOptFullLetter: { flexShrink: 0, width: 30, height: 30, display: "grid", placeItems: "center", borderRadius: 9, background: "rgba(255,255,255,.1)", fontWeight: 700 },
-  joinOptMine: { background: T.teal, color: "#fff", borderColor: T.teal },
-  joinOptCorrect: { background: "#1a7a4a", color: "#fff", borderColor: "#48c78e" },
-  joinOptWrong: { background: "#7a2a2a", color: "#fff", borderColor: "#e07a5f" },
+  joinOptMine: { background: T.teal, color: "#fff", border: `2px solid ${T.teal}` },
+  joinOptCorrect: { background: "#1a7a4a", color: "#fff", border: "2px solid #48c78e" },
+  joinOptWrong: { background: "#7a2a2a", color: "#fff", border: "2px solid #e07a5f" },
   joinState: { marginTop: 18, marginBottom: 0, color: "#c7ccd6", fontSize: 14.5, textAlign: "center", minHeight: 20 },
 
   // live polling group statistics — host (big screen), pinned at the top
@@ -5552,7 +5562,7 @@ const s: Record<string, React.CSSProperties> = {
   pollStatsExport: { display: "inline-flex", alignItems: "center", gap: 7, background: T.inkSoft, color: "#e7eaf0", border: `1px solid ${T.inkLine}`, padding: "8px 14px", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer" },
   teamBoardHead: { display: "inline-flex", alignItems: "center", gap: 9, color: "#f2c14e", fontWeight: 700, letterSpacing: "0.03em", fontSize: 15 },
   teamRow: { display: "flex", alignItems: "center", gap: 16, background: T.inkSoft, border: `1.5px solid ${T.inkLine}`, borderRadius: 12, padding: "12px 18px", fontSize: "clamp(16px, 1.7vw, 21px)" },
-  teamRowLead: { borderColor: "#f2c14e", background: "rgba(242,193,78,.10)" },
+  teamRowLead: { border: "1.5px solid #f2c14e", background: "rgba(242,193,78,.10)" },
   teamRank: { flexShrink: 0, width: 34, display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 700, color: "#aeb4c0" },
   teamName: { flex: 1, color: "#f4f5f7", fontWeight: 600 },
   teamMembers: { flexShrink: 0, color: T.faint, fontSize: 14, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
@@ -5570,8 +5580,8 @@ const s: Record<string, React.CSSProperties> = {
   teamDownload: { marginTop: 14, width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, background: T.ink, color: "#c7ccd6", border: `1px solid ${T.inkLine}`, borderRadius: 10, padding: "10px 12px", fontSize: 13.5, fontWeight: 600, cursor: "pointer" },
   teamBoardMini: { marginTop: 16, display: "flex", flexDirection: "column", gap: 6 },
   teamMiniRow: { display: "flex", alignItems: "center", gap: 12, background: T.ink, border: `1px solid ${T.inkLine}`, borderRadius: 10, padding: "9px 13px", fontSize: 14.5 },
-  teamMiniLead: { borderColor: "#f2c14e", background: "rgba(242,193,78,.10)" },
-  teamMiniMine: { borderColor: T.teal },
+  teamMiniLead: { border: "1px solid #f2c14e", background: "rgba(242,193,78,.10)" },
+  teamMiniMine: { border: `1px solid ${T.teal}` },
   teamMiniRank: { flexShrink: 0, width: 22, display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontWeight: 700, color: "#aeb4c0" },
   teamMiniName: { flex: 1, color: "#e7eaf0", fontWeight: 600 },
   teamMiniScore: { flexShrink: 0, color: "#fff", fontWeight: 700, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
@@ -5584,7 +5594,7 @@ const s: Record<string, React.CSSProperties> = {
   pollReviewBarLabel: { display: "inline-flex", alignItems: "center", gap: 6, color: T.faint, fontSize: 12.5, marginBottom: 8 },
   pollReviewChipsRow: { display: "flex", flexWrap: "wrap", gap: 8 },
   pollReviewChip: { background: T.ink, color: "#c7ccd6", border: `1px solid ${T.inkLine}`, borderRadius: 8, padding: "6px 11px", fontSize: 13, fontWeight: 600, cursor: "pointer" },
-  pollReviewChipActive: { background: T.teal, color: "#fff", borderColor: T.teal },
+  pollReviewChipActive: { background: T.teal, color: "#fff", border: `1px solid ${T.teal}` },
   stemPull: { display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "6px 0 12px", cursor: "grab", userSelect: "none", touchAction: "none" },
   stemPullBar: { width: 36, height: 4, borderRadius: 999, background: T.inkLine },
   stemPullLabel: { display: "inline-flex", alignItems: "center", gap: 5, color: T.faint, fontSize: 12.5, fontWeight: 600 },
