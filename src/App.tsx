@@ -1928,7 +1928,7 @@ export default function App() {
           }}
           guidesByTest={guidesByTest}
           stageStartedAt={(testId) => stageStartRef.current[testId]?.at ?? Date.now()}
-          onStudyGuide={(t) => buildStudyGuide(t)}
+          onStudyGuide={(t) => buildStudyGuide(t, guidesByTest[t.id]?.status === "generating")}
           onOpenGuide={(t, guide) => setGuideToShare({ guide, test: t })}
         />
       )}
@@ -4087,6 +4087,17 @@ function guideProgressPercent(stage: StudyGuideStage, startedAt: number): number
   return Math.round(5 + 45 * (1 - Math.exp(-elapsed / 8))); // "writing" or unknown
 }
 const guideStageLabel: Record<string, string> = { writing: "Writing the guide", narrating: "Recording the audio" };
+// Rough typical duration per stage, just for the "~Ns left" guess — not
+// measured from real telemetry, so it's deliberately conservative.
+const guideStageTypicalSecs: Record<string, number> = { writing: 20, narrating: 40 };
+function guideEtaLabel(stage: StudyGuideStage, startedAt: number): string {
+  const elapsed = (Date.now() - startedAt) / 1000;
+  const remaining = Math.round((guideStageTypicalSecs[stage ?? ""] ?? 30) - elapsed);
+  return remaining > 3 ? `~${remaining}s left` : "almost done";
+}
+// Past this, either stage is very likely actually stuck (a swallowed error,
+// a genuinely slow upstream API day) rather than just running long.
+const GUIDE_STUCK_SECS = 120;
 
 function TestsPanel({
   tests, byId, onClose, onStudy, onHost, onPptx, onRename, onDelete, guidesByTest, stageStartedAt, onStudyGuide, onOpenGuide,
@@ -4145,14 +4156,23 @@ function TestsPanel({
                     {(() => {
                       const guide = guidesByTest[t.id];
                       if (guide?.status === "generating") {
-                        const pct = guideProgressPercent(guide.stage, stageStartedAt(t.id));
+                        const startedAt = stageStartedAt(t.id);
+                        const pct = guideProgressPercent(guide.stage, startedAt);
+                        const stuck = (Date.now() - startedAt) / 1000 > GUIDE_STUCK_SECS;
+                        if (stuck) {
+                          return (
+                            <button style={{ ...s.ghost, marginLeft: 0, color: T.wrongLine }} onClick={() => onStudyGuide(t)} title="This is taking much longer than usual — click to restart it">
+                              <BookOpen size={13} strokeWidth={2.3} /> Taking a while — retry?
+                            </button>
+                          );
+                        }
                         return (
                           <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "0 4px", fontSize: 12.5, color: T.muted }}
                             title="Runs in the background — safe to close this panel, the Tests button will badge when it's ready">
                             <div style={{ width: 62, height: 6, borderRadius: 999, background: T.paperEdge, overflow: "hidden" }}>
                               <div style={{ width: `${pct}%`, height: "100%", background: T.teal, transition: "width 1s linear" }} />
                             </div>
-                            {guideStageLabel[guide.stage ?? ""] ?? "Working"}…
+                            {guideStageLabel[guide.stage ?? ""] ?? "Working"}… <span style={{ color: T.faint }}>({guideEtaLabel(guide.stage, startedAt)})</span>
                           </div>
                         );
                       }
@@ -4762,20 +4782,26 @@ const s: Record<string, React.CSSProperties> = {
   root: { minHeight: "100vh", background: T.ink, fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif", color: T.text },
 
   top: { position: "sticky", top: 0, zIndex: 20, background: T.ink, borderBottom: `1px solid ${T.inkLine}` },
-  topInner: { maxWidth: 880, margin: "0 auto", padding: "13px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14 },
-  brand: { display: "flex", alignItems: "center", gap: 9 },
-  brandMark: { width: 28, height: 28, borderRadius: 8, background: T.teal, color: "#fff", display: "grid", placeItems: "center" },
-  brandName: { color: "#fff", fontWeight: 600, fontSize: 16, letterSpacing: "-0.01em" },
-  topMeta: { display: "flex", alignItems: "center", gap: 13 },
-  countdown: { color: "#c7ccd6", fontSize: 12.5, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
+  // Wider cap than the main content column, and wraps to a second line
+  // instead of squeezing — with brand + countdown + up to ~9 admin controls,
+  // an unwrapped 880px row forced the countdown text to break word-by-word
+  // and pushed the button cluster off-screen.
+  topInner: { maxWidth: 1180, margin: "0 auto", padding: "13px 22px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: "10px 14px" },
+  brand: { display: "flex", alignItems: "center", gap: 9, flexShrink: 0 },
+  brandMark: { width: 28, height: 28, borderRadius: 8, background: T.teal, color: "#fff", display: "grid", placeItems: "center", flexShrink: 0 },
+  brandName: { color: "#fff", fontWeight: 600, fontSize: 16, letterSpacing: "-0.01em", whiteSpace: "nowrap" },
+  // marginLeft: auto keeps this cluster pinned to the right whether it shares
+  // a line with the brand or wraps onto its own line below it.
+  topMeta: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px 13px", marginLeft: "auto", justifyContent: "flex-end" },
+  countdown: { color: "#c7ccd6", fontSize: 12.5, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", whiteSpace: "nowrap", flexShrink: 0 },
   countNum: { color: T.gold, fontWeight: 700 },
-  who: { display: "flex", alignItems: "center", gap: 7 },
-  avatarSm: { width: 28, height: 28, borderRadius: 8, background: T.teal, color: "#fff", display: "grid", placeItems: "center", fontSize: 11.5, fontWeight: 700 },
-  adminTag: { display: "inline-flex", alignItems: "center", gap: 4, color: "#9aa0ab", fontSize: 11, fontWeight: 500, textTransform: "capitalize" },
-  signOut: { display: "grid", placeItems: "center", width: 28, height: 28, borderRadius: 8, background: T.inkSoft, color: "#aeb4c0", border: `1px solid ${T.inkLine}`, cursor: "pointer" },
-  approveBtn: { position: "relative", display: "inline-flex", alignItems: "center", gap: 6, background: T.inkSoft, color: "#e7d9b4", border: `1px solid ${T.inkLine}`, padding: "6px 11px", borderRadius: 8, fontSize: 12.5, fontWeight: 500, cursor: "pointer" },
-  navSegRow: { display: "inline-flex", background: T.inkSoft, border: `1px solid ${T.inkLine}`, borderRadius: 9, padding: 2, gap: 2 },
-  navSegBtn: { display: "inline-flex", alignItems: "center", gap: 5, background: "transparent", color: "#aeb4c0", border: "none", padding: "5px 10px", borderRadius: 7, fontSize: 12.5, fontWeight: 500, cursor: "pointer" },
+  who: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px 7px", justifyContent: "flex-end" },
+  avatarSm: { width: 28, height: 28, borderRadius: 8, background: T.teal, color: "#fff", display: "grid", placeItems: "center", fontSize: 11.5, fontWeight: 700, flexShrink: 0 },
+  adminTag: { display: "inline-flex", alignItems: "center", gap: 4, color: "#9aa0ab", fontSize: 11, fontWeight: 500, textTransform: "capitalize", whiteSpace: "nowrap", flexShrink: 0 },
+  signOut: { display: "grid", placeItems: "center", width: 28, height: 28, borderRadius: 8, background: T.inkSoft, color: "#aeb4c0", border: `1px solid ${T.inkLine}`, cursor: "pointer", flexShrink: 0 },
+  approveBtn: { position: "relative", display: "inline-flex", alignItems: "center", gap: 6, background: T.inkSoft, color: "#e7d9b4", border: `1px solid ${T.inkLine}`, padding: "6px 11px", borderRadius: 8, fontSize: 12.5, fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 },
+  navSegRow: { display: "inline-flex", background: T.inkSoft, border: `1px solid ${T.inkLine}`, borderRadius: 9, padding: 2, gap: 2, flexShrink: 0 },
+  navSegBtn: { display: "inline-flex", alignItems: "center", gap: 5, background: "transparent", color: "#aeb4c0", border: "none", padding: "5px 10px", borderRadius: 7, fontSize: 12.5, fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap" },
   navSegOn: { background: T.teal, color: "#fff" },
   pendingBadge: { display: "inline-grid", placeItems: "center", minWidth: 18, height: 18, padding: "0 5px", borderRadius: 9, background: T.gold, color: "#fff", fontSize: 11, fontWeight: 700, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
 

@@ -134,15 +134,20 @@ Deno.serve(async (req) => {
     //    EdgeRuntime.waitUntil, Supabase's background-task API) — the caller
     //    doesn't wait on this at all, just polls the row for progress.
     const work = (async () => {
-      const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-      if (!apiKey) { await fail("ANTHROPIC_API_KEY not set"); return; }
+      // Everything in here is wrapped in one try/catch — anything that
+      // throws (even somewhere not individually guarded below) still lands
+      // in fail(), so the row never gets stranded at status='generating'
+      // with no error shown.
+      try {
+        const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+        if (!apiKey) { await fail("ANTHROPIC_API_KEY not set"); return; }
 
-      const topicLines = topics.map((t, i) => {
-        const cat = [t.prite_label, ...(t.topics ?? [])].filter(Boolean).join(", ");
-        return `${i + 1}. ${t.stem}${cat ? `\n   (topic area: ${cat})` : ""}`;
-      }).join("\n\n");
+        const topicLines = topics.map((t, i) => {
+          const cat = [t.prite_label, ...(t.topics ?? [])].filter(Boolean).join(", ");
+          return `${i + 1}. ${t.stem}${cat ? `\n   (topic area: ${cat})` : ""}`;
+        }).join("\n\n");
 
-      const prompt =
+        const prompt =
 `A psychiatry residency is holding a class session next Tuesday covering the topics behind the quiz questions listed below. Write prep material residents can read (and listen to) BEFORE the session, to build background and context — not to give away the quiz.
 
 You have deliberately NOT been given the answer choices or which one is correct for any question, because you don't need them and must not guess or state one. Do not resolve, hint at, or narrow down which option is correct for any listed item. Teach the surrounding concepts, definitions, mechanisms, history, and clinically useful context instead, so residents arrive Tuesday with real background — not spoilers.
@@ -160,45 +165,44 @@ Write:
 Respond with ONLY a JSON object, no markdown fencing:
 {"title": "...", "intro": "...", "sections": [{"heading": "...", "body": "..."}], "key_terms": ["...", ...], "audio_script": "..."}`;
 
-      let aiRes: Response;
-      try {
-        aiRes = await fetch("https://api.anthropic.com/v1/messages", {
+        const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST",
           headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
           body: JSON.stringify({ model: MODEL, max_tokens: 8000, messages: [{ role: "user", content: prompt }] }),
         });
-      } catch (e) { await fail("anthropic request failed: " + String(e)); return; }
-      if (!aiRes.ok) { await fail("anthropic " + aiRes.status + ": " + (await aiRes.text())); return; }
-      const ai = await aiRes.json();
-      const raw = (ai.content?.[0]?.text ?? "").trim().replace(/^```json\s*|\s*```$/g, "");
-      let guide: { title: string; intro: string; sections: { heading: string; body: string }[]; key_terms: string[]; audio_script: string };
-      try { guide = JSON.parse(raw); } catch { await fail("Claude returned unparseable output"); return; }
+        if (!aiRes.ok) { await fail("anthropic " + aiRes.status + ": " + (await aiRes.text())); return; }
+        const ai = await aiRes.json();
+        const raw = (ai.content?.[0]?.text ?? "").trim().replace(/^```json\s*|\s*```$/g, "");
+        let guide: { title: string; intro: string; sections: { heading: string; body: string }[]; key_terms: string[]; audio_script: string };
+        try { guide = JSON.parse(raw); } catch { await fail("Claude returned unparseable output"); return; }
 
-      // 6. render the narration to speech (OpenAI TTS) and store the MP3
-      const openaiKey = Deno.env.get("OPENAI_API_KEY");
-      if (!openaiKey) { await fail("OPENAI_API_KEY not set"); return; }
-      const voice = Deno.env.get("OPENAI_TTS_VOICE") || DEFAULT_VOICE;
-      const audioPath = `${saved_test_id}.mp3`;
+        // 6. render the narration to speech (OpenAI TTS) and store the MP3
+        const openaiKey = Deno.env.get("OPENAI_API_KEY");
+        if (!openaiKey) { await fail("OPENAI_API_KEY not set"); return; }
+        const voice = Deno.env.get("OPENAI_TTS_VOICE") || DEFAULT_VOICE;
+        const audioPath = `${saved_test_id}.mp3`;
 
-      await admin.from("study_guides").update({ stage: "narrating" }).eq("saved_test_id", saved_test_id);
-      try {
+        await admin.from("study_guides").update({ stage: "narrating" }).eq("saved_test_id", saved_test_id);
         const audioBytes = await synthesizeSpeech(guide.audio_script ?? "", openaiKey, voice);
         const { error: upErr } = await admin.storage.from("study-audio")
           .upload(audioPath, audioBytes, { contentType: "audio/mpeg", upsert: true });
         if (upErr) { await fail("storage upload failed: " + upErr.message); return; }
-      } catch (e) { await fail("speech synthesis failed: " + String(e)); return; }
 
-      // 7. done — fill in the real content (service role bypasses RLS)
-      const row = {
-        saved_test_id,
-        created_by: uid,
-        title: guide.title, intro: guide.intro,
-        sections: guide.sections ?? [], key_terms: guide.key_terms ?? [],
-        audio_script: guide.audio_script ?? "",
-        audio_path: audioPath,
-        status: "ready", stage: null, error_message: null,
-      };
-      await admin.from("study_guides").upsert(row, { onConflict: "saved_test_id" });
+        // 7. done — fill in the real content (service role bypasses RLS)
+        const row = {
+          saved_test_id,
+          created_by: uid,
+          title: guide.title, intro: guide.intro,
+          sections: guide.sections ?? [], key_terms: guide.key_terms ?? [],
+          audio_script: guide.audio_script ?? "",
+          audio_path: audioPath,
+          status: "ready", stage: null, error_message: null,
+        };
+        const { error: finalErr } = await admin.from("study_guides").upsert(row, { onConflict: "saved_test_id" });
+        if (finalErr) await fail("saving the finished guide failed: " + finalErr.message);
+      } catch (e) {
+        await fail(String(e));
+      }
     })();
 
     // deno-lint-ignore no-explicit-any
