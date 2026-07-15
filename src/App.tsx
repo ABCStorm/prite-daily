@@ -130,6 +130,67 @@ function ago(iso: string) {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
+// ---- "Ask AI": open an external AI with a pre-filled prompt about this question ----
+type AiStyle = "explain" | "eli10" | "analogies" | "connections" | "historical";
+const AI_STYLES: [AiStyle, string][] = [
+  ["explain", "Explain"],
+  ["eli10", "Explain like I'm 10"],
+  ["analogies", "Use analogies"],
+  ["connections", "Connect to other topics"],
+  ["historical", "Historical context"],
+];
+const AI_STYLE_TEXT: Record<AiStyle, string> = {
+  explain: "Explain why the correct answer is right and why each of the other options is wrong.",
+  eli10: "Explain this like I am ten years old, using simple everyday language.",
+  analogies: "Explain this using vivid, memorable analogies.",
+  connections: "Explain this and make lots of connections to related psychiatry, pharmacology, and neuroscience concepts so it sticks.",
+  historical: "Explain this in its historical context — how the diagnosis, the treatment, or the guideline was discovered and how the understanding evolved over time.",
+};
+const AI_TARGETS: { key: string; label: string; url: (p: string) => string }[] = [
+  { key: "google", label: "Google AI", url: (p) => `https://www.google.com/search?udm=50&q=${encodeURIComponent(p)}` },
+  { key: "openevidence", label: "OpenEvidence", url: (p) => `https://www.openevidence.com/search?q=${encodeURIComponent(p)}` },
+  { key: "chatgpt", label: "ChatGPT", url: (p) => `https://chatgpt.com/?q=${encodeURIComponent(p)}` },
+  { key: "claude", label: "Claude", url: (p) => `https://claude.ai/new?q=${encodeURIComponent(p)}` },
+  { key: "grok", label: "Grok", url: (p) => `https://grok.com/?q=${encodeURIComponent(p)}` },
+];
+function questionRef(q: RawQuestion, revealed: boolean): string {
+  const opts = q.options.map((o) => `${o.letter}. ${o.text}`).join("\n");
+  const letters = q.answer_letters && q.answer_letters.length ? q.answer_letters : q.answer_letter ? [q.answer_letter] : [];
+  const ans = revealed && letters.length
+    ? `\nThe correct answer is ${letters.join(", ")}${q.answer_text ? `: ${q.answer_text}` : ""}.\n`
+    : "";
+  return `${q.stem}\n\n${opts}\n${ans}`;
+}
+function askAiPrompt(q: RawQuestion, style: AiStyle, revealed: boolean): string {
+  return `I'm a psychiatry resident studying for the PRITE exam. Here is a practice question:\n\n${questionRef(q, revealed)}\n${AI_STYLE_TEXT[style]}`;
+}
+// A user's own free-text question, with the current question attached as reference.
+function askAiCustom(q: RawQuestion, text: string, revealed: boolean): string {
+  return `${text.trim()}\n\n--- Reference: the PRITE practice question I'm looking at ---\n\n${questionRef(q, revealed)}`;
+}
+// "I have no clue" — ask the AI to teach the underlying topic from scratch.
+function askAiNoClue(q: RawQuestion, revealed: boolean): string {
+  return `I'm a psychiatry resident studying for the PRITE exam and I honestly have no idea how to approach this question. Please teach me the core concept it's testing from scratch, in plain language — the key facts and the way to reason about it — and then walk me to the answer so I actually understand it.\n\n${questionRef(q, revealed)}`;
+}
+// Open a URL in a *background* tab (keep the user on the quiz). Synthesises a
+// ⌘/Ctrl-click on a throwaway anchor — the browser gesture that opens a background
+// tab — and falls back to window.open. Returns focus to the quiz either way.
+function openBgTab(url: string) {
+  try {
+    const a = document.createElement("a");
+    a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.dispatchEvent(new MouseEvent("click", {
+      bubbles: true, cancelable: true, view: window, button: 0,
+      ctrlKey: true, metaKey: true,
+    }));
+    document.body.removeChild(a);
+  } catch {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+  try { window.focus(); } catch { /* no-op */ }
+}
+
 // Green (few wrong answers, fine to skip) → orange (many wrong, review this
 // one) — for the poll answer-key's at-a-glance review-priority accent.
 function wrongPctColor(pct: number): string {
@@ -338,6 +399,10 @@ export default function App() {
   const [crossed, setCrossed] = useState<string[]>([]); // options crossed out (right-click), per question
   const [revealed, setRevealed] = useState(false);
   const [tab, setTab] = useState("explanation");
+  // "Ask AI" panel: open/closed, chosen explanation style, and free-text question
+  const [askOpen, setAskOpen] = useState(false);
+  const [askStyle, setAskStyle] = useState<AiStyle>("explain");
+  const [askText, setAskText] = useState("");
   const [myNote, setMyNote] = useState("");
   const [draft, setDraft] = useState("");
   const [toast, setToast] = useState<string | null>(null);
@@ -543,7 +608,10 @@ export default function App() {
       const id = questionId(qq.year, qq.q_index);
       const row = a[id];
       if (!row) fresh.push(qq);
-      else if (recycle && !row.first_correct && !row.cleared && now - Date.parse(row.updated_at) >= afterMs) due.push(qq);
+      // Recycle on the LATEST attempt, not first_correct — first_correct never
+      // changes, so keying on it re-queued a question forever (every recycle
+      // window, at the front of Today) even after it was re-answered right.
+      else if (recycle && !row.correct && !row.cleared && now - Date.parse(row.updated_at) >= afterMs) due.push(qq);
     }
     // serve recent exams first (2022 → 2025, then older); stable sort keeps
     // each year's questions in their natural order
@@ -647,6 +715,7 @@ export default function App() {
   // reset tab + load this question's notes (mine + group) on navigation
   useEffect(() => {
     setTab("explanation"); setDraft(""); setStats(null); setCard(null); setEditCard(null); setContext(null); setCrossed([]);
+    setAskOpen(false); setAskText("");
     if (navQid && persist) {
       getMyNote(navQid).then(setMyNote);
       getGroupNotes(navQid).then(setGroupNotes);
@@ -682,13 +751,19 @@ export default function App() {
   }, [showBoard, persist]);
 
   // restore a prior answer (reveal state) on navigation. In review mode the
-  // question is presented FRESH (answer hidden) so you get another attempt.
+  // question is presented FRESH (answer hidden) so you get another attempt —
+  // and likewise, in Today mode, a prior answer from an EARLIER day (i.e. a
+  // recycled missed question) presents fresh: auto-revealing it made the
+  // recycled question unanswerable, so it never counted toward the day and
+  // stayed "due" at the front of the set on every sign-in. Browse/custom
+  // still show any prior answer, and anything answered today stays revealed.
   // Keyed on the question ID itself (not `answers`) so submitting an answer
   // doesn't re-hide what you just revealed — and so picks always reset even
   // when the set changes underneath the same index (stale-highlight bug).
   useEffect(() => {
     const prior = navQid ? answers[navQid] : undefined;
-    if (!reviewMode && prior) { setPicked(prior.picked); setRevealed(true); }
+    const showPrior = prior && !reviewMode && (!inToday || isSameDay(prior.updated_at));
+    if (showPrior && prior) { setPicked(prior.picked); setRevealed(true); }
     else { setPicked([]); setRevealed(false); }
   }, [navQid, reviewMode, answersLoaded]); // eslint-disable-line
 
@@ -1606,6 +1681,59 @@ export default function App() {
             </div>
           )}
         </section>
+
+        {/* Ask AI — hidden in exam mode, where answers are held until review */}
+        {!examActive && (
+          <div style={s.askWrap}>
+            <button style={{ ...s.askToggle, ...(askOpen ? s.askToggleOn : {}) }} onClick={() => setAskOpen((o) => !o)} title="Ask an AI to explain this question">
+              <Sparkles size={14} strokeWidth={2.3} /> Ask AI <span style={{ opacity: 0.7 }}>{askOpen ? "▴" : "▾"}</span>
+            </button>
+            {!revealed && (
+              <button
+                style={s.noClueBtn}
+                onClick={() => { finalize(true); openBgTab(AI_TARGETS[0].url(askAiNoClue(q, true))); }}
+                title="Reveal the answer now and open an AI explainer in a background tab"
+              >
+                🤷 I have no clue <ExternalLink size={12} strokeWidth={2.2} />
+              </button>
+            )}
+            {askOpen && (
+              <div style={s.askPanel} className="fade">
+                <div style={s.askRow}>
+                  <span style={s.askLabel}>How</span>
+                  {AI_STYLES.map(([v, lbl]) => (
+                    <button key={v} style={{ ...s.askChip, ...(askStyle === v && !askText.trim() ? s.askChipOn : {}) }}
+                      onClick={() => { setAskStyle(v); setAskText(""); }}>{lbl}</button>
+                  ))}
+                </div>
+                <div style={s.askRow}>
+                  <span style={s.askLabel}>Or ask</span>
+                  <input
+                    style={s.askInput}
+                    value={askText}
+                    onChange={(e) => setAskText(e.target.value)}
+                    placeholder="Type your own question about this — the question is attached automatically"
+                  />
+                </div>
+                <div style={s.askRow}>
+                  <span style={s.askLabel}>Open in</span>
+                  {AI_TARGETS.map((t) => (
+                    <button key={t.key} style={s.askGo}
+                      onClick={() => window.open(
+                        t.url(askText.trim() ? askAiCustom(q, askText, showAnswer) : askAiPrompt(q, askStyle, showAnswer)),
+                        "_blank", "noopener,noreferrer")}>
+                      {t.label} <ExternalLink size={12} strokeWidth={2.2} />
+                    </button>
+                  ))}
+                </div>
+                <p style={s.askNote}>
+                  {askText.trim() ? "Opens the AI with your question and this question attached as reference." : "Opens the AI in a new tab with this question pre-filled"}
+                  {!askText.trim() && (showAnswer ? "." : " (answer hidden until you reveal it).")}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Tabs */}
         {showAnswer && (
@@ -5745,6 +5873,18 @@ const s: Record<string, React.CSSProperties> = {
   hlHint: { display: "flex", justifyContent: "center", alignItems: "center", gap: 5, fontSize: 11.5, color: T.faint, margin: "12px 0 0" },
 
   options: { display: "flex", flexDirection: "column", gap: 9 },
+  askWrap: { marginTop: 14, display: "flex", flexWrap: "wrap", alignItems: "flex-start", gap: 9 },
+  noClueBtn: { display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: `1px solid ${T.paperEdge}`, color: T.muted, padding: "9px 14px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer" },
+  askToggle: { display: "inline-flex", alignItems: "center", gap: 7, background: T.tealSoft, border: `1px solid ${T.tealSoft}`, color: T.tealDeep, padding: "9px 15px", borderRadius: 10, fontSize: 13.5, fontWeight: 700, cursor: "pointer" },
+  askToggleOn: { background: T.teal, border: `1px solid ${T.teal}`, color: "#fff" },
+  askPanel: { flexBasis: "100%", marginTop: 1, padding: "13px 15px", background: T.card, border: `1px solid ${T.paperEdge}`, borderRadius: 12 },
+  askRow: { display: "flex", flexWrap: "wrap", gap: 7, alignItems: "center", marginBottom: 9 },
+  askLabel: { fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: T.faint, minWidth: 50 },
+  askChip: { display: "inline-flex", alignItems: "center", background: "#fff", border: `1px solid ${T.paperEdge}`, color: T.text, padding: "6px 11px", borderRadius: 999, fontSize: 12.5, fontWeight: 600, cursor: "pointer" },
+  askChipOn: { background: T.teal, color: "#fff", border: `1px solid ${T.teal}` },
+  askGo: { display: "inline-flex", alignItems: "center", gap: 5, background: T.ink, border: `1px solid ${T.ink}`, color: "#fff", padding: "6px 12px", borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: "pointer" },
+  askInput: { flex: 1, minWidth: 200, background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 9, padding: "8px 11px", fontSize: 13, color: T.text },
+  askNote: { margin: "2px 0 0", fontSize: 11.5, color: T.faint, lineHeight: 1.4 },
   opt: { position: "relative", overflow: "hidden", display: "flex", alignItems: "center", gap: 13, textAlign: "left", width: "100%", background: T.card, border: `1.5px solid ${T.paperEdge}`, borderRadius: 11, padding: "13px 15px", fontSize: 15, color: T.text, cursor: "pointer" },
   optChosen: { border: `1.5px solid ${T.teal}`, background: T.tealSoft },
   optCorrect: { border: `1.5px solid ${T.correctLine}`, background: T.correctBg },
