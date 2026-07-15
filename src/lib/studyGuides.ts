@@ -8,6 +8,9 @@ import { supabase } from "./supabase";
 
 export type StudyGuideSection = { heading: string; body: string };
 
+export type StudyGuideStatus = "generating" | "ready" | "error";
+export type StudyGuideStage = "writing" | "narrating" | null;
+
 export type StudyGuide = {
   id: string;
   saved_test_id: string;
@@ -17,6 +20,9 @@ export type StudyGuide = {
   key_terms: string[];
   audio_script: string;
   audio_path: string | null;  // path in the private "study-audio" bucket
+  status: StudyGuideStatus;
+  stage: StudyGuideStage;
+  error_message: string | null;
   created_at: string;
 };
 
@@ -56,11 +62,17 @@ export async function getStudyGuide(id: string): Promise<StudyGuide | null> {
   return (data as StudyGuide) ?? null;
 }
 
-/** Fetch the cached guide for a saved test, if one has already been generated. */
-export async function getStudyGuideForTest(savedTestId: string): Promise<StudyGuide | null> {
-  if (!supabase) return null;
-  const { data } = await supabase.from("study_guides").select("*").eq("saved_test_id", savedTestId).maybeSingle();
-  return (data as StudyGuide) ?? null;
+/** Fetch every generated/in-progress guide for a set of saved tests in one
+    round trip, keyed by saved_test_id — used to poll progress for all of a
+    speaker's tests at once (so the Tests button can badge "done" even if
+    the panel that kicked off generation isn't open anymore). */
+export async function listStudyGuidesForTests(savedTestIds: string[]): Promise<Record<string, StudyGuide>> {
+  if (!supabase || !savedTestIds.length) return {};
+  const { data, error } = await supabase.from("study_guides").select("*").in("saved_test_id", savedTestIds);
+  if (error) { console.warn("listStudyGuidesForTests", error.message); return {}; }
+  const out: Record<string, StudyGuide> = {};
+  for (const row of (data as StudyGuide[] | null) ?? []) out[row.saved_test_id] = row;
+  return out;
 }
 
 /** Download the generated narration audio and return a blob: URL for an

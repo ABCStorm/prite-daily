@@ -5,7 +5,7 @@ import {
   ArrowLeft, ListChecks, LogOut, Clock, Settings as SettingsIcon,
   Sparkles, Target, RotateCcw, BarChart3, Pencil, Search, FileText, ExternalLink,
   TrendingUp, Youtube, Network, Zap, Crown, Radio, Lightbulb, Highlighter, Bug,
-  ChevronDown, ChevronRight, Share2, Archive, Baby, Mail, Minus, Plus, Repeat,
+  ChevronDown, ChevronUp, ChevronRight, Share2, Archive, Baby, Mail, Minus, Plus, Repeat,
   Eye, EyeOff, PanelRight, PanelBottom,
   BookOpen, Volume2, Play, Pause, Square, Copy,
 } from "lucide-react";
@@ -63,8 +63,8 @@ import {
 import { exportMyNotes, exportGroupNotes, exportMissed, ankingLecture, exportPptx, exportPollTeams, exportOfficialPollResults, exportPollMissed } from "./lib/exports";
 import { loadTests, saveTest, renameTest, deleteTest, type SavedTest } from "./lib/tests";
 import {
-  generateStudyGuide, getStudyGuideForTest, getStudyGuide, getStudyGuideAudioUrl, studyGuideUrl,
-  studyGuideIdFromUrl, clearStudyParam, type StudyGuide,
+  generateStudyGuide, getStudyGuide, getStudyGuideAudioUrl, listStudyGuidesForTests, studyGuideUrl,
+  studyGuideIdFromUrl, clearStudyParam, type StudyGuide, type StudyGuideStage,
 } from "./lib/studyGuides";
 import { SRS_GRADES, intervalLabel, sm2Next, SRS_DEFAULT, type SrsGrade, type SrsState } from "./lib/srs";
 
@@ -362,8 +362,15 @@ export default function App() {
 
   // --- study guides (prep page + audio overview generated from a saved test) ---
   const [openStudyGuideId, setOpenStudyGuideId] = useState<string | null>(null); // reading/listening the shared page
-  const [pendingGuideTest, setPendingGuideTest] = useState<SavedTest | null>(null); // generating one now
-  const [guideToShare, setGuideToShare] = useState<{ guide: StudyGuide; test: SavedTest } | null>(null); // just (re)generated — show the link
+  const [guideToShare, setGuideToShare] = useState<{ guide: StudyGuide; test: SavedTest } | null>(null); // opened from the panel to view/copy the link
+  // latest known guide per saved_test_id — generation runs in the background
+  // (see generate-study-guide's use of EdgeRuntime.waitUntil), so this is kept
+  // fresh by polling rather than by awaiting the kickoff call.
+  const [guidesByTest, setGuidesByTest] = useState<Record<string, StudyGuide>>({});
+  const [seenGuideIds, setSeenGuideIds] = useState<Set<string>>(() => new Set(readPref("pd_seen_study_guides", [] as string[])));
+  const [pollGen, setPollGen] = useState(0); // bump to (re)start the progress poll after kicking off a generation
+  const stageStartRef = useRef<Record<string, { stage: string; at: number }>>({});
+  useEffect(() => { writePref("pd_seen_study_guides", [...seenGuideIds]); }, [seenGuideIds]);
 
   // --- live crowd poll (Supabase Realtime, see lib/poll.ts) ---
   const [hostCode, setHostCode] = useState<string | null>(null);   // big screen is hosting
@@ -406,6 +413,35 @@ export default function App() {
   const signedIn = Boolean(session);
   const approved = !isConfigured || profile?.status === "approved";
   const persist = isConfigured && signedIn && approved;
+
+  // Poll every saved test's study-guide row while any of them are still
+  // generating — a recursive timeout (not setInterval) so it naturally stops
+  // once nothing's in flight, and restarts on pollGen bump or when the test
+  // list changes. Works across tab closes/reopens since progress lives in
+  // the DB, not in this component's state.
+  const savedTestIdsKey = savedTests.map((t) => t.id).join(",");
+  useEffect(() => {
+    if (!persist || !savedTestIdsKey) return;
+    let alive = true;
+    const testIds = savedTestIdsKey.split(",");
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = async () => {
+      const map = await listStudyGuidesForTests(testIds);
+      if (!alive) return false;
+      for (const [tid, g] of Object.entries(map)) {
+        const prevStage = stageStartRef.current[tid]?.stage;
+        if ((g.stage ?? "") !== prevStage) stageStartRef.current[tid] = { stage: g.stage ?? "", at: Date.now() };
+      }
+      setGuidesByTest((prev) => ({ ...prev, ...map }));
+      return Object.values(map).some((g) => g.status === "generating");
+    };
+    const loop = async () => { if (alive && await tick()) timer = setTimeout(loop, 3000); };
+    loop();
+    return () => { alive = false; clearTimeout(timer); };
+  }, [persist, savedTestIdsKey, pollGen]);
+
+  const readyUnseenGuideCount = Object.values(guidesByTest).filter((g) => g.status === "ready" && !seenGuideIds.has(g.id)).length;
+
   const [answers, setAnswers] = useState<Record<string, AnswerRow>>({});
   const [groupNotes, setGroupNotes] = useState<DbGroupNote[]>([]);
   const [showApprovals, setShowApprovals] = useState(false);
@@ -962,18 +998,27 @@ export default function App() {
     setShowDeck(false);
     fire(`Studying ${qs.length} question${qs.length === 1 ? "" : "s"}${label ? ` · ${label}` : ""}`);
   };
-  // Generate (or regenerate) the study guide for a saved test, then show the
-  // share-link modal. Only stem + topic tags are sent to the model — never
-  // options/answer/explanation — so the result can't spoil the quiz.
+  // Kick off (or regenerate) the study guide for a saved test. Generation
+  // runs server-side in the background — this call returns almost instantly
+  // once the placeholder row is written, so there's nothing to await here.
+  // You can close the panel; the poll loop above picks up progress, and the
+  // Tests button badges once it's ready. Only stem + topic tags are sent to
+  // the model — never options/answer/explanation — so it can't spoil the quiz.
   const buildStudyGuide = async (t: SavedTest, force = false) => {
     const qs = t.qids.map((id) => byId.get(id)).filter(Boolean) as RawQuestion[];
     if (!qs.length) { fire("None of this test's questions are in the current bank"); return; }
-    setPendingGuideTest(t);
+    // regenerating: forget we'd already "seen" the old ready guide, so the
+    // badge reappears once the fresh one lands (same row id, reused).
+    const existingId = guidesByTest[t.id]?.id;
+    if (existingId) setSeenGuideIds((prev) => { const n = new Set(prev); n.delete(existingId); return n; });
+    stageStartRef.current[t.id] = { stage: "writing", at: Date.now() };
     const topics = qs.map((q) => ({ stem: q.stem, prite_category: q.prite_category, prite_label: q.prite_label, topics: q.tags?.topics }));
     const result = await generateStudyGuide(t.id, t.name, topics, force);
-    setPendingGuideTest(null);
     if ("error" in result) { fire(`Couldn't build the study guide: ${result.error}`); return; }
-    setGuideToShare({ guide: result, test: t });
+    setGuidesByTest((prev) => ({ ...prev, [t.id]: result }));
+    setPollGen((n) => n + 1);
+    if (result.status === "ready") setGuideToShare({ guide: result, test: t }); // already cached — nothing to wait for
+    else fire(`Writing "${t.name}"'s study guide — feel free to close this. The Tests button will show when it's ready.`);
   };
 
   // clicking the Custom toggle: jump back into an existing set, or open the picker
@@ -1174,8 +1219,29 @@ export default function App() {
           <button style={s.deckBtn} onClick={() => setShowDeck(true)} title="Search & filter questions">
             <Search size={13} strokeWidth={2.4} /> Search
           </button>
-          <button style={s.deckBtn} onClick={() => setShowTests(true)} title="Saved tests — hand-picked sets for class sessions">
+          <button
+            style={{ ...s.deckBtn, position: "relative" }}
+            onClick={() => {
+              setShowTests(true);
+              // opening the panel is the "I've seen it" signal — clear the badge
+              setSeenGuideIds((prev) => {
+                const next = new Set(prev);
+                for (const g of Object.values(guidesByTest)) if (g.status === "ready") next.add(g.id);
+                return next;
+              });
+            }}
+            title="Saved tests — hand-picked sets for class sessions"
+          >
             <ListChecks size={13} strokeWidth={2.4} /> Tests{savedTests.length ? ` (${savedTests.length})` : ""}
+            {readyUnseenGuideCount > 0 && (
+              <span
+                title={`${readyUnseenGuideCount} study guide${readyUnseenGuideCount === 1 ? "" : "s"} ready`}
+                style={{
+                  position: "absolute", top: -4, right: -4, width: 9, height: 9, borderRadius: "50%",
+                  background: T.gold, border: `1.5px solid ${T.ink}`,
+                }}
+              />
+            )}
           </button>
           {persist && (
             <button style={s.deckBtn} onClick={() => setShowSrs(true)} title="Spaced-repetition flashcard review of questions you've missed">
@@ -1846,21 +1912,18 @@ export default function App() {
             await deleteTest(t.id);
             setSavedTests(await loadTests());
           }}
-          onStudyGuide={async (t) => {
-            const existing = await getStudyGuideForTest(t.id);
-            if (existing) { setGuideToShare({ guide: existing, test: t }); return; }
-            await buildStudyGuide(t);
-          }}
-          generatingGuideId={pendingGuideTest?.id ?? null}
+          guidesByTest={guidesByTest}
+          stageStartedAt={(testId) => stageStartRef.current[testId]?.at ?? Date.now()}
+          onStudyGuide={(t) => buildStudyGuide(t)}
+          onOpenGuide={(t, guide) => setGuideToShare({ guide, test: t })}
         />
       )}
 
       {guideToShare && (
         <StudyGuideShareModal
-          guide={guideToShare.guide}
+          guide={guidesByTest[guideToShare.test.id] ?? guideToShare.guide}
           onClose={() => setGuideToShare(null)}
           onRegenerate={() => buildStudyGuide(guideToShare.test, true)}
-          regenerating={pendingGuideTest?.id === guideToShare.test.id}
         />
       )}
 
@@ -2631,6 +2694,11 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, byId, display
   const [team, setTeamState] = useState<string>(() => { try { return localStorage.getItem(TEAM_KEY) || ""; } catch { return ""; } });
   const [draft, setDraft] = useState(team);
   const [editing, setEditing] = useState(false);
+  // Question text is hidden by default (residents read it off the big screen)
+  // — this is the pull-down "shade" that peeks it on the phone instead, for
+  // whoever can't see the screen well. Collapses again on every new question.
+  const [stemOpen, setStemOpen] = useState(false);
+  const stemDragRef = useRef<{ startY: number } | null>(null);
   const chanRef = useRef<ReturnType<NonNullable<typeof supabase>["channel"]> | null>(null);
   const lastQid = useRef<string>("");
   const teamRef = useRef(team);
@@ -2662,7 +2730,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, byId, display
         historyRef.current.set(payload.qid, { correct: payload.correct, myChoice: myVoteRef.current, index: payload.index });
       }
       setRemote(payload);
-      if (payload.qid !== lastQid.current) { lastQid.current = payload.qid; setMyVote(null); myVoteRef.current = null; setReviewQid(null); }
+      if (payload.qid !== lastQid.current) { lastQid.current = payload.qid; setMyVote(null); myVoteRef.current = null; setReviewQid(null); setStemOpen(false); }
     });
     // Host ran the auto-assign shuffle — take the team it picked for me, unless
     // I've already got one (either from a prior shuffle or my own rename).
@@ -2704,6 +2772,21 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, byId, display
     }
     return rows;
   };
+
+  // Drag (or tap) the pull tab to peek the current question's text — a
+  // threshold-based open/close rather than a finger-following sheet, so it
+  // works the same whether you drag or just tap.
+  const onStemPullDown = (e: React.PointerEvent) => {
+    stemDragRef.current = { startY: e.clientY };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onStemPullMove = (e: React.PointerEvent) => {
+    if (!stemDragRef.current) return;
+    const dy = e.clientY - stemDragRef.current.startY;
+    if (dy > 28) setStemOpen(true);
+    else if (dy < -28) setStemOpen(false);
+  };
+  const onStemPullUp = () => { stemDragRef.current = null; };
 
   const letters = remote ? Array.from({ length: remote.nOptions }, (_, i) => String.fromCharCode(65 + i)) : [];
   const isStableMode = remote?.teamMode === "stable";
@@ -2803,6 +2886,25 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, byId, display
               );
             })() : (
               <>
+                {!remote.finished && (
+                  <div
+                    style={s.stemPull}
+                    onClick={() => setStemOpen((v) => !v)}
+                    onPointerDown={onStemPullDown}
+                    onPointerMove={onStemPullMove}
+                    onPointerUp={onStemPullUp}
+                    onPointerCancel={onStemPullUp}
+                  >
+                    <span style={s.stemPullBar} />
+                    <span style={s.stemPullLabel}>
+                      {stemOpen ? <ChevronUp size={13} strokeWidth={2.4} /> : <ChevronDown size={13} strokeWidth={2.4} />}
+                      {stemOpen ? "Hide question text" : "Pull down for question text"}
+                    </span>
+                  </div>
+                )}
+                {!remote.finished && stemOpen && (
+                  <p style={s.stemPeek}>{byId.get(remote.qid)?.stem}</p>
+                )}
                 <p style={s.joinMsg}>
                   {remote.finished
                     ? <>Poll complete — thanks for playing! 🎉</>
@@ -3953,8 +4055,19 @@ function DeckBuilder({
 /* Saved tests: named, hand-picked question sets (built in the Search modal).
    From here a test can be studied, hosted as a live class poll, exported to
    PowerPoint, renamed, or deleted. Stored per-device in localStorage. */
+// Elapsed-time-based estimate, not a real progress signal from the server —
+// each stage eases toward (but never quite reaches) its ceiling so the bar
+// stays honest about not knowing exactly how much is left, then the caller
+// snaps it to 100 once status flips to "ready".
+function guideProgressPercent(stage: StudyGuideStage, startedAt: number): number {
+  const elapsed = (Date.now() - startedAt) / 1000;
+  if (stage === "narrating") return Math.round(50 + 45 * (1 - Math.exp(-elapsed / 20)));
+  return Math.round(5 + 45 * (1 - Math.exp(-elapsed / 8))); // "writing" or unknown
+}
+const guideStageLabel: Record<string, string> = { writing: "Writing the guide", narrating: "Recording the audio" };
+
 function TestsPanel({
-  tests, byId, onClose, onStudy, onHost, onPptx, onRename, onDelete, onStudyGuide, generatingGuideId,
+  tests, byId, onClose, onStudy, onHost, onPptx, onRename, onDelete, guidesByTest, stageStartedAt, onStudyGuide, onOpenGuide,
 }: {
   tests: SavedTest[];
   byId: Map<string, RawQuestion>;
@@ -3964,8 +4077,10 @@ function TestsPanel({
   onPptx: (t: SavedTest) => void;
   onRename: (t: SavedTest) => void;
   onDelete: (t: SavedTest) => void;
+  guidesByTest: Record<string, StudyGuide>;
+  stageStartedAt: (testId: string) => number;
   onStudyGuide: (t: SavedTest) => void;
-  generatingGuideId: string | null;
+  onOpenGuide: (t: SavedTest, guide: StudyGuide) => void;
 }) {
   return (
     <div style={s.scrim} onClick={onClose}>
@@ -4005,14 +4120,39 @@ function TestsPanel({
                     <button style={{ ...s.ghost, marginLeft: 0 }} onClick={() => onPptx(t)} title="Download as PowerPoint (question + reveal slide per question)">
                       <FileText size={13} strokeWidth={2.3} /> PowerPoint
                     </button>
-                    <button
-                      style={{ ...s.ghost, marginLeft: 0, opacity: generatingGuideId === t.id ? 0.6 : 1 }}
-                      disabled={generatingGuideId === t.id}
-                      onClick={() => onStudyGuide(t)}
-                      title="Generate a prep page + ~10-min audio overview to send the class before the session — background and context only, doesn't give away answers"
-                    >
-                      <BookOpen size={13} strokeWidth={2.3} /> {generatingGuideId === t.id ? "Writing…" : "Study guide"}
-                    </button>
+                    {(() => {
+                      const guide = guidesByTest[t.id];
+                      if (guide?.status === "generating") {
+                        const pct = guideProgressPercent(guide.stage, stageStartedAt(t.id));
+                        return (
+                          <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "0 4px", fontSize: 12.5, color: T.muted }}
+                            title="Runs in the background — safe to close this panel, the Tests button will badge when it's ready">
+                            <div style={{ width: 62, height: 6, borderRadius: 999, background: T.paperEdge, overflow: "hidden" }}>
+                              <div style={{ width: `${pct}%`, height: "100%", background: T.teal, transition: "width 1s linear" }} />
+                            </div>
+                            {guideStageLabel[guide.stage ?? ""] ?? "Working"}…
+                          </div>
+                        );
+                      }
+                      if (guide?.status === "ready") {
+                        return (
+                          <button style={{ ...s.ghost, marginLeft: 0, borderColor: T.teal, color: T.tealDeep }} onClick={() => onOpenGuide(t, guide)} title="Study guide ready — view or copy the share link">
+                            <BookOpen size={13} strokeWidth={2.3} /> Study guide
+                          </button>
+                        );
+                      }
+                      return (
+                        <button
+                          style={{ ...s.ghost, marginLeft: 0, color: guide?.status === "error" ? T.wrongLine : undefined }}
+                          onClick={() => onStudyGuide(t)}
+                          title={guide?.status === "error"
+                            ? `Last attempt failed: ${guide.error_message ?? "unknown error"} — click to retry`
+                            : "Generate a prep page + ~10-min audio overview to send the class before the session — background and context only, doesn't give away answers"}
+                        >
+                          <BookOpen size={13} strokeWidth={2.3} /> {guide?.status === "error" ? "Retry study guide" : "Study guide"}
+                        </button>
+                      );
+                    })()}
                     <button style={{ ...s.ghost, marginLeft: 0 }} onClick={() => onRename(t)} title="Rename">
                       <Pencil size={13} strokeWidth={2.3} /> Rename
                     </button>
@@ -4033,14 +4173,14 @@ function TestsPanel({
 /* Shown right after a study guide is (re)generated: the shareable ?study=<id>
    link to paste into an email/chat to the class, plus a regenerate option. */
 function StudyGuideShareModal({
-  guide, onClose, onRegenerate, regenerating,
+  guide, onClose, onRegenerate,
 }: {
   guide: StudyGuide;
   onClose: () => void;
   onRegenerate: () => void;
-  regenerating: boolean;
 }) {
   const [copied, setCopied] = useState(false);
+  const regenerating = guide.status === "generating";
   const link = studyGuideUrl(guide.id);
   const copy = async () => {
     try { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1800); }
@@ -4051,7 +4191,7 @@ function StudyGuideShareModal({
       <div style={{ ...s.apPanel, maxWidth: 480 }} onClick={(e) => e.stopPropagation()} className="rise">
         <div style={s.apHead}>
           <div>
-            <div style={s.apEyebrow}>Ready to send</div>
+            <div style={s.apEyebrow}>{regenerating ? "Rewriting — the old link still works meanwhile" : "Ready to send"}</div>
             <div style={s.apTitle}>{guide.title}</div>
           </div>
           <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
@@ -4485,7 +4625,7 @@ function GoogleG() {
 /* ---------------------------------------------------------------------- */
 const CSS = `
 * { box-sizing: border-box; }
-button { font-family: inherit; }
+button { font-family: inherit; -webkit-appearance: none; appearance: none; }
 .opt:hover:not(:disabled) { border-color: ${T.teal}33 !important; transform: translateY(-1px); }
 .opt:disabled { cursor: default; }
 .opt { transition: transform .12s ease, border-color .12s ease; }
@@ -4906,4 +5046,8 @@ const s: Record<string, React.CSSProperties> = {
   pollReviewChipsRow: { display: "flex", flexWrap: "wrap", gap: 8 },
   pollReviewChip: { background: T.ink, color: "#c7ccd6", border: `1px solid ${T.inkLine}`, borderRadius: 8, padding: "6px 11px", fontSize: 13, fontWeight: 600, cursor: "pointer" },
   pollReviewChipActive: { background: T.teal, color: "#fff", borderColor: T.teal },
+  stemPull: { display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "6px 0 12px", cursor: "grab", userSelect: "none", touchAction: "none" },
+  stemPullBar: { width: 36, height: 4, borderRadius: 999, background: T.inkLine },
+  stemPullLabel: { display: "inline-flex", alignItems: "center", gap: 5, color: T.faint, fontSize: 12.5, fontWeight: 600 },
+  stemPeek: { margin: "0 0 14px", padding: "12px 14px", background: T.ink, border: `1px solid ${T.inkLine}`, borderRadius: 12, color: "#e7eaf0", fontSize: 16, lineHeight: 1.5 },
 };

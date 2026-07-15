@@ -91,10 +91,13 @@ Deno.serve(async (req) => {
     const { data: me } = await admin.from("profiles").select("status").eq("id", uid).maybeSingle();
     if (me?.status !== "approved") return json({ error: "Your account isn't approved yet." }, 403);
 
-    // 2. cache hit?
+    // 2. cache hit? A row already mid-generation ('generating') or already
+    //    done ('ready') is returned as-is so the caller just polls it; only
+    //    a missing row, a previous error, or an explicit force kicks off a
+    //    fresh run.
     if (!force) {
       const { data: cached } = await admin.from("study_guides").select("*").eq("saved_test_id", saved_test_id).maybeSingle();
-      if (cached) return json({ ...cached, cached: true });
+      if (cached && cached.status !== "error") return json({ ...cached, cached: true });
     }
 
     // 3. generating (or regenerating) is restricted to the saved test's owner
@@ -103,16 +106,40 @@ Deno.serve(async (req) => {
     const { data: owned } = await scoped.from("saved_tests").select("id").eq("id", saved_test_id).maybeSingle();
     if (!owned) return json({ error: "You don't own this saved test." }, 403);
 
-    // 4. generate
-    const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!apiKey) return json({ error: "ANTHROPIC_API_KEY not set" }, 500);
+    const fail = async (message: string) => {
+      await admin.from("study_guides")
+        .update({ status: "error", stage: null, error_message: message })
+        .eq("saved_test_id", saved_test_id);
+      return json({ error: message }, 502);
+    };
 
-    const topicLines = topics.map((t, i) => {
-      const cat = [t.prite_label, ...(t.topics ?? [])].filter(Boolean).join(", ");
-      return `${i + 1}. ${t.stem}${cat ? `\n   (topic area: ${cat})` : ""}`;
-    }).join("\n\n");
+    // 4. write the placeholder immediately (upsert only touches these
+    //    columns — any prior ready content stays in place and stays
+    //    viewable/playable until this run finishes) so pollers see progress
+    //    right away, from any tab — this row is also the whole response,
+    //    returned before the slow part (Claude + ElevenLabs) even starts.
+    const { data: placeholder, error: placeholderErr } = await admin
+      .from("study_guides")
+      .upsert(
+        { saved_test_id, created_by: uid, title: test_name, status: "generating", stage: "writing", error_message: null },
+        { onConflict: "saved_test_id" },
+      )
+      .select("*").single();
+    if (placeholderErr) return json({ error: placeholderErr.message }, 500);
 
-    const prompt =
+    // 5. the actual generation runs AFTER the response is sent (via
+    //    EdgeRuntime.waitUntil, Supabase's background-task API) — the caller
+    //    doesn't wait on this at all, just polls the row for progress.
+    const work = (async () => {
+      const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+      if (!apiKey) { await fail("ANTHROPIC_API_KEY not set"); return; }
+
+      const topicLines = topics.map((t, i) => {
+        const cat = [t.prite_label, ...(t.topics ?? [])].filter(Boolean).join(", ");
+        return `${i + 1}. ${t.stem}${cat ? `\n   (topic area: ${cat})` : ""}`;
+      }).join("\n\n");
+
+      const prompt =
 `A psychiatry residency is holding a class session next Tuesday covering the topics behind the quiz questions listed below. Write prep material residents can read (and listen to) BEFORE the session, to build background and context — not to give away the quiz.
 
 You have deliberately NOT been given the answer choices or which one is correct for any question, because you don't need them and must not guess or state one. Do not resolve, hint at, or narrow down which option is correct for any listed item. Teach the surrounding concepts, definitions, mechanisms, history, and clinically useful context instead, so residents arrive Tuesday with real background — not spoilers.
@@ -130,44 +157,53 @@ Write:
 Respond with ONLY a JSON object, no markdown fencing:
 {"title": "...", "intro": "...", "sections": [{"heading": "...", "body": "..."}], "key_terms": ["...", ...], "audio_script": "..."}`;
 
-    const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: MODEL, max_tokens: 8000, messages: [{ role: "user", content: prompt }] }),
-    });
-    if (!aiRes.ok) return json({ error: "anthropic " + aiRes.status, detail: await aiRes.text() }, 502);
-    const ai = await aiRes.json();
-    const raw = (ai.content?.[0]?.text ?? "").trim().replace(/^```json\s*|\s*```$/g, "");
-    let guide: { title: string; intro: string; sections: { heading: string; body: string }[]; key_terms: string[]; audio_script: string };
-    try { guide = JSON.parse(raw); } catch { return json({ error: "bad AI output", raw }, 502); }
+      let aiRes: Response;
+      try {
+        aiRes = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+          body: JSON.stringify({ model: MODEL, max_tokens: 8000, messages: [{ role: "user", content: prompt }] }),
+        });
+      } catch (e) { await fail("anthropic request failed: " + String(e)); return; }
+      if (!aiRes.ok) { await fail("anthropic " + aiRes.status + ": " + (await aiRes.text())); return; }
+      const ai = await aiRes.json();
+      const raw = (ai.content?.[0]?.text ?? "").trim().replace(/^```json\s*|\s*```$/g, "");
+      let guide: { title: string; intro: string; sections: { heading: string; body: string }[]; key_terms: string[]; audio_script: string };
+      try { guide = JSON.parse(raw); } catch { await fail("Claude returned unparseable output"); return; }
 
-    // 5. render the narration to speech (ElevenLabs) and store the MP3
-    const elevenKey = Deno.env.get("ELEVENLABS_API_KEY");
-    if (!elevenKey) return json({ error: "ELEVENLABS_API_KEY not set" }, 500);
-    const voiceId = Deno.env.get("ELEVENLABS_VOICE_ID") || DEFAULT_VOICE_ID;
-    const audioPath = `${saved_test_id}.mp3`;
-    try {
-      const audioBytes = await synthesizeSpeech(guide.audio_script ?? "", elevenKey, voiceId);
-      const { error: upErr } = await admin.storage.from("study-audio")
-        .upload(audioPath, audioBytes, { contentType: "audio/mpeg", upsert: true });
-      if (upErr) return json({ error: "storage upload failed: " + upErr.message }, 500);
-    } catch (e) {
-      return json({ error: "speech synthesis failed: " + String(e) }, 502);
-    }
+      // 6. render the narration to speech (ElevenLabs) and store the MP3
+      const elevenKey = Deno.env.get("ELEVENLABS_API_KEY");
+      if (!elevenKey) { await fail("ELEVENLABS_API_KEY not set"); return; }
+      const voiceId = Deno.env.get("ELEVENLABS_VOICE_ID") || DEFAULT_VOICE_ID;
+      const audioPath = `${saved_test_id}.mp3`;
 
-    // 6. cache (service role bypasses RLS)
-    const row = {
-      saved_test_id,
-      created_by: uid,
-      title: guide.title, intro: guide.intro,
-      sections: guide.sections ?? [], key_terms: guide.key_terms ?? [],
-      audio_script: guide.audio_script ?? "",
-      audio_path: audioPath,
-    };
-    const { data: saved, error: saveErr } = await admin
-      .from("study_guides").upsert(row, { onConflict: "saved_test_id" }).select("*").single();
-    if (saveErr) return json({ error: saveErr.message }, 500);
-    return json({ ...saved, cached: false });
+      await admin.from("study_guides").update({ stage: "narrating" }).eq("saved_test_id", saved_test_id);
+      try {
+        const audioBytes = await synthesizeSpeech(guide.audio_script ?? "", elevenKey, voiceId);
+        const { error: upErr } = await admin.storage.from("study-audio")
+          .upload(audioPath, audioBytes, { contentType: "audio/mpeg", upsert: true });
+        if (upErr) { await fail("storage upload failed: " + upErr.message); return; }
+      } catch (e) { await fail("speech synthesis failed: " + String(e)); return; }
+
+      // 7. done — fill in the real content (service role bypasses RLS)
+      const row = {
+        saved_test_id,
+        created_by: uid,
+        title: guide.title, intro: guide.intro,
+        sections: guide.sections ?? [], key_terms: guide.key_terms ?? [],
+        audio_script: guide.audio_script ?? "",
+        audio_path: audioPath,
+        status: "ready", stage: null, error_message: null,
+      };
+      await admin.from("study_guides").upsert(row, { onConflict: "saved_test_id" });
+    })();
+
+    // deno-lint-ignore no-explicit-any
+    const edgeRuntime = (globalThis as any).EdgeRuntime;
+    if (edgeRuntime?.waitUntil) edgeRuntime.waitUntil(work);
+    else await work; // local `supabase functions serve` has no background-task API
+
+    return json({ ...placeholder, cached: false, started: true });
   } catch (e) {
     return json({ error: String(e) }, 500);
   }
