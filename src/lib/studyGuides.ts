@@ -24,6 +24,7 @@ export type StudyGuide = {
   status: StudyGuideStatus;
   stage: StudyGuideStage;
   error_message: string | null;
+  generation_started_at: string | null;  // when THIS run began (survives refresh; anchors the progress bar)
   created_at: string;
 };
 

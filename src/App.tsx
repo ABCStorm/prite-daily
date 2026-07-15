@@ -8,6 +8,7 @@ import {
   ChevronDown, ChevronUp, ChevronRight, Share2, Archive, Baby, Mail, Minus, Plus, Repeat,
   Eye, EyeOff, PanelRight, PanelBottom,
   BookOpen, Volume2, Play, Pause, Square, Copy,
+  Brain, Pill, HeartPulse, GraduationCap,
 } from "lucide-react";
 import mermaid from "mermaid";
 import QRCode from "qrcode";
@@ -37,6 +38,7 @@ import { useAuth } from "./lib/useAuth";
 import { matchRoster } from "./lib/roster";
 import { recordToday, peekStreak, totalDays, ymd } from "./lib/streaks";
 import { dueReminderPromptStage, markReminderPromptShown } from "./lib/reminderPrompt";
+import { dueAiDisclaimerStage, markAiDisclaimerShown } from "./lib/aiDisclaimerPrompt";
 import { isAutoReminderActive, guessedExamDate } from "./lib/reminderWindow";
 import {
   makePollCode, channelName, pollJoinUrl, pollCodeFromUrl, clearPollParam, assignBalancedTeams, stableTeamLevel,
@@ -55,16 +57,17 @@ import {
   getMyHighlights, saveMyHighlights, getQuestionContext,
   submitBugReport, listBugReports, updateBugReport,
   submitOfficialPollResults, listOfficialPollResults, clearOfficialPollResults,
+  recordPollAnswer, getMyPollStats,
   ensureTrackedForReview, getDueReviewCards, gradeReviewCard,
   type AnswerRow, type GroupNote as DbGroupNote, type Profile,
   type QuestionStats, type LeaderRow, type Settings, type TagMissRow, type Flashcard, type HlRange, type BugReport,
-  type OfficialPollResult, type QuestionStat, type SrsRow,
+  type OfficialPollResult, type QuestionStat, type SrsRow, type PollStats,
 } from "./lib/db";
 import { exportMyNotes, exportGroupNotes, exportMissed, ankingLecture, exportPptx, exportPollTeams, exportOfficialPollResults, exportPollMissed } from "./lib/exports";
 import { loadTests, saveTest, renameTest, deleteTest, type SavedTest } from "./lib/tests";
 import {
   generateStudyGuide, getStudyGuide, getStudyGuideAudioUrl, listStudyGuidesForTests, listAllReadyStudyGuides,
-  studyGuideUrl, studyGuideIdFromUrl, clearStudyParam, type StudyGuide, type StudyGuideStage, type LibraryStudyGuide,
+  studyGuideUrl, studyGuideIdFromUrl, clearStudyParam, type StudyGuide, type LibraryStudyGuide,
 } from "./lib/studyGuides";
 import { SRS_GRADES, intervalLabel, sm2Next, SRS_DEFAULT, type SrsGrade, type SrsState } from "./lib/srs";
 
@@ -350,6 +353,8 @@ export default function App() {
   const completionCelebratedRef = useRef<string | null>(null);
   const [reminderPromptStage, setReminderPromptStage] = useState<1 | 2 | 3 | null>(null);
   const reminderPromptCheckedRef = useRef(false);
+  const [aiDisclaimerStage, setAiDisclaimerStage] = useState<1 | 2 | null>(null);
+  const aiDisclaimerCheckedRef = useRef(false);
 
   // --- exam mode + timer (UI prefs, kept in localStorage to avoid a DB migration) ---
   const [examMode, setExamMode] = useState<boolean>(() => readPref("pd_exam_mode", false));
@@ -369,7 +374,6 @@ export default function App() {
   const [guidesByTest, setGuidesByTest] = useState<Record<string, StudyGuide>>({});
   const [seenGuideIds, setSeenGuideIds] = useState<Set<string>>(() => new Set(readPref("pd_seen_study_guides", [] as string[])));
   const [pollGen, setPollGen] = useState(0); // bump to (re)start the progress poll after kicking off a generation
-  const stageStartRef = useRef<Record<string, { stage: string; at: number }>>({});
   // residency-wide library of every finished guide, any speaker — not just yours
   const [showGuideLibrary, setShowGuideLibrary] = useState(false);
   const [libraryGuides, setLibraryGuides] = useState<LibraryStudyGuide[] | null>(null); // null = not loaded yet
@@ -431,10 +435,6 @@ export default function App() {
     const tick = async () => {
       const map = await listStudyGuidesForTests(testIds);
       if (!alive) return false;
-      for (const [tid, g] of Object.entries(map)) {
-        const prevStage = stageStartRef.current[tid]?.stage;
-        if ((g.stage ?? "") !== prevStage) stageStartRef.current[tid] = { stage: g.stage ?? "", at: Date.now() };
-      }
       setGuidesByTest((prev) => ({ ...prev, ...map }));
       return Object.values(map).some((g) => g.status === "generating");
     };
@@ -817,6 +817,26 @@ export default function App() {
     setReminderPromptStage(null);
   };
 
+  // Caution notice about AI-generated explanations: shown twice in the first
+  // week of use (day 1, day 4), then never again.
+  useEffect(() => {
+    if (!persist || aiDisclaimerCheckedRef.current) return;
+    aiDisclaimerCheckedRef.current = true;
+    const uid = profile?.id ?? session?.user?.id ?? "anon";
+    const stage = dueAiDisclaimerStage(uid, totalDays(uid, "login"));
+    if (stage) setAiDisclaimerStage(stage);
+  }, [persist, profile?.id, session?.user?.id]);
+
+  const dismissAiDisclaimer = () => {
+    const uid = profile?.id ?? session?.user?.id ?? "anon";
+    if (aiDisclaimerStage) markAiDisclaimerShown(uid, aiDisclaimerStage);
+    setAiDisclaimerStage(null);
+  };
+  const reportFromAiDisclaimer = () => {
+    dismissAiDisclaimer();
+    setShowSiteReport(true);
+  };
+
   // Completion streak: fires the first time the daily target is reached each day.
   useEffect(() => {
     if (!persist) return;
@@ -1020,7 +1040,6 @@ export default function App() {
     // badge reappears once the fresh one lands (same row id, reused).
     const existingId = guidesByTest[t.id]?.id;
     if (existingId) setSeenGuideIds((prev) => { const n = new Set(prev); n.delete(existingId); return n; });
-    stageStartRef.current[t.id] = { stage: "writing", at: Date.now() };
     const topics = qs.map((q) => ({ stem: q.stem, prite_category: q.prite_category, prite_label: q.prite_label, topics: q.tags?.topics }));
     const result = await generateStudyGuide(t.id, t.name, topics, force);
     if ("error" in result) { fire(`Couldn't build the study guide: ${result.error}`); return; }
@@ -1414,6 +1433,10 @@ export default function App() {
               ))}
             </div>
           )}
+          {/* keyed by question id so the stem + options replay their entrance
+              cascade on every navigation (figures stay outside — remounting
+              them would re-trigger image loads) */}
+          <div key={qid} className="qIn">
           <HighlightableText
             text={q.stem}
             ranges={highlights.filter((h) => h.field === "stem")}
@@ -1473,6 +1496,7 @@ export default function App() {
                 </button>
               );
             })}
+          </div>
           </div>
 
           {!revealed ? (
@@ -1820,6 +1844,31 @@ export default function App() {
         </div>
       )}
 
+      {aiDisclaimerStage && (
+        <div style={s.scrim} onClick={dismissAiDisclaimer}>
+          <div style={{ ...s.apPanel, maxWidth: 420 }} onClick={(e) => e.stopPropagation()} className="rise">
+            <div style={{ padding: "28px 26px 24px", textAlign: "center" }}>
+              <div style={{ fontSize: 32, marginBottom: 10 }}>🤖</div>
+              <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 8, color: T.text }}>A quick note on explanations</div>
+              <p style={{ fontSize: 14, color: T.muted, lineHeight: 1.5, margin: "0 0 14px", textAlign: "left" }}>
+                {aiDisclaimerStage === 1 ? (
+                  <>Every question here is a <b style={{ color: T.text }}>real, verified PRITE exam question</b>. The explanation underneath each one, though, is <b style={{ color: T.text }}>AI-generated</b> — usually solid, but not infallible. If an explanation makes a claim that feels surprising or controversial, it's worth double-checking before taking it as gospel.</>
+                ) : (
+                  <>Just a reminder: the questions themselves are real, but the explanations are still AI-written and can occasionally be wrong — especially on more nuanced or controversial points. Keep that critical eye up.</>
+                )}
+              </p>
+              <p style={{ fontSize: 14, color: T.muted, lineHeight: 1.5, margin: "0 0 22px", textAlign: "left" }}>
+                Spot a mistake? Please report it — bugs get reviewed and fixed very regularly. And if there's a feature you'd love to see, suggest that too — the goal is to make this a genuinely great study platform for the whole residency going forward.
+              </p>
+              <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+                <button style={{ ...s.ghost, marginLeft: 0 }} onClick={dismissAiDisclaimer}>Got it</button>
+                <button style={s.primarySm} onClick={reportFromAiDisclaimer}><Bug size={14} strokeWidth={2.4} /> Report a bug / suggest a feature</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showApprovals && isAdmin && (
         <Approvals
           profiles={profiles}
@@ -1927,7 +1976,6 @@ export default function App() {
             setSavedTests(await loadTests());
           }}
           guidesByTest={guidesByTest}
-          stageStartedAt={(testId) => stageStartRef.current[testId]?.at ?? Date.now()}
           onStudyGuide={(t) => buildStudyGuide(t, guidesByTest[t.id]?.status === "generating")}
           onOpenGuide={(t, guide) => setGuideToShare({ guide, test: t })}
         />
@@ -2726,6 +2774,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, byId, display
   const teamRef = useRef(team);
   teamRef.current = team;
   const myVoteRef = useRef<string | null>(null);
+  const vibratedQidRef = useRef<string | null>(null); // so a re-broadcast while still revealed doesn't re-fire the buzz
   // My own answer history for this session, keyed by qid — snapshotted the
   // moment each question is revealed (myVoteRef still reflects that question;
   // it's reset only once the NEXT qid comes in). Drives the missed-questions
@@ -2734,6 +2783,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, byId, display
   // live question is still on the clock.
   const historyRef = useRef<Map<string, { correct: string[]; myChoice: string | null; index: number }>>(new Map());
   const [reviewQid, setReviewQid] = useState<string | null>(null); // set while browsing a past question instead of the live one
+  const recordedRef = useRef<Set<string>>(new Set()); // qids already persisted to poll_answers, so a re-broadcast doesn't double-insert
 
   // Set/clear my team and tell the host right away so it can roster me even
   // before I vote.
@@ -2750,6 +2800,24 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, byId, display
     ch.on("broadcast", { event: POLL_EVENTS.state }, ({ payload }: { payload: PollState }) => {
       if (payload.revealed && payload.qid) {
         historyRef.current.set(payload.qid, { correct: payload.correct, myChoice: myVoteRef.current, index: payload.index });
+        // Buzz once per reveal if I got it right — a re-broadcast while still
+        // revealed (e.g. a late vote count update) shouldn't re-trigger it.
+        if (myVoteRef.current && payload.correct.includes(myVoteRef.current) && vibratedQidRef.current !== payload.qid) {
+          vibratedQidRef.current = payload.qid;
+          if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate([40, 60, 40]);
+        }
+        // Persist my own answer for the personal poll-stats page — once per
+        // qid, and only if I actually voted (not for questions I sat out).
+        if (voter !== "anon" && myVoteRef.current && !recordedRef.current.has(payload.qid)) {
+          recordedRef.current.add(payload.qid);
+          recordPollAnswer({
+            question_id: payload.qid,
+            poll_code: code,
+            team: teamRef.current || null,
+            choice: myVoteRef.current,
+            correct: payload.correct.includes(myVoteRef.current),
+          });
+        }
       }
       setRemote(payload);
       if (payload.qid !== lastQid.current) { lastQid.current = payload.qid; setMyVote(null); myVoteRef.current = null; setReviewQid(null); setStemOpen(false); }
@@ -3053,18 +3121,96 @@ function Center({ children }: { children: React.ReactNode }) {
   );
 }
 
-function SignIn() {
+// Animated backdrop for the sign-in gate: slow-drifting aurora glows, a
+// gently panning dot grid, teal sparks rising like embers, and ghosted
+// psych-themed icons floating in the depth. Pure CSS classes (in the CSS
+// string), transform/opacity only. Deliberately NO filter: blur() — the glow
+// falloff is baked into the radial gradients instead, because huge blurred
+// layers overflow the compositor's GPU budget and get dropped mid-session
+// (the card literally stopped painting). Everything here is disabled under
+// prefers-reduced-motion.
+const GATE_GHOSTS = [Brain, Pill, HeartPulse, BookOpen, GraduationCap, Stethoscope];
+function GateBackdrop() {
   return (
-    <div style={s.gateRoot}>
+    <div className="gateAurora" aria-hidden>
+      <span className="gateBlob gateBlobA" />
+      <span className="gateBlob gateBlobB" />
+      <span className="gateBlob gateBlobC" />
+      <span className="gateGrid" />
+      {GATE_GHOSTS.map((Icon, i) => (
+        <span
+          key={i}
+          className="gateGhost"
+          style={{
+            left: `${6 + i * 16}%`,
+            top: `${14 + ((i * 37) % 62)}%`,
+            animationDelay: `${i * 1.3}s`,
+            animationDuration: `${11 + (i % 4) * 2.4}s`,
+          }}
+        >
+          <Icon size={26 + (i % 3) * 12} strokeWidth={1.4} />
+        </span>
+      ))}
+      {Array.from({ length: 16 }, (_, i) => (
+        <span
+          key={`sp${i}`}
+          className="gateSpark"
+          style={{
+            left: `${(i * 61) % 100}%`,
+            width: 3 + (i % 3) * 2,
+            height: 3 + (i % 3) * 2,
+            animationDelay: `${(i * 0.9) % 8}s`,
+            animationDuration: `${8 + (i % 5) * 1.7}s`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function SignIn() {
+  // Mouse-tracking 3D tilt + glare: moving anywhere on the screen leans the
+  // card toward the cursor and slides a soft highlight across it. Written as
+  // CSS-var updates on the ring element (no React re-render per mousemove).
+  const ringRef = useRef<HTMLDivElement>(null);
+  const onTilt = (e: React.MouseEvent) => {
+    const el = ringRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const px = Math.max(-0.7, Math.min(0.7, (e.clientX - (r.left + r.width / 2)) / r.width));
+    const py = Math.max(-0.7, Math.min(0.7, (e.clientY - (r.top + r.height / 2)) / r.height));
+    el.style.setProperty("--tiltX", `${(-py * 6).toFixed(2)}deg`);
+    el.style.setProperty("--tiltY", `${(px * 8).toFixed(2)}deg`);
+    el.style.setProperty("--glareX", `${((px + 0.5) * 100).toFixed(1)}%`);
+    el.style.setProperty("--glareY", `${((py + 0.5) * 100).toFixed(1)}%`);
+  };
+  const onTiltEnd = () => {
+    const el = ringRef.current;
+    if (!el) return;
+    el.style.setProperty("--tiltX", "0deg");
+    el.style.setProperty("--tiltY", "0deg");
+  };
+
+  return (
+    <div style={s.gateRoot} onMouseMove={onTilt} onMouseLeave={onTiltEnd}>
       <style>{CSS}</style>
-      <div style={s.gateCard}>
-        <span style={s.gateMark}><Stethoscope size={22} strokeWidth={2.3} color="#fff" /></span>
-        <h1 style={s.gateTitle}>PRITE Daily</h1>
-        <p style={s.gateSub}>Daily PRITE practice for the residency. Sign in with your Google account to continue.</p>
-        <button style={s.googleBtn} onClick={() => signInWithGoogle()}>
-          <GoogleG /> Sign in with Google
-        </button>
-        <p style={s.gateFine}>Residents and known faculty are approved automatically. Some faculty or alumni may still need admin approval.</p>
+      <GateBackdrop />
+      {/* the card's drop shadow moves to this ring wrapper — the ring clips
+          its rotating gradient with overflow:hidden, which would clip a child
+          card's shadow too */}
+      <div ref={ringRef} className="gateRing gateTilt gateIn" style={{ width: "100%", maxWidth: 403 }}>
+        <div style={{ ...s.gateCard, maxWidth: "none", boxShadow: "none" }}>
+          <span style={s.gateMark} className="gateMarkAnim">
+            <span className="gatePing" aria-hidden />
+            <Stethoscope size={22} strokeWidth={2.3} color="#fff" />
+          </span>
+          <h1 style={s.gateTitle} className="gateShimmer gs1">PRITE Daily</h1>
+          <p style={s.gateSub} className="gs2">Daily PRITE practice for the residency. Sign in with your Google account to continue.</p>
+          <button style={s.googleBtn} className="gateBtn gs3" onClick={() => signInWithGoogle()}>
+            <GoogleG /> Sign in with Google
+          </button>
+          <p style={s.gateFine} className="gs4">Residents and known faculty are approved automatically. Some faculty or alumni may still need admin approval.</p>
+        </div>
       </div>
     </div>
   );
@@ -3074,6 +3220,7 @@ function Pending({ email, status }: { email: string; status: string }) {
   return (
     <div style={s.gateRoot}>
       <style>{CSS}</style>
+      <GateBackdrop />
       <div style={s.gateCard}>
         <span style={{ ...s.gateMark, background: T.gold }}><Clock size={22} strokeWidth={2.3} color="#fff" /></span>
         <h1 style={s.gateTitle}>{status === "blocked" ? "Access blocked" : "Awaiting approval"}</h1>
@@ -3589,6 +3736,8 @@ function Stats({
     ["neuro", "Neuro concept"], ["historical", "Historical"],
   ];
   const [dim, setDim] = useState("prite");
+  const [pollStats, setPollStats] = useState<PollStats | null>(null);
+  useEffect(() => { getMyPollStats().then(setPollStats); }, []);
 
   const m = useMemo(() => {
     const entries = Object.values(answers);
@@ -3784,6 +3933,32 @@ function Stats({
               <p style={s.insFoot}>Difficulty = % <b>you</b> got wrong on the first try. Topics in red are where to spend more time. Only questions you’ve answered are counted.</p>
             </>
           )}
+
+          <div style={{ marginTop: 22 }}>
+            <div style={s.secHead}>Live polling</div>
+            {!pollStats || pollStats.totalAnswers === 0 ? (
+              <p style={s.apEmpty}>You haven’t answered any questions in a live class poll yet — join one with "Join poll" during a study session.</p>
+            ) : (
+              <>
+                <div style={{ ...s.statGrid, gridTemplateColumns: "repeat(3, 1fr)" }}>
+                  {card(pollStats.sessions.length, "Polls played")}
+                  {card(pollStats.totalAnswers, "Questions answered")}
+                  {card(`${pollStats.pctCorrect}%`, "Accuracy", undefined, pollStats.pctCorrect >= 70 ? T.correctText : pollStats.pctCorrect >= 50 ? T.gold : T.wrongText)}
+                </div>
+                <div style={s.insHead}><span>Recent sessions</span><span style={s.insHeadR}>score</span></div>
+                {pollStats.sessions.slice(0, 8).map((sess) => (
+                  <div key={sess.poll_code} style={s.insRow}>
+                    <span style={s.insLabel}>{sess.team ? `${sess.team} — ` : ""}{ago(sess.date)}</span>
+                    <div style={s.insBarWrap}>
+                      <div style={{ ...s.insBar, width: `${Math.round((sess.correct / sess.total) * 100)}%`, background: T.teal }} />
+                    </div>
+                    <span style={s.insPct}>{sess.correct}/{sess.total}</span>
+                  </div>
+                ))}
+                <p style={s.insFoot}>Separate from your solo-practice stats above — this is your personal record across every live class poll you've voted in.</p>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -4077,30 +4252,36 @@ function DeckBuilder({
 /* Saved tests: named, hand-picked question sets (built in the Search modal).
    From here a test can be studied, hosted as a live class poll, exported to
    PowerPoint, renamed, or deleted. Stored per-device in localStorage. */
-// Elapsed-time-based estimate, not a real progress signal from the server —
-// each stage eases toward (but never quite reaches) its ceiling so the bar
-// stays honest about not knowing exactly how much is left, then the caller
-// snaps it to 100 once status flips to "ready".
-function guideProgressPercent(stage: StudyGuideStage, startedAt: number): number {
-  const elapsed = (Date.now() - startedAt) / 1000;
-  if (stage === "narrating") return Math.round(50 + 45 * (1 - Math.exp(-elapsed / 20)));
-  return Math.round(5 + 45 * (1 - Math.exp(-elapsed / 8))); // "writing" or unknown
+// The progress bar / ETA are an ELAPSED-TIME ESTIMATE, not a real signal from
+// the server (Anthropic/OpenAI don't report mid-call progress). They anchor to
+// the guide's generation_started_at, which lives in the DB — so they read the
+// same after a page refresh and on any device, instead of resetting. The bar
+// eases toward (never quite reaches) a ceiling per stage; the caller snaps it
+// to done once status flips to "ready".
+const GUIDE_TOTAL_TYPICAL_SECS = 70; // rough writing(~20) + narrating(~50)
+const GUIDE_STUCK_SECS = 200;        // past this, treat as stalled and offer a retry
+
+function guideElapsedSecs(guide: StudyGuide): number {
+  const anchor = guide.generation_started_at ?? guide.created_at;
+  const t = anchor ? Date.parse(anchor) : Date.now();
+  return Math.max(0, (Date.now() - t) / 1000);
+}
+function guideProgressPercent(guide: StudyGuide): number {
+  const e = guideElapsedSecs(guide);
+  if (guide.stage === "narrating") return Math.round(Math.min(94, 50 + 44 * (1 - Math.exp(-Math.max(0, e - 15) / 22))));
+  return Math.round(Math.min(46, 5 + 41 * (1 - Math.exp(-e / 9)))); // "writing" or unknown
+}
+function guideEtaLabel(guide: StudyGuide): string {
+  const remaining = Math.round(GUIDE_TOTAL_TYPICAL_SECS - guideElapsedSecs(guide));
+  return remaining > 5 ? `~${remaining}s left` : "almost done";
+}
+function guideIsStuck(guide: StudyGuide): boolean {
+  return guide.status === "generating" && guideElapsedSecs(guide) > GUIDE_STUCK_SECS;
 }
 const guideStageLabel: Record<string, string> = { writing: "Writing the guide", narrating: "Recording the audio" };
-// Rough typical duration per stage, just for the "~Ns left" guess — not
-// measured from real telemetry, so it's deliberately conservative.
-const guideStageTypicalSecs: Record<string, number> = { writing: 20, narrating: 40 };
-function guideEtaLabel(stage: StudyGuideStage, startedAt: number): string {
-  const elapsed = (Date.now() - startedAt) / 1000;
-  const remaining = Math.round((guideStageTypicalSecs[stage ?? ""] ?? 30) - elapsed);
-  return remaining > 3 ? `~${remaining}s left` : "almost done";
-}
-// Past this, either stage is very likely actually stuck (a swallowed error,
-// a genuinely slow upstream API day) rather than just running long.
-const GUIDE_STUCK_SECS = 120;
 
 function TestsPanel({
-  tests, byId, onClose, onStudy, onHost, onPptx, onRename, onDelete, guidesByTest, stageStartedAt, onStudyGuide, onOpenGuide,
+  tests, byId, onClose, onStudy, onHost, onPptx, onRename, onDelete, guidesByTest, onStudyGuide, onOpenGuide,
 }: {
   tests: SavedTest[];
   byId: Map<string, RawQuestion>;
@@ -4111,7 +4292,6 @@ function TestsPanel({
   onRename: (t: SavedTest) => void;
   onDelete: (t: SavedTest) => void;
   guidesByTest: Record<string, StudyGuide>;
-  stageStartedAt: (testId: string) => number;
   onStudyGuide: (t: SavedTest) => void;
   onOpenGuide: (t: SavedTest, guide: StudyGuide) => void;
 }) {
@@ -4156,23 +4336,21 @@ function TestsPanel({
                     {(() => {
                       const guide = guidesByTest[t.id];
                       if (guide?.status === "generating") {
-                        const startedAt = stageStartedAt(t.id);
-                        const pct = guideProgressPercent(guide.stage, startedAt);
-                        const stuck = (Date.now() - startedAt) / 1000 > GUIDE_STUCK_SECS;
-                        if (stuck) {
+                        if (guideIsStuck(guide)) {
                           return (
                             <button style={{ ...s.ghost, marginLeft: 0, color: T.wrongLine }} onClick={() => onStudyGuide(t)} title="This is taking much longer than usual — click to restart it">
                               <BookOpen size={13} strokeWidth={2.3} /> Taking a while — retry?
                             </button>
                           );
                         }
+                        const pct = guideProgressPercent(guide);
                         return (
                           <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "0 4px", fontSize: 12.5, color: T.muted }}
                             title="Runs in the background — safe to close this panel, the Tests button will badge when it's ready">
                             <div style={{ width: 62, height: 6, borderRadius: 999, background: T.paperEdge, overflow: "hidden" }}>
                               <div style={{ width: `${pct}%`, height: "100%", background: T.teal, transition: "width 1s linear" }} />
                             </div>
-                            {guideStageLabel[guide.stage ?? ""] ?? "Working"}… <span style={{ color: T.faint }}>({guideEtaLabel(guide.stage, startedAt)})</span>
+                            {guideStageLabel[guide.stage ?? ""] ?? "Working"}… <span style={{ color: T.faint }}>({guideEtaLabel(guide)})</span>
                           </div>
                         );
                       }
@@ -4761,12 +4939,57 @@ button { -webkit-tap-highlight-color: transparent; }
 button:focus { outline: none; }
 button:focus-visible { outline: 2px solid ${T.teal}; outline-offset: 2px; }
 ::selection { background: ${T.tealSoft}; }
+/* --- animated sign-in gate ---
+   Perf ground rules learned the hard way: no filter: blur() (glow falloff is
+   baked into the radial gradients), no will-change, no animated box-shadow —
+   the first version's giant blurred layers exceeded the compositor's GPU
+   budget and whole layers (the card!) stopped painting after a few seconds. */
+.gateAurora { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.gateBlob { position: absolute; border-radius: 50%; }
+.gateBlobA { width: 58vmax; height: 58vmax; top: -20vmax; left: -16vmax; background: radial-gradient(circle at 42% 42%, rgba(14,122,107,.38) 0%, rgba(14,122,107,.16) 34%, rgba(14,122,107,0) 66%); animation: gateBlobA 26s ease-in-out infinite alternate; }
+.gateBlobB { width: 52vmax; height: 52vmax; bottom: -22vmax; right: -16vmax; background: radial-gradient(circle at 50% 50%, rgba(191,138,48,.26) 0%, rgba(191,138,48,.10) 36%, rgba(191,138,48,0) 66%); animation: gateBlobB 33s ease-in-out infinite alternate; }
+.gateBlobC { width: 40vmax; height: 40vmax; top: 24%; left: 54%; background: radial-gradient(circle at 50% 50%, rgba(70,86,201,.22) 0%, rgba(70,86,201,.08) 36%, rgba(70,86,201,0) 64%); animation: gateBlobC 21s ease-in-out infinite alternate; }
+@keyframes gateBlobA { to { transform: translate(10vmax, 8vmax) scale(1.22); } }
+@keyframes gateBlobB { to { transform: translate(-9vmax, -7vmax) scale(.88); } }
+@keyframes gateBlobC { to { transform: translate(-12vmax, 7vmax) scale(1.3); } }
+.gateGrid { position: absolute; inset: -30px; background-image: radial-gradient(rgba(255,255,255,.13) 1px, transparent 1.6px); background-size: 26px 26px; -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, #000 25%, transparent 72%); mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, #000 25%, transparent 72%); animation: gateGridPan 30s linear infinite; }
+@keyframes gateGridPan { to { transform: translate(26px, 26px); } }
+.gateGhost { position: absolute; color: rgba(126,224,207,.13); animation-name: gateGhostFloat; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
+@keyframes gateGhostFloat { 0%, 100% { transform: translate(0, 0) rotate(-7deg); } 50% { transform: translate(16px, -26px) rotate(8deg); } }
+.gateSpark { position: absolute; bottom: -12px; border-radius: 50%; background: #7ee0cf; box-shadow: 0 0 10px 2px rgba(126,224,207,.4); opacity: 0; animation-name: gateSparkRise; animation-timing-function: linear; animation-iteration-count: infinite; }
+@keyframes gateSparkRise { 0% { transform: translateY(0); opacity: 0; } 8% { opacity: .85; } 85% { opacity: .3; } 100% { transform: translateY(-104vh); opacity: 0; } }
+.gateRing { position: relative; border-radius: 20px; padding: 1.5px; overflow: hidden; background: rgba(255,255,255,.09); box-shadow: 0 30px 80px -30px rgba(0,0,0,.65); z-index: 1; }
+.gateRing::before { content: ""; position: absolute; inset: -55%; background: conic-gradient(from 0deg, rgba(46,196,169,0) 0deg, rgba(46,196,169,0) 120deg, rgba(46,196,169,.9) 165deg, rgba(232,192,105,.9) 190deg, rgba(46,196,169,0) 235deg, rgba(46,196,169,0) 360deg); animation: gateRingSpin 6.5s linear infinite; }
+.gateRing > * { position: relative; z-index: 1; }
+.gateRing::after { content: ""; position: absolute; inset: 1.5px; border-radius: 18.5px; background: radial-gradient(430px circle at var(--glareX, 50%) var(--glareY, 18%), rgba(255,255,255,.16), rgba(255,255,255,0) 58%); pointer-events: none; z-index: 2; }
+@keyframes gateRingSpin { to { transform: rotate(360deg); } }
+.gateTilt { transform: perspective(950px) rotateX(var(--tiltX, 0deg)) rotateY(var(--tiltY, 0deg)); transition: transform .18s ease-out; }
+.gateIn { animation: gateIn .8s cubic-bezier(.22,.9,.32,1.15) backwards; }
+@keyframes gateIn { from { opacity: 0; transform: translateY(26px) scale(.94); } }
+.gs1, .gs2, .gs3, .gs4 { animation: gateItem .55s cubic-bezier(.22,.7,.3,1) backwards; }
+.gs1 { animation-delay: .3s; } .gs2 { animation-delay: .42s; } .gs3 { animation-delay: .54s; } .gs4 { animation-delay: .66s; }
+@keyframes gateItem { from { opacity: 0; transform: translateY(10px); } }
+.gateMarkAnim { animation: gateItem .55s cubic-bezier(.22,.7,.3,1) .18s backwards, gateMarkFloat 4.6s ease-in-out 1s infinite; }
+@keyframes gateMarkFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.gatePing { position: absolute; inset: 0; border-radius: 14px; border: 2px solid rgba(14,122,107,.55); opacity: 0; animation: gatePing 2.7s cubic-bezier(.2,.55,.35,1) 1.4s infinite; }
+@keyframes gatePing { 0% { transform: scale(1); opacity: .75; } 75%, 100% { transform: scale(1.7); opacity: 0; } }
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .gateShimmer { background-image: linear-gradient(100deg, ${T.text} 38%, ${T.teal} 48%, #2ec4a9 52%, ${T.text} 62%); background-size: 240% 100%; -webkit-background-clip: text; background-clip: text; color: transparent !important; animation: gateItem .55s cubic-bezier(.22,.7,.3,1) .3s backwards, gateShimmer 4.2s ease-in-out 1.2s infinite; }
+}
+@keyframes gateShimmer { 0% { background-position: 115% 0; } 55%, 100% { background-position: -125% 0; } }
+.gateBtn { position: relative; overflow: hidden; transition: transform .16s ease, box-shadow .16s ease; }
+.gateBtn:hover { transform: translateY(-1px); box-shadow: 0 10px 26px -12px rgba(0,0,0,.45); }
+.gateBtn::after { content: ""; position: absolute; top: 0; bottom: 0; left: -55%; width: 34%; background: linear-gradient(105deg, rgba(14,122,107,0), rgba(14,122,107,.13), rgba(14,122,107,0)); transform: skewX(-18deg); animation: gateBtnSheen 3.6s ease-in-out 1.8s infinite; }
+@keyframes gateBtnSheen { 0%, 55% { left: -55%; } 90%, 100% { left: 130%; } }
 @media (prefers-reduced-motion: reduce) {
   .fade, .toast, .pop, .slidein { animation: none !important; }
   .streakPop, .streakGlow { animation: none !important; }
   .balloonRiseA, .balloonRiseB { display: none !important; }
   .tabInd { transition: none !important; }
   button:not(.opt):active, .opt:active:not(:disabled) { transform: none !important; }
+  .gateBlob, .gateGrid, .gateRing::before, .gateIn, .gs1, .gs2, .gs3, .gs4, .gateMarkAnim, .gatePing, .gateShimmer, .gateBtn::after { animation: none !important; }
+  .gateSpark, .gateGhost { display: none !important; }
+  .gateTilt { transform: none !important; transition: none !important; }
 }
 @media (max-width: 680px) {
   .topInner { flex-wrap: wrap !important; padding: 10px 14px !important; gap: 8px 10px !important; }
@@ -4874,9 +5097,9 @@ const s: Record<string, React.CSSProperties> = {
   lbDone: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 14, fontWeight: 700, color: T.text, width: 48, textAlign: "right" },
   lbFoot: { display: "flex", justifyContent: "flex-end", gap: 12, padding: "10px 12px 2px", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 11, color: T.faint },
 
-  gateRoot: { minHeight: "100vh", background: T.ink, display: "grid", placeItems: "center", padding: 24, fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif" },
+  gateRoot: { minHeight: "100vh", background: T.ink, display: "grid", placeItems: "center", padding: 24, fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif", position: "relative", overflow: "hidden" },
   gateCard: { maxWidth: 400, width: "100%", background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 18, padding: "34px 30px", textAlign: "center", boxShadow: "0 30px 80px -30px rgba(0,0,0,.6)" },
-  gateMark: { width: 52, height: 52, borderRadius: 14, background: T.teal, display: "inline-grid", placeItems: "center", marginBottom: 16 },
+  gateMark: { width: 52, height: 52, borderRadius: 14, background: T.teal, display: "inline-grid", placeItems: "center", marginBottom: 16, position: "relative" },
   gateTitle: { fontSize: 24, fontWeight: 700, color: T.text, margin: "0 0 8px", letterSpacing: "-0.01em" },
   gateSub: { fontSize: 14.5, lineHeight: 1.55, color: T.muted, margin: "0 0 22px" },
   googleBtn: { display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", background: "#fff", color: "#1f2330", border: `1px solid ${T.paperEdge}`, padding: "12px 18px", borderRadius: 11, fontSize: 15, fontWeight: 600, cursor: "pointer" },

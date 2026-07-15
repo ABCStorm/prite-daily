@@ -40,11 +40,31 @@ const DEFAULT_VOICE = "alloy";
 
 type TopicInput = { stem: string; prite_category?: string; prite_label?: string; topics?: string[] };
 
+// fetch with a hard timeout. Without this, a hung upstream connection (opens
+// but never responds) would make `await fetch` block forever — never
+// resolving and never throwing — so the whole generation silently sticks at
+// its current stage with no error ever recorded. On timeout this aborts and
+// throws, which the caller's try/catch turns into a visible status='error'.
+async function fetchWithTimeout(url: string, opts: RequestInit, ms: number): Promise<Response> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { ...opts, signal: ctrl.signal });
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "AbortError") throw new Error(`request to ${new URL(url).host} timed out after ${ms / 1000}s`);
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // OpenAI's TTS endpoint caps input at 4096 characters, well under a
 // ~10-minute script, so split on sentence boundaries into request-sized
-// chunks and stitch the resulting MP3s together (simple byte concatenation —
-// MP3 frames decode fine back-to-back; a few ms of imperfect join is a
-// non-issue here).
+// chunks, synthesize them CONCURRENTLY (Promise.all preserves order), and
+// stitch the resulting MP3s together (simple byte concatenation — MP3 frames
+// decode fine back-to-back; a few ms of imperfect join is a non-issue here).
+// Concurrency keeps total wall-clock ≈ one chunk's time rather than the sum,
+// which matters against the edge function's runtime budget.
 async function synthesizeSpeech(text: string, apiKey: string, voice: string): Promise<Uint8Array> {
   const sentences = text.split(/(?<=[.!?])\s+/).filter(Boolean);
   const chunks: string[] = [];
@@ -55,16 +75,16 @@ async function synthesizeSpeech(text: string, apiKey: string, voice: string): Pr
   }
   if (cur) chunks.push(cur);
 
-  const buffers: Uint8Array[] = [];
-  for (const chunk of chunks) {
-    const res = await fetch("https://api.openai.com/v1/audio/speech", {
+  const buffers = await Promise.all(chunks.map(async (chunk) => {
+    const res = await fetchWithTimeout("https://api.openai.com/v1/audio/speech", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
       body: JSON.stringify({ model: TTS_MODEL, voice, input: chunk, response_format: "mp3" }),
-    });
+    }, 90_000);
     if (!res.ok) throw new Error(`openai tts ${res.status}: ${await res.text()}`);
-    buffers.push(new Uint8Array(await res.arrayBuffer()));
-  }
+    return new Uint8Array(await res.arrayBuffer());
+  }));
+
   const total = buffers.reduce((n, b) => n + b.length, 0);
   const out = new Uint8Array(total);
   let offset = 0;
@@ -124,7 +144,7 @@ Deno.serve(async (req) => {
     const { data: placeholder, error: placeholderErr } = await admin
       .from("study_guides")
       .upsert(
-        { saved_test_id, created_by: uid, title: test_name, status: "generating", stage: "writing", error_message: null },
+        { saved_test_id, created_by: uid, title: test_name, status: "generating", stage: "writing", error_message: null, generation_started_at: new Date().toISOString() },
         { onConflict: "saved_test_id" },
       )
       .select("*").single();
@@ -165,11 +185,11 @@ Write:
 Respond with ONLY a JSON object, no markdown fencing:
 {"title": "...", "intro": "...", "sections": [{"heading": "...", "body": "..."}], "key_terms": ["...", ...], "audio_script": "..."}`;
 
-        const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
+        const aiRes = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
           method: "POST",
           headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
           body: JSON.stringify({ model: MODEL, max_tokens: 8000, messages: [{ role: "user", content: prompt }] }),
-        });
+        }, 150_000);
         if (!aiRes.ok) { await fail("anthropic " + aiRes.status + ": " + (await aiRes.text())); return; }
         const ai = await aiRes.json();
         const raw = (ai.content?.[0]?.text ?? "").trim().replace(/^```json\s*|\s*```$/g, "");

@@ -282,6 +282,55 @@ export async function clearOfficialPollResults(): Promise<boolean> {
   return true;
 }
 
+/** Record one revealed live-poll question as answered (as the current user).
+    Fire-and-forget from the participant's phone — no UI depends on the result. */
+export async function recordPollAnswer(r: {
+  question_id: string; poll_code: string; team?: string | null; choice: string; correct: boolean;
+}): Promise<void> {
+  if (!supabase) return;
+  const { data: u } = await supabase.auth.getUser();
+  if (!u.user) return;
+  const { error } = await supabase.from("poll_answers").insert({
+    user_id: u.user.id,
+    question_id: r.question_id,
+    poll_code: r.poll_code,
+    team: r.team ?? null,
+    choice: r.choice,
+    correct: r.correct,
+  });
+  if (error) console.warn("recordPollAnswer", error.message);
+}
+
+/** One past live-poll session's personal score, grouped by poll_code. */
+export type PollSessionStat = { poll_code: string; date: string; team: string | null; total: number; correct: number };
+export type PollStats = { totalAnswers: number; correct: number; pctCorrect: number; sessions: PollSessionStat[] };
+
+/** The current user's own live-poll history — separate from solo-practice
+    `answers`, so it doesn't feed mastery tracking / spaced repetition. */
+export async function getMyPollStats(): Promise<PollStats> {
+  const empty: PollStats = { totalAnswers: 0, correct: 0, pctCorrect: 0, sessions: [] };
+  if (!supabase) return empty;
+  const { data, error } = await supabase
+    .from("poll_answers")
+    .select("poll_code, team, correct, created_at")
+    .order("created_at", { ascending: false });
+  if (error || !data) { console.warn("getMyPollStats", error?.message); return empty; }
+  const byCode = new Map<string, PollSessionStat>();
+  for (const row of data as { poll_code: string; team: string | null; correct: boolean; created_at: string }[]) {
+    let g = byCode.get(row.poll_code);
+    if (!g) { g = { poll_code: row.poll_code, date: row.created_at, team: row.team, total: 0, correct: 0 }; byCode.set(row.poll_code, g); }
+    g.total++;
+    if (row.correct) g.correct++;
+  }
+  const totalAnswers = data.length;
+  const correct = data.filter((r) => r.correct).length;
+  return {
+    totalAnswers, correct,
+    pctCorrect: totalAnswers ? Math.round((100 * correct) / totalAnswers) : 0,
+    sessions: [...byCode.values()],
+  };
+}
+
 export async function getMyNote(questionId: string): Promise<string> {
   if (!supabase) return "";
   const { data } = await supabase
@@ -424,12 +473,12 @@ export async function generateFlashcard(q: {
   question_id: string; stem: string;
   options: { letter: string; text: string }[];
   answer_letter: string | null; answer_text: string; force?: boolean;
-}): Promise<Flashcard | { error: string }> {
+}): Promise<(Flashcard & { cached: boolean }) | { error: string }> {
   if (!supabase) return { error: "not configured" };
   const { data, error } = await supabase.functions.invoke("generate-flashcard", { body: q });
   if (error) return { error: error.message };
   if (data?.error) return { error: data.error };
-  return data as Flashcard;
+  return data as Flashcard & { cached: boolean };
 }
 
 /** Batch-fetch cloze text for many questions (for a filtered deck export). */
