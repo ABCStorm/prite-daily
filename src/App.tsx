@@ -63,8 +63,8 @@ import {
 import { exportMyNotes, exportGroupNotes, exportMissed, ankingLecture, exportPptx, exportPollTeams, exportOfficialPollResults, exportPollMissed } from "./lib/exports";
 import { loadTests, saveTest, renameTest, deleteTest, type SavedTest } from "./lib/tests";
 import {
-  generateStudyGuide, getStudyGuide, getStudyGuideAudioUrl, listStudyGuidesForTests, studyGuideUrl,
-  studyGuideIdFromUrl, clearStudyParam, type StudyGuide, type StudyGuideStage,
+  generateStudyGuide, getStudyGuide, getStudyGuideAudioUrl, listStudyGuidesForTests, listAllReadyStudyGuides,
+  studyGuideUrl, studyGuideIdFromUrl, clearStudyParam, type StudyGuide, type StudyGuideStage, type LibraryStudyGuide,
 } from "./lib/studyGuides";
 import { SRS_GRADES, intervalLabel, sm2Next, SRS_DEFAULT, type SrsGrade, type SrsState } from "./lib/srs";
 
@@ -370,6 +370,9 @@ export default function App() {
   const [seenGuideIds, setSeenGuideIds] = useState<Set<string>>(() => new Set(readPref("pd_seen_study_guides", [] as string[])));
   const [pollGen, setPollGen] = useState(0); // bump to (re)start the progress poll after kicking off a generation
   const stageStartRef = useRef<Record<string, { stage: string; at: number }>>({});
+  // residency-wide library of every finished guide, any speaker — not just yours
+  const [showGuideLibrary, setShowGuideLibrary] = useState(false);
+  const [libraryGuides, setLibraryGuides] = useState<LibraryStudyGuide[] | null>(null); // null = not loaded yet
   useEffect(() => { writePref("pd_seen_study_guides", [...seenGuideIds]); }, [seenGuideIds]);
 
   // --- live crowd poll (Supabase Realtime, see lib/poll.ts) ---
@@ -441,6 +444,12 @@ export default function App() {
   }, [persist, savedTestIdsKey, pollGen]);
 
   const readyUnseenGuideCount = Object.values(guidesByTest).filter((g) => g.status === "ready" && !seenGuideIds.has(g.id)).length;
+
+  // load the residency-wide library lazily, the first time the panel opens
+  useEffect(() => {
+    if (!showGuideLibrary || libraryGuides !== null) return;
+    listAllReadyStudyGuides().then(setLibraryGuides);
+  }, [showGuideLibrary, libraryGuides]);
 
   const [answers, setAnswers] = useState<Record<string, AnswerRow>>({});
   const [groupNotes, setGroupNotes] = useState<DbGroupNote[]>([]);
@@ -1244,6 +1253,11 @@ export default function App() {
             )}
           </button>
           {persist && (
+            <button style={s.deckBtn} onClick={() => setShowGuideLibrary(true)} title="Every study guide the residency has generated — read or listen to past sessions' prep material">
+              <Volume2 size={13} strokeWidth={2.4} /> Study guides
+            </button>
+          )}
+          {persist && (
             <button style={s.deckBtn} onClick={() => setShowSrs(true)} title="Spaced-repetition flashcard review of questions you've missed">
               <Repeat size={13} strokeWidth={2.4} /> Review{srsDue.length ? ` (${srsDue.length})` : ""}
             </button>
@@ -1929,6 +1943,14 @@ export default function App() {
 
       {openStudyGuideId && (
         <StudyGuideView id={openStudyGuideId} onClose={() => setOpenStudyGuideId(null)} />
+      )}
+
+      {showGuideLibrary && (
+        <StudyGuideLibraryPanel
+          guides={libraryGuides}
+          onClose={() => setShowGuideLibrary(false)}
+          onOpen={(id) => { setShowGuideLibrary(false); setOpenStudyGuideId(id); }}
+        />
       )}
 
       {showSettings && settings && (
@@ -4362,6 +4384,59 @@ function StudyGuideView({ id, onClose }: { id: string; onClose: () => void }) {
               </div>
             )}
           </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* Every finished study guide any speaker in the residency has generated,
+   newest first — so residents can find past sessions' prep material even
+   without the original share link. RLS already makes study_guides readable
+   residency-wide, so this is just a plain list, not "your" tests. */
+function StudyGuideLibraryPanel({
+  guides, onClose, onOpen,
+}: {
+  guides: LibraryStudyGuide[] | null;
+  onClose: () => void;
+  onOpen: (id: string) => void;
+}) {
+  return (
+    <div style={s.scrim} onClick={onClose}>
+      <div style={{ ...s.apPanel, maxWidth: 600 }} onClick={(e) => e.stopPropagation()} className="rise">
+        <div style={s.apHead}>
+          <div>
+            <div style={s.apEyebrow}>Residency-wide · past sessions</div>
+            <div style={s.apTitle}>Study guides</div>
+          </div>
+          <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
+        </div>
+        {guides === null ? (
+          <p style={{ ...s.apEmpty, textAlign: "center", padding: "26px 22px 30px" }}>Loading…</p>
+        ) : guides.length === 0 ? (
+          <p style={{ ...s.apEmpty, fontStyle: "normal", fontSize: 14.5, lineHeight: 1.7, padding: "26px 22px 30px", textAlign: "center", margin: 0 }}>
+            <b style={{ display: "block", fontSize: 15.5, marginBottom: 8 }}>No study guides yet</b>
+            Open <b>Tests</b>, pick a saved test, and hit <b>Study guide</b> — once it's ready, it'll show up here for everyone.
+          </p>
+        ) : (
+          <div style={{ display: "grid", gap: 10, maxHeight: "60vh", overflowY: "auto" }}>
+            {guides.map((g) => (
+              <div key={g.id} style={{ border: `1px solid ${T.paperEdge}`, borderRadius: 12, padding: "12px 14px", background: "#fff" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 10, justifyContent: "space-between" }}>
+                  <div style={{ minWidth: 0 }}>
+                    <b style={{ fontSize: 15, color: T.text }}>{g.title}</b>
+                    <div style={{ fontSize: 12.5, color: T.faint, marginTop: 2 }}>
+                      {g.creator_name ? `${g.creator_name} · ` : ""}{new Date(g.created_at).toLocaleDateString()}
+                    </div>
+                    <p style={{ fontSize: 13, color: T.muted, lineHeight: 1.5, margin: "6px 0 0" }}>{g.intro}</p>
+                  </div>
+                  <button style={{ ...s.primarySm, flexShrink: 0 }} onClick={() => onOpen(g.id)} title="Read or listen to this guide">
+                    <BookOpen size={13} strokeWidth={2.3} /> Open
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>

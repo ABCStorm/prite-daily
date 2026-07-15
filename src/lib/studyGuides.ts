@@ -14,6 +14,7 @@ export type StudyGuideStage = "writing" | "narrating" | null;
 export type StudyGuide = {
   id: string;
   saved_test_id: string;
+  created_by: string | null;
   title: string;
   intro: string;
   sections: StudyGuideSection[];
@@ -73,6 +74,28 @@ export async function listStudyGuidesForTests(savedTestIds: string[]): Promise<R
   const out: Record<string, StudyGuide> = {};
   for (const row of (data as StudyGuide[] | null) ?? []) out[row.saved_test_id] = row;
   return out;
+}
+
+export type LibraryStudyGuide = StudyGuide & { creator_name: string | null };
+
+/** Every finished study guide any speaker in the residency has generated,
+    newest first — the shared library so residents can find past sessions'
+    prep material without needing the original share link. RLS already lets
+    any approved member read study_guides and profiles, so this is a plain
+    read for whoever calls it. */
+export async function listAllReadyStudyGuides(): Promise<LibraryStudyGuide[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("study_guides").select("*").eq("status", "ready").order("created_at", { ascending: false });
+  if (error) { console.warn("listAllReadyStudyGuides", error.message); return []; }
+  const guides = (data as StudyGuide[]) ?? [];
+  const creatorIds = [...new Set(guides.map((g) => g.created_by).filter((id): id is string => Boolean(id)))];
+  let names: Record<string, string> = {};
+  if (creatorIds.length) {
+    const { data: profiles } = await supabase.from("profiles").select("id, full_name, email").in("id", creatorIds);
+    names = Object.fromEntries((profiles ?? []).map((p) => [p.id, p.full_name || p.email || "Someone"]));
+  }
+  return guides.map((g) => ({ ...g, creator_name: g.created_by ? (names[g.created_by] ?? null) : null }));
 }
 
 /** Download the generated narration audio and return a blob: URL for an
