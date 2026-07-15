@@ -473,6 +473,7 @@ export default function App() {
   const [customLabel, setCustomLabel] = useState<string>("");
   const [answersLoaded, setAnswersLoaded] = useState(false);
   const [prefsSynced, setPrefsSynced] = useState(false); // account-synced localStorage prefs merged (see lib/prefsSync)
+  const [zoomImg, setZoomImg] = useState<string | null>(null); // figure/explanation image enlarged in a lightbox
   const [reviewMode, setReviewMode] = useState(false);
   const [showMissed, setShowMissed] = useState(false);
   const [allMyNotes, setAllMyNotes] = useState<Record<string, string>>({});
@@ -1469,7 +1470,15 @@ export default function App() {
           {q.figure_images.filter((p) => imgSrc(p)).length > 0 && (
             <div style={s.figRow}>
               {q.figure_images.filter((p) => imgSrc(p)).map((p, i) => (
-                <img key={i} src={imgSrc(p)} alt="question figure" style={s.figImg} loading="lazy" />
+                <img
+                  key={i}
+                  src={imgSrc(p)}
+                  alt="question figure (click to enlarge)"
+                  style={{ ...s.figImg, cursor: "zoom-in" }}
+                  loading="lazy"
+                  onClick={() => setZoomImg(imgSrc(p))}
+                  title="Click to enlarge"
+                />
               ))}
             </div>
           )}
@@ -1622,7 +1631,15 @@ export default function App() {
                 <div className="fade">
                   {q.explanation_text && <p style={s.expl}>{q.explanation_text}</p>}
                   {q.explanation_images.filter((p) => imgSrc(p)).map((p, i) => (
-                    <img key={i} src={imgSrc(p)} alt="explanation" style={s.explImg} loading="lazy" />
+                    <img
+                      key={i}
+                      src={imgSrc(p)}
+                      alt="explanation (click to enlarge)"
+                      style={{ ...s.explImg, cursor: "zoom-in" }}
+                      loading="lazy"
+                      onClick={() => setZoomImg(imgSrc(p))}
+                      title="Click to enlarge"
+                    />
                   ))}
                   {!hasExpl && (
                     <div style={s.emptyExpl}>
@@ -2112,6 +2129,19 @@ export default function App() {
           onGrade={onGradeSrs}
           onClose={() => setShowSrs(false)}
         />
+      )}
+
+      {zoomImg && (
+        <div style={{ ...s.scrim, cursor: "zoom-out" }} onClick={() => setZoomImg(null)}>
+          <img src={zoomImg} alt="Enlarged" style={{ ...s.zoomImg, cursor: "zoom-out" }} />
+          <button
+            style={{ ...s.close, position: "absolute", top: 18, right: 18 }}
+            onClick={() => setZoomImg(null)}
+            title="Close"
+          >
+            <X size={16} strokeWidth={2.4} />
+          </button>
+        </div>
       )}
 
       {teamModePrompt !== false && (
