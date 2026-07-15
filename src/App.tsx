@@ -2468,6 +2468,9 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
   });
   const [zoomImg, setZoomImg] = useState<string | null>(null); // answer-key explanation image, enlarged on click
   const [officialStatus, setOfficialStatus] = useState<"idle" | "confirm" | "sending" | "done">("idle"); // "mark as official" submit flow
+  const [endPrompt, setEndPrompt] = useState(false); // "was this an official class session?" gate shown on End poll
+  const [endBusy, setEndBusy] = useState(false);
+  const [endError, setEndError] = useState(false);
   const [, force] = useState(0); // re-render when votes arrive
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [qr, setQr] = useState<string | null>(null); // join-URL QR as a data URL
@@ -2646,12 +2649,15 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
       question_stats: questionStats,
     });
     setOfficialStatus(ok ? "done" : "idle");
+    return ok;
   };
 
   // Votes/standings live only in this component's memory (votesRef etc.) —
   // ending the poll before the results/review-priority heat map has actually
   // been seen throws that session away for good. Confirm first so a stray
-  // click on the header X doesn't accidentally do that.
+  // click on the header X doesn't accidentally do that. When the session IS
+  // over, ending routes through an explicit "was this a real class session?"
+  // prompt (endPrompt below) so official archiving can't be forgotten.
   const confirmClose = () => {
     if (!finished) {
       if (!window.confirm("End the poll now? The results and review-priority heat map for this session haven't been shown yet — ending now discards them.")) return;
@@ -2661,16 +2667,18 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
     if (!showAnswerKey) {
       if (!window.confirm("End poll without viewing the answer key / review-priority heat map?")) return;
     }
-    // Last chance to file this session with the admin archive before it's gone
-    // for good — easy to miss the separate "Mark as official" button, so ask
-    // for it right here on the way out.
-    if (officialStatus === "idle" && standings.length > 0) {
-      if (window.confirm("Mark this session as an official class review before ending? It's filed in the admin archive for the whole residency to reference.")) {
-        submitOfficial();
-        return; // stay open so the submit result — and the End poll button to finish closing — are still visible
-      }
+    if (officialStatus !== "done" && standings.length > 0) {
+      setEndPrompt(true);
+      return;
     }
     onClose();
+  };
+  const endOfficialAndClose = async () => {
+    setEndBusy(true); setEndError(false);
+    const ok = await submitOfficial();
+    setEndBusy(false);
+    if (ok) onClose();
+    else setEndError(true); // stay open so the host can retry (or end without marking)
   };
 
   return (
@@ -3021,6 +3029,36 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
         <div style={s.qrOverlay} onClick={() => setZoomImg(null)}>
           <img src={zoomImg} alt="Explanation, enlarged" style={s.zoomImg} onClick={(e) => e.stopPropagation()} />
           <button style={{ ...s.pollClose, position: "absolute", top: 20, right: 20 }} onClick={() => setZoomImg(null)} title="Close"><X size={18} strokeWidth={2.4} /></button>
+        </div>
+      )}
+
+      {endPrompt && (
+        <div style={s.qrOverlay} onClick={() => { if (!endBusy) setEndPrompt(false); }}>
+          <div style={s.endCard} onClick={(e) => e.stopPropagation()} className="rise">
+            <p style={s.endCardTitle}>Before you end the poll —</p>
+            <p style={s.endCardText}>
+              Was this a <b style={{ color: "#fff" }}>large-group class review session</b> (the official
+              Tuesday kind)? Official sessions' team standings and per-question stats are archived
+              for the residency under admin → Polls&nbsp;&amp;&nbsp;Teams. Casual practice polls
+              shouldn't be marked official.
+            </p>
+            {endError && (
+              <p style={{ ...s.endCardText, color: "#e07a5f", marginTop: -8 }}>
+                Couldn't submit the results — check the connection and try again.
+              </p>
+            )}
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+              <button style={{ ...s.pollBtn, ...s.pollBtnPrimary, opacity: endBusy ? 0.6 : 1 }} disabled={endBusy} onClick={endOfficialAndClose}>
+                <Archive size={15} strokeWidth={2.3} /> {endBusy ? "Submitting…" : "Yes — mark official & end"}
+              </button>
+              <button style={s.pollBtn} disabled={endBusy} onClick={onClose}>
+                No, just practice — end poll
+              </button>
+              <button style={s.pollBtn} disabled={endBusy} onClick={() => setEndPrompt(false)}>
+                Go back
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -5801,6 +5839,9 @@ const s: Record<string, React.CSSProperties> = {
   qrBigImg: { display: "block", width: "min(60vh, 70vw, 420px)", height: "min(60vh, 70vw, 420px)" },
   qrCardCode: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 30, fontWeight: 700, letterSpacing: "0.22em", color: "#11131c" },
   qrCardUrl: { color: "#6c7280", fontSize: 14, marginTop: -6 },
+  endCard: { width: "100%", maxWidth: 500, background: T.inkSoft, border: `1px solid ${T.inkLine}`, borderRadius: 16, padding: "26px 26px 22px", textAlign: "center", boxShadow: "0 24px 60px -20px rgba(0,0,0,.7)" },
+  endCardTitle: { color: "#fff", fontWeight: 700, fontSize: 19, margin: "0 0 10px" },
+  endCardText: { color: "#c7ccd6", fontSize: 14.5, lineHeight: 1.6, margin: "0 0 18px" },
   zoomImg: { display: "block", maxWidth: "92vw", maxHeight: "88vh", width: "auto", height: "auto", objectFit: "contain", borderRadius: 12, background: "#fff", cursor: "default" },
 
   // live crowd poll — participant (phone)
