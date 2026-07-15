@@ -672,6 +672,15 @@ export default function App() {
     else { setPicked([]); setRevealed(false); }
   }, [navQid, reviewMode, answersLoaded]); // eslint-disable-line
 
+  // Drop keyboard focus when the question changes. The option <button>s are
+  // keyed by letter, so React reuses the same element across questions — a
+  // focus ring left on (say) option B would otherwise carry onto B of the
+  // next question and look like a pre-selected answer.
+  useEffect(() => {
+    const el = document.activeElement as HTMLElement | null;
+    if (el && el.classList.contains("opt")) el.blur();
+  }, [navQid]);
+
   useEffect(() => {
     if (qi >= set.length && set.length) setQi(0);
   }, [set.length]); // eslint-disable-line
