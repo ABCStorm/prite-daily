@@ -1842,10 +1842,21 @@ export default function App() {
             </div>
           )}
           {persist && (
-            <div style={{ marginTop: 10 }}>
+            <div style={{ marginTop: 10, display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
               <button style={s.siteReportBtn} onClick={() => setShowSiteReport(true)}>
                 <Bug size={12} strokeWidth={2.2} /> Report a problem with the site
               </button>
+              {/* kept behind sign-in on purpose: the decks contain the original
+                  question text, which is access-gated everywhere else */}
+              <a
+                href="https://drive.google.com/drive/folders/13KyeuvPXcPqNuHQav7lV-xHxDe7oQ5y9?usp=sharing"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ ...s.siteReportBtn, textDecoration: "none" }}
+                title="The original PRITE review slide decks these questions came from"
+              >
+                <ExternalLink size={12} strokeWidth={2.2} /> Original slide decks
+              </a>
             </div>
           )}
           <div style={{ marginTop: 14 }}>
