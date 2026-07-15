@@ -52,6 +52,9 @@ export type Settings = {
       true/false = the user explicitly overrode it. */
   daily_reminder: boolean | null;
   reminder_every_days: number;
+  /** Cross-device mirror of what used to live only in localStorage (streak
+      days, UI prefs, one-time-nag stages) — see lib/prefsSync.ts. */
+  client_prefs: Record<string, unknown> | null;
 };
 
 export type AnswerRow = {

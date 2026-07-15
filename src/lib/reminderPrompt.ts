@@ -3,6 +3,8 @@
 // 4 weeks — then never again, regardless of whether the user opted in.
 // Kept off the database like streaks.ts: it's a UI nag, not graded data.
 
+import { schedulePrefsPush } from "./prefsSync";
+
 const key = (uid: string) => `pd_reminder_prompt_stage_${uid || "anon"}`;
 
 function shownStage(uid: string): number {
@@ -10,7 +12,7 @@ function shownStage(uid: string): number {
 }
 
 export function markReminderPromptShown(uid: string, stage: number) {
-  try { localStorage.setItem(key(uid), String(stage)); } catch { /* no-op */ }
+  try { localStorage.setItem(key(uid), String(stage)); schedulePrefsPush(); } catch { /* no-op */ }
 }
 
 /** Which stage (1, 2, or 3) is due right now, given total days used — or null

@@ -10,6 +10,8 @@
 // A streak is the number of consecutive calendar days (ending today, or
 // yesterday if today isn't recorded yet) present in the stored set.
 
+import { schedulePrefsPush } from "./prefsSync";
+
 export type StreakKind = "login" | "completion";
 
 export type StreakResult = {
@@ -46,6 +48,7 @@ function save(uid: string, kind: StreakKind, days: string[]) {
     // Keep the list bounded so it can't grow without limit.
     const trimmed = days.slice(-400);
     localStorage.setItem(keyFor(uid, kind), JSON.stringify(trimmed));
+    schedulePrefsPush(); // mirror to the account so streaks follow the user across devices
   } catch {
     /* storage full / unavailable — streaks are best-effort */
   }

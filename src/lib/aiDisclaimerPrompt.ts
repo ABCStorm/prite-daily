@@ -3,6 +3,8 @@
 // around day 4 — then never again. Kept off the database like streaks.ts /
 // reminderPrompt.ts: it's a UI notice, not graded data.
 
+import { schedulePrefsPush } from "./prefsSync";
+
 const key = (uid: string) => `pd_ai_disclaimer_stage_${uid || "anon"}`;
 
 function shownStage(uid: string): number {
@@ -10,7 +12,7 @@ function shownStage(uid: string): number {
 }
 
 export function markAiDisclaimerShown(uid: string, stage: number) {
-  try { localStorage.setItem(key(uid), String(stage)); } catch { /* no-op */ }
+  try { localStorage.setItem(key(uid), String(stage)); schedulePrefsPush(); } catch { /* no-op */ }
 }
 
 /** Which stage (1 or 2) is due right now, given total days used — or null if

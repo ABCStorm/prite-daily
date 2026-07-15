@@ -37,6 +37,7 @@ import { isConfigured, supabase, signInWithGoogle, signOut, questionId } from ".
 import { useAuth } from "./lib/useAuth";
 import { matchRoster, matchPlannedTeam } from "./lib/roster";
 import { recordToday, peekStreak, totalDays, ymd } from "./lib/streaks";
+import { syncClientPrefs, schedulePrefsPush } from "./lib/prefsSync";
 import { dueReminderPromptStage, markReminderPromptShown } from "./lib/reminderPrompt";
 import { dueAiDisclaimerStage, markAiDisclaimerShown } from "./lib/aiDisclaimerPrompt";
 import { isAutoReminderActive, guessedExamDate } from "./lib/reminderWindow";
@@ -378,7 +379,7 @@ export default function App() {
   // residency-wide library of every finished guide, any speaker — not just yours
   const [showGuideLibrary, setShowGuideLibrary] = useState(false);
   const [libraryGuides, setLibraryGuides] = useState<LibraryStudyGuide[] | null>(null); // null = not loaded yet
-  useEffect(() => { writePref("pd_seen_study_guides", [...seenGuideIds]); }, [seenGuideIds]);
+  useEffect(() => { writePref("pd_seen_study_guides", [...seenGuideIds]); schedulePrefsPush(); }, [seenGuideIds]);
 
   // --- live crowd poll (Supabase Realtime, see lib/poll.ts) ---
   const [hostCode, setHostCode] = useState<string | null>(null);   // big screen is hosting
@@ -413,9 +414,9 @@ export default function App() {
   // --- saved tests (hand-picked sets for class sessions, see lib/tests.ts) ---
   const [savedTests, setSavedTests] = useState<SavedTest[]>([]);
   const [showTests, setShowTests] = useState(false);
-  useEffect(() => { writePref("pd_exam_mode", examMode); }, [examMode]);
-  useEffect(() => { writePref("pd_timer_on", timerOn); }, [timerOn]);
-  useEffect(() => { writePref("pd_timer_secs", timerSecs); }, [timerSecs]);
+  useEffect(() => { writePref("pd_exam_mode", examMode); schedulePrefsPush(); }, [examMode]);
+  useEffect(() => { writePref("pd_timer_on", timerOn); schedulePrefsPush(); }, [timerOn]);
+  useEffect(() => { writePref("pd_timer_secs", timerSecs); schedulePrefsPush(); }, [timerSecs]);
 
   // --- auth + persistence ---
   const { session, profile, loading: authLoading, reloadProfile } = useAuth();
@@ -471,6 +472,7 @@ export default function App() {
   const [customQueue, setCustomQueue] = useState<RawQuestion[]>([]);
   const [customLabel, setCustomLabel] = useState<string>("");
   const [answersLoaded, setAnswersLoaded] = useState(false);
+  const [prefsSynced, setPrefsSynced] = useState(false); // account-synced localStorage prefs merged (see lib/prefsSync)
   const [reviewMode, setReviewMode] = useState(false);
   const [showMissed, setShowMissed] = useState(false);
   const [allMyNotes, setAllMyNotes] = useState<Record<string, string>>({});
@@ -499,11 +501,27 @@ export default function App() {
     if (persist) {
       setAnswersLoaded(false);
       getMyAnswers().then((a) => { setAnswers(a); setAnswersLoaded(true); });
-      getMySettings().then(setSettings);
+      getMySettings().then((st) => {
+        setSettings(st);
+        // Merge the account's synced prefs (streak days, timer/exam prefs,
+        // nag stages, …) into localStorage, then reflect the merged values
+        // into already-initialized state. Streak/nag effects wait on
+        // prefsSynced so they always see the cross-device history.
+        const uid = profile?.id ?? session?.user?.id;
+        if (uid) {
+          const merged = syncClientPrefs(uid, st?.client_prefs);
+          setExamMode(merged.exam_mode ?? false);
+          setTimerOn(merged.timer_on ?? false);
+          setTimerSecs(clampSecs(merged.timer_secs ?? 60));
+          setSecsDraft(String(clampSecs(merged.timer_secs ?? 60)));
+          setSeenGuideIds(new Set(merged.seen_study_guides));
+        }
+        setPrefsSynced(true);
+      });
       getDueReviewCards().then(setSrsDue);
       loadTests().then(setSavedTests);
-    } else { setAnswers({}); setAnswersLoaded(false); setSettings(null); setSrsDue([]); setSavedTests([]); }
-  }, [persist]);
+    } else { setAnswers({}); setAnswersLoaded(false); setSettings(null); setSrsDue([]); setSavedTests([]); setPrefsSynced(false); }
+  }, [persist]); // eslint-disable-line
 
   // build today's set: due-review (missed, past the recycle interval) first,
   // then new unanswered, capped at the regimen. Built from an answers snapshot
@@ -787,9 +805,11 @@ export default function App() {
   const completionLevel = (streak: number) =>
     streak >= 14 ? 5 : streak >= 7 ? 4 : streak >= 5 ? 3 : streak >= 3 ? 2 : 1;
 
-  // Login streak: fires once per app load. Also seeds the completion-streak chip.
+  // Login streak: fires once per app load, after the cross-device prefs merge
+  // so the streak math sees days recorded on other computers. Also seeds the
+  // completion-streak chip.
   useEffect(() => {
-    if (!persist || loginCheckedRef.current) return;
+    if (!persist || !prefsSynced || loginCheckedRef.current) return;
     loginCheckedRef.current = true;
     const uid = profile?.id ?? session?.user?.id ?? "anon";
     setDoneStreak(peekStreak(uid, "completion"));
@@ -799,13 +819,13 @@ export default function App() {
       setStreakReward({ kind: "login", streak, level });
       fireCelebration(level);
     }
-  }, [persist, profile?.id, session?.user?.id]);
+  }, [persist, prefsSynced, profile?.id, session?.user?.id]);
 
   // Nudge to opt into daily reminder emails: on day 2 of use, again at 2 weeks,
   // again at 4 weeks, then never again — skipped entirely if reminders are
   // already effectively on (explicit true, or auto-on within the exam window).
   useEffect(() => {
-    if (!persist || !settings || reminderPromptCheckedRef.current) return;
+    if (!persist || !settings || !prefsSynced || reminderPromptCheckedRef.current) return;
     reminderPromptCheckedRef.current = true;
     const effectiveOn = settings.daily_reminder === true ? true
       : settings.daily_reminder === false ? false
@@ -814,7 +834,7 @@ export default function App() {
     const uid = profile?.id ?? session?.user?.id ?? "anon";
     const stage = dueReminderPromptStage(uid, totalDays(uid, "login"));
     if (stage) setReminderPromptStage(stage);
-  }, [persist, settings, profile?.id, session?.user?.id]);
+  }, [persist, settings, prefsSynced, profile?.id, session?.user?.id]);
 
   const dismissReminderPrompt = () => {
     const uid = profile?.id ?? session?.user?.id ?? "anon";
@@ -831,12 +851,12 @@ export default function App() {
   // Caution notice about AI-generated explanations: shown twice in the first
   // week of use (day 1, day 4), then never again.
   useEffect(() => {
-    if (!persist || aiDisclaimerCheckedRef.current) return;
+    if (!persist || !prefsSynced || aiDisclaimerCheckedRef.current) return;
     aiDisclaimerCheckedRef.current = true;
     const uid = profile?.id ?? session?.user?.id ?? "anon";
     const stage = dueAiDisclaimerStage(uid, totalDays(uid, "login"));
     if (stage) setAiDisclaimerStage(stage);
-  }, [persist, profile?.id, session?.user?.id]);
+  }, [persist, prefsSynced, profile?.id, session?.user?.id]);
 
   const dismissAiDisclaimer = () => {
     const uid = profile?.id ?? session?.user?.id ?? "anon";
@@ -897,14 +917,14 @@ export default function App() {
     if (!persist) return;
     const code = pollCodeFromUrl();
     if (code) { setJoinCode(code); clearPollParam(); }
-  }, [persist]);
+  }, [persist]); // eslint-disable-line
 
   // Auto-open a study guide when arriving via a ?study=<id> link.
   useEffect(() => {
     if (!persist) return;
     const id = studyGuideIdFromUrl();
     if (id) { setOpenStudyGuideId(id); clearStudyParam(); }
-  }, [persist]);
+  }, [persist]); // eslint-disable-line
 
   // Auto-open Settings when arriving via the reminder email's "Change
   // frequency" link (?openSettings=1).
@@ -3103,7 +3123,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, byId, display
   const saveTeam = (name: string) => {
     const t = name.trim().slice(0, 24);
     setTeamState(t); setDraft(t); setEditing(false);
-    try { t ? localStorage.setItem(TEAM_KEY, t) : localStorage.removeItem(TEAM_KEY); } catch { /* no-op */ }
+    try { t ? localStorage.setItem(TEAM_KEY, t) : localStorage.removeItem(TEAM_KEY); schedulePrefsPush(); } catch { /* no-op */ }
     chanRef.current?.send({ type: "broadcast", event: POLL_EVENTS.hello, payload: { voter, team: t || undefined, level: trainingLevel || undefined } as PollHello });
   };
 
@@ -5186,7 +5206,7 @@ function ReviewPanel({
   // One-time expectations note: web cards are the low-friction option, Anki
   // is probably the better one. Dismissal is remembered per device.
   const [showAnkiNote, setShowAnkiNote] = useState<boolean>(() => !readPref("pd_webcards_note_dismissed", false));
-  const dismissAnkiNote = () => { setShowAnkiNote(false); writePref("pd_webcards_note_dismissed", true); };
+  const dismissAnkiNote = () => { setShowAnkiNote(false); writePref("pd_webcards_note_dismissed", true); schedulePrefsPush(); };
 
   const row = due[i];
   const q = row ? byId.get(row.question_id) : undefined;
