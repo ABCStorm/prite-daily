@@ -1164,7 +1164,7 @@ export default function App() {
                 : <><span style={s.countNum}>{all.length}</span> questions</>}
               {persist && <> · <span style={s.countNum}>{answeredCount}</span> done</>}
               {persist && doneStreak > 0 && (
-                <> · <span style={s.streakChip} title={`${doneStreak}-day daily streak`}><Flame size={11} strokeWidth={2.6} /> {doneStreak}</span></>
+                <> · <span style={s.streakChip} title={`${doneStreak}-day daily streak`}><span className="flameFlicker"><Flame size={11} strokeWidth={2.6} /></span> {doneStreak}</span></>
               )}
             </span>
             {persist ? (
@@ -1287,10 +1287,16 @@ export default function App() {
                 <Target size={13} strokeWidth={2.3} color={dayComplete ? T.teal : T.faint} />
                 <b style={{ color: dayComplete ? T.teal : "#e7eaf0" }}>{doneToday}</b>
                 <span style={{ color: T.faint }}>/ {target} today</span>
+                <span style={s.progTrack} aria-hidden>
+                  <span
+                    className={"progFill" + (dayComplete ? " progFillDone" : "")}
+                    style={{ ...s.progFill, width: `${Math.min(100, Math.round((doneToday / Math.max(1, target)) * 100))}%` }}
+                  />
+                </span>
               </span>
               {missedOutstanding > 0 && (
                 <button style={s.missChip} onClick={openMissed} title="Read & review your missed questions">
-                  <Flame size={12} strokeWidth={2.2} color={T.gold} />
+                  <span className="flameFlicker"><Flame size={12} strokeWidth={2.2} color={T.gold} /></span>
                   <span>
                     {missedOutstanding} learning {missedOutstanding === 1 ? "opportunity" : "opportunities"}
                   </span>
@@ -1381,7 +1387,7 @@ export default function App() {
               <Users size={13} strokeWidth={2.3} /> Join poll
             </button>
             {timerOn && inPractice && timeLeft != null && !revealed && (
-              <span style={{ ...s.timerPill, ...(timeLeft <= 10 ? s.timerPillLow : {}) }}>
+              <span className={timeLeft <= 10 ? "timerLow" : undefined} style={{ ...s.timerPill, ...(timeLeft <= 10 ? s.timerPillLow : {}) }}>
                 <Clock size={12} strokeWidth={2.5} /> {fmtTime(timeLeft)}
               </span>
             )}
@@ -1523,7 +1529,24 @@ export default function App() {
               )}
             </div>
           ) : (
-            <div style={{ ...s.verdict, background: isCorrect ? T.correctBg : T.wrongBg, borderColor: isCorrect ? T.correctLine : T.wrongLine }} className="slidein">
+            <div style={{ ...s.verdict, position: "relative", background: isCorrect ? T.correctBg : T.wrongBg, borderColor: isCorrect ? T.correctLine : T.wrongLine }} className="slidein">
+              {isCorrect && (
+                <span style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "visible" }} aria-hidden>
+                  {Array.from({ length: 12 }, (_, i) => (
+                    <span
+                      key={i}
+                      className="confetti"
+                      style={{
+                        "--dx": `${Math.round(Math.cos((i / 12) * Math.PI * 2) * (46 + (i % 3) * 22))}px`,
+                        "--dy": `${Math.round(Math.sin((i / 12) * Math.PI * 2) * (30 + (i % 4) * 14)) - 34}px`,
+                        "--rot": `${(i % 2 ? 1 : -1) * (140 + i * 25)}deg`,
+                        background: [T.teal, T.gold, "#e07a5f", T.correctLine][i % 4],
+                        animationDelay: `${(i % 4) * 40}ms`,
+                      } as React.CSSProperties}
+                    />
+                  ))}
+                </span>
+              )}
               <span style={{ ...s.verdictIcon, background: isCorrect ? T.correctLine : T.wrongLine }}>
                 {isCorrect ? <Check size={15} strokeWidth={3} color="#fff" /> : <X size={15} strokeWidth={3} color="#fff" />}
               </span>
@@ -2424,7 +2447,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
         )}
         {timeLeft != null && (
           <>
-            <span style={{ ...s.timerPill, ...(timeLeft <= 10 ? s.timerPillLow : {}) }}><Clock size={14} strokeWidth={2.5} /> {fmtTime(timeLeft)}</span>
+            <span className={timeLeft <= 10 ? "timerLow" : undefined} style={{ ...s.timerPill, ...(timeLeft <= 10 ? s.timerPillLow : {}) }}><Clock size={14} strokeWidth={2.5} /> {fmtTime(timeLeft)}</span>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 2 }} title="Add or remove time — also becomes the default for questions after this one">
               <button style={{ ...s.pollBtn, padding: "6px 8px" }} onClick={() => bumpTimer(-15)} title="-15 seconds"><Minus size={13} strokeWidth={2.4} /></button>
               <button style={{ ...s.pollBtn, padding: "6px 8px" }} onClick={() => bumpTimer(15)} title="+15 seconds"><Plus size={13} strokeWidth={2.4} /></button>
@@ -4981,6 +5004,25 @@ button:focus-visible { outline: 2px solid ${T.teal}; outline-offset: 2px; }
 .gateBtn:hover { transform: translateY(-1px); box-shadow: 0 10px 26px -12px rgba(0,0,0,.45); }
 .gateBtn::after { content: ""; position: absolute; top: 0; bottom: 0; left: -55%; width: 34%; background: linear-gradient(105deg, rgba(14,122,107,0), rgba(14,122,107,.13), rgba(14,122,107,0)); transform: skewX(-18deg); animation: gateBtnSheen 3.6s ease-in-out 1.8s infinite; }
 @keyframes gateBtnSheen { 0%, 55% { left: -55%; } 90%, 100% { left: 130%; } }
+/* --- main-page micro-animations --- */
+.qIn { animation: qIn .32s cubic-bezier(.22,.7,.3,1) both; }
+@keyframes qIn { from { opacity: 0; transform: translateY(7px); } }
+.qIn .opt:not(.pop) { animation: optIn .38s cubic-bezier(.22,.7,.3,1) backwards; }
+.qIn .opt:not(.pop):nth-child(1) { animation-delay: .05s; }
+.qIn .opt:not(.pop):nth-child(2) { animation-delay: .1s; }
+.qIn .opt:not(.pop):nth-child(3) { animation-delay: .15s; }
+.qIn .opt:not(.pop):nth-child(4) { animation-delay: .2s; }
+.qIn .opt:not(.pop):nth-child(5) { animation-delay: .25s; }
+.qIn .opt:not(.pop):nth-child(6) { animation-delay: .3s; }
+@keyframes optIn { from { opacity: 0; transform: translateY(9px); } }
+.confetti { position: absolute; left: 22px; top: 50%; width: 7px; height: 7px; border-radius: 2px; opacity: 0; animation: confettiPop .85s cubic-bezier(.15,.6,.3,1) both; }
+@keyframes confettiPop { 0% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); } 100% { opacity: 0; transform: translate(var(--dx, 40px), var(--dy, -50px)) rotate(var(--rot, 180deg)) scale(.5); } }
+.flameFlicker { display: inline-flex; animation: flameFlicker 2.6s ease-in-out infinite; transform-origin: 50% 88%; }
+@keyframes flameFlicker { 0%, 100% { transform: scale(1) rotate(-2deg); } 28% { transform: scale(1.14) rotate(2.5deg); } 55% { transform: scale(.94) rotate(-1deg); } 78% { transform: scale(1.08) rotate(1.5deg); } }
+.timerLow { animation: timerPulse 1s ease-in-out infinite; }
+@keyframes timerPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+.progFillDone { animation: progGlowPop .6s cubic-bezier(.3,1.3,.5,1) both; }
+@keyframes progGlowPop { 0% { transform: scaleY(1); } 45% { transform: scaleY(1.6); } 100% { transform: scaleY(1); } }
 @media (prefers-reduced-motion: reduce) {
   .fade, .toast, .pop, .slidein { animation: none !important; }
   .streakPop, .streakGlow { animation: none !important; }
@@ -4990,6 +5032,9 @@ button:focus-visible { outline: 2px solid ${T.teal}; outline-offset: 2px; }
   .gateBlob, .gateGrid, .gateRing::before, .gateIn, .gs1, .gs2, .gs3, .gs4, .gateMarkAnim, .gatePing, .gateShimmer, .gateBtn::after { animation: none !important; }
   .gateSpark, .gateGhost { display: none !important; }
   .gateTilt { transform: none !important; transition: none !important; }
+  .qIn, .qIn .opt:not(.pop), .flameFlicker, .timerLow, .progFillDone { animation: none !important; }
+  .confetti { display: none !important; }
+  .progFill, .progFillDone { transition: none !important; }
 }
 @media (max-width: 680px) {
   .topInner { flex-wrap: wrap !important; padding: 10px 14px !important; gap: 8px 10px !important; }
@@ -5117,6 +5162,8 @@ const s: Record<string, React.CSSProperties> = {
   customEdit: { display: "inline-flex", alignItems: "center", gap: 4, marginLeft: 4, background: "transparent", color: T.teal, border: `1px solid ${T.inkLine}`, borderRadius: 7, padding: "3px 8px", fontSize: 12, fontWeight: 600, cursor: "pointer" },
   modeOn: { background: T.teal, color: "#fff" },
   todayProg: { display: "inline-flex", alignItems: "center", gap: 7, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 13.5 },
+  progTrack: { width: 54, height: 5, borderRadius: 999, background: "rgba(255,255,255,.13)", overflow: "hidden", flexShrink: 0 },
+  progFill: { display: "block", height: "100%", borderRadius: 999, background: `linear-gradient(90deg, ${T.teal}, #2ec4a9)`, transition: "width .55s cubic-bezier(.22,.7,.3,1)" },
   missChip: { display: "inline-flex", alignItems: "center", gap: 6, background: T.inkSoft, color: "#c9a35a", border: `1px solid ${T.inkLine}`, padding: "6px 11px", borderRadius: 8, fontSize: 12.5, fontWeight: 500, cursor: "pointer", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
 
   doneBanner: { display: "flex", alignItems: "center", gap: 11, flexWrap: "wrap", background: T.tealSoft, border: `1px solid ${T.teal}66`, borderRadius: 12, padding: "12px 15px", marginBottom: 16, fontSize: 14, color: T.text },
