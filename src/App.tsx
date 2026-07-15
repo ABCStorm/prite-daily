@@ -2933,6 +2933,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, byId, display
   return (
     <div style={s.joinRoot}>
       <style>{CSS}</style>
+      <div style={s.joinScroll}>
       <div style={s.joinCard}>
         <div style={s.joinHead}>
           <span style={s.pollLive}><Radio size={15} strokeWidth={2.4} /> Poll {code}</span>
@@ -3128,6 +3129,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, byId, display
             )}
           </>
         )}
+      </div>
       </div>
     </div>
   );
@@ -5525,7 +5527,12 @@ const s: Record<string, React.CSSProperties> = {
   zoomImg: { display: "block", maxWidth: "92vw", maxHeight: "88vh", width: "auto", height: "auto", objectFit: "contain", borderRadius: 12, background: "#fff", cursor: "default" },
 
   // live crowd poll — participant (phone)
-  joinRoot: { position: "fixed", inset: 0, zIndex: 90, background: T.ink, display: "grid", placeItems: "center", padding: 20, fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif" },
+  // Fixed full-screen scroll container. The card is centered by joinScroll's
+  // min-height:100% + flex, so short content stays centered but a tall poll
+  // (stem peek + options + explanation + history) can scroll with the top
+  // still reachable — a plain grid/flex-centered fixed box would clip it.
+  joinRoot: { position: "fixed", inset: 0, zIndex: 90, background: T.ink, overflowY: "auto", WebkitOverflowScrolling: "touch", fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif" },
+  joinScroll: { minHeight: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, boxSizing: "border-box" },
   joinCard: { width: "100%", maxWidth: 460, background: T.inkSoft, border: `1px solid ${T.inkLine}`, borderRadius: 18, padding: 22, boxShadow: "0 24px 60px -20px rgba(0,0,0,.7)" },
   joinHead: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 },
   joinMsg: { color: "#c7ccd6", fontSize: 15, lineHeight: 1.5, margin: "0 0 18px" },
