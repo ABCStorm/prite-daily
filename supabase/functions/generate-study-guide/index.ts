@@ -4,7 +4,7 @@
 // class to read/listen to before the session, generate-once-and-cache:
 //   - if a guide already exists for the saved_test_id, return it (no AI call)
 //   - else call Anthropic (Opus) to write a background/context study guide +
-//     narration script, render the narration to speech via ElevenLabs, store
+//     narration script, render the narration to speech via OpenAI TTS, store
 //     the audio in the `study-audio` bucket and the text in `study_guides`,
 //     and return it.
 //
@@ -13,8 +13,8 @@
 // structurally unable to spoil the quiz, only to teach around it.
 //
 // Secrets needed (Project Settings -> Edge Functions): ANTHROPIC_API_KEY,
-// ELEVENLABS_API_KEY (and optionally ELEVENLABS_VOICE_ID to override the
-// default narration voice). SUPABASE_URL, SUPABASE_ANON_KEY, and
+// OPENAI_API_KEY (and optionally OPENAI_TTS_VOICE to override the default
+// narration voice). SUPABASE_URL, SUPABASE_ANON_KEY, and
 // SUPABASE_SERVICE_ROLE_KEY are injected automatically.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -32,34 +32,37 @@ const admin = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY
 
 const MODEL = "claude-opus-4-8";
 
-// ElevenLabs' default "Rachel" voice — clear, warm, well-suited to narration.
-// Override with the ELEVENLABS_VOICE_ID secret to use a different one.
-const DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM";
+// OpenAI's cheapest TTS tier (vs. tts-1-hd) — plenty good for a study aid.
+// Override the voice with the OPENAI_TTS_VOICE secret (one of alloy, echo,
+// fable, onyx, nova, shimmer, ash, coral, sage).
+const TTS_MODEL = "tts-1";
+const DEFAULT_VOICE = "alloy";
 
 type TopicInput = { stem: string; prite_category?: string; prite_label?: string; topics?: string[] };
 
-// ElevenLabs caps request text length well under a ~10-minute script, so
-// split on sentence boundaries into request-sized chunks and stitch the
-// resulting MP3s together (simple byte concatenation — MP3 frames decode
-// fine back-to-back; a few ms of imperfect join is a non-issue here).
-async function synthesizeSpeech(text: string, apiKey: string, voiceId: string): Promise<Uint8Array> {
+// OpenAI's TTS endpoint caps input at 4096 characters, well under a
+// ~10-minute script, so split on sentence boundaries into request-sized
+// chunks and stitch the resulting MP3s together (simple byte concatenation —
+// MP3 frames decode fine back-to-back; a few ms of imperfect join is a
+// non-issue here).
+async function synthesizeSpeech(text: string, apiKey: string, voice: string): Promise<Uint8Array> {
   const sentences = text.split(/(?<=[.!?])\s+/).filter(Boolean);
   const chunks: string[] = [];
   let cur = "";
   for (const sent of sentences) {
-    if (cur && (cur.length + sent.length + 1) > 2200) { chunks.push(cur); cur = sent; }
+    if (cur && (cur.length + sent.length + 1) > 3500) { chunks.push(cur); cur = sent; }
     else cur = cur ? `${cur} ${sent}` : sent;
   }
   if (cur) chunks.push(cur);
 
   const buffers: Uint8Array[] = [];
   for (const chunk of chunks) {
-    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+    const res = await fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
-      headers: { "xi-api-key": apiKey, "content-type": "application/json", accept: "audio/mpeg" },
-      body: JSON.stringify({ text: chunk, model_id: "eleven_multilingual_v2", voice_settings: { stability: 0.5, similarity_boost: 0.75 } }),
+      headers: { Authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+      body: JSON.stringify({ model: TTS_MODEL, voice, input: chunk, response_format: "mp3" }),
     });
-    if (!res.ok) throw new Error(`elevenlabs ${res.status}: ${await res.text()}`);
+    if (!res.ok) throw new Error(`openai tts ${res.status}: ${await res.text()}`);
     buffers.push(new Uint8Array(await res.arrayBuffer()));
   }
   const total = buffers.reduce((n, b) => n + b.length, 0);
@@ -117,7 +120,7 @@ Deno.serve(async (req) => {
     //    columns — any prior ready content stays in place and stays
     //    viewable/playable until this run finishes) so pollers see progress
     //    right away, from any tab — this row is also the whole response,
-    //    returned before the slow part (Claude + ElevenLabs) even starts.
+    //    returned before the slow part (Claude + OpenAI TTS) even starts.
     const { data: placeholder, error: placeholderErr } = await admin
       .from("study_guides")
       .upsert(
@@ -171,15 +174,15 @@ Respond with ONLY a JSON object, no markdown fencing:
       let guide: { title: string; intro: string; sections: { heading: string; body: string }[]; key_terms: string[]; audio_script: string };
       try { guide = JSON.parse(raw); } catch { await fail("Claude returned unparseable output"); return; }
 
-      // 6. render the narration to speech (ElevenLabs) and store the MP3
-      const elevenKey = Deno.env.get("ELEVENLABS_API_KEY");
-      if (!elevenKey) { await fail("ELEVENLABS_API_KEY not set"); return; }
-      const voiceId = Deno.env.get("ELEVENLABS_VOICE_ID") || DEFAULT_VOICE_ID;
+      // 6. render the narration to speech (OpenAI TTS) and store the MP3
+      const openaiKey = Deno.env.get("OPENAI_API_KEY");
+      if (!openaiKey) { await fail("OPENAI_API_KEY not set"); return; }
+      const voice = Deno.env.get("OPENAI_TTS_VOICE") || DEFAULT_VOICE;
       const audioPath = `${saved_test_id}.mp3`;
 
       await admin.from("study_guides").update({ stage: "narrating" }).eq("saved_test_id", saved_test_id);
       try {
-        const audioBytes = await synthesizeSpeech(guide.audio_script ?? "", elevenKey, voiceId);
+        const audioBytes = await synthesizeSpeech(guide.audio_script ?? "", openaiKey, voice);
         const { error: upErr } = await admin.storage.from("study-audio")
           .upload(audioPath, audioBytes, { contentType: "audio/mpeg", upsert: true });
         if (upErr) { await fail("storage upload failed: " + upErr.message); return; }
