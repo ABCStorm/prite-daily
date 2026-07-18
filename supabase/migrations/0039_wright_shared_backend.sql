@@ -60,7 +60,7 @@ begin
 end;
 $$;
 
-create trigger on_auth_user_created
+create trigger on_auth_user_created_link_person
   after insert on auth.users
   for each row execute function link_person_on_signup();
 
