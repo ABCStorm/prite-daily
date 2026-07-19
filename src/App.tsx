@@ -3136,7 +3136,11 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
   const [revealed, setRevealed] = useState(false);
   const [finished, setFinished] = useState(false);   // session over — final-standings screen
   const [started, setStarted] = useState(false);     // host hasn't hit "Start" yet — phones sit in a lobby, no voting
-  const [showIndividual, setShowIndividual] = useState(teamMode === "individual"); // standings view: individual leaderboard vs team (individual mode defaults to individual; team modes default to team but the host can toggle)
+  // Standings view: individual leaderboard vs team. Individual standings are
+  // deliberately NEVER shown during the live poll (they'd sit on the big
+  // screen above every question) — they're an opt-in toggle on the finished
+  // screen only. Team modes still show live team stats as before.
+  const [showIndividual, setShowIndividual] = useState(false);
   const [showAnswerKey, setShowAnswerKey] = useState(false); // answer key on the finish screen (hidden by default)
   const [standingsFontSize, setStandingsFontSize] = useState(20); // adjustable text size for the answer-key stem/options/explanation
   const [pollStemScale, setPollStemScale] = useState(1.8); // adjustable text size for the question, independent of the choices (default 180% for room readability)
@@ -3501,12 +3505,12 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
           <>
             <div style={s.pollMeta}>Session complete · {total} question{total === 1 ? "" : "s"}{joinedCount > 0 ? ` · ${joinedCount} participant${joinedCount === 1 ? "" : "s"}` : ""}</div>
             <div style={{ display: "flex", alignItems: "baseline", gap: 14, flexWrap: "wrap" }}>
-              <p style={s.pollStem}>{showIndividual ? "Final individual standings" : "Final standings"}</p>
-              {!isIndividualMode && (
-                <button style={s.pollBtn} onClick={() => setShowIndividual((v) => !v)} title="Switch between team and individual standings">
-                  <Users size={14} strokeWidth={2.3} /> {showIndividual ? "Show teams" : "Show individuals"}
-                </button>
-              )}
+              <p style={s.pollStem}>{showIndividual ? "Final individual standings" : isIndividualMode ? "Individual standings" : "Final standings"}</p>
+              {/* Individual standings are opt-in even after the poll ends —
+                  individual mode starts with them hidden until revealed. */}
+              <button style={s.pollBtn} onClick={() => setShowIndividual((v) => !v)} title={isIndividualMode ? "Reveal or hide the individual leaderboard" : "Switch between team and individual standings"}>
+                <Users size={14} strokeWidth={2.3} /> {showIndividual ? (isIndividualMode ? "Hide standings" : "Show teams") : (isIndividualMode ? "Reveal standings" : "Show individuals")}
+              </button>
             </div>
             {showIndividual ? (
               individuals.length > 0 ? (
@@ -3523,6 +3527,8 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
               ) : (
                 <p style={{ color: "#aeb4c0", fontSize: 15 }}>No one answered this session.</p>
               )
+            ) : isIndividualMode ? (
+              <p style={{ color: "#aeb4c0", fontSize: 15 }}>Hidden until revealed — tap "Reveal standings" when you're ready for the drumroll.</p>
             ) : standings.length > 0 ? (
               <div style={s.pollStats}>
                 {standings.map((t, i) => (
@@ -3690,38 +3696,24 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
           </div>
         ) : (
           <>
-        {(showIndividual ? individuals.length > 0 : standings.length > 0) && (
+        {/* Live view shows TEAM stats only — individual standings are an
+            opt-in toggle on the finished screen, never during the poll. */}
+        {!isIndividualMode && standings.length > 0 && (
           <div style={s.pollStats}>
             <div style={s.pollStatsHead}>
-              <span style={s.teamBoardHead}><Trophy size={16} strokeWidth={2.4} /> {showIndividual ? "Live individual standings" : "Live polling group statistics"}</span>
-              {!isIndividualMode && (
-                <button style={s.pollStatsExport} onClick={() => setShowIndividual((v) => !v)} title="Switch between team and individual standings">
-                  <Users size={14} strokeWidth={2.3} /> {showIndividual ? "Show teams" : "Show individuals"}
-                </button>
-              )}
-              {!showIndividual && (
-                <button style={s.pollStatsExport} onClick={() => exportPollTeams(standings, { code, index: index + 1, total })} title="Download team data (opens in Excel)">
-                  <Download size={14} strokeWidth={2.3} /> Export to Excel
-                </button>
-              )}
+              <span style={s.teamBoardHead}><Trophy size={16} strokeWidth={2.4} /> Live polling group statistics</span>
+              <button style={s.pollStatsExport} onClick={() => exportPollTeams(standings, { code, index: index + 1, total })} title="Download team data (opens in Excel)">
+                <Download size={14} strokeWidth={2.3} /> Export to Excel
+              </button>
             </div>
-            {showIndividual
-              ? individuals.map((p, i) => (
-                <div key={p.voter} style={{ ...s.teamRow, ...(i === 0 ? s.teamRowLead : {}) }}>
-                  <span style={s.teamRank}>{i === 0 ? <Crown size={20} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
-                  <span style={s.teamName}>{p.name}</span>
-                  <span style={s.teamMembers}>{p.score} correct · {p.answered} answered</span>
-                  <span style={s.teamScore}>{p.answered > 0 ? Math.round((p.score / p.answered) * 100) : 0}%</span>
-                </div>
-              ))
-              : standings.map((t, i) => (
-                <div key={t.team} style={{ ...s.teamRow, ...(i === 0 ? s.teamRowLead : {}) }}>
-                  <span style={s.teamRank}>{i === 0 ? <Crown size={20} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
-                  <span style={s.teamName}>{t.team}</span>
-                  <span style={s.teamMembers}>{t.members} {t.members === 1 ? "player" : "players"} · {t.correct} correct · {t.answerers} answered</span>
-                  <span style={s.teamScore}>{t.score}/player</span>
-                </div>
-              ))}
+            {standings.map((t, i) => (
+              <div key={t.team} style={{ ...s.teamRow, ...(i === 0 ? s.teamRowLead : {}) }}>
+                <span style={s.teamRank}>{i === 0 ? <Crown size={20} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
+                <span style={s.teamName}>{t.team}</span>
+                <span style={s.teamMembers}>{t.members} {t.members === 1 ? "player" : "players"} · {t.correct} correct · {t.answerers} answered</span>
+                <span style={s.teamScore}>{t.score}/player</span>
+              </div>
+            ))}
           </div>
         )}
         <div style={s.pollMeta}>{q.year} · Q{q.q_index} · Question {index + 1} of {total}</div>
