@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
-  ShieldCheck, Trophy, NotebookPen, Users, Layers, Stethoscope,
-  Check, X, Image as ImageIcon, Trash2, Download, Flame, ArrowRight,
+  ShieldCheck, Trophy, NotebookPen, Users, User, Layers, Stethoscope,
+  Check, X, Image as ImageIcon, Trash2, Download, Flame, ArrowRight, Monitor,
   ArrowLeft, ListChecks, LogOut, Clock, Settings as SettingsIcon,
   Sparkles, Target, RotateCcw, BarChart3, Pencil, Search, FileText, ExternalLink,
   TrendingUp, Youtube, Network, Zap, Crown, Radio, Lightbulb, Highlighter, Bug,
   ChevronDown, ChevronUp, ChevronRight, Share2, Archive, Baby, Mail, Minus, Plus, Repeat,
   Eye, EyeOff, PanelRight, PanelBottom,
-  BookOpen, Volume2, Play, Pause, Square, Copy,
+  BookOpen, Volume2, Play, Pause, Square, Copy, Shuffle, GripVertical,
   Brain, Pill, HeartPulse, GraduationCap,
 } from "lucide-react";
 import mermaid from "mermaid";
+import { nextRewardPost, RewardKind } from "./lib/motivation";
 import QRCode from "qrcode";
 
 mermaid.initialize({ startOnLoad: false, theme: "neutral", securityLevel: "loose", fontFamily: "inherit" });
@@ -33,9 +34,18 @@ function MermaidDiagram({ code }: { code: string }) {
   if (!svg) return null;
   return <div style={{ overflowX: "auto" }} dangerouslySetInnerHTML={{ __html: svg }} />;
 }
+
+// One-shot Mermaid → SVG string, for embedding concept diagrams in Anki
+// exports (Anki renders inline SVG but can't run Mermaid). Null on parse
+// failure or no code — the card just omits the diagram section.
+async function renderDiagramSvg(code?: string | null): Promise<string | null> {
+  if (!code) return null;
+  try { return (await mermaid.render("mmdx-" + Math.random().toString(36).slice(2), code)).svg; }
+  catch { return null; }
+}
 import { isConfigured, supabase, signInWithGoogle, signOut, questionId } from "./lib/supabase";
 import { useAuth } from "./lib/useAuth";
-import { matchRoster, matchPlannedTeam } from "./lib/roster";
+import { matchRoster, matchPlannedTeam, matchNamesList, academicYearEnd, classYearLevel } from "./lib/roster";
 import { recordToday, peekStreak, totalDays, ymd } from "./lib/streaks";
 import { syncClientPrefs, schedulePrefsPush } from "./lib/prefsSync";
 import { dueReminderPromptStage, markReminderPromptShown } from "./lib/reminderPrompt";
@@ -43,20 +53,24 @@ import { dueAiDisclaimerStage, markAiDisclaimerShown } from "./lib/aiDisclaimerP
 import { isAutoReminderActive, guessedExamDate } from "./lib/reminderWindow";
 import {
   makePollCode, channelName, pollJoinUrl, pollCodeFromUrl, clearPollParam, assignBalancedTeams, stableTeamLevel,
-  POLL_EVENTS, type PollState, type PollVote, type PollHello, type PollAssign, type TeamStanding, type TeamMode,
+  POLL_EVENTS, type PollState, type PollVote, type PollHello, type PollAssign, type TeamStanding, type IndividualStanding, type TeamMode,
 } from "./lib/poll";
+import { ImmersiveScene, ImmersiveFlash } from "./ImmersiveScene";
 import {
   loadQuestionBank,
   getMyAnswers, saveAnswer, clearMissedAnswers, getMyNote, saveMyNote,
   getGroupNotes, addGroupNote, deleteGroupNote,
   listProfiles, updateProfile, setTrainingLevel, getStableTeams, regenerateStableTeams, setStableTeam, removeStableTeam,
+  listRosterNames, addRosterName, removeRosterName, type RosterName,
+  listStudyGuideCreators, setStudyGuideCreator,
+  getWeeklyTeams, regenerateWeeklyTeams,
   getQuestionStats, getLeaderboard,
   getMySettings, saveSettings,
   getAllMyNotes, getAllGroupNotes,
   getTagMissStats,
   getFlashcard, generateFlashcard, saveFlashcard, getFlashcardsForIds,
-  getMyHighlights, saveMyHighlights, getQuestionContext,
-  submitBugReport, listBugReports, updateBugReport,
+  getMyHighlights, saveMyHighlights, getQuestionContext, getContextsForIds,
+  submitBugReport, listBugReports, updateBugReport, respondToBugReport,
   submitOfficialPollResults, listOfficialPollResults, clearOfficialPollResults,
   recordPollAnswer, getMyPollStats,
   ensureTrackedForReview, getDueReviewCards, gradeReviewCard,
@@ -64,10 +78,11 @@ import {
   type QuestionStats, type LeaderRow, type Settings, type TagMissRow, type Flashcard, type HlRange, type BugReport,
   type OfficialPollResult, type QuestionStat, type SrsRow, type PollStats,
 } from "./lib/db";
-import { exportMyNotes, exportGroupNotes, exportMissed, ankingLecture, exportPptx, exportPollTeams, exportOfficialPollResults, exportPollMissed } from "./lib/exports";
+import { exportMyNotes, exportGroupNotes, exportMissed, ankingLecture, exportPptx, exportTeachingPptx, exportPollTeams, exportOfficialPollResults, exportPollMissed } from "./lib/exports";
 import { loadTests, saveTest, renameTest, deleteTest, type SavedTest } from "./lib/tests";
 import {
-  generateStudyGuide, getStudyGuide, getStudyGuideAudioUrl, listStudyGuidesForTests, listLibraryStudyGuides,
+  generateStudyGuide, getStudyGuide, getStudyGuideAudioUrl, listStudyGuidesForTests, listLibraryStudyGuides, canGenerateStudyGuides,
+  getOwnAiKeys, setOwnAiKeys, type OwnAiKeys,
   studyGuideUrl, studyGuideIdFromUrl, clearStudyParam, type StudyGuide, type LibraryStudyGuide,
 } from "./lib/studyGuides";
 import { SRS_GRADES, intervalLabel, sm2Next, SRS_DEFAULT, type SrsGrade, type SrsState } from "./lib/srs";
@@ -424,6 +439,7 @@ export default function App() {
 
   // --- exam mode + timer (UI prefs, kept in localStorage to avoid a DB migration) ---
   const [examMode, setExamMode] = useState<boolean>(() => readPref("pd_exam_mode", false));
+  const [deskFlash, setDeskFlash] = useState<{ dir: "in" | "out"; token: number }>({ dir: "in", token: 0 }); // desk fly-in/out when toggling exam focus mode
   const [examReview, setExamReview] = useState(false); // entered the post-set review phase
   const [timerOn, setTimerOn] = useState<boolean>(() => readPref("pd_timer_on", false));
   const [timerSecs, setTimerSecs] = useState<number>(() => clampSecs(readPref("pd_timer_secs", 60)));
@@ -444,16 +460,26 @@ export default function App() {
   // residency-wide library of every finished guide, any speaker — not just yours
   const [showGuideLibrary, setShowGuideLibrary] = useState(false);
   const [libraryGuides, setLibraryGuides] = useState<LibraryStudyGuide[] | null>(null); // null = not loaded yet
+  // only admins + the education-chief allowlist may GENERATE guides (they cost
+  // money); everyone can still read the library. Server re-checks regardless.
+  const [canGenGuides, setCanGenGuides] = useState(false);
   useEffect(() => { writePref("pd_seen_study_guides", [...seenGuideIds]); schedulePrefsPush(); }, [seenGuideIds]);
 
   // --- live crowd poll (Supabase Realtime, see lib/poll.ts) ---
   const [hostCode, setHostCode] = useState<string | null>(null);   // big screen is hosting
   const [joinCode, setJoinCode] = useState<string | null>(null);   // this device is a participant
+  const [hostClosing, setHostClosing] = useState(false);           // play the poll pull-out before unmounting the host
+  const [joinClosing, setJoinClosing] = useState(false);           // …and the participant
+  const [srsClosing, setSrsClosing] = useState(false);             // …and the flashcard review
   const [hostSet, setHostSet] = useState<RawQuestion[] | null>(null); // poll a saved test instead of the current set
+  const [hostFromTests, setHostFromTests] = useState(false); // hosting was launched from the saved-tests panel — reopen it when the poll (or the team-mode prompt) closes
   const [teamMode, setTeamMode] = useState<TeamMode>("self");      // how teams get formed for the session about to start
   const [teamModePrompt, setTeamModePrompt] = useState<RawQuestion[] | null | false>(false); // pending "Host poll" click, awaiting the team-mode choice (false = not prompting; null/array = the set to host once chosen)
   const [showTeamEditor, setShowTeamEditor] = useState(false); // admin hand-editing of the season rosters
   const [stableTeams, setStableTeams] = useState<Record<string, string>>({}); // profile_id -> team name, the season-long roster
+  const [weeklyTeams, setWeeklyTeams] = useState<Record<string, string>>({}); // profile_id -> team name, this week's admin-randomized mixer pairing
+  const [weeklyGeneratedAt, setWeeklyGeneratedAt] = useState<string | null>(null);
+  const [weeklyGeneratedBy, setWeeklyGeneratedBy] = useState<string | null>(null);
   const startHosting = (mode: TeamMode) => {
     if (teamModePrompt === false) return;
     setTeamMode(mode);
@@ -467,7 +493,7 @@ export default function App() {
   const runGenerateStableTeams = async (): Promise<boolean> => {
     const all = await listProfiles();
     const entries = all
-      .filter((p) => p.status === "approved")
+      .filter((p) => p.status === "approved" && !p.is_education_chief && p.role !== "alumni" && p.role !== "test")
       .map((p) => ({ voter: p.id, level: stableTeamLevel(p.training_level) }))
       .filter((e): e is { voter: string; level: string } => e.level !== null);
     if (!entries.length) return false;
@@ -475,6 +501,55 @@ export default function App() {
     if (ok) setStableTeams(await getStableTeams());
     return ok;
   };
+
+  // Admin: randomize this week's mixer pairing — same one-per-PGY-year
+  // balancing as the season roster, but re-rolled on demand (typically weekly,
+  // ahead of Tuesday didactics) so residents keep meeting new people. Persists
+  // in weekly_teams until an admin re-randomizes.
+  // Returns null on success, or an error message to show in the modal.
+  const runGenerateWeeklyTeams = async (): Promise<string | null> => {
+    const all = await listProfiles();
+    const entries = all
+      .filter((p) => p.status === "approved" && !p.is_education_chief && p.role !== "alumni" && p.role !== "test")
+      .map((p) => ({ voter: p.id, level: stableTeamLevel(p.training_level) }))
+      .filter((e): e is { voter: string; level: string } => e.level !== null);
+    if (!entries.length) return all.length ? "No approved residents with a PGY year set" : "Couldn't load the resident list";
+    const err = await regenerateWeeklyTeams(assignBalancedTeams(entries));
+    if (!err) {
+      const { teams, generatedAt, generatedBy } = await getWeeklyTeams();
+      setWeeklyTeams(teams); setWeeklyGeneratedAt(generatedAt); setWeeklyGeneratedBy(generatedBy);
+    }
+    return err;
+  };
+
+  // Build the plain-text team list for the didactics email:
+  //   Team 1: Alice Smith (R1), Bob Jones (R2), …
+  const teamListText = async (teams: Record<string, string>, header: string): Promise<string | null> => {
+    if (!Object.keys(teams).length) return null;
+    const all = await listProfiles();
+    const byId = new Map(all.map((p) => [p.id, p]));
+    const grouped = new Map<string, { name: string; level: string | null }[]>();
+    for (const [pid, teamName] of Object.entries(teams)) {
+      const p = byId.get(pid);
+      const name = p?.full_name || p?.email || "Unknown";
+      if (!grouped.has(teamName)) grouped.set(teamName, []);
+      grouped.get(teamName)!.push({ name, level: p?.training_level ?? null });
+    }
+    const levelRank: Record<string, number> = { R1: 1, R2: 2, R3: 3, R4: 4, F1: 5, F2: 6 };
+    const teamNames = [...grouped.keys()].sort((a, b) =>
+      a.localeCompare(b, undefined, { numeric: true }));
+    const lines = teamNames.map((tn) => {
+      const members = grouped.get(tn)!
+        .sort((a, b) => (levelRank[a.level ?? ""] ?? 9) - (levelRank[b.level ?? ""] ?? 9))
+        .map((m) => (m.level ? `${m.name} (${m.level})` : m.name));
+      return `${tn}: ${members.join(", ")}`;
+    });
+    return `${header}\n\n${lines.join("\n")}`;
+  };
+  const weeklyPairingsText = async (): Promise<string | null> =>
+    teamListText((await getWeeklyTeams()).teams, "PRITE Daily — this week's didactics teams");
+  const stableRosterText = async (): Promise<string | null> =>
+    teamListText(await getStableTeams(), "PRITE Daily — season poll teams");
 
   // --- saved tests (hand-picked sets for class sessions, see lib/tests.ts) ---
   const [savedTests, setSavedTests] = useState<SavedTest[]>([]);
@@ -519,12 +594,21 @@ export default function App() {
     listLibraryStudyGuides().then(setLibraryGuides);
   }, [showGuideLibrary, libraryGuides]);
 
+  // can this account generate guides? (admin or education-chief allowlist)
+  useEffect(() => {
+    if (!session) { setCanGenGuides(false); return; }
+    let cancelled = false;
+    canGenerateStudyGuides().then((ok) => { if (!cancelled) setCanGenGuides(ok); });
+    return () => { cancelled = true; };
+  }, [session]);
+
   const [answers, setAnswers] = useState<Record<string, AnswerRow>>({});
   const [groupNotes, setGroupNotes] = useState<DbGroupNote[]>([]);
   const [showApprovals, setShowApprovals] = useState(false);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [stats, setStats] = useState<QuestionStats | null>(null);
   const [showBoard, setShowBoard] = useState(false);
+  const [boardClosing, setBoardClosing] = useState(false); // play the summit pull-out before closing the leaderboard
   const [showCapite, setShowCapite] = useState(false); // "coming soon" modal — CAPITE bank isn't built yet
   const [psychMode, setPsychMode] = useState<"general" | "child">("general"); // General/Child Psychiatry toggle
   const selectChildPsych = () => { setPsychMode("child"); setShowCapite(true); };
@@ -592,8 +676,10 @@ export default function App() {
   // build today's set: due-review (missed, past the recycle interval) first,
   // then new unanswered, capped at the regimen. Built from an answers snapshot
   // so answering doesn't reshuffle it mid-session.
-  // extra=true ignores the daily cap (an explicit "give me another set")
-  const buildToday = useCallback((extra = false) => {
+  // extra=true ignores the daily cap (an explicit "give me another set").
+  // count overrides the size for a one-off bonus set ("do N more today")
+  // WITHOUT touching the saved daily-goal (regimen) setting.
+  const buildToday = useCallback((extra = false, count?: number) => {
     if (!all) return;
     const regimen = settings?.regimen ?? 10;
     const recycle = settings?.recycle_missed ?? true;
@@ -602,7 +688,7 @@ export default function App() {
     const now = Date.now();
     const a = answersRef.current;
     const answeredToday = Object.values(a).filter((r) => isSameDay(r.updated_at)).length;
-    const remaining = extra ? regimen : Math.max(0, regimen - answeredToday);
+    const remaining = count != null ? count : extra ? regimen : Math.max(0, regimen - answeredToday);
     const due: RawQuestion[] = [], fresh: RawQuestion[] = [];
     for (const qq of all) {
       const id = questionId(qq.year, qq.q_index);
@@ -642,7 +728,7 @@ export default function App() {
   }, [persist, answersLoaded, buildToday]);
 
   // admins: load the member list (for the approvals panel + pending badge)
-  const adminLoggedIn = isConfigured && profile?.role === "admin";
+  const adminLoggedIn = isConfigured && !!profile?.is_admin;
   useEffect(() => {
     if (adminLoggedIn) listProfiles().then(setProfiles);
   }, [adminLoggedIn, showApprovals]);
@@ -653,13 +739,25 @@ export default function App() {
     if (isConfigured && signedIn && approved) getStableTeams().then(setStableTeams);
   }, [isConfigured, signedIn, approved]);
 
-  // admins: load bug reports (for the triage panel + open-count badge)
+  // This week's mixer pairing: participants look up their own team when a
+  // "weekly" poll starts; admins see/copy/re-roll it from the host modal.
   useEffect(() => {
-    if (adminLoggedIn) listBugReports().then(setBugs);
-  }, [adminLoggedIn, showBugs]);
+    if (!(isConfigured && signedIn && approved)) return;
+    getWeeklyTeams().then(({ teams, generatedAt, generatedBy }) => { setWeeklyTeams(teams); setWeeklyGeneratedAt(generatedAt); setWeeklyGeneratedBy(generatedBy); });
+  }, [isConfigured, signedIn, approved]);
+
+  // Load bug reports: admins get everyone's (triage panel + open-count badge),
+  // regular members get their own (RLS-scoped) so they can see admin replies.
+  useEffect(() => {
+    if (isConfigured && signedIn && approved) listBugReports().then(setBugs);
+  }, [isConfigured, signedIn, approved, adminLoggedIn, showBugs]);
   const openBugs = bugs.filter((b) => b.status === "open").length;
   const actOnBug = async (id: string, status: string) => {
     await updateBugReport(id, status);
+    listBugReports().then(setBugs);
+  };
+  const replyToBug = async (id: string, text: string) => {
+    await respondToBugReport(id, text);
     listBugReports().then(setBugs);
   };
 
@@ -668,7 +766,7 @@ export default function App() {
     if (adminLoggedIn) listOfficialPollResults().then(setOfficialResults);
   }, [adminLoggedIn, showOfficialResults]);
 
-  const actOnProfile = async (id: string, patch: Partial<Pick<Profile, "status" | "role">>) => {
+  const actOnProfile = async (id: string, patch: Partial<Pick<Profile, "status" | "role" | "is_admin" | "is_education_chief" | "training_level">>) => {
     await updateProfile(id, patch);
     listProfiles().then(setProfiles);
   };
@@ -1014,6 +1112,54 @@ export default function App() {
     }
   }, [persist, settings]);
 
+  // Motivation reward: when the daily set (or an exam-mode set) first flips
+  // to complete, pop a random reel from the saved Instagram "Motivation"
+  // collection. Mirrors the dayComplete/examSetComplete math below, but lives
+  // up here because hooks can't sit past the auth-gate early returns. The ref
+  // gates it to once per completion (re-arms when a new set starts).
+  // (?reward=1 in the URL pops the chooser immediately — handy for previewing)
+  const [reward, setReward] = useState<boolean>(() =>
+    !!new URLSearchParams(window.location.search).get("reward"));
+  const [birdOn, setBirdOn] = useState(false); // the hand-drawn bird is flying around
+  const rewardArmed = useRef(true);
+  const rewardTarget = settings?.regimen ?? 10;
+  const rewardDoneToday = Object.values(answers).filter((a) => isSameDay(a.updated_at)).length;
+  const rewardSetAnswered = inPractice ? set.filter((qq) => answers[questionId(qq.year, qq.q_index)]).length : 0;
+  const rewardDailyDone = inToday && rewardDoneToday >= rewardTarget;
+  const rewardExamDone = examMode && inPractice && set.length > 0 && rewardSetAnswered >= set.length;
+  const rewardSetDone = rewardDailyDone || rewardExamDone;
+  useEffect(() => {
+    if (rewardSetDone && rewardArmed.current) {
+      rewardArmed.current = false;
+      // The daily set is "done" again on every revisit that day (the answers
+      // are still today's), so gate its reward to once per local calendar day
+      // (pd_reward_shown_day, account-synced). Exam-mode sets are genuinely
+      // new completions each time and always celebrate.
+      const d = new Date();
+      const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      if (rewardDailyDone && !rewardExamDone) {
+        // raw string key (not JSON) — prefsSync reads/writes it with readStr/setItem
+        let shown = "";
+        try { shown = localStorage.getItem("pd_reward_shown_day") || ""; } catch { /* ignore */ }
+        if (shown === today) return;
+        try { localStorage.setItem("pd_reward_shown_day", today); } catch { /* best-effort */ }
+        schedulePrefsPush();
+      }
+      setReward(true);
+    }
+    if (!rewardSetDone) rewardArmed.current = true;
+  }, [rewardSetDone, rewardDailyDone, rewardExamDone]);
+
+  // Scroll edge effect: the translucent top bar only casts a shadow once
+  // content is actually scrolled underneath it (no hard divider at rest).
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const on = () => setScrolled(window.scrollY > 6);
+    on();
+    window.addEventListener("scroll", on, { passive: true });
+    return () => window.removeEventListener("scroll", on);
+  }, []);
+
   // --- auth gate (only when Supabase is configured) ---
   if (isConfigured && authLoading) return <Center>Signing you in…</Center>;
   if (isConfigured && !session) return <SignIn />;
@@ -1024,27 +1170,15 @@ export default function App() {
 
   if (loadErr) return <Center>Couldn’t load the question bank: {loadErr}</Center>;
   if (!all) return <Center>Loading the PRITE bank…</Center>;
-  if (!q) {
-    if (persist && mode === "today") {
-      return (
-        <div style={{ ...s.root, display: "grid", placeItems: "center", padding: 40 }}>
-          <style>{CSS}</style>
-          <div style={{ textAlign: "center", color: "#c7ccd6", maxWidth: 360 }}>
-            {!answersLoaded ? "Building today’s set…" : (
-              <>
-                <p style={{ fontSize: 16, marginBottom: 16 }}>🎉 You’re all caught up — nothing due today.</p>
-                <button style={s.jumpBtn} onClick={() => { setMode("browse"); setQi(0); }}>Browse all questions</button>
-              </>
-            )}
-          </div>
-        </div>
-      );
-    }
-    return <Center>No questions for this filter.</Center>;
-  }
+  // "Caught up today" is no longer a full-page takeover (that felt like leaving
+  // the site). It now renders as a card in the normal app shell — the header,
+  // nav and study bar stay put, and only the question slot is swapped for the
+  // caught-up card below. So we only hard-return for the genuinely empty states.
+  if (!q && persist && mode === "today" && !answersLoaded) return <Center>Building today’s set…</Center>;
+  if (!q && !(persist && mode === "today")) return <Center>No questions for this filter.</Center>;
 
-  const correctSet = q.answer_letters && q.answer_letters.length ? q.answer_letters
-    : q.answer_letter ? [q.answer_letter] : [];
+  const correctSet = q ? (q.answer_letters && q.answer_letters.length ? q.answer_letters
+    : q.answer_letter ? [q.answer_letter] : []) : [];
   const isCorrect =
     revealed && picked.length > 0 &&
     picked.length === correctSet.length && picked.every((l) => correctSet.includes(l));
@@ -1092,8 +1226,8 @@ export default function App() {
     setJump("");
   };
 
-  const hasExpl = q.explanation_text || q.explanation_images.length > 0;
-  const hasDiagram = !!(q.diagram?.code || (q.comparison_table && q.comparison_table.rows?.length));
+  const hasExpl = q ? (q.explanation_text || q.explanation_images.length > 0) : false;
+  const hasDiagram = q ? !!(q.diagram?.code || (q.comparison_table && q.comparison_table.rows?.length)) : false;
   const tabs: [string, string, React.ReactNode][] = [
     ["explanation", "Explanation", <Layers size={14} strokeWidth={2.2} />],
     ["practice", "In practice", <Stethoscope size={14} strokeWidth={2.2} />],
@@ -1107,8 +1241,8 @@ export default function App() {
     ["flash", "Flashcard", <Sparkles size={14} strokeWidth={2.2} />],
   ];
 
-  const qid = questionId(q.year, q.q_index);
-  const isAdmin = profile?.role === "admin";
+  const qid = q ? questionId(q.year, q.q_index) : "";
+  const isAdmin = !!profile?.is_admin;
   const pendingCount = profiles.filter((p) => p.status === "pending").length;
   const answeredCount = Object.keys(answers).length;
   // progress is derived from answers dated today (persists across refresh),
@@ -1128,6 +1262,18 @@ export default function App() {
   // Settings date box now displays.
   const examDays = settings ? daysUntil(settings.exam_date || guessedExamDate()) : null;
   const switchMode = (m: "today" | "browse" | "custom") => { setMode(m); setQi(0); setReviewMode(false); };
+
+  // Clicking the PRITE Daily wordmark: back to the home screen — today's set,
+  // every overlay panel closed, scrolled to the top. Deliberately doesn't
+  // touch live poll / exam state, so a stray click can't blow up a session.
+  const goHome = () => {
+    setShowTests(false); setShowBoard(false); setShowStats(false); setShowInsights(false);
+    setShowApprovals(false); setShowBugs(false); setShowOfficialResults(false); setShowSettings(false);
+    setShowGuideLibrary(false); setShowDeck(false); setShowMissed(false); setShowSrs(false);
+    setShowCapite(false); setOpenStudyGuideId(null); setHostFromTests(false);
+    switchMode("today");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
   // start a custom study session from a hand-picked set (from the Search modal)
   const startCustom = (qs: RawQuestion[], label: string) => {
     if (!qs.length) return;
@@ -1143,7 +1289,7 @@ export default function App() {
   // You can close the panel; the poll loop above picks up progress, and the
   // Tests button badges once it's ready. Only stem + topic tags are sent to
   // the model — never options/answer/explanation — so it can't spoil the quiz.
-  const buildStudyGuide = async (t: SavedTest, force = false, sessionDate: string | null = null) => {
+  const buildStudyGuide = async (t: SavedTest, force = false, sessionDate: string | null = null, slidesOnly = false) => {
     const qs = t.qids.map((id) => byId.get(id)).filter(Boolean) as RawQuestion[];
     if (!qs.length) { fire("None of this test's questions are in the current bank"); return; }
     // regenerating: forget we'd already "seen" the old ready guide, so the
@@ -1151,12 +1297,24 @@ export default function App() {
     const existingId = guidesByTest[t.id]?.id;
     if (existingId) setSeenGuideIds((prev) => { const n = new Set(prev); n.delete(existingId); return n; });
     const topics = qs.map((q) => ({ stem: q.stem, prite_category: q.prite_category, prite_label: q.prite_label, topics: q.tags?.topics }));
-    const result = await generateStudyGuide(t.id, t.name, topics, force, sessionDate);
-    if ("error" in result) { fire(`Couldn't build the study guide: ${result.error}`); return; }
+    const result = await generateStudyGuide(t.id, t.name, topics, force, sessionDate, slidesOnly);
+    if ("error" in result) { fire(`Couldn't build the ${slidesOnly ? "slides" : "study guide"}: ${result.error}`); return; }
     setGuidesByTest((prev) => ({ ...prev, [t.id]: result }));
     setPollGen((n) => n + 1);
+    if (slidesOnly) {
+      if (result.status === "ready" && (result.slides?.length ?? 0) > 0) downloadTeachingDeck(t, result); // already cached
+      else fire(`Writing "${t.name}"'s prep slides — feel free to close this. The Tests button will show when they're ready.`);
+      return;
+    }
     if (result.status === "ready") setGuideToShare({ guide: result, test: t }); // already cached — nothing to wait for
     else fire(`Writing "${t.name}"'s study guide — feel free to close this. The Tests button will show when it's ready.`);
+  };
+
+  const downloadTeachingDeck = async (t: SavedTest, guide: StudyGuide) => {
+    try {
+      await exportTeachingPptx(guide, `${guide.title.replace(/[^\w\- ]+/g, "").trim() || "prite-prereading"}.pptx`);
+      fire(`Built "${t.name}"'s prep slides as PowerPoint`);
+    } catch (e) { fire("Slides export failed"); console.warn(e); }
   };
 
   // clicking the Custom toggle: jump back into an existing set, or open the picker
@@ -1242,7 +1400,8 @@ export default function App() {
     if (!card) return;
     fire("Building .apkg…");
     const { buildApkg } = await import("./lib/apkg");
-    await buildApkg([{ questionId: qid, cloze: card.cloze_text, lecture: ankingLecture(q) }], `prite-${qid}.apkg`);
+    const [ctx, diagramSvg] = await Promise.all([getQuestionContext(qid), renderDiagramSvg(q.diagram?.code)]);
+    await buildApkg([{ questionId: qid, cloze: card.cloze_text, lecture: ankingLecture(q, { context: ctx, diagramSvg }) }], `prite-${qid}.apkg`);
     fire("Downloaded — double-click to import into Anki");
   };
   const postGroupNote = async () => {
@@ -1261,12 +1420,26 @@ export default function App() {
       <style>{CSS}</style>
 
       {/* Top bar */}
-      <header style={s.top}>
+      <header style={{ ...s.top, ...(scrolled ? s.topScrolled : {}) }}>
         <div style={s.topInner} className="topInner">
-          <div style={s.brand}>
-            <span style={s.brandMark}><Stethoscope size={16} strokeWidth={2.4} /></span>
-            <span style={s.brandName}>PRITE&nbsp;<span style={{ color: T.faint, fontWeight: 500 }}>Daily</span></span>
-          </div>
+          {/* Wordmark = home button. Mark AND name ride an endlessly drifting
+              AI-painted cloud horizon: the strip is tiled mirror-image pairs
+              (each seam is its own reflection, so the scroll never shows a
+              seam) and translateX loops half the track width. The mark and
+              the name each bob on their own slightly offset float cycle, like
+              two things floating on the same sky. */}
+          <button style={s.brand} className="brandHome" onClick={goHome} title="Back to the home screen">
+            <span className="cloudWrap" aria-hidden>
+              <span className="cloudTrack">
+                <img src="/brand-clouds.jpg" alt="" /><img src="/brand-clouds.jpg" alt="" />
+                <img src="/brand-clouds.jpg" alt="" /><img src="/brand-clouds.jpg" alt="" />
+              </span>
+            </span>
+            <span style={s.brandMark} className="brandFloat">
+              <Stethoscope size={16} strokeWidth={2.4} style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.45))" }} />
+            </span>
+            <span style={s.brandName} className="brandFloatSlow">PRITE&nbsp;<span style={{ color: "#cfd6df", fontWeight: 500 }}>Daily</span></span>
+          </button>
           <div style={s.topMeta} className="topMeta">
             <span style={s.countdown}>
               {examDays !== null
@@ -1314,6 +1487,12 @@ export default function App() {
                     {openBugs > 0 && <span style={s.pendingBadge}>{openBugs}</span>}
                   </button>
                 )}
+                {!isAdmin && bugs.length > 0 && (
+                  <button style={s.approveBtn} className="topActBtn" onClick={() => setShowBugs(true)} title="Your bug reports & feature requests — and any replies from the admins">
+                    <Bug size={13} strokeWidth={2.3} /> <span className="btnTxt">My reports</span>
+                    {bugs.some((b) => b.admin_response) && <span style={s.pendingBadge}>{bugs.filter((b) => b.admin_response).length}</span>}
+                  </button>
+                )}
                 {isAdmin && (
                   <button style={s.approveBtn} className="topActBtn" onClick={() => setShowOfficialResults(true)} title="Official poll results & season team rosters">
                     <Archive size={13} strokeWidth={2.3} /> <span className="btnTxt">Polls & Teams</span>
@@ -1338,9 +1517,9 @@ export default function App() {
         </div>
       </header>
 
-      <main style={s.well}>
+      <main style={examActive ? { ...s.well, maxWidth: 880 } : s.well}>
         {/* Navigation / filter row */}
-        <div style={s.nav}>
+        <div style={s.nav} className={examActive ? "examDim" : undefined}>
           {persist && (
             <div style={s.modeToggle}>
               <button style={{ ...s.modeBtn, ...(mode === "today" ? s.modeOn : {}) }} onClick={() => switchMode("today")}>
@@ -1430,11 +1609,13 @@ export default function App() {
               ))}
             </select>
           )}
-          <div style={s.navMid}>
-            <button style={s.navBtn} onClick={() => go(-1)} title="Previous"><ArrowLeft size={16} strokeWidth={2.4} /></button>
-            <span style={s.navInfo}>{qi + 1} <span style={{ color: T.faint }}>/ {set.length}</span></span>
-            <button style={s.navBtn} onClick={() => go(1)} title="Next"><ArrowRight size={16} strokeWidth={2.4} /></button>
-          </div>
+          {set.length > 0 && (
+            <div style={s.navMid}>
+              <button style={s.navBtn} onClick={() => go(-1)} title="Previous"><ArrowLeft size={16} strokeWidth={2.4} /></button>
+              <span style={s.navInfo}>{qi + 1} <span style={{ color: T.faint }}>/ {set.length}</span></span>
+              <button style={s.navBtn} onClick={() => go(1)} title="Next"><ArrowRight size={16} strokeWidth={2.4} /></button>
+            </div>
+          )}
           {!inToday && (
             <div style={s.jumpWrap}>
               <input
@@ -1449,13 +1630,13 @@ export default function App() {
 
         {/* Study options: hold-explanations (exam mode) + per-question timer + group poll */}
         {persist && (
-          <div style={s.studyBar}>
+          <div style={s.studyBar} className={examActive ? "examDim" : undefined}>
             {inPractice && (
               <>
                 <button
                   style={{ ...s.studyToggle, ...(examMode ? s.studyToggleOn : {}) }}
-                  onClick={() => { setExamMode((v) => !v); setExamReview(false); }}
-                  title="Answer every question in the set before any explanations are shown"
+                  onClick={() => { setDeskFlash((f) => ({ dir: examMode ? "out" : "in", token: f.token + 1 })); setExamMode((v) => !v); setExamReview(false); }}
+                  title="Focus mode — hides the clutter and holds every explanation until you finish the set"
                 >
                   <ListChecks size={13} strokeWidth={2.3} /> Exam mode: {examMode ? "on" : "off"}
                 </button>
@@ -1484,7 +1665,7 @@ export default function App() {
             )}
             <button
               style={s.studyToggle}
-              onClick={() => setTeamModePrompt(null)}
+              onClick={() => { setHostFromTests(false); setTeamModePrompt(null); }}
               title="Run a live poll on a big screen — residents vote from their phones"
             >
               <Radio size={13} strokeWidth={2.3} /> Host poll
@@ -1509,6 +1690,7 @@ export default function App() {
             <span style={s.doneIcon}><Check size={15} strokeWidth={3} color="#fff" /></span>
             <span><b>Set complete — {examScore}/{set.length} correct.</b> Review every question with its explanation.</span>
             <button style={s.doneBtn} onClick={() => { setExamReview(true); setQi(0); }}><Layers size={13} strokeWidth={2.3} /> Review answers</button>
+            <button style={{ ...s.doneBtn, background: "transparent" }} onClick={() => setReward(true)} title="Pick a little reward"><Flame size={13} strokeWidth={2.3} /> Reward</button>
           </div>
         )}
 
@@ -1525,11 +1707,14 @@ export default function App() {
             <span><b>That's your {target} for today.</b> Nice work — come back tomorrow for a fresh set.</span>
             <button style={s.doneBtn} onClick={() => { buildToday(true); setQi(0); }}><RotateCcw size={13} strokeWidth={2.3} /> Another set</button>
             <button style={{ ...s.doneBtn, background: "transparent" }} onClick={() => switchMode("browse")}>Browse all</button>
+            <button style={{ ...s.doneBtn, background: "transparent" }} onClick={() => setReward(true)} title="Pick a little reward"><Flame size={13} strokeWidth={2.3} /> Reward</button>
           </div>
         )}
 
+        {q ? (
+        <>
         {/* Provenance line */}
-        <div style={s.progressRow}>
+        <div style={s.progressRow} className={examActive ? "examDim" : undefined}>
           <span style={s.qeyebrow}>{q.year} · Q{q.q_index} <span style={{ color: T.faint }}>(slide {q.slide_number})</span></span>
           {reviewMode && <span style={{ ...s.multiTag, color: T.teal, background: T.tealSoft }}><RotateCcw size={12} strokeWidth={2.2} /> Reviewing missed — try again</span>}
           {q.multi_select && <span style={s.multiTag}><ListChecks size={12} strokeWidth={2.2} /> Select all that apply</span>}
@@ -1541,7 +1726,7 @@ export default function App() {
         </div>
 
         {/* Question card */}
-        <section style={s.qcard}>
+        <section style={examActive ? { ...s.qcard, marginTop: 30, padding: "36px 38px 30px" } : s.qcard}>
           {q.figure_images.filter((p) => imgSrc(p)).length > 0 && (
             <div style={s.figRow}>
               {q.figure_images.filter((p) => imgSrc(p)).map((p, i) => (
@@ -1566,7 +1751,7 @@ export default function App() {
             ranges={highlights.filter((h) => h.field === "stem")}
             editable={persist}
             onChange={updateHighlights}
-            style={{ ...s.stem, marginBottom: 18 }}
+            style={{ ...s.stem, marginBottom: 18, ...(examActive ? { fontSize: 23, lineHeight: 1.58 } : {}) }}
           />
 
           <div style={s.options}>
@@ -1575,7 +1760,7 @@ export default function App() {
               const correct = showAnswer && correctSet.includes(o.letter);
               const wrongPick = showAnswer && chosen && !correctSet.includes(o.letter);
               const isCrossed = !showAnswer && crossed.includes(o.letter);
-              const base: React.CSSProperties = { ...s.opt };
+              const base: React.CSSProperties = { ...s.opt, ...(examActive ? { fontSize: 16.5, padding: "15px 17px" } : {}) };
               if (!showAnswer && chosen) Object.assign(base, s.optChosen);
               if (correct) Object.assign(base, s.optCorrect);
               if (wrongPick) Object.assign(base, s.optWrong);
@@ -2001,6 +2186,36 @@ export default function App() {
             </div>
           </section>
         )}
+        </>
+        ) : (
+          <div style={{ display: "grid", placeItems: "center", padding: "36px 0 20px" }}>
+            <div style={s.caughtCard} className="rise">
+              <div style={{ fontSize: 34, marginBottom: 4 }}>🎉</div>
+              <p style={{ fontSize: 18, fontWeight: 700, color: T.text, margin: "0 0 6px" }}>You’re all caught up</p>
+              <p style={{ fontSize: 14, color: T.muted, margin: "0 0 18px", lineHeight: 1.5 }}>
+                Nothing due today. Feeling it? Add more just for today — your daily goal stays the same.
+              </p>
+              <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 14, flexWrap: "wrap" }}>
+                {[10, 20, 30].map((n) => (
+                  <button
+                    key={n}
+                    style={{ background: T.teal, color: "#fff", border: "none", borderRadius: 10, padding: "11px 18px", fontSize: 14.5, fontWeight: 700, cursor: "pointer" }}
+                    onClick={() => { buildToday(true, n); setQi(0); }}
+                    title={`Do ${n} more questions today (doesn't change your daily goal)`}
+                  >
+                    +{n} more
+                  </button>
+                ))}
+              </div>
+              <button
+                style={{ background: "transparent", border: "none", color: T.faint, fontSize: 13.5, cursor: "pointer", textDecoration: "underline" }}
+                onClick={() => { setMode("browse"); setQi(0); }}
+              >
+                Browse all questions instead
+              </button>
+            </div>
+          </div>
+        )}
 
         <footer style={s.disclaimer}>
           AI-assisted explanations, flashcards, context, and diagrams can be wrong.
@@ -2087,6 +2302,8 @@ export default function App() {
           profiles={profiles}
           onClose={() => setShowApprovals(false)}
           onAct={actOnProfile}
+          onRefresh={() => listProfiles().then(setProfiles)}
+          currentUserId={profile?.id}
         />
       )}
 
@@ -2109,9 +2326,15 @@ export default function App() {
         />
       )}
 
-      {showBugs && isAdmin && (
-        <BugReportsPanel reports={bugs} byId={byId} onAct={actOnBug} onClose={() => setShowBugs(false)} />
+      {showBugs && (
+        <BugReportsPanel reports={bugs} byId={byId} isAdmin={isAdmin} onAct={actOnBug} onReply={replyToBug} onClose={() => setShowBugs(false)} />
       )}
+
+      {/* Motivation reward — a random saved reel as a treat for finishing a set */}
+      {reward && (
+        <RewardSheet onClose={() => setReward(false)} onBird={() => { setReward(false); setBirdOn(true); }} />
+      )}
+      {birdOn && <BirdFlight onDone={() => setBirdOn(false)} />}
 
       {showOfficialResults && isAdmin && (
         <OfficialResultsPanel
@@ -2125,7 +2348,14 @@ export default function App() {
       {showCapite && <CapiteComingSoon onClose={closeCapite} />}
 
       {showBoard && (
-        <Leaderboard rows={leaders} meId={session?.user.id} onClose={() => setShowBoard(false)} />
+        <ImmersiveScene
+          sceneKey="summit"
+          backdropZ={79}
+          closing={boardClosing}
+          onExited={() => { setShowBoard(false); setBoardClosing(false); }}
+        >
+          <Leaderboard rows={leaders} meId={session?.user.id} onClose={() => setBoardClosing(true)} bareScrim />
+        </ImmersiveScene>
       )}
 
       {showStats && <Stats answers={answers} byId={byId} displayName={displayName} onClose={() => setShowStats(false)} />}
@@ -2168,6 +2398,7 @@ export default function App() {
             const qs = t.qids.map((id) => byId.get(id)).filter(Boolean) as RawQuestion[];
             if (!qs.length) { fire("None of this test's questions are in the current bank"); return; }
             setTeamModePrompt(qs);
+            setHostFromTests(true);
             setShowTests(false);
           }}
           onPptx={async (t) => {
@@ -2192,6 +2423,12 @@ export default function App() {
           guidesByTest={guidesByTest}
           onStudyGuide={(t) => setGuideCreateFor({ test: t, force: guidesByTest[t.id]?.status === "generating" })}
           onOpenGuide={(t, guide) => setGuideToShare({ guide, test: t })}
+          canGenerate={canGenGuides}
+          onSlides={(t) => {
+            const guide = guidesByTest[t.id];
+            if ((guide?.slides?.length ?? 0) > 0) downloadTeachingDeck(t, guide); // already written — just build the file
+            else buildStudyGuide(t, false, null, true);
+          }}
         />
       )}
 
@@ -2213,6 +2450,11 @@ export default function App() {
           guide={guidesByTest[guideToShare.test.id] ?? guideToShare.guide}
           onClose={() => setGuideToShare(null)}
           onRegenerate={() => { setGuideToShare(null); setGuideCreateFor({ test: guideToShare.test, force: true }); }}
+          onAddAudio={() => {
+            const g = guidesByTest[guideToShare.test.id] ?? guideToShare.guide;
+            setGuideToShare(null);
+            buildStudyGuide(guideToShare.test, false, g.session_date ?? null); // non-force full request → edge function narrates the stored script only
+          }}
         />
       )}
 
@@ -2250,13 +2492,23 @@ export default function App() {
         />
       )}
 
+      <ImmersiveFlash sceneKey="desk" dir={deskFlash.dir} token={deskFlash.token} />
+
       {showSrs && (
-        <ReviewPanel
-          due={srsDue}
-          byId={byId}
-          onGrade={onGradeSrs}
-          onClose={() => setShowSrs(false)}
-        />
+        <ImmersiveScene
+          sceneKey="observatory"
+          backdropZ={79}
+          closing={srsClosing}
+          onExited={() => { setShowSrs(false); setSrsClosing(false); }}
+        >
+          <ReviewPanel
+            due={srsDue}
+            byId={byId}
+            onGrade={onGradeSrs}
+            onClose={() => setSrsClosing(true)}
+            bareScrim
+          />
+        </ImmersiveScene>
       )}
 
       {zoomImg && (
@@ -2275,11 +2527,17 @@ export default function App() {
       {teamModePrompt !== false && (
         <TeamModeModal
           onChoose={startHosting}
-          onClose={() => setTeamModePrompt(false)}
+          onClose={() => { setTeamModePrompt(false); if (hostFromTests) { setShowTests(true); setHostFromTests(false); } }}
           isAdmin={isAdmin}
           stableCount={Object.keys(stableTeams).length}
           onGenerate={runGenerateStableTeams}
           onEditRosters={() => setShowTeamEditor(true)}
+          weeklyCount={Object.keys(weeklyTeams).length}
+          weeklyGeneratedAt={weeklyGeneratedAt}
+          weeklyGeneratedBy={weeklyGeneratedBy}
+          onGenerateWeekly={runGenerateWeeklyTeams}
+          onCopyWeekly={weeklyPairingsText}
+          onCopyStable={stableRosterText}
         />
       )}
       {showTeamEditor && (
@@ -2288,18 +2546,33 @@ export default function App() {
         />
       )}
       {hostCode && (
-        <PollPresenter code={hostCode} set={hostSet ?? set} startIndex={hostSet ? 0 : qi} timerSecs={timerSecs} onTimerSecsChange={setTimerSecs} teamMode={teamMode} onClose={() => { setHostCode(null); setHostSet(null); }} />
+        <ImmersiveScene
+          sceneKey="arena"
+          showBackdrop={false}
+          closing={hostClosing}
+          onExited={() => { setHostCode(null); setHostSet(null); setHostClosing(false); if (hostFromTests) { setShowTests(true); setHostFromTests(false); } }}
+        >
+          <PollPresenter code={hostCode} set={hostSet ?? set} startIndex={hostSet ? 0 : qi} timerSecs={timerSecs} onTimerSecsChange={setTimerSecs} teamMode={teamMode} onClose={() => setHostClosing(true)} />
+        </ImmersiveScene>
       )}
       {joinCode && (
-        <PollParticipant
-          code={joinCode}
-          voter={profile?.id ?? session?.user?.id ?? "anon"}
-          trainingLevel={profile?.training_level ?? null}
-          stableTeam={profile ? stableTeams[profile.id] ?? null : null}
-          byId={byId}
-          displayName={displayName}
-          onClose={() => setJoinCode(null)}
-        />
+        <ImmersiveScene
+          sceneKey="arena"
+          backdropZ={89}
+          closing={joinClosing}
+          onExited={() => { setJoinCode(null); setJoinClosing(false); }}
+        >
+          <PollParticipant
+            code={joinCode}
+            voter={profile?.id ?? session?.user?.id ?? "anon"}
+            trainingLevel={profile?.training_level ?? null}
+            stableTeam={profile ? stableTeams[profile.id] ?? null : null}
+            weeklyTeam={profile ? weeklyTeams[profile.id] ?? null : null}
+            byId={byId}
+            displayName={displayName}
+            onClose={() => setJoinClosing(true)}
+          />
+        </ImmersiveScene>
       )}
 
       <canvas ref={confettiRef} style={s.confetti} />
@@ -2334,14 +2607,112 @@ export default function App() {
 
 // Asked the instant "Host poll" is clicked, before the room code is even
 // generated — how should teams be formed for this session?
-function TeamModeModal({ onChoose, onClose, isAdmin, stableCount, onGenerate, onEditRosters }: {
+function TeamModeModal({ onChoose, onClose, isAdmin, stableCount, onGenerate, onEditRosters, weeklyCount, weeklyGeneratedAt, weeklyGeneratedBy, onGenerateWeekly, onCopyWeekly, onCopyStable }: {
   onChoose: (mode: TeamMode) => void; onClose: () => void;
   isAdmin: boolean; stableCount: number; onGenerate: () => Promise<boolean>;
   onEditRosters: () => void;
+  weeklyCount: number; weeklyGeneratedAt: string | null; weeklyGeneratedBy: string | null;
+  onGenerateWeekly: () => Promise<string | null>; onCopyWeekly: () => Promise<string | null>;
+  onCopyStable: () => Promise<string | null>;
 }) {
   const [busy, setBusy] = useState(false);
+  const [weeklyBusy, setWeeklyBusy] = useState(false);
+  const [pairingsCopied, setPairingsCopied] = useState(false);
+  const [pairingsText, setPairingsText] = useState<string | null>(null); // revealed roster (also the copy source)
+  const [pairingsErr, setPairingsErr] = useState<string | null>(null);
+  const pairingsRef = useRef<HTMLTextAreaElement | null>(null);
+  const [rosterCopied, setRosterCopied] = useState(false);
+  const [rosterText, setRosterText] = useState<string | null>(null); // revealed season roster (also the copy source)
+  const [rosterErr, setRosterErr] = useState<string | null>(null);
+  const rosterRef = useRef<HTMLTextAreaElement | null>(null);
   const hasStable = stableCount > 0;
   const stableDisabled = !hasStable && !isAdmin;
+  const hasWeekly = weeklyCount > 0;
+  // randomizing/re-rolling costs everyone their assignment mid-week, so it's
+  // admin-only; picking the mode to host with is open to anyone once it exists
+  const weeklyDisabled = !hasWeekly && !isAdmin;
+
+  const [weeklyErr, setWeeklyErr] = useState<string | null>(null);
+  const chooseWeekly = async () => {
+    if (busy || weeklyBusy || weeklyDisabled) return;
+    if (hasWeekly) { onChoose("weekly"); return; }
+    setWeeklyBusy(true); setWeeklyErr(null);
+    const err = await onGenerateWeekly();
+    setWeeklyBusy(false);
+    if (err) setWeeklyErr(err); else onChoose("weekly");
+  };
+  const rerollWeekly = async () => {
+    if (weeklyBusy) return;
+    if (hasWeekly && !window.confirm("Randomize new pairings for the new week?\n\nEveryone's current team assignment is replaced — if the current list was already emailed out to residents, that email will no longer match. You'll want to send an updated list.")) return;
+    setWeeklyBusy(true); setWeeklyErr(null);
+    const err = await onGenerateWeekly();
+    // If the pairings list is already revealed below, swap in the new teams
+    // right away instead of leaving last week's roster on screen.
+    if (!err && pairingsText) {
+      try { setPairingsText((await onCopyWeekly()) ?? ""); setPairingsCopied(false); }
+      catch { /* leave the old text; Copy button still refetches */ }
+    }
+    setWeeklyBusy(false);
+    setWeeklyErr(err);
+  };
+  // Best-effort copy that survives loss of user-activation: try the async
+  // Clipboard API, then fall back to a temporary textarea + execCommand
+  // (works from more contexts, incl. after an await). Returns whether either
+  // path reported success.
+  const copyText = async (text: string): Promise<boolean> => {
+    try {
+      if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); return true; }
+    } catch { /* fall through to execCommand */ }
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch { return false; }
+  };
+
+  // Reveal the roster first (so it's always visible even if the clipboard is
+  // blocked), THEN attempt the copy. The visible textarea doubles as the
+  // manual-copy fallback and the source for the in-panel Copy button.
+  const revealPairings = async () => {
+    setPairingsErr(null);
+    let text: string | null = null;
+    try { text = await onCopyWeekly(); }
+    catch (e) { setPairingsErr("Couldn't build the pairings list: " + (e instanceof Error ? e.message : String(e))); return; }
+    if (!text) { setPairingsErr("No pairings to copy yet — randomize this week's pairings first."); return; }
+    setPairingsText(text);
+    const ok = await copyText(text);
+    if (ok) { setPairingsCopied(true); setTimeout(() => setPairingsCopied(false), 1800); }
+  };
+
+  // Copy from the already-revealed text on a fresh click — no await before
+  // writeText, so user-activation is intact and the Clipboard API works.
+  const copyRevealed = async () => {
+    if (!pairingsText) return;
+    const ok = await copyText(pairingsText);
+    if (ok) { setPairingsCopied(true); setTimeout(() => setPairingsCopied(false), 1800); }
+    else if (pairingsRef.current) { pairingsRef.current.focus(); pairingsRef.current.select(); }
+  };
+
+  // Same reveal-then-copy flow for the season-long (stable) roster.
+  const revealRoster = async () => {
+    setRosterErr(null);
+    let text: string | null = null;
+    try { text = await onCopyStable(); }
+    catch (e) { setRosterErr("Couldn't build the roster list: " + (e instanceof Error ? e.message : String(e))); return; }
+    if (!text) { setRosterErr("No season rosters to copy yet — generate them first."); return; }
+    setRosterText(text);
+    const ok = await copyText(text);
+    if (ok) { setRosterCopied(true); setTimeout(() => setRosterCopied(false), 1800); }
+  };
+  const copyRosterRevealed = async () => {
+    if (!rosterText) return;
+    const ok = await copyText(rosterText);
+    if (ok) { setRosterCopied(true); setTimeout(() => setRosterCopied(false), 1800); }
+    else if (rosterRef.current) { rosterRef.current.focus(); rosterRef.current.select(); }
+  };
 
   const chooseStable = async () => {
     if (busy || stableDisabled) return;
@@ -2369,7 +2740,14 @@ function TeamModeModal({ onChoose, onClose, isAdmin, stableCount, onGenerate, on
           </div>
           <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
         </div>
-        <div style={{ padding: "4px 22px 22px", display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ padding: "4px 22px 22px", display: "flex", flexDirection: "column", gap: 10, flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}>
+          <button style={s.teamModeOpt} onClick={() => onChoose("individual")}>
+            <User size={18} strokeWidth={2.2} />
+            <span>
+              <b style={{ display: "block", color: T.text }}>Individual — no teams</b>
+              <span style={{ fontSize: 12.5, color: T.muted }}>Everyone competes solo; the leaderboard ranks each person by their own answers.</span>
+            </span>
+          </button>
           <button style={s.teamModeOpt} onClick={() => onChoose("self")}>
             <Users size={18} strokeWidth={2.2} />
             <span>
@@ -2377,13 +2755,67 @@ function TeamModeModal({ onChoose, onClose, isAdmin, stableCount, onGenerate, on
               <span style={{ fontSize: 12.5, color: T.muted }}>Everyone types in a team name of their choosing when they join.</span>
             </span>
           </button>
-          <button style={s.teamModeOpt} onClick={() => onChoose("auto")}>
-            <Repeat size={18} strokeWidth={2.2} />
-            <span>
-              <b style={{ display: "block", color: T.text }}>Auto-assign for today</b>
-              <span style={{ fontSize: 12.5, color: T.muted }}>Randomly group today's joiners so each team gets one R1, R2, R3 and R4 — reshuffled fresh each session; they can still rename their team.</span>
-            </span>
-          </button>
+          <div>
+            <button
+              style={{ ...s.teamModeOpt, width: "100%", ...(weeklyDisabled ? { opacity: 0.5, cursor: "default" } : {}) }}
+              onClick={chooseWeekly}
+              disabled={busy || weeklyBusy || weeklyDisabled}
+            >
+              <Shuffle size={18} strokeWidth={2.2} />
+              <span>
+                <b style={{ display: "block", color: T.text }}>⭐ This week's mixer teams</b>
+                <span style={{ fontSize: 12.5, color: T.muted }}>
+                  {weeklyBusy
+                    ? "Randomizing…"
+                    : hasWeekly
+                    ? `Random pairing balanced across R1–R4/fellow (${weeklyCount} people) — stays put until an admin re-randomizes, so folks work with someone new each week.`
+                    : isAdmin
+                    ? "Not randomized yet — generates a balanced random pairing (one R1, R2, R3, R4/fellow per team) that holds for the week's didactics."
+                    : "Ask an admin to randomize this week's pairings first."}
+                </span>
+                {!weeklyBusy && hasWeekly && (
+                  <span style={{ display: "block", fontSize: 11.5, color: T.faint, marginTop: 3 }}>
+                    Last randomized {weeklyGeneratedAt ? new Date(weeklyGeneratedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "recently"}
+                    {weeklyGeneratedBy ? ` by ${weeklyGeneratedBy}` : ""}
+                  </span>
+                )}
+              </span>
+            </button>
+            {weeklyErr && (
+              <div style={{ fontSize: 12, color: T.wrongLine, marginTop: 4 }}>
+                Couldn't randomize the pairings: {weeklyErr}
+              </div>
+            )}
+            {isAdmin && (
+              <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+                <button style={s.teamModeRegen} onClick={rerollWeekly} disabled={weeklyBusy}>
+                  <Repeat size={11} strokeWidth={2.4} /> {hasWeekly ? "Randomize new pairings (next week)" : "Randomize pairings"}
+                </button>
+                {hasWeekly && (
+                  <button style={s.teamModeRegen} onClick={revealPairings} disabled={weeklyBusy} title="Show the team list and copy it to paste into the didactics email">
+                    <Copy size={11} strokeWidth={2.4} /> {pairingsCopied ? "Copied!" : pairingsText ? "Copy again" : "Copy short-term pairings list"}
+                  </button>
+                )}
+              </div>
+            )}
+            {pairingsErr && <div style={{ fontSize: 12, color: T.wrongLine, marginTop: 8 }}>{pairingsErr}</div>}
+            {pairingsText && (
+              <div style={{ marginTop: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
+                  <span style={{ fontSize: 11.5, color: T.faint }}>{pairingsCopied ? "Copied to clipboard ✓" : "Select the text below to copy manually if needed:"}</span>
+                  <button style={s.teamModeRegen} onClick={copyRevealed}>
+                    <Copy size={11} strokeWidth={2.4} /> {pairingsCopied ? "Copied!" : "Copy"}
+                  </button>
+                </div>
+                <textarea
+                  ref={pairingsRef} readOnly value={pairingsText}
+                  onFocus={(e) => e.currentTarget.select()}
+                  rows={Math.min(12, pairingsText.split("\n").length + 1)}
+                  style={{ width: "100%", boxSizing: "border-box", fontSize: 12.5, lineHeight: 1.5, padding: "8px 10px", borderRadius: 8, border: `1px solid ${T.paperEdge}`, background: "#fff", color: T.text, fontFamily: "inherit", resize: "vertical" }}
+                />
+              </div>
+            )}
+          </div>
           <div>
             <button
               style={{ ...s.teamModeOpt, width: "100%", ...(stableDisabled ? { opacity: 0.5, cursor: "default" } : {}) }}
@@ -2412,6 +2844,26 @@ function TeamModeModal({ onChoose, onClose, isAdmin, stableCount, onGenerate, on
                 <button style={s.teamModeRegen} onClick={regenerate} disabled={busy}>
                   <Repeat size={11} strokeWidth={2.4} /> Regenerate rosters (e.g. a new academic year)
                 </button>
+                <button style={s.teamModeRegen} onClick={revealRoster} disabled={busy} title="Show the season team list and copy it to paste into an email">
+                  <Copy size={11} strokeWidth={2.4} /> {rosterCopied ? "Copied!" : rosterText ? "Copy again" : "Copy roster list"}
+                </button>
+              </div>
+            )}
+            {rosterErr && <div style={{ fontSize: 12, color: T.wrongLine, marginTop: 8 }}>{rosterErr}</div>}
+            {rosterText && (
+              <div style={{ marginTop: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
+                  <span style={{ fontSize: 11.5, color: T.faint }}>{rosterCopied ? "Copied to clipboard ✓" : "Select the text below to copy manually if needed:"}</span>
+                  <button style={s.teamModeRegen} onClick={copyRosterRevealed}>
+                    <Copy size={11} strokeWidth={2.4} /> {rosterCopied ? "Copied!" : "Copy"}
+                  </button>
+                </div>
+                <textarea
+                  ref={rosterRef} readOnly value={rosterText}
+                  onFocus={(e) => e.currentTarget.select()}
+                  rows={Math.min(12, rosterText.split("\n").length + 1)}
+                  style={{ width: "100%", boxSizing: "border-box", fontSize: 12.5, lineHeight: 1.5, padding: "8px 10px", borderRadius: 8, border: `1px solid ${T.paperEdge}`, background: "#fff", color: T.text, fontFamily: "inherit", resize: "vertical" }}
+                />
               </div>
             )}
           </div>
@@ -2434,6 +2886,45 @@ function TeamRosterEditor({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [failedId, setFailedId] = useState<string | null>(null);
+  // Drag-and-drop between teams: dragPid is the person being dragged, dragOver
+  // the section under the cursor (a team name, or OFF_ROSTER for the
+  // "not on a team" list, which acts as a remove target).
+  const OFF_ROSTER = " off-roster"; // leading space — real team names never start with one
+  const [dragPid, setDragPid] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState<string | null>(null);
+  const dragHandleProps = (p: Profile) => ({
+    draggable: busyId === null,
+    onDragStart: (e: React.DragEvent) => {
+      setDragPid(p.id);
+      e.dataTransfer.setData("text/plain", p.id);
+      e.dataTransfer.effectAllowed = "move";
+    },
+    onDragEnd: () => { setDragPid(null); setDragOver(null); },
+  });
+  const dropTargetProps = (target: string, apply: (pid: string) => void) => ({
+    onDragOver: (e: React.DragEvent) => {
+      if (!dragPid) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      if (dragOver !== target) setDragOver(target);
+    },
+    onDragLeave: (e: React.DragEvent) => {
+      // only clear when actually leaving the section, not moving between its children
+      if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+        setDragOver((cur) => (cur === target ? null : cur));
+      }
+    },
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault();
+      const pid = dragPid;
+      setDragPid(null); setDragOver(null);
+      if (pid) apply(pid);
+    },
+  });
+  const dropHighlight = (target: string) =>
+    dragOver === target
+      ? { outline: `2px dashed ${T.teal}`, outlineOffset: 2, borderRadius: 8, background: T.tealSoft }
+      : {};
 
   useEffect(() => {
     (async () => {
@@ -2518,17 +3009,18 @@ function TeamRosterEditor({ onClose }: { onClose: () => void }) {
         </div>
         <div style={s.apBody}>
           <p style={{ ...s.apEmpty, marginBottom: 14 }}>
-            Changes save instantly. Pick a team to move someone; ✕ takes them off the roster.
+            Changes save instantly. Drag someone onto a team (or pick one from their dropdown) to move them; ✕ — or dragging them onto the "not on a team" list — takes them off the roster.
           </p>
           {loading ? (
             <p style={s.apEmpty}>Loading rosters…</p>
           ) : (
             <>
               {teamNames.map((team) => (
-                <div key={team} style={s.teamEdSection}>
+                <div key={team} style={{ ...s.teamEdSection, ...dropHighlight(team) }} {...dropTargetProps(team, (pid) => move(pid, team))}>
                   <div style={s.teamEdHead}>{team} <span style={{ color: T.faint, fontWeight: 500 }}>· {membersOf(team).length} {membersOf(team).length === 1 ? "member" : "members"}</span></div>
                   {membersOf(team).map((p) => (
-                    <div key={p.id} style={{ ...s.teamEdRow, opacity: busyId === p.id ? 0.5 : 1 }}>
+                    <div key={p.id} style={{ ...s.teamEdRow, opacity: busyId === p.id ? 0.5 : dragPid === p.id ? 0.4 : 1, cursor: "grab" }} {...dragHandleProps(p)}>
+                      <GripVertical size={13} strokeWidth={2.2} color={T.faint} style={{ flex: "0 0 auto" }} />
                       <span style={s.teamEdName}>{label(p)}</span>
                       <span style={s.teamEdLvl}>{tag(p)}</span>
                       {failedId === p.id && <span style={{ color: T.wrongLine, fontSize: 11.5 }}>couldn't save — retry</span>}
@@ -2551,14 +3043,18 @@ function TeamRosterEditor({ onClose }: { onClose: () => void }) {
               ))}
               <button style={s.teamEdAddTeam} onClick={addTeam}><Plus size={13} strokeWidth={2.4} /> New team</button>
 
-              <div style={{ ...s.teamEdSection, marginTop: 18 }}>
+              <div
+                style={{ ...s.teamEdSection, marginTop: 18, ...dropHighlight(OFF_ROSTER) }}
+                {...dropTargetProps(OFF_ROSTER, (pid) => { if (teams[pid]) remove(pid); })}
+              >
                 <div style={s.teamEdHead}>Residents not on a team <span style={{ color: T.faint, fontWeight: 500 }}>· {unassignedResidents.length}</span></div>
-                {unassignedResidents.length === 0 && <div style={{ ...s.apEmpty, padding: "4px 0 8px" }}>Every approved resident is placed. 🎉</div>}
+                {unassignedResidents.length === 0 && <div style={{ ...s.apEmpty, padding: "4px 0 8px" }}>Every approved resident is placed. 🎉{dragPid ? " (Drop someone here to take them off the roster.)" : ""}</div>}
                 {unassignedResidents.map((p) => {
                   const suggested = suggestFor(p);
                   const promised = !!matchPlannedTeam(p.full_name);
                   return (
-                    <div key={p.id} style={{ ...s.teamEdRow, opacity: busyId === p.id ? 0.5 : 1 }}>
+                    <div key={p.id} style={{ ...s.teamEdRow, opacity: busyId === p.id ? 0.5 : dragPid === p.id ? 0.4 : 1, cursor: "grab" }} {...dragHandleProps(p)}>
+                      <GripVertical size={13} strokeWidth={2.2} color={T.faint} style={{ flex: "0 0 auto" }} />
                       <span style={s.teamEdName}>{label(p)}</span>
                       <span style={s.teamEdLvl}>{tag(p)}</span>
                       {failedId === p.id && <span style={{ color: T.wrongLine, fontSize: 11.5 }}>couldn't save — retry</span>}
@@ -2596,7 +3092,8 @@ function TeamRosterEditor({ onClose }: { onClose: () => void }) {
                     Faculty & alumni not on a team · {unassignedOthers.length}
                   </button>
                   {showOthers && unassignedOthers.map((p) => (
-                    <div key={p.id} style={{ ...s.teamEdRow, opacity: busyId === p.id ? 0.5 : 1 }}>
+                    <div key={p.id} style={{ ...s.teamEdRow, opacity: busyId === p.id ? 0.5 : dragPid === p.id ? 0.4 : 1, cursor: "grab" }} {...dragHandleProps(p)}>
+                      <GripVertical size={13} strokeWidth={2.2} color={T.faint} style={{ flex: "0 0 auto" }} />
                       <span style={s.teamEdName}>{label(p)}</span>
                       <span style={s.teamEdLvl}>{tag(p)}</span>
                       {failedId === p.id && <span style={{ color: T.wrongLine, fontSize: 11.5 }}>couldn't save — retry</span>}
@@ -2632,10 +3129,13 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
   const [index, setIndex] = useState(Math.max(0, Math.min(startIndex, set.length - 1)));
   const [revealed, setRevealed] = useState(false);
   const [finished, setFinished] = useState(false);   // session over — final-standings screen
+  const [started, setStarted] = useState(false);     // host hasn't hit "Start" yet — phones sit in a lobby, no voting
+  const [showIndividual, setShowIndividual] = useState(teamMode === "individual"); // standings view: individual leaderboard vs team (individual mode defaults to individual; team modes default to team but the host can toggle)
   const [showAnswerKey, setShowAnswerKey] = useState(false); // answer key on the finish screen (hidden by default)
   const [standingsFontSize, setStandingsFontSize] = useState(20); // adjustable text size for the answer-key stem/options/explanation
-  const [pollStemScale, setPollStemScale] = useState(1); // adjustable text size for the question, independent of the choices
-  const [pollOptScale, setPollOptScale] = useState(1);    // adjustable text size for the answer choices, independent of the question
+  const [pollStemScale, setPollStemScale] = useState(1.8); // adjustable text size for the question, independent of the choices (default 180% for room readability)
+  const [pollOptScale, setPollOptScale] = useState(1.8);    // adjustable text size for the answer choices, independent of the question (default 180%)
+  const [showExpl, setShowExpl] = useState(false); // reveal the current question's explanation on the big screen (per-question, reset each question)
   const [hideChoices, setHideChoices] = useState(true); // default: choices off the big screen, shown on phones instead
   const [choicesLayout, setChoicesLayout] = useState<"side" | "bottom">("side"); // default: choices beside the question
   const [expandedKey, setExpandedKey] = useState<Set<number>>(new Set()); // answer-key rows expanded to show the full question + explanation
@@ -2656,6 +3156,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
   const votesRef = useRef<Map<string, Map<string, string>>>(new Map()); // qid -> voter -> choice
   const teamRef = useRef<Map<string, string>>(new Map());   // voter -> team name
   const levelRef = useRef<Map<string, string>>(new Map());  // voter -> PGY year (R1–R4), if known
+  const nameRef = useRef<Map<string, string>>(new Map());   // voter -> display name, for the individual leaderboard
   const joinedRef = useRef<Set<string>>(new Set());  // every voter who has said hello or voted
   const correctRef = useRef<Map<string, string[]>>(new Map()); // qid -> correct letters (recorded on reveal)
   const chanRef = useRef<ReturnType<NonNullable<typeof supabase>["channel"]> | null>(null);
@@ -2693,6 +3194,32 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
       .sort((a, b) => b.score - a.score || b.answerers - a.answerers || a.team.localeCompare(b.team));
   };
 
+  // Cumulative individual leaderboard: per participant, how many revealed
+  // questions they got right (score) out of how many they answered. Derived
+  // fresh from the raw vote log each call, same as computeStandings. Everyone
+  // who has answered at least one question appears, keyed by their display name
+  // (falling back to a short id for anonymous joiners).
+  const computeIndividualStandings = (): IndividualStanding[] => {
+    const correct = new Map<string, number>();
+    const answered = new Map<string, number>();
+    for (const [qId, key] of correctRef.current) {
+      const m = votesRef.current.get(qId);
+      if (!m) continue;
+      for (const [vId, choice] of m) {
+        answered.set(vId, (answered.get(vId) ?? 0) + 1);
+        if (key.includes(choice)) correct.set(vId, (correct.get(vId) ?? 0) + 1);
+      }
+    }
+    return [...answered.keys()]
+      .map((vId) => ({
+        voter: vId,
+        name: nameRef.current.get(vId) || `Player ${vId.slice(0, 4)}`,
+        score: correct.get(vId) ?? 0,
+        answered: answered.get(vId) ?? 0,
+      }))
+      .sort((a, b) => b.score - a.score || b.answered - a.answered || a.name.localeCompare(b.name));
+  };
+
   // render the join URL into a QR once per room code
   useEffect(() => {
     QRCode.toDataURL(pollJoinUrl(code), { margin: 2, width: 512, color: { dark: "#11131c", light: "#ffffff" } })
@@ -2722,7 +3249,9 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
       index, total, revealed,
       correct: revealed ? correctSet : [],
       standings: computeStandings(),
+      individuals: computeIndividualStandings(),
       teamMode,
+      started,
       voted: votesRef.current.get(qid)?.size ?? 0,
       joined: joinedRef.current.size,
       finished,
@@ -2743,6 +3272,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
       joinedRef.current.add(v.voter);
       if (v.team) teamRef.current.set(v.voter, v.team);
       if (v.level) levelRef.current.set(v.voter, v.level);
+      if (v.name) nameRef.current.set(v.voter, v.name);
       force((n) => n + 1);
       broadcastRef.current(); // keep participants' voted/joined counters live
     });
@@ -2751,6 +3281,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
         joinedRef.current.add(payload.voter);
         if (payload.team) teamRef.current.set(payload.voter, payload.team);
         if (payload.level) levelRef.current.set(payload.voter, payload.level);
+        if (payload.name) nameRef.current.set(payload.voter, payload.name);
         force((n) => n + 1);
       }
       broadcastRef.current();
@@ -2760,16 +3291,16 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
     return () => { supabase?.removeChannel(ch); chanRef.current = null; };
   }, [code]); // eslint-disable-line
 
-  // re-broadcast the live question whenever it changes
-  useEffect(() => { broadcastRef.current(); }, [index, revealed, finished]); // eslint-disable-line
+  // re-broadcast the live question whenever it changes (incl. the lobby→started flip)
+  useEffect(() => { broadcastRef.current(); }, [index, revealed, finished, started]); // eslint-disable-line
 
-  // per-question countdown; auto-reveal when it hits zero
+  // per-question countdown; auto-reveal when it hits zero (never runs in the lobby)
   useEffect(() => {
-    if (revealed || finished || !q) { setTimeLeft(null); return; }
+    if (revealed || finished || !q || !started) { setTimeLeft(null); return; }
     setTimeLeft(timerSecs);
     const id = setInterval(() => setTimeLeft((t) => (t == null ? t : t <= 1 ? 0 : t - 1)), 1000);
     return () => clearInterval(id);
-  }, [index, revealed, finished, timerSecs, q?.year, q?.q_index]); // eslint-disable-line
+  }, [index, revealed, finished, started, timerSecs, q?.year, q?.q_index]); // eslint-disable-line
   useEffect(() => { if (timeLeft === 0 && !revealed) setRevealed(true); }, [timeLeft, revealed]);
 
   if (!q) return null;
@@ -2780,7 +3311,9 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
   const joinedCount = joinedRef.current.size;
   const allVoted = joinedCount > 0 && voterCount >= joinedCount;
   const standings = computeStandings();
-  const goTo = (i: number) => { setRevealed(false); setIndex(Math.max(0, Math.min(i, total - 1))); };
+  const individuals = computeIndividualStandings();
+  const isIndividualMode = teamMode === "individual";
+  const goTo = (i: number) => { setRevealed(false); setShowExpl(false); setIndex(Math.max(0, Math.min(i, total - 1))); };
   // Nudge the running countdown (and the baseline used for every question
   // after this one) up or down — the default one-minute timer isn't right
   // for every question, and there was previously no way to change it mid-poll.
@@ -2906,9 +3439,9 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
               </button>
               <span style={{ fontSize: 12, color: "#9aa0ab", width: 36, textAlign: "center" }}>{Math.round(pollStemScale * 100)}%</span>
               <button
-                style={{ ...s.pollBtn, padding: "6px 8px", opacity: pollStemScale >= 1.8 ? 0.4 : 1 }}
-                onClick={() => setPollStemScale((v) => Math.min(1.8, +(v + 0.1).toFixed(2)))}
-                disabled={pollStemScale >= 1.8}
+                style={{ ...s.pollBtn, padding: "6px 8px", opacity: pollStemScale >= 2.6 ? 0.4 : 1 }}
+                onClick={() => setPollStemScale((v) => Math.min(2.6, +(v + 0.1).toFixed(2)))}
+                disabled={pollStemScale >= 2.6}
                 title="Increase question text size"
               >
                 <Plus size={13} strokeWidth={2.3} />
@@ -2961,8 +3494,30 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
         {finished ? (
           <>
             <div style={s.pollMeta}>Session complete · {total} question{total === 1 ? "" : "s"}{joinedCount > 0 ? ` · ${joinedCount} participant${joinedCount === 1 ? "" : "s"}` : ""}</div>
-            <p style={s.pollStem}>Final standings</p>
-            {standings.length > 0 ? (
+            <div style={{ display: "flex", alignItems: "baseline", gap: 14, flexWrap: "wrap" }}>
+              <p style={s.pollStem}>{showIndividual ? "Final individual standings" : "Final standings"}</p>
+              {!isIndividualMode && (
+                <button style={s.pollBtn} onClick={() => setShowIndividual((v) => !v)} title="Switch between team and individual standings">
+                  <Users size={14} strokeWidth={2.3} /> {showIndividual ? "Show teams" : "Show individuals"}
+                </button>
+              )}
+            </div>
+            {showIndividual ? (
+              individuals.length > 0 ? (
+                <div style={s.pollStats}>
+                  {individuals.map((p, i) => (
+                    <div key={p.voter} style={{ ...s.teamRow, ...(i === 0 ? s.teamRowLead : {}) }}>
+                      <span style={s.teamRank}>{i === 0 ? <Crown size={20} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
+                      <span style={s.teamName}>{p.name}</span>
+                      <span style={s.teamMembers}>{p.score} correct · {p.answered} answered</span>
+                      <span style={s.teamScore}>{p.answered > 0 ? Math.round((p.score / p.answered) * 100) : 0}%</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ color: "#aeb4c0", fontSize: 15 }}>No one answered this session.</p>
+              )
+            ) : standings.length > 0 ? (
               <div style={s.pollStats}>
                 {standings.map((t, i) => (
                   <div key={t.team} style={{ ...s.teamRow, ...(i === 0 ? s.teamRowLead : {}) }}>
@@ -3105,24 +3660,62 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
               </div>
             )}
           </>
+        ) : !started ? (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", gap: 16, minHeight: "40vh" }}>
+            <div style={{ fontSize: "clamp(24px,4vw,44px)", fontWeight: 800, color: "#fff", letterSpacing: "-0.02em" }}>Ready when you are</div>
+            <p style={{ fontSize: "clamp(15px,1.8vw,20px)", color: T.muted, maxWidth: 640, margin: 0, lineHeight: 1.5 }}>
+              Participants join by scanning the QR code or entering code <b style={{ color: "#fff" }}>{code}</b> at <b style={{ color: "#fff" }}>{joinHost}</b>.
+              {" "}Press <b style={{ color: "#48c78e" }}>Start poll</b> below when everyone's in — the first question stays hidden until then.
+            </p>
+            {qr && (
+              <button
+                onClick={() => setQrBig(true)}
+                title="Tap to enlarge"
+                className="materialize"
+                style={{ background: "#fff", border: "none", borderRadius: 26, padding: "clamp(14px, 2vh, 22px)", cursor: "zoom-in", lineHeight: 0, boxShadow: "0 34px 80px -32px rgba(0,0,0,.75)", margin: "6px 0 2px" }}
+              >
+                <img src={qr} alt={`QR code to join poll ${code}`} style={{ display: "block", width: "min(42vh, 62vw, 340px)", height: "min(42vh, 62vw, 340px)" }} />
+              </button>
+            )}
+            <div style={{ fontSize: "clamp(18px,2.4vw,28px)", fontWeight: 700, color: joinedCount > 0 ? "#48c78e" : T.faint }}>
+              <Users size={24} strokeWidth={2.4} style={{ verticalAlign: "-5px", marginRight: 8 }} />
+              {joinedCount} {joinedCount === 1 ? "participant" : "participants"} joined
+            </div>
+          </div>
         ) : (
           <>
-        {standings.length > 0 && (
+        {(showIndividual ? individuals.length > 0 : standings.length > 0) && (
           <div style={s.pollStats}>
             <div style={s.pollStatsHead}>
-              <span style={s.teamBoardHead}><Trophy size={16} strokeWidth={2.4} /> Live polling group statistics</span>
-              <button style={s.pollStatsExport} onClick={() => exportPollTeams(standings, { code, index: index + 1, total })} title="Download team data (opens in Excel)">
-                <Download size={14} strokeWidth={2.3} /> Export to Excel
-              </button>
+              <span style={s.teamBoardHead}><Trophy size={16} strokeWidth={2.4} /> {showIndividual ? "Live individual standings" : "Live polling group statistics"}</span>
+              {!isIndividualMode && (
+                <button style={s.pollStatsExport} onClick={() => setShowIndividual((v) => !v)} title="Switch between team and individual standings">
+                  <Users size={14} strokeWidth={2.3} /> {showIndividual ? "Show teams" : "Show individuals"}
+                </button>
+              )}
+              {!showIndividual && (
+                <button style={s.pollStatsExport} onClick={() => exportPollTeams(standings, { code, index: index + 1, total })} title="Download team data (opens in Excel)">
+                  <Download size={14} strokeWidth={2.3} /> Export to Excel
+                </button>
+              )}
             </div>
-            {standings.map((t, i) => (
-              <div key={t.team} style={{ ...s.teamRow, ...(i === 0 ? s.teamRowLead : {}) }}>
-                <span style={s.teamRank}>{i === 0 ? <Crown size={20} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
-                <span style={s.teamName}>{t.team}</span>
-                <span style={s.teamMembers}>{t.members} {t.members === 1 ? "player" : "players"} · {t.correct} correct · {t.answerers} answered</span>
-                <span style={s.teamScore}>{t.score}/player</span>
-              </div>
-            ))}
+            {showIndividual
+              ? individuals.map((p, i) => (
+                <div key={p.voter} style={{ ...s.teamRow, ...(i === 0 ? s.teamRowLead : {}) }}>
+                  <span style={s.teamRank}>{i === 0 ? <Crown size={20} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
+                  <span style={s.teamName}>{p.name}</span>
+                  <span style={s.teamMembers}>{p.score} correct · {p.answered} answered</span>
+                  <span style={s.teamScore}>{p.answered > 0 ? Math.round((p.score / p.answered) * 100) : 0}%</span>
+                </div>
+              ))
+              : standings.map((t, i) => (
+                <div key={t.team} style={{ ...s.teamRow, ...(i === 0 ? s.teamRowLead : {}) }}>
+                  <span style={s.teamRank}>{i === 0 ? <Crown size={20} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
+                  <span style={s.teamName}>{t.team}</span>
+                  <span style={s.teamMembers}>{t.members} {t.members === 1 ? "player" : "players"} · {t.correct} correct · {t.answerers} answered</span>
+                  <span style={s.teamScore}>{t.score}/player</span>
+                </div>
+              ))}
           </div>
         )}
         <div style={s.pollMeta}>{q.year} · Q{q.q_index} · Question {index + 1} of {total}</div>
@@ -3165,6 +3758,23 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
             </div>
           )}
         </div>
+        {revealed && showExpl && (q.explanation_text || q.explanation_images.length > 0) && (
+          <div style={{ marginTop: 26, padding: "18px 22px", background: "rgba(72,199,142,.06)", border: `1px solid ${T.inkLine}`, borderRadius: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 700, color: "#48c78e", marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.4 }}>
+              <Lightbulb size={16} strokeWidth={2.4} /> Explanation
+            </div>
+            {q.explanation_text && (
+              <p style={{ margin: 0, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: `calc(clamp(16px, 1.7vw, 22px) * ${pollStemScale})`, lineHeight: 1.6, color: "#dfe3ea", whiteSpace: "pre-wrap" }}>{q.explanation_text}</p>
+            )}
+            {q.explanation_images.filter((p) => imgSrc(p)).map((p, i) => (
+              <img
+                key={i} src={imgSrc(p)} alt="explanation" loading="lazy"
+                title="Click to enlarge" onClick={() => setZoomImg(imgSrc(p))}
+                style={{ ...s.explImg, maxWidth: 560, maxHeight: 320, width: "auto", height: "auto", objectFit: "contain", cursor: "zoom-in", marginTop: 12 }}
+              />
+            ))}
+          </div>
+        )}
           </>
         )}
       </div>
@@ -3175,6 +3785,10 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
             <button style={s.pollBtn} onClick={() => { setFinished(false); setShowAnswerKey(false); }}><ArrowLeft size={16} strokeWidth={2.4} /> Back to questions</button>
             <button style={{ ...s.pollBtn, ...s.pollBtnPrimary }} onClick={confirmClose}><X size={16} strokeWidth={2.4} /> End poll</button>
           </>
+        ) : !started ? (
+          <button style={{ ...s.pollBtn, ...s.pollBtnPrimary, fontSize: 16, padding: "12px 30px" }} onClick={() => setStarted(true)}>
+            <Play size={18} strokeWidth={2.5} /> Start poll{joinedCount > 0 ? ` · ${joinedCount} joined` : ""}
+          </button>
         ) : (
           <>
         <button style={s.pollBtn} disabled={index === 0} onClick={() => goTo(index - 1)}><ArrowLeft size={16} strokeWidth={2.4} /> Prev</button>
@@ -3182,6 +3796,11 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
           <button style={{ ...s.pollBtn, ...s.pollBtnPrimary }} onClick={() => setRevealed(true)}><Check size={16} strokeWidth={2.6} /> Reveal answer</button>
         ) : (
           <span style={s.pollAnswerLine}>Answer: <b style={{ color: "#48c78e" }}>{correctSet.join(", ")}</b>{q.answer_text ? ` — ${q.answer_text}` : ""}</span>
+        )}
+        {revealed && (q.explanation_text || q.explanation_images.length > 0) && (
+          <button style={{ ...s.pollBtn, ...(showExpl ? s.pollBtnPrimary : {}) }} onClick={() => setShowExpl((v) => !v)} title="Show this question's explanation on the big screen">
+            <Lightbulb size={16} strokeWidth={2.3} /> {showExpl ? "Hide explanation" : "Show explanation"}
+          </button>
         )}
         {index >= total - 1 && revealed ? (
           <button style={{ ...s.pollBtn, ...s.pollBtnPrimary }} onClick={() => setFinished(true)}><Trophy size={16} strokeWidth={2.4} /> Finish · standings</button>
@@ -3245,8 +3864,8 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
 
 const TEAM_KEY = "prite_poll_team";
 
-function PollParticipant({ code, voter, trainingLevel, stableTeam, byId, displayName, onClose }: {
-  code: string; voter: string; trainingLevel: string | null; stableTeam: string | null;
+function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, byId, displayName, onClose }: {
+  code: string; voter: string; trainingLevel: string | null; stableTeam: string | null; weeklyTeam: string | null;
   byId: Map<string, RawQuestion>; displayName: string; onClose: () => void;
 }) {
   const [remote, setRemote] = useState<PollState | null>(null);
@@ -3282,7 +3901,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, byId, display
     const t = name.trim().slice(0, 24);
     setTeamState(t); setDraft(t); setEditing(false);
     try { t ? localStorage.setItem(TEAM_KEY, t) : localStorage.removeItem(TEAM_KEY); schedulePrefsPush(); } catch { /* no-op */ }
-    chanRef.current?.send({ type: "broadcast", event: POLL_EVENTS.hello, payload: { voter, team: t || undefined, level: trainingLevel || undefined } as PollHello });
+    chanRef.current?.send({ type: "broadcast", event: POLL_EVENTS.hello, payload: { voter, team: t || undefined, level: trainingLevel || undefined, name: displayName || undefined } as PollHello });
   };
 
   useEffect(() => {
@@ -3320,18 +3939,19 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, byId, display
       if (assigned && !teamRef.current) saveTeam(assigned);
     });
     ch.subscribe((st) => {
-      if (st === "SUBSCRIBED") { setStatus("joined"); ch.send({ type: "broadcast", event: POLL_EVENTS.hello, payload: { voter, team: teamRef.current || undefined, level: trainingLevel || undefined } as PollHello }); }
+      if (st === "SUBSCRIBED") { setStatus("joined"); ch.send({ type: "broadcast", event: POLL_EVENTS.hello, payload: { voter, team: teamRef.current || undefined, level: trainingLevel || undefined, name: displayName || undefined } as PollHello }); }
       else if (st === "CHANNEL_ERROR" || st === "TIMED_OUT") setStatus("error");
     });
     chanRef.current = ch;
     return () => { supabase?.removeChannel(ch); chanRef.current = null; };
   }, [code, voter]); // eslint-disable-line
 
-  // Stable mode: always use the season-long roster's pick for me, not
+  // Stable/weekly modes: always use the saved roster's pick for me, not
   // whatever I last typed in for a self/auto session.
   useEffect(() => {
-    if (remote?.teamMode === "stable" && stableTeam && team !== stableTeam) saveTeam(stableTeam);
-  }, [remote?.teamMode, stableTeam]); // eslint-disable-line
+    const rostered = remote?.teamMode === "stable" ? stableTeam : remote?.teamMode === "weekly" ? weeklyTeam : null;
+    if (rostered && team !== rostered) saveTeam(rostered);
+  }, [remote?.teamMode, stableTeam, weeklyTeam]); // eslint-disable-line
 
   // Drop lingering tap focus when the live question changes. The option
   // <button>s are keyed by letter, so React reuses the same element across
@@ -3347,7 +3967,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, byId, display
     if (!remote || remote.revealed) return;
     setMyVote(letter);
     myVoteRef.current = letter;
-    chanRef.current?.send({ type: "broadcast", event: POLL_EVENTS.vote, payload: { qid: remote.qid, choice: letter, voter, team: team || undefined, level: trainingLevel || undefined } });
+    chanRef.current?.send({ type: "broadcast", event: POLL_EVENTS.vote, payload: { qid: remote.qid, choice: letter, voter, team: team || undefined, level: trainingLevel || undefined, name: displayName || undefined } });
   };
 
   // Every question I saw revealed, that I either missed or never voted on —
@@ -3380,10 +4000,12 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, byId, display
   const onStemPullUp = () => { stemDragRef.current = null; };
 
   const letters = remote ? Array.from({ length: remote.nOptions }, (_, i) => String.fromCharCode(65 + i)) : [];
-  const isStableMode = remote?.teamMode === "stable";
+  const isIndividualMode = remote?.teamMode === "individual";
+  const isStableMode = remote?.teamMode === "stable" || remote?.teamMode === "weekly"; // both use a fixed saved roster
   const awaitingAutoAssign = remote?.teamMode === "auto" && !team;
   const awaitingStableTeam = isStableMode && !team;
-  const showTeamEditor = !isStableMode && (editing || (!team && !awaitingAutoAssign));
+  const showTeamEditor = !isIndividualMode && !isStableMode && (editing || (!team && !awaitingAutoAssign));
+  const inLobby = !!remote && !remote.started && !remote.finished;
 
   return (
     <div style={s.joinRoot}>
@@ -3395,7 +4017,12 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, byId, display
           <button style={s.pollClose} onClick={onClose} title="Leave poll"><X size={16} strokeWidth={2.4} /></button>
         </div>
 
-        {status !== "error" && (
+        {status !== "error" && isIndividualMode && (
+          <div style={s.teamBar}>
+            <span style={s.teamTag}><Users size={15} strokeWidth={2.3} /> Playing solo{displayName ? <> as <b style={{ color: "#fff" }}>{displayName}</b></> : ""}</span>
+          </div>
+        )}
+        {status !== "error" && !isIndividualMode && (
           <div style={s.teamBar}>
             {showTeamEditor ? (
               <form
@@ -3418,7 +4045,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, byId, display
             ) : awaitingAutoAssign ? (
               <span style={s.teamTag}><Users size={15} strokeWidth={2.3} /> Waiting for the host to assign teams…</span>
             ) : awaitingStableTeam ? (
-              <span style={s.teamTag}><Users size={15} strokeWidth={2.3} /> No season team on file — ask an admin to set your PGY year.</span>
+              <span style={s.teamTag}><Users size={15} strokeWidth={2.3} /> {remote?.teamMode === "weekly" ? "No team on this week's pairing — ask an admin to re-randomize with you included." : "No season team on file — ask an admin to set your PGY year."}</span>
             ) : (
               <>
                 <span style={s.teamTag}><Users size={15} strokeWidth={2.3} /> Team <b style={{ color: "#fff" }}>{team}</b></span>
@@ -3427,7 +4054,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, byId, display
             )}
           </div>
         )}
-        {status !== "error" && !team && (
+        {status !== "error" && !isIndividualMode && !team && (
           <p style={s.teamScoreHint}>Teams are ranked by correct answers per person who answers — a bigger team doesn't get an edge.</p>
         )}
 
@@ -3435,6 +4062,8 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, byId, display
           <p style={s.joinMsg}>Couldn't connect to the poll. Double-check the code and try again.</p>
         ) : !remote ? (
           <p style={s.joinMsg}>Joined poll <b style={{ color: "#fff" }}>{code}</b> — waiting for the host to start…</p>
+        ) : inLobby ? (
+          <p style={s.joinMsg}>You're in! 🎉 Waiting for the host to start the poll…{(remote.joined ?? 0) > 0 ? ` ${remote.joined} ${remote.joined === 1 ? "person" : "people"} here so far.` : ""}</p>
         ) : (
           <>
             {reviewQid ? (() => {
@@ -3554,7 +4183,18 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, byId, display
                 </div>
               </div>
             )}
-            {(remote.finished || remote.revealed) && remote.standings?.length > 0 && (
+            {(remote.finished || remote.revealed) && isIndividualMode && (remote.individuals?.length ?? 0) > 0 && (
+              <div style={s.teamBoardMini}>
+                {remote.individuals!.slice(0, 5).map((p, i) => (
+                  <div key={p.voter} style={{ ...s.teamMiniRow, ...(i === 0 ? s.teamMiniLead : {}), ...(p.voter === voter ? s.teamMiniMine : {}) }}>
+                    <span style={s.teamMiniRank}>{i === 0 ? <Crown size={15} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
+                    <span style={s.teamMiniName}>{p.name}{p.voter === voter ? " (you)" : ""}</span>
+                    <span style={s.teamMiniScore}>{p.score}/{p.answered}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {(remote.finished || remote.revealed) && !isIndividualMode && remote.standings?.length > 0 && (
               <div style={s.teamBoardMini}>
                 {remote.standings.slice(0, 5).map((t, i) => (
                   <div key={t.team} style={{ ...s.teamMiniRow, ...(i === 0 ? s.teamMiniLead : {}), ...(t.team === team ? s.teamMiniMine : {}) }}>
@@ -3565,7 +4205,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, byId, display
                 ))}
               </div>
             )}
-            {remote.standings && remote.standings.length > 0 && (
+            {!isIndividualMode && remote.standings && remote.standings.length > 0 && (
               <button
                 style={s.teamDownload}
                 onClick={() => exportPollTeams(remote.standings, { code, index: remote.index + 1, total: remote.total })}
@@ -3803,15 +4443,30 @@ function ReportModal({ qid, label, kinds = BUG_KINDS, onClose, onDone }: {
 }
 
 // Admin triage of all bug reports.
-function BugReportsPanel({ reports, byId, onAct, onClose }: {
+function BugReportsPanel({ reports, byId, isAdmin, onAct, onReply, onClose }: {
   reports: BugReport[];
   byId: Map<string, RawQuestion>;
+  isAdmin: boolean;
   onAct: (id: string, status: string) => void;
+  onReply: (id: string, text: string) => Promise<void>;
   onClose: () => void;
 }) {
   const open = reports.filter((r) => r.status === "open");
   const done = reports.filter((r) => r.status !== "open");
   const kindLabel = (k: string) => BUG_KINDS.find(([v]) => v === k)?.[1] ?? k;
+  // Admin reply composer: one open at a time, prefilled with the existing
+  // reply so it doubles as the edit box.
+  const [replyFor, setReplyFor] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [replySending, setReplySending] = useState(false);
+  const startReply = (r: BugReport) => { setReplyFor(r.id); setReplyText(r.admin_response ?? ""); };
+  const sendReply = async () => {
+    if (!replyFor) return;
+    setReplySending(true);
+    await onReply(replyFor, replyText);
+    setReplySending(false);
+    setReplyFor(null);
+  };
   const row = (r: BugReport) => {
     const q = r.question_id ? byId.get(r.question_id) : null;
     return (
@@ -3819,16 +4474,47 @@ function BugReportsPanel({ reports, byId, onAct, onClose }: {
         <div style={s.bugMeta}>
           <span style={s.bugKind}>{kindLabel(r.kind)}</span>
           {r.question_id && <span style={s.bugQ}>{r.question_id}</span>}
-          <span style={s.bugWho}>{r.reporter?.full_name || r.reporter?.email || "—"} · {ago(r.created_at)}</span>
+          <span style={s.bugWho}>{isAdmin ? (r.reporter?.full_name || r.reporter?.email || "—") + " · " : ""}{ago(r.created_at)}</span>
           <span style={{ ...s.bugStatus, color: r.status === "open" ? T.wrongText : T.faint }}>{r.status}</span>
         </div>
         {q && <div style={s.bugStem}>{q.stem}</div>}
         <p style={s.bugMsg}>{r.message}</p>
-        <div style={{ display: "flex", gap: 8 }}>
-          {r.status !== "resolved" && <button style={s.apApprove} onClick={() => onAct(r.id, "resolved")}>Resolve</button>}
-          {r.status === "open" && <button style={s.ghost} onClick={() => onAct(r.id, "dismissed")}>Dismiss</button>}
-          {r.status !== "open" && <button style={s.ghost} onClick={() => onAct(r.id, "open")}>Reopen</button>}
-        </div>
+        {r.admin_response && replyFor !== r.id && (
+          <div style={{ background: T.tealSoft, border: `1px solid ${T.paperEdge}`, borderRadius: 8, padding: "8px 10px", margin: "0 0 8px" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: T.tealDeep, marginBottom: 3 }}>
+              Reply from the admins{r.responded_at ? ` · ${ago(r.responded_at)}` : ""}
+            </div>
+            <div style={{ fontSize: 13, color: T.text, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{r.admin_response}</div>
+          </div>
+        )}
+        {isAdmin && replyFor === r.id && (
+          <div style={{ margin: "0 0 8px" }}>
+            <textarea
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              rows={3}
+              autoFocus
+              placeholder="Write a reply the reporter will see on their report…"
+              style={{ width: "100%", boxSizing: "border-box", fontSize: 13, lineHeight: 1.5, padding: "8px 10px", borderRadius: 8, border: `1px solid ${T.paperEdge}`, background: "#fff", color: T.text, fontFamily: "inherit", resize: "vertical" }}
+            />
+            <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+              <button style={s.apApprove} onClick={sendReply} disabled={replySending || !replyText.trim()}>
+                {replySending ? "Sending…" : r.admin_response ? "Update reply" : "Send reply"}
+              </button>
+              <button style={s.ghost} onClick={() => setReplyFor(null)} disabled={replySending}>Cancel</button>
+            </div>
+          </div>
+        )}
+        {isAdmin && (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {replyFor !== r.id && (
+              <button style={s.ghost} onClick={() => startReply(r)}>{r.admin_response ? "Edit reply" : "Reply"}</button>
+            )}
+            {r.status !== "resolved" && <button style={s.apApprove} onClick={() => onAct(r.id, "resolved")}>Resolve</button>}
+            {r.status === "open" && <button style={s.ghost} onClick={() => onAct(r.id, "dismissed")}>Dismiss</button>}
+            {r.status !== "open" && <button style={s.ghost} onClick={() => onAct(r.id, "open")}>Reopen</button>}
+          </div>
+        )}
       </div>
     );
   };
@@ -3837,13 +4523,13 @@ function BugReportsPanel({ reports, byId, onAct, onClose }: {
       <div style={{ ...s.apPanel, maxWidth: 620 }} onClick={(e) => e.stopPropagation()} className="rise">
         <div style={s.apHead}>
           <div>
-            <div style={s.apEyebrow}>Bug reports</div>
+            <div style={s.apEyebrow}>{isAdmin ? "Bug reports" : "My reports"}</div>
             <div style={s.apTitle}>{open.length} open · {reports.length} total</div>
           </div>
           <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
         </div>
         <div style={s.apBody}>
-          {reports.length === 0 && <p style={s.apEmpty}>No reports yet. 🎉</p>}
+          {reports.length === 0 && <p style={s.apEmpty}>{isAdmin ? "No reports yet. 🎉" : "You haven't filed any reports yet — use \"Report a bug\" on any question."}</p>}
           {open.map(row)}
           {done.length > 0 && <div style={{ ...s.apEyebrow, margin: "16px 0 4px" }}>Closed</div>}
           {done.map(row)}
@@ -3967,45 +4653,178 @@ function CapiteComingSoon({ onClose }: { onClose: () => void }) {
 }
 
 function Approvals({
-  profiles, onClose, onAct,
+  profiles, onClose, onAct, onRefresh, currentUserId,
 }: {
   profiles: Profile[];
   onClose: () => void;
-  onAct: (id: string, patch: Partial<Pick<Profile, "status" | "role">>) => void;
+  onAct: (id: string, patch: Partial<Pick<Profile, "status" | "role" | "is_admin" | "is_education_chief" | "training_level">>) => void;
+  onRefresh: () => void;
+  currentUserId?: string;
 }) {
+  const [tab, setTab] = useState<"people" | "roster">("people");
+  // Live copy of the server-side auto-approval list (roster_names) + the
+  // study-guide creator allowlist — both admin-editable right from this panel
+  // so future chiefs never need code changes for the yearly turnover.
+  const [roster, setRoster] = useState<RosterName[] | null>(null);
+  const [creators, setCreators] = useState<string[]>([]);
+  const [showStaffList, setShowStaffList] = useState(false);
+  const ayEnd = academicYearEnd();
+  const [addFirst, setAddFirst] = useState("");
+  const [addLast, setAddLast] = useState("");
+  const [addYear, setAddYear] = useState(String(ayEnd + 4)); // default: incoming intern class
+  const [rosterMsg, setRosterMsg] = useState<string | null>(null);
+  useEffect(() => {
+    listRosterNames().then(setRoster);
+    listStudyGuideCreators().then(setCreators);
+  }, []);
+
+  const rosterEntries = (roster ?? []).map((r) => ({ first: r.first_name, last: r.last_name, year: r.class_year ?? "" }));
+  // Prefer the live table for the "on roster" badge; the hardcoded mirror in
+  // roster.ts is only the fallback while the fetch is in flight.
+  const matchYear = (name?: string | null): string | null =>
+    roster?.length ? (matchNamesList(rosterEntries, name)?.year || null) : matchRoster(name);
+
+  const submitAdd = async () => {
+    const first = addFirst.trim(), last = addLast.trim();
+    if (!first || !last) { setRosterMsg("Enter a first and last name."); return; }
+    const err = await addRosterName(first, last, addYear);
+    setRosterMsg(err ? err : `Added ${first} ${last}. They'll be auto-approved when they sign in with a matching Google name.`);
+    if (!err) { setAddFirst(""); setAddLast(""); setRoster(await listRosterNames()); }
+  };
+
+  const removeName = async (r: RosterName) => {
+    if (!window.confirm(`Remove ${r.first_name} ${r.last_name} from the auto-approval list? (Any existing account stays — this only affects future sign-ups.)`)) return;
+    await removeRosterName(r.first_name, r.last_name);
+    setRoster(await listRosterNames());
+  };
+
+  // Yearly one-click turnover: recompute everyone's R-level from their
+  // graduating class year (roster stores class years, so they never change —
+  // only this derived level does). Safe to press twice; it's date-derived,
+  // not a blind +1 bump. Graduated classes become alumni so they drop out of
+  // team building automatically.
+  const syncLevels = async () => {
+    if (!roster?.length) { setRosterMsg("Roster hasn't loaded yet."); return; }
+    const changes: { id: string; name: string; patch: Parameters<typeof updateProfile>[1] }[] = [];
+    for (const p of profiles) {
+      if (p.status !== "approved" || p.role !== "resident") continue;
+      const hit = matchNamesList(rosterEntries, p.full_name);
+      const lvl = hit ? classYearLevel(hit.year, ayEnd) : null;
+      if (!lvl) continue; // no roster match, or a faculty/fellow bucket — set their PGY by hand
+      if (lvl === "graduated") changes.push({ id: p.id, name: p.full_name || p.email, patch: { role: "alumni", training_level: null } });
+      else if (p.training_level !== lvl) changes.push({ id: p.id, name: p.full_name || p.email, patch: { training_level: lvl } });
+    }
+    if (!changes.length) { setRosterMsg("Everyone already matches their class year — nothing to change."); return; }
+    const grads = changes.filter((c) => c.patch.role === "alumni").length;
+    if (!window.confirm(
+      `Update ${changes.length} resident${changes.length === 1 ? "" : "s"} to the ${ayEnd - 1}–${String(ayEnd).slice(2)} academic year?` +
+      (grads ? ` ${grads} graduated resident${grads === 1 ? "" : "s"} will become alumni.` : "")
+    )) return;
+    for (const c of changes) await updateProfile(c.id, c.patch);
+    onRefresh();
+    setRosterMsg(`Updated ${changes.length} member${changes.length === 1 ? "" : "s"}.`);
+  };
+
   const pending = profiles.filter((p) => p.status === "pending");
   const others = profiles.filter((p) => p.status !== "pending");
   const row = (p: Profile) => {
-    const year = matchRoster(p.full_name);
+    const year = matchYear(p.full_name);
+    const isSelf = p.id === currentUserId;
+    const isResident = p.role === "resident";
+    const roleLabel =
+      (p.is_admin ? (isResident ? "resident · admin" : `${p.role} · admin`) : p.role) +
+      (p.is_education_chief ? " · ed chief" : "");
     return (
       <div key={p.id} style={s.apRow}>
         <span style={s.apAvatar}>{initials(p.full_name || p.email)}</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ flex: "1 1 150px", minWidth: 0 }}>
           <div style={s.apName}>
             {p.full_name || "(no name)"}
-            {year && <span style={s.apMatch}>✓ roster ’{year.slice(2)}</span>}
+            {year && <span style={s.apMatch}>✓ roster {/^\d{4}$/.test(year) ? "’" + year.slice(2) : year}</span>}
             {!year && p.status === "pending" && <span style={s.apNoMatch}>no roster match</span>}
           </div>
-          <div style={s.apEmail}>{p.email} · {p.role}{p.status !== "pending" ? ` · ${p.status}` : ""}</div>
+          <div style={s.apEmail}>{p.email} · {roleLabel}{p.status !== "pending" ? ` · ${p.status}` : ""}</div>
         </div>
         <div style={s.apActions}>
           {p.status !== "approved" && (
             <button style={s.apApprove} onClick={() => onAct(p.id, { status: "approved" })}>Approve</button>
           )}
-          {p.status === "approved" && p.role !== "admin" && (
-            <select
-              value={p.role}
-              onChange={(e) => onAct(p.id, { role: e.target.value as Profile["role"] })}
-              style={s.apSelect}
-            >
-              <option value="resident">resident</option>
-              <option value="faculty">faculty</option>
-              <option value="alumni">alumni</option>
-              <option value="admin">admin</option>
-              <option value="test">test</option>
-            </select>
+          {p.status === "approved" && (
+            <>
+              <button
+                style={{ ...s.apToggle, ...(isResident ? s.apToggleOn : {}) }}
+                title={isResident ? "On the resident roster (counts on teams)" : "Not a resident — tap to mark as resident"}
+                onClick={() => onAct(p.id, { role: isResident ? "faculty" : "resident" })}
+              >
+                Resident
+              </button>
+              {isResident && (
+                <select
+                  value={p.training_level ?? ""}
+                  onChange={(e) => onAct(p.id, { training_level: e.target.value || null })}
+                  style={s.apSelect}
+                  title="Training level — drives team balancing. Use 'Sync PGY levels' on the Roster tab to update everyone at once each July."
+                >
+                  <option value="">PGY —</option>
+                  {["R1", "R2", "R3", "R4", "F1", "F2"].map((l) => <option key={l} value={l}>{l}</option>)}
+                </select>
+              )}
+              {!isResident && (
+                <select
+                  value={p.role === "admin" ? "faculty" : p.role}
+                  onChange={(e) => onAct(p.id, { role: e.target.value as Profile["role"] })}
+                  style={s.apSelect}
+                  title="Non-resident category"
+                >
+                  <option value="faculty">faculty</option>
+                  <option value="alumni">alumni</option>
+                  <option value="test">test</option>
+                </select>
+              )}
+              {isResident && (
+                <button
+                  style={{ ...s.apToggle, ...(p.is_education_chief ? s.apToggleOn : {}) }}
+                  title={
+                    p.is_education_chief
+                      ? "Education chief — sits out the team randomizers. Tap to unmark."
+                      : "Tap to mark as an education chief (excluded from the team randomizers)"
+                  }
+                  onClick={() => onAct(p.id, { is_education_chief: !p.is_education_chief })}
+                >
+                  Ed chief
+                </button>
+              )}
+              {!p.is_admin && (
+                <button
+                  style={{ ...s.apToggle, ...(creators.includes(p.id) ? s.apToggleOn : {}) }}
+                  title={
+                    creators.includes(p.id)
+                      ? "May generate AI study guides (costs real money) — tap to revoke"
+                      : "Tap to let this person generate AI study guides (admins always can)"
+                  }
+                  onClick={async () => {
+                    await setStudyGuideCreator(p.id, !creators.includes(p.id));
+                    setCreators(await listStudyGuideCreators());
+                  }}
+                >
+                  Guides
+                </button>
+              )}
+              <button
+                style={{ ...s.apToggle, ...(p.is_admin ? s.apToggleOn : {}), ...(isSelf ? s.apToggleLocked : {}) }}
+                disabled={isSelf}
+                title={
+                  isSelf
+                    ? "You can’t change your own admin access"
+                    : p.is_admin ? "Admin — tap to revoke" : "Not an admin — tap to grant"
+                }
+                onClick={() => { if (!isSelf) onAct(p.id, { is_admin: !p.is_admin }); }}
+              >
+                Admin
+              </button>
+            </>
           )}
-          {p.status !== "blocked" && p.role !== "admin" && (
+          {p.status !== "blocked" && !isSelf && (
             <button style={s.apBlock} title="Block" onClick={() => onAct(p.id, { status: "blocked" })}>
               <X size={14} strokeWidth={2.4} />
             </button>
@@ -4022,14 +4841,95 @@ function Approvals({
             <div style={s.apEyebrow}>Admin · access</div>
             <div style={s.apTitle}>Approvals</div>
           </div>
-          <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <button style={{ ...s.apToggle, ...(tab === "people" ? s.apToggleOn : {}) }} onClick={() => setTab("people")}>People</button>
+            <button style={{ ...s.apToggle, ...(tab === "roster" ? s.apToggleOn : {}) }} onClick={() => setTab("roster")}>Roster</button>
+            <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
+          </div>
         </div>
-        <div style={s.apBody}>
-          <div style={s.apSectionLbl}>Pending {pending.length > 0 && <span style={s.pendingBadge}>{pending.length}</span>}</div>
-          {pending.length ? pending.map(row) : <p style={s.apEmpty}>No one waiting. Residents whose Google name matches the roster are approved automatically.</p>}
-          {others.length > 0 && <div style={{ ...s.apSectionLbl, marginTop: 18 }}>Members</div>}
-          {others.map(row)}
-        </div>
+        {tab === "people" ? (
+          <div style={s.apBody}>
+            <div style={s.apSectionLbl}>Pending {pending.length > 0 && <span style={s.pendingBadge}>{pending.length}</span>}</div>
+            {pending.length ? pending.map(row) : <p style={s.apEmpty}>No one waiting. Residents whose Google name matches the roster are approved automatically.</p>}
+            {others.length > 0 && <div style={{ ...s.apSectionLbl, marginTop: 18 }}>Members</div>}
+            {others.map(row)}
+          </div>
+        ) : (
+          <div style={s.apBody}>
+            <p style={{ ...s.apEmpty, marginTop: 0 }}>
+              This is the auto-approval name list. Anyone who signs in with a Google name matching an
+              entry is approved automatically (residents get their class; faculty/fellow entries get that
+              role). <b>Each June, add the incoming intern class here, then press “Sync PGY levels”.</b>
+            </p>
+
+            <div style={s.apSectionLbl}>Add a person</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", margin: "8px 0 4px" }}>
+              <input value={addFirst} onChange={(e) => setAddFirst(e.target.value)} placeholder="First name"
+                style={{ ...s.dateInput, width: 120 }} />
+              <input value={addLast} onChange={(e) => setAddLast(e.target.value)} placeholder="Last name"
+                style={{ ...s.dateInput, width: 120 }} />
+              <select value={addYear} onChange={(e) => setAddYear(e.target.value)} style={s.apSelect} title="Graduating class (or role bucket)">
+                {[ayEnd + 4, ayEnd + 3, ayEnd + 2, ayEnd + 1, ayEnd].map((y) => (
+                  <option key={y} value={String(y)}>
+                    Class of {y}{y === ayEnd + 4 ? " (incoming R1)" : classYearLevel(String(y), ayEnd) ? ` (${classYearLevel(String(y), ayEnd)})` : ""}
+                  </option>
+                ))}
+                <option value="fellow">fellow</option>
+                <option value="faculty">faculty / staff</option>
+              </select>
+              <button style={s.apApprove} onClick={submitAdd}>Add</button>
+            </div>
+
+            <div style={{ ...s.apSectionLbl, marginTop: 16 }}>Yearly turnover</div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", margin: "8px 0 4px", flexWrap: "wrap" }}>
+              <button style={s.apApprove} onClick={syncLevels} title="Recomputes every matched resident's R-level from their class year for the current academic year; graduated classes become alumni.">
+                Sync PGY levels ({ayEnd - 1}–{String(ayEnd).slice(2)} year)
+              </button>
+            </div>
+            {rosterMsg && <p style={{ ...s.apEmpty, marginTop: 6 }}>{rosterMsg}</p>}
+
+            {roster === null ? (
+              <p style={s.apEmpty}>Loading the roster…</p>
+            ) : (
+              <>
+                {[...new Set(roster.map((r) => r.class_year ?? "?"))]
+                  .filter((y) => /^\d{4}$/.test(y)).sort().reverse()
+                  .map((y) => (
+                    <div key={y}>
+                      <div style={{ ...s.apSectionLbl, marginTop: 16 }}>
+                        Class of {y} · {classYearLevel(y, ayEnd) ?? "?"} ({roster.filter((r) => r.class_year === y).length})
+                      </div>
+                      {roster.filter((r) => r.class_year === y).map((r) => (
+                        <div key={r.first_name + " " + r.last_name}
+                          style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", fontSize: 13.5 }}>
+                          <span style={{ flex: 1 }}>{r.first_name} {r.last_name}</span>
+                          <button style={s.apBlock} title="Remove from the auto-approval list" onClick={() => removeName(r)}>
+                            <X size={13} strokeWidth={2.4} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                <div style={{ ...s.apSectionLbl, marginTop: 16 }}>
+                  Faculty, fellows &amp; other ({roster.filter((r) => !/^\d{4}$/.test(r.class_year ?? "")).length}){" "}
+                  <button style={s.apToggle} onClick={() => setShowStaffList((v) => !v)}>
+                    {showStaffList ? "hide" : "show"}
+                  </button>
+                </div>
+                {showStaffList && roster.filter((r) => !/^\d{4}$/.test(r.class_year ?? "")).map((r) => (
+                  <div key={r.first_name + " " + r.last_name}
+                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", fontSize: 13.5 }}>
+                    <span style={{ flex: 1 }}>{r.first_name} {r.last_name}</span>
+                    <span style={{ fontSize: 11.5, opacity: 0.6 }}>{r.class_year}</span>
+                    <button style={s.apBlock} title="Remove from the auto-approval list" onClick={() => removeName(r)}>
+                      <X size={13} strokeWidth={2.4} />
+                    </button>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -4043,6 +4943,14 @@ function SettingsPanel({
   onRebuild: () => void;
   onClose: () => void;
 }) {
+  // Bring-your-own AI keys: kept in this browser only (localStorage), sent
+  // with study-guide generation requests in place of the program's keys.
+  const [aiKeys, setAiKeys] = useState<OwnAiKeys>(() => getOwnAiKeys());
+  const saveAiKey = (patch: OwnAiKeys) => {
+    const next = { ...aiKeys, ...patch };
+    setAiKeys(next);
+    setOwnAiKeys(next);
+  };
   return (
     <div style={s.scrim} onClick={onClose}>
       <div style={{ ...s.apPanel, maxWidth: 440 }} onClick={(e) => e.stopPropagation()} className="rise">
@@ -4057,7 +4965,7 @@ function SettingsPanel({
           <div style={s.setBlock}>
             <div style={s.setLbl}>Questions per day</div>
             <div style={s.segRow}>
-              {[5, 10, 20].map((n) => (
+              {[5, 10, 20, 30, 40, 50].map((n) => (
                 <button key={n}
                   style={{ ...s.segBtn, ...(settings.regimen === n ? s.segOn : {}) }}
                   onClick={() => { onChange({ regimen: n as Settings["regimen"] }); onRebuild(); }}
@@ -4155,6 +5063,31 @@ function SettingsPanel({
                 </>
               );
             })()}
+          </div>
+
+          <div style={s.setBlock}>
+            <div style={s.setLbl}>Your own AI keys (optional)</div>
+            <input
+              type="password"
+              value={aiKeys.anthropic ?? ""}
+              onChange={(e) => saveAiKey({ anthropic: e.target.value })}
+              placeholder="Anthropic key (sk-ant-…) — writes guides & slides"
+              autoComplete="off"
+              style={{ ...s.dateInput, width: "100%", marginBottom: 6 }}
+            />
+            <input
+              type="password"
+              value={aiKeys.openai ?? ""}
+              onChange={(e) => saveAiKey({ openai: e.target.value })}
+              placeholder="OpenAI key (sk-…) — narration & slide images"
+              autoComplete="off"
+              style={{ ...s.dateInput, width: "100%" }}
+            />
+            <div style={s.setHint}>
+              Only matters if you generate AI study guides. When set, generation bills your
+              key instead of the program's. Keys stay in this browser only — they're never
+              stored on the server. Clear the boxes to go back to the program's keys.
+            </div>
           </div>
         </div>
       </div>
@@ -4623,10 +5556,15 @@ function DeckBuilder({
     if (!ids.length) return;
     setBusy(true);
     const clozes = await getFlashcardsForIds(ids);
-    const rows = ids.map((id) => {
+    const contexts = await getContextsForIds(ids);
+    const rows: { questionId: string; cloze: string; lecture: string }[] = [];
+    for (const id of ids) {
       const q = byId.get(id); const cz = clozes[id];
-      return q && cz ? { questionId: id, cloze: cz, lecture: ankingLecture(q) } : null;
-    }).filter(Boolean) as { questionId: string; cloze: string; lecture: string }[];
+      if (!q || !cz) continue;
+      // sequential — mermaid.render works one diagram at a time
+      const diagramSvg = await renderDiagramSvg(q.diagram?.code);
+      rows.push({ questionId: id, cloze: cz, lecture: ankingLecture(q, { context: contexts[id], diagramSvg }) });
+    }
     if (!rows.length) { setBusy(false); fire("No cards found — load the flashcards (migration 0006) first"); return; }
     const { buildApkg } = await import("./lib/apkg");
     await buildApkg(rows, "prite-deck.apkg");
@@ -4790,7 +5728,28 @@ function guideEtaLabel(guide: StudyGuide): string {
 function guideIsStuck(guide: StudyGuide): boolean {
   return guide.status === "generating" && guideElapsedSecs(guide) > GUIDE_STUCK_SECS;
 }
-const guideStageLabel: Record<string, string> = { writing: "Writing the guide", narrating: "Recording the audio" };
+const guideStageLabel: Record<string, string> = { writing: "Writing the guide", designing: "Designing the slides", narrating: "Recording the audio" };
+
+/* Rough AI cost per run, shown as a tiny chip on the generation buttons so
+   nobody triggers a paid run unknowingly. Ballpark: the two Claude calls
+   (guide text + slide design) + ~5 images ≈ $0.85; TTS narration ≈ $0.15.
+   Downloads of already-generated material are free and get no chip. */
+const GUIDE_COST = "~$1", SLIDES_COST = "~85¢", AUDIO_COST = "~15¢";
+function CostChip({ amount, light }: { amount: string; light?: boolean }) {
+  // light: for use inside solid teal primary buttons
+  return (
+    <span
+      title="Approximate AI generation cost — downloads of anything already generated are free"
+      style={{
+        fontSize: 10, fontWeight: 700, borderRadius: 999, padding: "1px 6px", marginLeft: 2, whiteSpace: "nowrap",
+        color: light ? "rgba(255,255,255,0.85)" : T.faint,
+        border: `1px solid ${light ? "rgba(255,255,255,0.45)" : T.paperEdge}`,
+      }}
+    >
+      {amount}
+    </span>
+  );
+}
 
 // YYYY-MM-DD for the next upcoming Tuesday (sessions are on Tuesdays) — the
 // default the date picker opens on.
@@ -4844,6 +5803,7 @@ function StudyGuideCreateModal({
           <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
             <button style={{ ...s.primarySm, opacity: date ? 1 : 0.5 }} disabled={!date} onClick={() => onConfirm(date || null)}>
               <BookOpen size={13} strokeWidth={2.3} /> Generate study guide
+              <CostChip amount={GUIDE_COST} light />
             </button>
             <button style={{ ...s.ghost, marginLeft: 0 }} onClick={() => onConfirm(null)} title="Generate without a session date">
               Skip date
@@ -4856,7 +5816,7 @@ function StudyGuideCreateModal({
 }
 
 function TestsPanel({
-  tests, byId, onClose, onStudy, onHost, onPptx, onRename, onDelete, guidesByTest, onStudyGuide, onOpenGuide,
+  tests, byId, onClose, onStudy, onHost, onPptx, onRename, onDelete, guidesByTest, onStudyGuide, onOpenGuide, onSlides, canGenerate,
 }: {
   tests: SavedTest[];
   byId: Map<string, RawQuestion>;
@@ -4869,6 +5829,8 @@ function TestsPanel({
   guidesByTest: Record<string, StudyGuide>;
   onStudyGuide: (t: SavedTest) => void;
   onOpenGuide: (t: SavedTest, guide: StudyGuide) => void;
+  onSlides: (t: SavedTest) => void;
+  canGenerate: boolean; // admins + education-chief allowlist — generation costs money
 }) {
   return (
     <div style={s.scrim} onClick={onClose}>
@@ -4910,6 +5872,29 @@ function TestsPanel({
                     </button>
                     {(() => {
                       const guide = guidesByTest[t.id];
+                      const hasSlides = (guide?.slides?.length ?? 0) > 0;
+                      // Mid-generation the study-guide section below already
+                      // shows the shared progress bar — no second button here.
+                      if (!hasSlides && guide?.status === "generating") return null;
+                      // Generating costs money — chiefs/admins only. Once the
+                      // slides exist this button is just a free download, so
+                      // it stays for everyone.
+                      if (!hasSlides && !canGenerate) return null;
+                      return (
+                        <button
+                          style={hasSlides ? { ...s.ghost, marginLeft: 0, border: `1px solid ${T.teal}`, color: T.tealDeep, background: T.tealSoft } : { ...s.ghost, marginLeft: 0 }}
+                          onClick={() => onSlides(t)}
+                          title={hasSlides
+                            ? "Prep slides already written — download the teaching deck (.pptx) to send as pre-reading"
+                            : "Generate an AI teaching slide deck (.pptx) to send as pre-reading — background and context only, doesn't give away answers"}
+                        >
+                          {hasSlides ? <Download size={13} strokeWidth={2.3} /> : <Monitor size={13} strokeWidth={2.3} />} Prep slides
+                          {!hasSlides && <CostChip amount={SLIDES_COST} />}
+                        </button>
+                      );
+                    })()}
+                    {(() => {
+                      const guide = guidesByTest[t.id];
                       // Text is ready → the guide is already "made". Show a
                       // distinct check-marked View button (not the plain
                       // generate button) so nobody re-triggers it by mistake.
@@ -4949,6 +5934,7 @@ function TestsPanel({
                           </div>
                         );
                       }
+                      if (!canGenerate) return null; // generating costs money — chiefs/admins only
                       return (
                         <button
                           style={{ ...s.ghost, marginLeft: 0, color: guide?.status === "error" ? T.wrongLine : undefined }}
@@ -4958,6 +5944,7 @@ function TestsPanel({
                             : "Generate a prep page + ~10-min audio overview to send the class before the session — background and context only, doesn't give away answers"}
                         >
                           <BookOpen size={13} strokeWidth={2.3} /> {guide?.status === "error" ? "Retry study guide" : "Study guide"}
+                          <CostChip amount={GUIDE_COST} />
                         </button>
                       );
                     })()}
@@ -4981,14 +5968,18 @@ function TestsPanel({
 /* Shown right after a study guide is (re)generated: the shareable ?study=<id>
    link to paste into an email/chat to the class, plus a regenerate option. */
 function StudyGuideShareModal({
-  guide, onClose, onRegenerate,
+  guide, onClose, onRegenerate, onAddAudio,
 }: {
   guide: StudyGuide;
   onClose: () => void;
   onRegenerate: () => void;
+  onAddAudio: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   const regenerating = guide.status === "generating";
+  // Guide written slides-first (no narration yet): offer to add just the
+  // audio — the edge function narrates the stored script without rewriting.
+  const audioMissing = guide.status === "ready" && !guide.audio_path;
   const link = studyGuideUrl(guide.id);
   const copy = async () => {
     try { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1800); }
@@ -5022,7 +6013,14 @@ function StudyGuideShareModal({
             </a>
             <button style={{ ...s.ghost, marginLeft: 0, opacity: regenerating ? 0.6 : 1 }} disabled={regenerating} onClick={onRegenerate}>
               <Sparkles size={13} strokeWidth={2.3} /> {regenerating ? "Rewriting…" : "Regenerate"}
+              {!regenerating && <CostChip amount={GUIDE_COST} />}
             </button>
+            {audioMissing && (
+              <button style={{ ...s.ghost, marginLeft: 0 }} onClick={onAddAudio} title="Narrate the existing guide to a ~10-min audio overview (doesn't rewrite anything)">
+                <Volume2 size={13} strokeWidth={2.3} /> Add audio
+                <CostChip amount={AUDIO_COST} />
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -5045,6 +6043,22 @@ function StudyGuideView({ id, onClose }: { id: string; onClose: () => void }) {
   const [rate, setRate] = useState(1);
   const [linkCopied, setLinkCopied] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // chiefs/admins can kick off the missing narration right from the shared
+  // page (e.g. when a run died mid-generation and left a text-only guide)
+  const [canGen, setCanGen] = useState(false);
+  const [kickingAudio, setKickingAudio] = useState(false);
+  const [kickErr, setKickErr] = useState<string | null>(null);
+  useEffect(() => { canGenerateStudyGuides().then(setCanGen); }, []);
+  const addAudio = async () => {
+    if (!guide || kickingAudio) return;
+    setKickingAudio(true); setKickErr(null);
+    // topics are only used when the text is rewritten — a ready guide with a
+    // stored audio_script goes down the narrate-only path, so a stub is fine
+    const res = await generateStudyGuide(guide.saved_test_id, guide.title, [{ stem: "(narration retry)" }], false, guide.session_date ?? null, false);
+    setKickingAudio(false);
+    if ("error" in res) setKickErr(res.error);
+    else setGuide(res as StudyGuide); // status flips to generating → the poll below takes over
+  };
 
   const copyLink = async () => {
     const link = studyGuideUrl(id);
@@ -5127,7 +6141,7 @@ function StudyGuideView({ id, onClose }: { id: string; onClose: () => void }) {
             {/* Audio: full player once ready; a "still recording" note while it
                 renders (the written guide below is already readable); or a
                 "couldn't generate" note if audio failed. */}
-            {(guide.audio_path || guide.status === "generating") && (
+            {(guide.audio_path || guide.status === "generating" || canGen) && (
               <div style={{ padding: "14px 16px", borderRadius: 14, background: T.tealSoft, marginBottom: 28 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <Volume2 size={18} strokeWidth={2.2} color={T.tealDeep} />
@@ -5143,10 +6157,17 @@ function StudyGuideView({ id, onClose }: { id: string; onClose: () => void }) {
                     </>
                   ) : guide.audio_path && !audioError ? (
                     <span style={{ fontSize: 12.5, color: T.tealDeep }}>Loading audio…</span>
-                  ) : (
+                  ) : guide.status === "generating" ? (
                     <span style={{ fontSize: 12.5, color: T.tealDeep }}>Recording… appears here when ready</span>
+                  ) : canGen ? (
+                    <button style={s.primarySm} onClick={addAudio} disabled={kickingAudio} title="Narrate this guide to a ~10-min audio overview (uses the already-written script — doesn't rewrite anything)">
+                      <Volume2 size={13} strokeWidth={2.3} /> {kickingAudio ? "Starting…" : "Add audio"}
+                    </button>
+                  ) : (
+                    <span style={{ fontSize: 12.5, color: T.tealDeep }}>No audio yet — an education chief can add it.</span>
                   )}
                 </div>
+                {kickErr && <div style={{ fontSize: 12.5, color: T.wrongLine, marginTop: 8 }}>Couldn't start the narration: {kickErr}</div>}
                 {audioUrl && (
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
                     <span style={{ fontSize: 12, color: T.tealDeep, minWidth: 34 }}>{fmtTime(Math.floor(current))}</span>
@@ -5181,6 +6202,25 @@ function StudyGuideView({ id, onClose }: { id: string; onClose: () => void }) {
               </div>
             )}
             {audioError && <p style={{ fontSize: 13, color: T.wrongLine, marginTop: -18, marginBottom: 24 }}>{audioError}</p>}
+
+            {/* Teaching slides: the pre-reading alternative to the audio — a
+                downloadable .pptx built from the guide's AI-written slide
+                outline (guides generated before slides existed have none). */}
+            {guide.text_ready && (guide.slides?.length ?? 0) > 0 && (
+              <div style={{ padding: "14px 16px", borderRadius: 14, background: T.tealSoft, marginBottom: 28, display: "flex", alignItems: "center", gap: 10 }}>
+                <Monitor size={18} strokeWidth={2.2} color={T.tealDeep} />
+                <div style={{ flex: 1, fontSize: 13.5, color: T.tealDeep }}>
+                  <b>Slides instead</b> — a {guide.slides.length + 2}-slide teaching deck with speaker notes. Good for skimming.
+                </div>
+                <button
+                  style={s.primarySm}
+                  onClick={() => exportTeachingPptx(guide, `${guide.title.replace(/[^\w\- ]+/g, "").trim() || "prite-prereading"}.pptx`)}
+                  title="Download the pre-reading deck as PowerPoint"
+                >
+                  <Download size={13} strokeWidth={2.3} /> Download .pptx
+                </button>
+              </div>
+            )}
             {guide.status === "error" && guide.text_ready && (
               <p style={{ fontSize: 13, color: T.wrongLine, margin: "0 0 24px" }}>
                 Audio for this guide couldn't be generated — the written guide below is complete. (It can be regenerated from the Tests panel.)
@@ -5251,7 +6291,7 @@ function StudyGuideLibraryPanel({
         ) : guides.length === 0 ? (
           <p style={{ ...s.apEmpty, fontStyle: "normal", fontSize: 14.5, lineHeight: 1.7, padding: "26px 22px 30px", textAlign: "center", margin: 0 }}>
             <b style={{ display: "block", fontSize: 15.5, marginBottom: 8 }}>No study guides yet</b>
-            Open <b>Tests</b>, pick a saved test, and hit <b>Study guide</b> — once it's ready, it'll show up here for everyone.
+            When an education chief generates one from a saved test, it'll show up here for everyone to read and listen to.
           </p>
         ) : (
           <div style={{ display: "grid", gap: 10, maxHeight: "60vh", overflowY: "auto" }}>
@@ -5269,7 +6309,7 @@ function StudyGuideLibraryPanel({
                     </div>
                     <div style={{ fontSize: 12.5, color: T.faint, marginTop: 3 }}>
                       {g.creator_name ? `${g.creator_name} · ` : ""}{new Date(g.created_at).toLocaleDateString()}
-                      {g.audio_path ? " · 🔊 audio" : ""}
+                      {g.audio_path ? " · 🔊 audio" : ""}{(g.slides?.length ?? 0) > 0 ? " · 🖥 slides" : ""}
                     </div>
                     <p style={{ fontSize: 13, color: T.muted, lineHeight: 1.5, margin: "6px 0 0" }}>{g.intro}</p>
                   </div>
@@ -5349,12 +6389,13 @@ function MissedPanel({
     back = extra); if one hasn't been generated yet it's created on the fly,
     same as the per-question Flashcard tab. */
 function ReviewPanel({
-  due, byId, onGrade, onClose,
+  due, byId, onGrade, onClose, bareScrim = false,
 }: {
   due: SrsRow[];
   byId: Map<string, RawQuestion>;
   onGrade: (qid: string, grade: SrsGrade) => Promise<void>;
   onClose: () => void;
+  bareScrim?: boolean; // when wrapped in ImmersiveScene, drop our own dark scrim so the settled room shows through
 }) {
   const [i, setI] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -5403,7 +6444,7 @@ function ReviewPanel({
   };
 
   return (
-    <div style={s.scrim} onClick={onClose}>
+    <div style={bareScrim ? { ...s.scrim, background: "transparent", backdropFilter: "none", WebkitBackdropFilter: "none" } : s.scrim} onClick={onClose}>
       <div style={{ ...s.apPanel, maxWidth: 620 }} onClick={(e) => e.stopPropagation()} className="rise">
         <div style={s.apHead}>
           <div>
@@ -5482,10 +6523,10 @@ function ReviewPanel({
   );
 }
 
-function Leaderboard({ rows, meId, onClose }: { rows: LeaderRow[]; meId?: string; onClose: () => void }) {
+function Leaderboard({ rows, meId, onClose, bareScrim = false }: { rows: LeaderRow[]; meId?: string; onClose: () => void; bareScrim?: boolean }) {
   const ranked = rows.filter((r) => r.answered > 0);
   return (
-    <div style={s.scrim} onClick={onClose}>
+    <div style={bareScrim ? { ...s.scrim, background: "transparent", backdropFilter: "none", WebkitBackdropFilter: "none" } : s.scrim} onClick={onClose}>
       <div style={{ ...s.apPanel, maxWidth: 460 }} onClick={(e) => e.stopPropagation()} className="rise">
         <div style={s.apHead}>
           <div>
@@ -5561,21 +6602,269 @@ function GoogleG() {
 }
 
 /* ---------------------------------------------------------------------- */
+/* Motivation-reward sheet with iOS-style drag-to-dismiss: 1:1 tracking from
+   wherever it's grabbed (card chrome, not the iframe), rubber-banding when
+   dragged upward, and on release a momentum projection decides dismiss vs.
+   spring-back — with the finger's velocity handed off to the animation so
+   there's no seam between dragging and animating. */
+/* A little hand-drawn bird that flies around the screen for ~12 seconds.
+   Spring-steered wander: it accelerates toward a waypoint, picks a new one
+   as it arrives, banks into turns, bobs on a sine, and finally exits
+   off the top-right. Click it to shoo it away early. */
+function BirdFlight({ onDone }: { onDone: () => void }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    if (reduced) {
+      // perched, not flying: appear near the top, sit for a moment, leave
+      el.style.transform = `translate(${window.innerWidth / 2 - 32}px, ${window.innerHeight * 0.22}px)`;
+      const t = setTimeout(onDone, 4000);
+      return () => clearTimeout(t);
+    }
+    let raf = 0;
+    let x = -90, y = window.innerHeight * 0.45, vx = 120, vy = -40;
+    let tx = 0, ty = 0, dir = 1, leaving = false, last = performance.now();
+    const start = last;
+    const pick = () => {
+      tx = 50 + Math.random() * (window.innerWidth - 150);
+      ty = 40 + Math.random() * (window.innerHeight * 0.65);
+    };
+    pick();
+    const step = (now: number) => {
+      const dt = Math.min(0.032, (now - last) / 1000); last = now;
+      const t = (now - start) / 1000;
+      if (t > 11 && !leaving) { leaving = true; tx = window.innerWidth + 200; ty = -140; }
+      // under-damped spring toward the waypoint = swoopy, bird-like paths
+      vx += ((tx - x) * 2.4 - vx * 1.5) * dt;
+      vy += ((ty - y) * 2.4 - vy * 1.5) * dt;
+      x += vx * dt; y += vy * dt + Math.sin(t * 7.5) * 0.9;
+      if (!leaving && Math.hypot(tx - x, ty - y) < 70) pick();
+      if (Math.abs(vx) > 12) dir = vx >= 0 ? 1 : -1;
+      const bank = Math.max(-20, Math.min(20, vy * 0.045)) * dir;
+      el.style.transform = `translate(${x}px, ${y}px) scaleX(${dir}) rotate(${bank}deg)`;
+      if (leaving && (x > window.innerWidth + 150 || y < -150)) { onDone(); return; }
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [onDone]);
+  return (
+    <div ref={ref} onClick={onDone} title="Shoo" style={{ position: "fixed", left: 0, top: 0, zIndex: 95, cursor: "pointer", willChange: "transform", lineHeight: 0, filter: "drop-shadow(0 6px 10px rgba(0,0,0,.35))" }}>
+      <svg width="64" height="52" viewBox="0 0 64 52" aria-label="A little bird">
+        {/* tail */}
+        <path d="M14 28 L2 20 L6 30 L2 38 Z" fill="#0e7a6b" />
+        {/* body */}
+        <ellipse cx="27" cy="30" rx="16" ry="11" fill="#12907e" />
+        {/* belly */}
+        <ellipse cx="30" cy="34" rx="11" ry="6.5" fill="#7ee0cf" />
+        {/* head */}
+        <circle cx="43" cy="19" r="9.5" fill="#12907e" />
+        {/* beak */}
+        <path d="M51 16.5 L61 20 L51 23 Z" fill="#e8c069" />
+        {/* eye */}
+        <circle cx="46" cy="17" r="2.6" fill="#fff" />
+        <circle cx="46.9" cy="17.3" r="1.3" fill="#11131c" />
+        {/* wing — flaps via CSS */}
+        <path className="birdWing" d="M24 27 Q14 8 38 12 Q34 24 26 29 Z" fill="#0b5f54" />
+        {/* feet tucked in flight */}
+        <path d="M22 40 q2 3 4 1 M28 41 q2 3 4 1" stroke="#e8c069" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+      </svg>
+    </div>
+  );
+}
+
+const REWARD_TILES: { kind: RewardKind | "bird"; emoji: string; label: string; sub: string }[] = [
+  { kind: "motivation", emoji: "🔥", label: "Motivation", sub: "a reel to fire you up" },
+  { kind: "funny", emoji: "😂", label: "Something funny", sub: "from the psychiatry stash" },
+  { kind: "trip", emoji: "✈️", label: "Trip idea", sub: "somewhere to dream about" },
+  { kind: "bird", emoji: "🐦", label: "A little bird", sub: "it flies around, that's it" },
+];
+
+function RewardSheet({ onClose, onBird }: { onClose: () => void; onBird: () => void }) {
+  const [kind, setKind] = useState<RewardKind | null>(null);
+  const [post, setPost] = useState<string | null>(null);
+  const choose = (k: RewardKind | "bird") => {
+    if (k === "bird") { onBird(); return; }
+    setKind(k); setPost(nextRewardPost(k));
+  };
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const scrimRef = useRef<HTMLDivElement | null>(null);
+  const d = useRef({ active: false, startY: 0, y: 0, hist: [] as { t: number; y: number }[], anim: 0 });
+  const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+
+  const setY = (y: number) => {
+    d.current.y = y;
+    if (cardRef.current) cardRef.current.style.transform = y ? `translateY(${y}px)` : "";
+    // scrim dims in proportion to how far the sheet has been pulled — the
+    // dim reads as a property of the sheet's position, not a separate fade
+    if (scrimRef.current) scrimRef.current.style.opacity = String(Math.max(0, Math.min(1, 1 - y / 520)));
+  };
+  const stopAnim = () => cancelAnimationFrame(d.current.anim);
+  useEffect(() => stopAnim, []);
+
+  // critically damped spring to 0 (damping 1.0, response .4) with velocity handoff
+  const springBack = (v0: number) => {
+    let x = d.current.y, v = v0, last = performance.now();
+    const w = (2 * Math.PI) / 0.4;
+    const step = (now: number) => {
+      const dt = Math.min(0.032, (now - last) / 1000); last = now;
+      v += (-2 * w * v - w * w * x) * dt; x += v * dt;
+      if (Math.abs(x) < 0.5 && Math.abs(v) < 20) { setY(0); return; }
+      setY(x);
+      d.current.anim = requestAnimationFrame(step);
+    };
+    d.current.anim = requestAnimationFrame(step);
+  };
+  // continue the throw off-screen at the finger's velocity, then unmount
+  const throwOut = (v0: number) => {
+    const top = cardRef.current?.getBoundingClientRect().top ?? 0;
+    const end = window.innerHeight - top + d.current.y + 60;
+    let x = d.current.y, v = Math.max(v0, 900), last = performance.now();
+    const step = (now: number) => {
+      const dt = Math.min(0.032, (now - last) / 1000); last = now;
+      v += 2600 * dt; x += v * dt;
+      if (x >= end) { onClose(); return; }
+      setY(x);
+      d.current.anim = requestAnimationFrame(step);
+    };
+    d.current.anim = requestAnimationFrame(step);
+  };
+  const dismiss = (v0 = 1100) => { if (reduced) onClose(); else throwOut(v0); };
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0 && e.pointerType === "mouse") return;
+    if ((e.target as HTMLElement).closest("button, a, iframe")) return;
+    stopAnim();
+    d.current.active = true;
+    d.current.startY = e.clientY - d.current.y; // respect the grab offset
+    d.current.hist = [{ t: e.timeStamp, y: e.clientY }];
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* keep tracking uncaptured */ }
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!d.current.active) return;
+    let y = e.clientY - d.current.startY;
+    if (y < 0) { const c = 0.55, dim = 300; y = (y * dim * c) / (dim + c * Math.abs(y)); } // rubber-band upward
+    setY(y);
+    const h = d.current.hist;
+    h.push({ t: e.timeStamp, y: e.clientY });
+    while (h.length > 2 && e.timeStamp - h[0].t > 100) h.shift();
+  };
+  const onPointerUp = (e: React.PointerEvent) => {
+    if (!d.current.active) return;
+    d.current.active = false;
+    const h = d.current.hist;
+    const dt = (e.timeStamp - h[0].t) / 1000;
+    const vel = dt > 0.004 ? (e.clientY - h[0].y) / dt : 0; // px/s
+    if (reduced) { d.current.y > 160 || vel > 500 ? onClose() : setY(0); return; }
+    // momentum projection (deceleration .998): where would it come to rest?
+    const projected = d.current.y + (vel / 1000) * (0.998 / (1 - 0.998));
+    if (vel > 450 || (projected > 220 && vel > -300)) throwOut(vel);
+    else springBack(vel);
+  };
+  const onPointerCancel = () => { if (d.current.active) { d.current.active = false; reduced ? setY(0) : springBack(0); } };
+
+  return (
+    <div ref={scrimRef} style={s.scrim} onClick={() => dismiss()}>
+      <div
+        ref={cardRef}
+        style={{ background: T.ink, border: "1px solid rgba(255,255,255,.12)", borderRadius: 18, padding: 14, width: "min(420px, 94vw)", boxShadow: "0 30px 80px -20px rgba(0,0,0,.8)", touchAction: "none", cursor: "grab", willChange: "transform" }}
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
+        className="materialize"
+      >
+        <div style={{ width: 36, height: 5, borderRadius: 3, background: "rgba(255,255,255,.28)", margin: "-4px auto 10px" }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, color: "#fff" }}>
+          {post && (
+            <button style={{ ...s.doneBtn, background: "transparent", padding: "4px 6px", marginLeft: -4 }} onClick={() => { setKind(null); setPost(null); }} title="Pick a different reward"><ArrowLeft size={15} strokeWidth={2.4} /></button>
+          )}
+          <Flame size={16} strokeWidth={2.4} color={T.teal} />
+          <b style={{ fontSize: 14.5, flex: 1, letterSpacing: "-0.01em" }}>{post ? "You earned this." : "Set complete — pick your reward."}</b>
+          <button style={{ ...s.doneBtn, background: "transparent", padding: "4px 8px" }} onClick={() => dismiss()} title="Close"><X size={15} strokeWidth={2.4} /></button>
+        </div>
+        {!post ? (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, padding: "4px 2px 2px" }}>
+            {REWARD_TILES.map((tile) => (
+              <button
+                key={tile.kind}
+                className="rewardTile"
+                onClick={() => choose(tile.kind)}
+                style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 4, background: T.inkSoft, border: `1px solid ${T.inkLine}`, borderRadius: 14, padding: "14px 14px 12px", cursor: "pointer", textAlign: "left" }}
+              >
+                <span style={{ fontSize: 26, lineHeight: 1 }}>{tile.emoji}</span>
+                <b style={{ fontSize: 14, color: "#fff", letterSpacing: "-0.01em", marginTop: 4 }}>{tile.label}</b>
+                <span style={{ fontSize: 11.5, color: "#9aa0ab", lineHeight: 1.35 }}>{tile.sub}</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <>
+            {post.startsWith("meme:") ? (
+              <img
+                key={post}
+                src={post.slice(5)}
+                alt="Residency meme"
+                style={{ display: "block", width: "100%", maxHeight: "min(560px, 68vh)", objectFit: "contain", borderRadius: 10, background: "#000" }}
+              />
+            ) : (
+              <iframe
+                key={post}
+                src={`https://www.instagram.com/${post}/embed/`}
+                style={{ width: "100%", height: "min(560px, 68vh)", border: "none", borderRadius: 10, background: "#000" }}
+                allow="autoplay; encrypted-media"
+                allowFullScreen
+                title="Motivation reward"
+              />
+            )}
+            <div style={{ display: "flex", gap: 8, marginTop: 10, justifyContent: "flex-end" }}>
+              <button style={{ ...s.doneBtn, background: "transparent" }} onClick={() => kind && setPost(nextRewardPost(kind))}><RotateCcw size={13} strokeWidth={2.3} /> Another one</button>
+              <button style={s.doneBtn} onClick={() => dismiss()}><Check size={13} strokeWidth={2.6} /> Back to work</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const CSS = `
 * { box-sizing: border-box; }
 button { font-family: inherit; -webkit-appearance: none; appearance: none; }
-.opt:hover:not(:disabled) { border-color: ${T.teal}33 !important; transform: translateY(-1px); }
+.opt:hover:not(:disabled) { border-color: ${T.teal}33 !important; transform: translateY(-1px); box-shadow: 0 8px 20px -14px rgba(20,24,40,.4); }
 .opt:disabled { cursor: default; }
-.opt { transition: transform .12s ease, border-color .12s ease; }
+.opt { transition: transform .12s cubic-bezier(.2,.7,.3,1), border-color .12s ease, box-shadow .15s ease; }
 .tab:hover { color: ${T.text}; }
+/* Exam focus mode: fade the surrounding chrome down to a whisper, bring it
+   back on hover so the question is the only thing competing for attention. */
+.examDim { opacity: .1; transition: opacity .4s ease; }
+.examDim:hover, .examDim:focus-within { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .examDim { opacity: .55; } }
+.topActBtn { transition: filter .15s ease, transform .16s cubic-bezier(.2,.7,.3,1); }
+.topActBtn:hover { filter: brightness(1.22); }
+.rewardTile { transition: transform .16s cubic-bezier(.2,.7,.3,1), border-color .15s ease, background .15s ease; }
+.rewardTile:hover { transform: translateY(-2px); border-color: ${T.teal}66 !important; background: #2b3145 !important; }
+.birdWing { transform-origin: 26px 26px; animation: birdFlap .3s ease-in-out infinite alternate; }
+@keyframes birdFlap { from { transform: rotate(-34deg); } to { transform: rotate(16deg); } }
 .fade { animation: fade .28s ease both; }
 @keyframes fade { from { opacity: 0; transform: translateY(4px); } }
 .dist { animation: grow .6s cubic-bezier(.22,.61,.36,1) both; }
 @keyframes grow { from { width: 0 !important; } }
 .toast { animation: tin .3s ease both; }
 @keyframes tin { from { opacity: 0; transform: translateY(8px); } }
-button:not(.opt):active { transform: scale(.96); }
-.opt:active:not(:disabled) { transform: scale(.99); }
+/* Press feedback: instant on pointer-down (short in), soft springy release (longer out). */
+button:not(.opt) { transition: transform .16s cubic-bezier(.2,.7,.3,1); }
+button:not(.opt):active { transform: scale(.96); transition-duration: .06s; }
+.opt:active:not(:disabled) { transform: scale(.99); transition-duration: .06s; }
+/* Modal surfaces materialize (scale + settle) instead of hard-cutting in;
+   scrims fade separately so the dim reads as a layer beneath the surface. */
+.materialize { animation: materialize .34s cubic-bezier(.22,.9,.3,1.04) both; }
+@keyframes materialize { from { opacity: 0; transform: scale(.96) translateY(10px); } }
+.scrimIn { animation: scrimIn .22s ease both; }
+@keyframes scrimIn { from { opacity: 0; } }
 .pop { animation: pop .5s cubic-bezier(.3,1.4,.5,1) both; }
 @keyframes pop {
   0% { box-shadow: 0 0 0 0 ${T.correctLine}00; }
@@ -5660,13 +6949,38 @@ button:focus-visible { outline: 2px solid ${T.teal}; outline-offset: 2px; }
 .confetti { position: absolute; left: 22px; top: 50%; width: 7px; height: 7px; border-radius: 2px; opacity: 0; animation: confettiPop .85s cubic-bezier(.15,.6,.3,1) both; }
 @keyframes confettiPop { 0% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); } 100% { opacity: 0; transform: translate(var(--dx, 40px), var(--dy, -50px)) rotate(var(--rot, 180deg)) scale(.5); } }
 .flameFlicker { display: inline-flex; animation: flameFlicker 2.6s ease-in-out infinite; transform-origin: 50% 88%; }
+/* Brand wordmark: mark + name float on an infinitely scrolling cloud horizon.
+   The track holds mirror-image pairs of the strip, so every junction is a
+   reflection of itself — scrolling by exactly half the track (one pair
+   period) loops with no visible seam, forever. */
+@keyframes cloudScroll { to { transform: translateX(-50%); } }
+/* Hover must never change animation-duration — CSS re-maps elapsed time onto
+   the new duration and the loop position visibly teleports. The steady 55s
+   scroll lives on .cloudTrack untouched; hover instead nudges the WRAPPER
+   with a plain transform transition, which composes with the scroll — a
+   smooth gust that eases in and back out with no jump either way. */
+.cloudWrap { position: absolute; inset: 0; pointer-events: none; transition: transform 2.8s ease; }
+.cloudTrack { position: absolute; top: 0; left: 0; height: 100%; width: max-content; display: flex; animation: cloudScroll 55s linear infinite; opacity: 0.65; }
+.cloudTrack img { height: 100%; width: auto; display: block; }
+.cloudTrack img:nth-child(even) { transform: scaleX(-1); }
+@keyframes brandFloat { 0%, 100% { transform: translateY(1px) rotate(-1.2deg); } 50% { transform: translateY(-2px) rotate(1.2deg); } }
+.brandFloat { animation: brandFloat 4.8s ease-in-out infinite; will-change: transform; }
+/* The name bobs too — slower and offset, so it drifts out of phase with the mark. */
+.brandFloatSlow { display: inline-flex; animation: brandFloat 6.6s ease-in-out infinite; animation-delay: -2.2s; will-change: transform; }
+.brandHome { transition: transform 0.5s ease, opacity 0.5s ease; }
+.brandHome:hover .cloudWrap { transform: translateX(-16px); }
+.brandHome:hover { opacity: 0.95; transform: translateY(-1px); }
+@media (prefers-reduced-motion: reduce) { .brandFloat, .brandFloatSlow, .cloudTrack { animation: none; } .cloudWrap, .brandHome { transition: none; } }
 @keyframes flameFlicker { 0%, 100% { transform: scale(1) rotate(-2deg); } 28% { transform: scale(1.14) rotate(2.5deg); } 55% { transform: scale(.94) rotate(-1deg); } 78% { transform: scale(1.08) rotate(1.5deg); } }
 .timerLow { animation: timerPulse 1s ease-in-out infinite; }
 @keyframes timerPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
 .progFillDone { animation: progGlowPop .6s cubic-bezier(.3,1.3,.5,1) both; }
 @keyframes progGlowPop { 0% { transform: scaleY(1); } 45% { transform: scaleY(1.6); } 100% { transform: scaleY(1); } }
 @media (prefers-reduced-motion: reduce) {
-  .fade, .toast, .pop, .slidein { animation: none !important; }
+  /* Global backstop: also neutralizes inline animations (scrim/panel materialize). */
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+  .fade, .toast, .pop, .slidein, .materialize, .scrimIn { animation: none !important; }
+  button:not(.opt), .opt { transition: none !important; }
   .streakPop, .streakGlow { animation: none !important; }
   .balloonRiseA, .balloonRiseB { display: none !important; }
   .tabInd { transition: none !important; }
@@ -5689,17 +7003,20 @@ button:focus-visible { outline: 2px solid ${T.teal}; outline-offset: 2px; }
 
 /* ---------------------------------------------------------------------- */
 const s: Record<string, React.CSSProperties> = {
-  root: { minHeight: "100vh", background: T.ink, fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif", color: T.text },
+  root: { minHeight: "100vh", background: T.ink, fontFamily: "-apple-system, BlinkMacSystemFont, system-ui, 'Helvetica Neue', Helvetica, Arial, sans-serif", color: T.text },
 
-  top: { position: "sticky", top: 0, zIndex: 20, background: T.ink, borderBottom: `1px solid ${T.inkLine}` },
+  // Translucent chrome: content scrolls under the bar; the blur + saturation
+  // make it read as a floating material layer rather than an opaque strip.
+  top: { position: "sticky", top: 0, zIndex: 20, background: "rgba(27,30,43,.72)", backdropFilter: "blur(20px) saturate(1.6)", WebkitBackdropFilter: "blur(20px) saturate(1.6)", borderBottom: "1px solid rgba(255,255,255,.04)", transition: "box-shadow .25s ease, border-color .25s ease" },
+  topScrolled: { borderBottom: "1px solid rgba(255,255,255,.09)", boxShadow: "0 10px 28px -14px rgba(0,0,0,.55)" },
   // Wider cap than the main content column, and wraps to a second line
   // instead of squeezing — with brand + countdown + up to ~9 admin controls,
   // an unwrapped 880px row forced the countdown text to break word-by-word
   // and pushed the button cluster off-screen.
   topInner: { maxWidth: 1180, margin: "0 auto", padding: "13px 22px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: "10px 14px" },
-  brand: { display: "flex", alignItems: "center", gap: 9, flexShrink: 0 },
-  brandMark: { width: 28, height: 28, borderRadius: 8, background: T.teal, color: "#fff", display: "grid", placeItems: "center", flexShrink: 0 },
-  brandName: { color: "#fff", fontWeight: 600, fontSize: 16, letterSpacing: "-0.01em", whiteSpace: "nowrap" },
+  brand: { position: "relative", overflow: "hidden", display: "flex", alignItems: "center", gap: 9, flexShrink: 0, background: "transparent", border: `1px solid ${T.inkLine}`, borderRadius: 11, padding: "5px 14px 5px 5px", cursor: "pointer", font: "inherit" },
+  brandMark: { position: "relative", width: 28, height: 28, borderRadius: 8, background: T.teal, color: "#fff", display: "grid", placeItems: "center", flexShrink: 0, boxShadow: "0 2px 6px rgba(4,16,20,0.5)" },
+  brandName: { position: "relative", color: "#fff", fontWeight: 600, fontSize: 16, letterSpacing: "-0.01em", whiteSpace: "nowrap", textShadow: "0 1px 3px rgba(4,16,20,0.75)" },
   // marginLeft: auto keeps this cluster pinned to the right whether it shares
   // a line with the brand or wraps onto its own line below it.
   topMeta: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px 13px", marginLeft: "auto", justifyContent: "flex-end" },
@@ -5712,27 +7029,30 @@ const s: Record<string, React.CSSProperties> = {
   approveBtn: { position: "relative", display: "inline-flex", alignItems: "center", gap: 6, background: T.inkSoft, color: "#e7d9b4", border: `1px solid ${T.inkLine}`, padding: "6px 11px", borderRadius: 8, fontSize: 12.5, fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 },
   navSegRow: { display: "inline-flex", background: T.inkSoft, border: `1px solid ${T.inkLine}`, borderRadius: 9, padding: 2, gap: 2, flexShrink: 0 },
   navSegBtn: { display: "inline-flex", alignItems: "center", gap: 5, background: "transparent", color: "#aeb4c0", border: "none", padding: "5px 10px", borderRadius: 7, fontSize: 12.5, fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap" },
-  navSegOn: { background: T.teal, color: "#fff" },
+  navSegOn: { background: T.teal, color: "#fff", boxShadow: "0 1px 5px rgba(0,0,0,.28)" },
   pendingBadge: { display: "inline-grid", placeItems: "center", minWidth: 18, height: 18, padding: "0 5px", borderRadius: 9, background: T.gold, color: "#fff", fontSize: 11, fontWeight: 700, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
 
-  scrim: { position: "fixed", inset: 0, background: "rgba(15,17,26,.6)", backdropFilter: "blur(3px)", display: "grid", placeItems: "center", padding: 18, zIndex: 80 },
-  apPanel: { width: "100%", maxWidth: 540, maxHeight: "84vh", display: "flex", flexDirection: "column", background: T.paper, borderRadius: 18, overflow: "hidden", border: `1px solid ${T.paperEdge}`, boxShadow: "0 30px 80px -30px rgba(0,0,0,.6)" },
+  scrim: { position: "fixed", inset: 0, background: "rgba(15,17,26,.6)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "grid", placeItems: "center", padding: 18, zIndex: 80, animation: "scrimIn .22s ease both" },
+  apPanel: { width: "100%", maxWidth: 540, maxHeight: "84vh", display: "flex", flexDirection: "column", background: T.paper, borderRadius: 18, overflow: "hidden", border: `1px solid ${T.paperEdge}`, boxShadow: "0 30px 80px -30px rgba(0,0,0,.6)", animation: "materialize .34s cubic-bezier(.22,.9,.3,1.04) both" },
   apHead: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "20px 22px 12px" },
   apEyebrow: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: T.muted },
-  apTitle: { fontSize: 22, fontWeight: 700, color: T.text, marginTop: 3 },
+  apTitle: { fontSize: 22, fontWeight: 700, color: T.text, marginTop: 3, letterSpacing: "-0.015em", lineHeight: 1.15 },
   close: { background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 8, width: 32, height: 32, display: "grid", placeItems: "center", cursor: "pointer", color: T.muted },
   apBody: { padding: "0 18px 18px", overflowY: "auto" },
   apSectionLbl: { display: "flex", alignItems: "center", gap: 8, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", color: T.faint, margin: "8px 4px 10px" },
-  apRow: { display: "flex", alignItems: "center", gap: 12, padding: "10px 8px", borderBottom: `1px solid ${T.paperEdge}` },
+  apRow: { display: "flex", alignItems: "center", gap: 12, padding: "10px 8px", borderBottom: `1px solid ${T.paperEdge}`, flexWrap: "wrap" as const },
   apAvatar: { width: 34, height: 34, borderRadius: 9, background: T.inkSoft, color: "#fff", display: "grid", placeItems: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 },
   apName: { fontSize: 14.5, fontWeight: 600, color: T.text, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
   apMatch: { fontSize: 11, fontWeight: 600, color: T.correctText, background: T.correctBg, border: `1px solid ${T.correctLine}55`, borderRadius: 5, padding: "1px 6px" },
   apNoMatch: { fontSize: 11, fontWeight: 500, color: T.muted, background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 5, padding: "1px 6px" },
   apEmail: { fontSize: 12.5, color: T.muted, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-  apActions: { display: "flex", alignItems: "center", gap: 7, flexShrink: 0 },
+  apActions: { display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" as const, justifyContent: "flex-end", marginLeft: "auto" },
   apApprove: { background: T.teal, color: "#fff", border: "none", padding: "7px 13px", borderRadius: 8, fontSize: 12.5, fontWeight: 600, cursor: "pointer" },
   apSelect: { background: "#fff", color: T.text, border: `1px solid ${T.paperEdge}`, borderRadius: 8, padding: "6px 8px", fontSize: 12.5, cursor: "pointer" },
   apBlock: { display: "grid", placeItems: "center", width: 30, height: 30, borderRadius: 8, background: "#fff", color: T.wrongLine, border: `1px solid ${T.paperEdge}`, cursor: "pointer" },
+  apToggle: { background: "#fff", color: T.muted, border: `1px solid ${T.paperEdge}`, borderRadius: 999, padding: "6px 12px", fontSize: 12.5, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" as const },
+  apToggleOn: { background: T.teal, color: "#fff", borderColor: T.teal },
+  apToggleLocked: { opacity: 0.5, cursor: "not-allowed" as const },
   apEmpty: { fontSize: 13.5, color: T.muted, lineHeight: 1.5, margin: "0 4px", fontStyle: "italic" },
   webCardsNote: { display: "flex", alignItems: "flex-start", gap: 9, background: T.goldSoft, border: `1px solid ${T.gold}55`, borderRadius: 10, padding: "10px 12px", margin: "0 0 14px", fontSize: 12.5, lineHeight: 1.5, color: "#6b5518" },
   webCardsNoteBtn: { flexShrink: 0, background: "none", border: `1px solid ${T.gold}88`, color: "#6b5518", borderRadius: 8, padding: "4px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" },
@@ -5756,7 +7076,7 @@ const s: Record<string, React.CSSProperties> = {
 
   statGrid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, margin: "12px 4px 6px" },
   statCard: { background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 12, padding: "13px 15px" },
-  statNum: { fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif", fontSize: 26, fontWeight: 700, lineHeight: 1.1, color: T.text },
+  statNum: { fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif", fontSize: 26, fontWeight: 700, lineHeight: 1.1, color: T.text, letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" },
   statLbl: { fontSize: 13, fontWeight: 600, color: T.text, marginTop: 4 },
   statSub: { fontSize: 11.5, color: T.muted, marginTop: 2 },
   chartCard: { background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 12, padding: "12px 14px 10px", margin: "12px 4px 6px" },
@@ -5865,6 +7185,7 @@ const s: Record<string, React.CSSProperties> = {
   multiTag: { display: "inline-flex", alignItems: "center", gap: 5, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 11, color: T.gold, background: T.goldSoft, borderRadius: 6, padding: "3px 9px" },
 
   qcard: { background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 16, padding: "26px 26px 22px", boxShadow: "0 1px 0 rgba(0,0,0,.04), 0 18px 40px -28px rgba(20,24,40,.5)" },
+  caughtCard: { width: "100%", maxWidth: 440, background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 18, padding: "32px 28px", textAlign: "center", boxShadow: "0 30px 80px -30px rgba(0,0,0,.5)" },
   figRow: { display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 18, justifyContent: "center" },
   figImg: { maxWidth: "100%", maxHeight: 320, borderRadius: 10, border: `1px solid ${T.paperEdge}`, background: "#fff" },
   stem: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 20, lineHeight: 1.5, color: T.text, margin: "0 0 22px", fontWeight: 400 },
@@ -6039,9 +7360,11 @@ const s: Record<string, React.CSSProperties> = {
   // min-height:100% + flex, so short content stays centered but a tall poll
   // (stem peek + options + explanation + history) can scroll with the top
   // still reachable — a plain grid/flex-centered fixed box would clip it.
-  joinRoot: { position: "fixed", inset: 0, zIndex: 90, background: T.ink, overflowY: "auto", WebkitOverflowScrolling: "touch", fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif" },
-  joinScroll: { minHeight: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, boxSizing: "border-box" },
-  joinCard: { width: "100%", maxWidth: 460, background: T.inkSoft, border: `1px solid ${T.inkLine}`, borderRadius: 18, padding: 22, boxShadow: "0 24px 60px -20px rgba(0,0,0,.7)" },
+  joinRoot: { position: "fixed", inset: 0, zIndex: 90, background: "transparent", overflowY: "auto", WebkitOverflowScrolling: "touch", fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif" },
+  // `margin:auto` (not flex `center`) so a card taller than the viewport stays
+  // fully scrollable on phones — flex centering clips the top out of reach.
+  joinScroll: { minHeight: "100%", display: "flex", padding: 20, boxSizing: "border-box" },
+  joinCard: { width: "100%", maxWidth: 460, margin: "auto", background: T.inkSoft, border: `1px solid ${T.inkLine}`, borderRadius: 18, padding: 22, boxShadow: "0 24px 60px -20px rgba(0,0,0,.7)" },
   joinHead: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 },
   joinMsg: { color: "#c7ccd6", fontSize: 15, lineHeight: 1.5, margin: "0 0 18px" },
   joinOpts: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(64px, 1fr))", gap: 12 },
