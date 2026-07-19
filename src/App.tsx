@@ -3141,6 +3141,10 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
   // screen above every question) — they're an opt-in toggle on the finished
   // screen only. Team modes still show live team stats as before.
   const [showIndividual, setShowIndividual] = useState(false);
+  // One-question peek at the current individual standings, offered only once
+  // the answer is revealed. Cleared automatically on every question change
+  // (goTo), so it never lingers over the next question.
+  const [peekStandings, setPeekStandings] = useState(false);
   const [showAnswerKey, setShowAnswerKey] = useState(false); // answer key on the finish screen (hidden by default)
   const [standingsFontSize, setStandingsFontSize] = useState(20); // adjustable text size for the answer-key stem/options/explanation
   const [pollStemScale, setPollStemScale] = useState(1.8); // adjustable text size for the question, independent of the choices (default 180% for room readability)
@@ -3323,7 +3327,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
   const standings = computeStandings();
   const individuals = computeIndividualStandings();
   const isIndividualMode = teamMode === "individual";
-  const goTo = (i: number) => { setRevealed(false); setShowExpl(false); setIndex(Math.max(0, Math.min(i, total - 1))); };
+  const goTo = (i: number) => { setRevealed(false); setShowExpl(false); setPeekStandings(false); setIndex(Math.max(0, Math.min(i, total - 1))); };
   // Nudge the running countdown (and the baseline used for every question
   // after this one) up or down — the default one-minute timer isn't right
   // for every question, and there was previously no way to change it mid-poll.
@@ -3696,6 +3700,33 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
           </div>
         ) : (
           <>
+        {/* Individual mode: standings never sit on screen during the poll —
+            but once the answer is revealed the host can peek at the current
+            leaderboard. The peek resets on every question change (goTo). */}
+        {isIndividualMode && revealed && individuals.length > 0 && (
+          peekStandings ? (
+            <div style={s.pollStats}>
+              <div style={s.pollStatsHead}>
+                <span style={s.teamBoardHead}><Trophy size={16} strokeWidth={2.4} /> Current standings</span>
+                <button style={s.pollStatsExport} onClick={() => setPeekStandings(false)} title="Hide the standings again">
+                  <Users size={14} strokeWidth={2.3} /> Hide
+                </button>
+              </div>
+              {individuals.map((p, i) => (
+                <div key={p.voter} style={{ ...s.teamRow, ...(i === 0 ? s.teamRowLead : {}) }}>
+                  <span style={s.teamRank}>{i === 0 ? <Crown size={20} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
+                  <span style={s.teamName}>{p.name}</span>
+                  <span style={s.teamMembers}>{p.score} correct · {p.answered} answered</span>
+                  <span style={s.teamScore}>{p.answered > 0 ? Math.round((p.score / p.answered) * 100) : 0}%</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <button style={{ ...s.pollBtn, marginBottom: 14 }} onClick={() => setPeekStandings(true)} title="Peek at the leaderboard — hides again on the next question">
+              <Trophy size={15} strokeWidth={2.3} /> Show current standings
+            </button>
+          )
+        )}
         {/* Live view shows TEAM stats only — individual standings are an
             opt-in toggle on the finished screen, never during the poll. */}
         {!isIndividualMode && standings.length > 0 && (
