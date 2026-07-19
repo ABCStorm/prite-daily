@@ -563,6 +563,10 @@ export default function App() {
   const signedIn = Boolean(session);
   const approved = !isConfigured || profile?.status === "approved";
   const persist = isConfigured && signedIn && approved;
+  // A ?poll=CODE link opened while signed OUT goes to the guest join flow
+  // instead of the sign-in wall (read once at mount; signed-in users keep the
+  // existing auto-join effect below, which also clears the URL param).
+  const [guestPollCode, setGuestPollCode] = useState<string | null>(() => (isConfigured ? pollCodeFromUrl() : null));
 
   // Poll every saved test's study-guide row while any of them are still
   // generating — a recursive timeout (not setInterval) so it naturally stops
@@ -1162,6 +1166,8 @@ export default function App() {
 
   // --- auth gate (only when Supabase is configured) ---
   if (isConfigured && authLoading) return <Center>Signing you in…</Center>;
+  if (isConfigured && !session && guestPollCode)
+    return <GuestPoll code={guestPollCode} onClose={() => { setGuestPollCode(null); clearPollParam(); }} />;
   if (isConfigured && !session) return <SignIn />;
   if (isConfigured && session && (!profile || profile.status !== "approved"))
     return <Pending email={session.user.email ?? ""} status={profile?.status ?? "pending"} />;
@@ -3864,9 +3870,13 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
 
 const TEAM_KEY = "prite_poll_team";
 
-function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, byId, displayName, onClose }: {
+function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, byId, displayName, onClose, guest = false }: {
   code: string; voter: string; trainingLevel: string | null; stableTeam: string | null; weeklyTeam: string | null;
   byId: Map<string, RawQuestion>; displayName: string; onClose: () => void;
+  // Guest mode (no account — e.g. a med student joining via the ?poll link):
+  // skips all persistence, and since there's no saved roster entry, stable/
+  // weekly polls let the guest type the team they've been told to join.
+  guest?: boolean;
 }) {
   const [remote, setRemote] = useState<PollState | null>(null);
   const [myVote, setMyVote] = useState<string | null>(null);
@@ -3898,7 +3908,11 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
   // Set/clear my team and tell the host right away so it can roster me even
   // before I vote.
   const saveTeam = (name: string) => {
-    const t = name.trim().slice(0, 24);
+    let t = name.trim().slice(0, 24);
+    // Guests join roster teams by typing the name off the big screen — the
+    // standings tally by exact string, so canonicalize "team 3"/"TEAM3" to
+    // "Team 3" for them (residents' free-typed self-mode names stay untouched).
+    if (guest) { const m = /^team\s*(\d+)$/i.exec(t); if (m) t = `Team ${m[1]}`; }
     setTeamState(t); setDraft(t); setEditing(false);
     try { t ? localStorage.setItem(TEAM_KEY, t) : localStorage.removeItem(TEAM_KEY); schedulePrefsPush(); } catch { /* no-op */ }
     chanRef.current?.send({ type: "broadcast", event: POLL_EVENTS.hello, payload: { voter, team: t || undefined, level: trainingLevel || undefined, name: displayName || undefined } as PollHello });
@@ -3918,7 +3932,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
         }
         // Persist my own answer for the personal poll-stats page — once per
         // qid, and only if I actually voted (not for questions I sat out).
-        if (voter !== "anon" && myVoteRef.current && !recordedRef.current.has(payload.qid)) {
+        if (!guest && voter !== "anon" && myVoteRef.current && !recordedRef.current.has(payload.qid)) {
           recordedRef.current.add(payload.qid);
           recordPollAnswer({
             question_id: payload.qid,
@@ -3949,6 +3963,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
   // Stable/weekly modes: always use the saved roster's pick for me, not
   // whatever I last typed in for a self/auto session.
   useEffect(() => {
+    if (guest) return; // guests have no saved roster entry — they pick a team by hand
     const rostered = remote?.teamMode === "stable" ? stableTeam : remote?.teamMode === "weekly" ? weeklyTeam : null;
     if (rostered && team !== rostered) saveTeam(rostered);
   }, [remote?.teamMode, stableTeam, weeklyTeam]); // eslint-disable-line
@@ -4003,8 +4018,10 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
   const isIndividualMode = remote?.teamMode === "individual";
   const isStableMode = remote?.teamMode === "stable" || remote?.teamMode === "weekly"; // both use a fixed saved roster
   const awaitingAutoAssign = remote?.teamMode === "auto" && !team;
-  const awaitingStableTeam = isStableMode && !team;
-  const showTeamEditor = !isIndividualMode && !isStableMode && (editing || (!team && !awaitingAutoAssign));
+  const awaitingStableTeam = isStableMode && !team && !guest;
+  // Guests can always type a team — even in stable/weekly mode, where members
+  // are locked to their saved roster seat (they have none).
+  const showTeamEditor = !isIndividualMode && (!isStableMode || guest) && (editing || (!team && !awaitingAutoAssign));
   const inLobby = !!remote && !remote.started && !remote.finished;
 
   return (
@@ -4035,7 +4052,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                   value={draft}
                   autoFocus={editing}
                   maxLength={24}
-                  placeholder="Your team name"
+                  placeholder={guest && isStableMode ? "Team from the screen (e.g. Team 3)" : "Your team name"}
                   onChange={(e) => setDraft(e.target.value)}
                 />
                 <button type="submit" style={{ ...s.teamSet, ...(draft.trim() ? {} : s.teamSetOff) }} disabled={!draft.trim()}>
@@ -4049,7 +4066,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
             ) : (
               <>
                 <span style={s.teamTag}><Users size={15} strokeWidth={2.3} /> Team <b style={{ color: "#fff" }}>{team}</b></span>
-                {!isStableMode && <button style={s.teamChange} onClick={() => { setDraft(team); setEditing(true); }}>change</button>}
+                {(!isStableMode || guest) && <button style={s.teamChange} onClick={() => { setDraft(team); setEditing(true); }}>change</button>}
               </>
             )}
           </div>
@@ -4107,7 +4124,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
               );
             })() : (
               <>
-                {!remote.finished && (
+                {!remote.finished && byId.size > 0 && (
                   <div
                     style={s.stemPull}
                     onClick={() => setStemOpen((v) => !v)}
@@ -4171,7 +4188,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                 })()}
               </>
             )}
-            {historyRef.current.size > 0 && (
+            {historyRef.current.size > 0 && byId.size > 0 && (
               <div style={s.pollReviewBar}>
                 <span style={s.pollReviewBarLabel}><ListChecks size={13} strokeWidth={2.3} /> Review a past question{!remote.finished ? " while you wait" : ""}:</span>
                 <div style={s.pollReviewChipsRow}>
@@ -4213,7 +4230,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                 <Download size={13} strokeWidth={2.3} /> Download team stats (Excel)
               </button>
             )}
-            {remote.finished && (
+            {remote.finished && byId.size > 0 && (
               <button
                 style={s.teamDownload}
                 onClick={() => exportPollMissed(missedRows(), { code, who: displayName })}
@@ -4227,6 +4244,83 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
       </div>
       </div>
     </div>
+  );
+}
+
+// --- guest poll access ------------------------------------------------------
+// Visitors without an account (e.g. med students rotating through didactics)
+// can join a live poll straight from its ?poll=CODE link. Everything a
+// participant needs travels over the Realtime broadcast channel (choices,
+// reveals, standings), so no sign-in or DB access is required — the guest just
+// supplies a display name. Each device gets a random persistent voter id (the
+// host tallies votes per id, so guests must not share one), answers are never
+// persisted, and bank-dependent extras (stem shade, review, missed-questions
+// export) are hidden because guests have no local question bank.
+const GUEST_ID_KEY = "prite_guest_voter";
+const GUEST_NAME_KEY = "prite_guest_name";
+const EMPTY_BANK = new Map<string, RawQuestion>();
+
+function guestVoterId(): string {
+  try {
+    const cur = localStorage.getItem(GUEST_ID_KEY);
+    if (cur) return cur;
+    const id = "guest-" + Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => b.toString(16).padStart(2, "0")).join("");
+    localStorage.setItem(GUEST_ID_KEY, id);
+    return id;
+  } catch {
+    return "guest-" + Math.random().toString(36).slice(2, 10);
+  }
+}
+
+function GuestPoll({ code, onClose }: { code: string; onClose: () => void }) {
+  const [name, setName] = useState<string>(() => { try { return localStorage.getItem(GUEST_NAME_KEY) || ""; } catch { return ""; } });
+  const [draft, setDraft] = useState(name);
+  const [joined, setJoined] = useState(false);
+  const voter = useMemo(guestVoterId, []);
+
+  if (!joined) {
+    return (
+      <Center>
+        <div style={{ maxWidth: 360, textAlign: "left", background: "#181c24", border: "1px solid #2a3040", borderRadius: 14, padding: "22px 20px" }}>
+          <h2 style={{ margin: "0 0 6px", fontSize: 19, color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
+            <Radio size={18} strokeWidth={2.4} color="#4fd1c5" /> Join poll {code}
+          </h2>
+          <p style={{ margin: "0 0 14px", fontSize: 13.5, lineHeight: 1.5, color: "#aeb4c0" }}>
+            You're joining as a <b style={{ color: "#e7eaf0" }}>guest</b> — no account needed. What name should the host see?
+          </p>
+          <form
+            style={{ display: "flex", gap: 8 }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              const n = draft.trim().slice(0, 24);
+              if (!n) return;
+              try { localStorage.setItem(GUEST_NAME_KEY, n); } catch { /* no-op */ }
+              setName(n); setJoined(true);
+            }}
+          >
+            <input style={s.teamInput} value={draft} autoFocus maxLength={24} placeholder="Your name" onChange={(e) => setDraft(e.target.value)} />
+            <button type="submit" style={{ ...s.teamSet, ...(draft.trim() ? {} : s.teamSetOff) }} disabled={!draft.trim()}>Join</button>
+          </form>
+          <p style={{ margin: "14px 0 0", fontSize: 12, color: "#7b8494" }}>
+            A resident? <a href="/" style={{ color: "#4fd1c5" }}>Sign in instead</a> so your answers count toward your stats.
+          </p>
+        </div>
+      </Center>
+    );
+  }
+
+  return (
+    <PollParticipant
+      code={code}
+      voter={voter}
+      guest
+      trainingLevel={null}
+      stableTeam={null}
+      weeklyTeam={null}
+      byId={EMPTY_BANK}
+      displayName={`${name} (guest)`}
+      onClose={onClose}
+    />
   );
 }
 
