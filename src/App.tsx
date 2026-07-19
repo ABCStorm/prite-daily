@@ -567,6 +567,10 @@ export default function App() {
   // instead of the sign-in wall (read once at mount; signed-in users keep the
   // existing auto-join effect below, which also clears the URL param).
   const [guestPollCode, setGuestPollCode] = useState<string | null>(() => (isConfigured ? pollCodeFromUrl() : null));
+  // Mobile: the header actions, library buttons and study toggles collapse
+  // behind a "Menu" button (≤680px, via the .mobExtra CSS class) so the top of
+  // the screen isn't a wall of pills. Desktop is unaffected.
+  const [mobMenuOpen, setMobMenuOpen] = useState(false);
 
   // Poll every saved test's study-guide row while any of them are still
   // generating — a recursive timeout (not setInterval) so it naturally stops
@@ -1422,7 +1426,7 @@ export default function App() {
   };
 
   return (
-    <div style={s.root}>
+    <div style={s.root} className={mobMenuOpen ? "mobMenuOpen" : undefined}>
       <style>{CSS}</style>
 
       {/* Top bar */}
@@ -1447,6 +1451,14 @@ export default function App() {
             <span style={s.brandName} className="brandFloatSlow">PRITE&nbsp;<span style={{ color: "#cfd6df", fontWeight: 500 }}>Daily</span></span>
           </button>
           <div style={s.topMeta} className="topMeta">
+            <button
+              className="mobMenuBtn"
+              style={s.approveBtn}
+              onClick={() => setMobMenuOpen((v) => !v)}
+              title={mobMenuOpen ? "Hide the menu" : "Show all menu options"}
+            >
+              {mobMenuOpen ? <ChevronUp size={13} strokeWidth={2.4} /> : <ChevronDown size={13} strokeWidth={2.4} />} Menu
+            </button>
             <span style={s.countdown}>
               {examDays !== null
                 ? <><span style={{ ...s.countNum, color: examDays <= 14 ? "#e07a5f" : T.gold }}>{examDays}</span> {examDays === 1 ? "day" : "days"} to exam</>
@@ -1457,7 +1469,7 @@ export default function App() {
               )}
             </span>
             {persist ? (
-              <span style={s.who} className="topActions">
+              <span style={s.who} className="topActions mobExtra">
                 <span style={s.navSegRow} className="topActBtn" title="General Psychiatry (PRITE) vs. Child & Adolescent Psychiatry (CAPITE)">
                   <button
                     style={{ ...s.navSegBtn, ...(psychMode === "general" ? s.navSegOn : {}) }}
@@ -1539,10 +1551,11 @@ export default function App() {
               </button>
             </div>
           )}
-          <button style={s.deckBtn} onClick={() => setShowDeck(true)} title="Search & filter questions">
+          <button style={s.deckBtn} className="mobExtra" onClick={() => setShowDeck(true)} title="Search & filter questions">
             <Search size={13} strokeWidth={2.4} /> Search
           </button>
           <button
+            className="mobExtra"
             style={{ ...s.deckBtn, position: "relative" }}
             onClick={() => {
               setShowTests(true);
@@ -1567,12 +1580,12 @@ export default function App() {
             )}
           </button>
           {persist && (
-            <button style={s.deckBtn} onClick={() => setShowGuideLibrary(true)} title="Every study guide the residency has generated — read or listen to past sessions' prep material">
+            <button style={s.deckBtn} className="mobExtra" onClick={() => setShowGuideLibrary(true)} title="Every study guide the residency has generated — read or listen to past sessions' prep material">
               <Volume2 size={13} strokeWidth={2.4} /> Study guides
             </button>
           )}
           {persist && (
-            <button style={s.deckBtn} onClick={() => setShowSrs(true)} title="Spaced-repetition flashcard review of questions you've missed, right in the browser">
+            <button style={s.deckBtn} className="mobExtra" onClick={() => setShowSrs(true)} title="Spaced-repetition flashcard review of questions you've missed, right in the browser">
               <Repeat size={13} strokeWidth={2.4} /> Web flashcards{srsDue.length ? ` (${srsDue.length})` : ""}
             </button>
           )}
@@ -1590,7 +1603,7 @@ export default function App() {
                 </span>
               </span>
               {missedOutstanding > 0 && (
-                <button style={s.missChip} onClick={openMissed} title="Read & review your missed questions">
+                <button style={s.missChip} className="mobExtra" onClick={openMissed} title="Read & review your missed questions">
                   <span className="flameFlicker"><Flame size={12} strokeWidth={2.2} color={T.gold} /></span>
                   <span>
                     {missedOutstanding} learning {missedOutstanding === 1 ? "opportunity" : "opportunities"}
@@ -1623,7 +1636,7 @@ export default function App() {
             </div>
           )}
           {!inToday && (
-            <div style={s.jumpWrap}>
+            <div style={s.jumpWrap} className="mobExtra">
               <input
                 value={jump} onChange={(e) => setJump(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && doJump()}
@@ -1640,6 +1653,7 @@ export default function App() {
             {inPractice && (
               <>
                 <button
+                  className="mobExtra"
                   style={{ ...s.studyToggle, ...(examMode ? s.studyToggleOn : {}) }}
                   onClick={() => { setDeskFlash((f) => ({ dir: examMode ? "out" : "in", token: f.token + 1 })); setExamMode((v) => !v); setExamReview(false); }}
                   title="Focus mode — hides the clutter and holds every explanation until you finish the set"
@@ -1647,6 +1661,7 @@ export default function App() {
                   <ListChecks size={13} strokeWidth={2.3} /> Exam mode: {examMode ? "on" : "off"}
                 </button>
                 <button
+                  className="mobExtra"
                   style={{ ...s.studyToggle, ...(timerOn ? s.studyToggleOn : {}) }}
                   onClick={() => setTimerOn((v) => !v)}
                   title="Countdown per question, like the real exam"
@@ -1654,7 +1669,7 @@ export default function App() {
                   <Clock size={13} strokeWidth={2.3} /> Timer: {timerOn ? "on" : "off"}
                 </button>
                 {timerOn && (
-                  <span style={s.studySecs}>
+                  <span style={s.studySecs} className="mobExtra">
                     <input
                       value={secsDraft}
                       onChange={(e) => setSecsDraft(e.target.value.replace(/[^0-9]/g, ""))}
@@ -1670,12 +1685,15 @@ export default function App() {
               </>
             )}
             <button
+              className="mobExtra"
               style={s.studyToggle}
               onClick={() => { setHostFromTests(false); setTeamModePrompt(null); }}
               title="Run a live poll on a big screen — residents vote from their phones"
             >
               <Radio size={13} strokeWidth={2.3} /> Host poll
             </button>
+            {/* Join poll stays visible on mobile — it's the main phone action
+                during didactics (guests/QR links bypass it, but residents use it) */}
             <button
               style={s.studyToggle}
               onClick={() => { const c = window.prompt("Enter the poll code shown on the big screen:"); if (c && c.trim()) setJoinCode(c.trim().toUpperCase()); }}
@@ -7109,12 +7127,20 @@ button:focus-visible { outline: 2px solid ${T.teal}; outline-offset: 2px; }
   .confetti { display: none !important; }
   .progFill, .progFillDone { transition: none !important; }
 }
+/* The mobile "Menu" toggle lives in the header; desktop never sees it. */
+.mobMenuBtn { display: none !important; align-items: center; gap: 5px; }
 @media (max-width: 680px) {
   .topInner { flex-wrap: wrap !important; padding: 10px 14px !important; gap: 8px 10px !important; }
   .topMeta { width: 100% !important; justify-content: space-between !important; gap: 8px !important; flex-wrap: wrap !important; }
   .topActions { gap: 6px !important; flex-wrap: wrap !important; justify-content: flex-end !important; }
   .topActBtn { padding: 7px 9px !important; }
   .btnTxt { display: none !important; }
+  /* Collapse the pill clutter behind the Menu button: header actions, library
+     buttons, study toggles etc. are hidden until the menu is opened. */
+  .mobMenuBtn { display: inline-flex !important; }
+  .mobExtra { display: none !important; }
+  .mobMenuOpen .mobExtra { display: inline-flex !important; }
+  .mobMenuOpen .topActions { display: flex !important; }
 }
 `;
 
