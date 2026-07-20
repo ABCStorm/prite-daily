@@ -125,6 +125,10 @@ type RawQuestion = {
   comparison_table?: { title?: string; headers: string[]; rows: string[][] } | null;
   flags: string[];
   prite_category?: string; prite_label?: string; tags?: QTags;
+  /** Set only when this stem recurs (verbatim or near-verbatim) in another
+      year's exam — see extraction/detect_repeats.mjs. count includes this
+      occurrence; years lists every year the group appeared in. */
+  repeat_count?: number; repeat_years?: string[];
 };
 
 type GroupNote = { author: string; role: string; time: string; text: string };
@@ -5621,6 +5625,8 @@ function DeckBuilder({
   const [med, setMed] = useState("all");
   const [dx, setDx] = useState("all");
   const [topic, setTopic] = useState("all");
+  const [repeatMin, setRepeatMin] = useState("all");
+  const [sortBy, setSortBy] = useState<"default" | "repeats">("default");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [shuffleOrder, setShuffleOrder] = useState(false);
@@ -5639,26 +5645,33 @@ function DeckBuilder({
   const dxs = useMemo(() => uniq("diagnosis"), [all]);
   const topics = useMemo(() => uniq("topics"), [all]);
 
-  const matches = useMemo(() => all.filter((q) => {
-    if (year !== "all" && q.year !== year) return false;
-    if (cat !== "all" && q.prite_category !== cat) return false;
-    if (med !== "all" && !(q.tags?.medication ?? []).includes(med)) return false;
-    if (dx !== "all" && !(q.tags?.diagnosis ?? []).includes(dx)) return false;
-    if (topic !== "all" && !(q.tags?.topics ?? []).includes(topic)) return false;
-    if (search.trim()) {
-      const s = search.toLowerCase();
-      const inStem = q.stem.toLowerCase().includes(s);
-      const inChoices = q.options.some((o) => o.text.toLowerCase().includes(s));
-      const inAnswer = (q.answer_text ?? "").toLowerCase().includes(s);
-      const hit = scope === "stem" ? inStem : scope === "choices" ? inChoices
-        : scope === "answer" ? inAnswer : inStem || inChoices;
-      if (!hit) return false;
+  const matches = useMemo(() => {
+    const filtered = all.filter((q) => {
+      if (year !== "all" && q.year !== year) return false;
+      if (cat !== "all" && q.prite_category !== cat) return false;
+      if (med !== "all" && !(q.tags?.medication ?? []).includes(med)) return false;
+      if (dx !== "all" && !(q.tags?.diagnosis ?? []).includes(dx)) return false;
+      if (topic !== "all" && !(q.tags?.topics ?? []).includes(topic)) return false;
+      if (repeatMin !== "all" && (q.repeat_count ?? 1) < parseInt(repeatMin, 10)) return false;
+      if (search.trim()) {
+        const s = search.toLowerCase();
+        const inStem = q.stem.toLowerCase().includes(s);
+        const inChoices = q.options.some((o) => o.text.toLowerCase().includes(s));
+        const inAnswer = (q.answer_text ?? "").toLowerCase().includes(s);
+        const hit = scope === "stem" ? inStem : scope === "choices" ? inChoices
+          : scope === "answer" ? inAnswer : inStem || inChoices;
+        if (!hit) return false;
+      }
+      return true;
+    });
+    if (sortBy === "repeats") {
+      return [...filtered].sort((a, b) => (b.repeat_count ?? 1) - (a.repeat_count ?? 1));
     }
-    return true;
-  }), [all, year, cat, med, dx, topic, search, scope]);
+    return filtered;
+  }, [all, year, cat, med, dx, topic, repeatMin, sortBy, search, scope]);
 
   // when the filter changes, select all matches by default
-  useEffect(() => { setSelected(new Set(matches.map((q) => questionId(q.year, q.q_index)))); }, [year, cat, med, dx, topic, search, scope]); // eslint-disable-line
+  useEffect(() => { setSelected(new Set(matches.map((q) => questionId(q.year, q.q_index)))); }, [year, cat, med, dx, topic, repeatMin, sortBy, search, scope]); // eslint-disable-line
 
   const toggle = (id: string) => setSelected((cur) => {
     const n = new Set(cur); n.has(id) ? n.delete(id) : n.add(id); return n;
@@ -5758,6 +5771,16 @@ function DeckBuilder({
             <select value={dx} onChange={(e) => setDx(e.target.value)} style={s.cohortSel}>
               <option value="all">Any diagnosis</option>{dxs.map((d) => <option key={d} value={d}>{d}</option>)}
             </select>
+            <select value={repeatMin} onChange={(e) => setRepeatMin(e.target.value)} style={s.cohortSel} title="Questions reused (verbatim or near-verbatim) across multiple years">
+              <option value="all">Any (repeat or not)</option>
+              <option value="2">Repeated 2+ years</option>
+              <option value="3">Repeated 3+ years</option>
+              <option value="4">Repeated 4+ years</option>
+            </select>
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value as "default" | "repeats")} style={s.cohortSel} title="Order the results below">
+              <option value="default">Sort: default order</option>
+              <option value="repeats">Sort: most repeated first</option>
+            </select>
           </div>
           <div style={s.deckCount}>
             <span><b style={{ color: T.text }}>{matches.length}</b> match · <b style={{ color: T.teal }}>{selected.size}</b> selected</span>
@@ -5785,6 +5808,11 @@ function DeckBuilder({
                 <div style={s.deckRowText} onClick={() => onOpen(id)} title="Open this question">
                   <div style={s.deckRowMeta}>
                     {q.year} · Q{q.q_index} · {q.prite_label}
+                    {(q.repeat_count ?? 1) > 1 && (
+                      <span style={s.repeatBadge} title={`Also appears in ${q.repeat_years?.filter((y) => y !== q.year).join(", ")}`}>
+                        <Repeat size={10} strokeWidth={2.4} /> {q.repeat_count}×
+                      </span>
+                    )}
                     <ExternalLink size={11} strokeWidth={2.2} style={{ marginLeft: 6, verticalAlign: "-1px", color: T.faint }} />
                   </div>
                   <div style={s.deckRowStem}>{q.stem}</div>
@@ -7318,6 +7346,7 @@ const s: Record<string, React.CSSProperties> = {
   deckRow: { display: "flex", alignItems: "flex-start", gap: 11, padding: "11px 4px", borderBottom: `1px solid ${T.paperEdge}` },
   deckRowText: { display: "flex", flexDirection: "column", gap: 3, minWidth: 0, flex: 1, cursor: "pointer" },
   deckRowMeta: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 10.5, letterSpacing: "0.04em", textTransform: "uppercase", color: T.faint },
+  repeatBadge: { display: "inline-flex", alignItems: "center", gap: 2, marginLeft: 6, padding: "1px 5px", borderRadius: 999, background: T.goldSoft, color: T.gold, fontWeight: 700, letterSpacing: 0 },
   deckRowStem: { fontSize: 13.5, color: T.text, lineHeight: 1.45 },
   deckRowAns: { fontSize: 12.5, color: T.tealDeep, fontWeight: 500 },
   deckFoot: { display: "flex", alignItems: "center", gap: 13, padding: "14px 22px", borderTop: `1px solid ${T.paperEdge}`, flexWrap: "wrap" },
