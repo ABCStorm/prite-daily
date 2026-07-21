@@ -50,9 +50,9 @@ export function exportPollTeams(
   const rows: (string | number)[][] = [
     [`Live poll ${meta.code} — team statistics`],
     [`Through question ${meta.index} of ${meta.total}`],
-    [`Ranked by correct answers per person who answered, not total points`],
+    [`Ranked by the team's total correct answers`],
     [],
-    ["Rank", "Team", "Players", "Answered", "Correct", "Avg per player"],
+    ["Rank", "Team", "Players", "Answered", "Correct", "Total points"],
     ...standings.map((t, i) => [i + 1, t.team, t.members, t.answerers, t.correct, t.score]),
   ];
   const csv = rows.map((r) => r.map(cell).join(",")).join("\r\n");
@@ -162,38 +162,130 @@ export function exportMissed(
 
 type PollExplQ = RawQuestion & { explanation_text?: string; explanation_images?: string[] };
 
-function pollMissedBlock(q: PollExplQ, myChoice: string | null) {
-  const correct = q.answer_letters?.length ? q.answer_letters : q.answer_letter ? [q.answer_letter] : [];
-  const opts = q.options.map((o) => {
-    const isC = correct.includes(o.letter);
-    const isMine = myChoice === o.letter;
-    return `<div class="opt${isC ? " correct" : ""}${isMine && !isC ? " wrong" : ""}">${esc(o.letter)}. ${esc(o.text)}${isC ? " ✓" : ""}${isMine && !isC ? " ← your answer" : ""}</div>`;
-  }).join("");
-  const images = (q.explanation_images ?? [])
-    .filter((p) => !p.startsWith("<"))
-    .map((p) => `<img class="expl-img" src="${esc(window.location.origin + "/" + p)}" alt="explanation figure">`)
-    .join("");
-  const explanation = q.explanation_text || images
-    ? `<div class="expl">${q.explanation_text ? `<p>${esc(q.explanation_text)}</p>` : ""}${images}</div>`
-    : `<p class="noexpl">No explanation available for this question.</p>`;
-  return `<div class="q">
-    <div class="eyebrow">${esc(q.year)} · Q${q.q_index}</div>
-    <div class="stem">${esc(q.stem)}</div>
-    ${opts}
-    <div class="meta">Correct answer: <b>${correct.join(", ")}</b>${q.answer_text ? " — " + esc(q.answer_text) : ""} · ${myChoice ? `You picked ${esc(myChoice)}` : "You didn't vote"}</div>
-    ${explanation}
-  </div>`;
+// Explanation images are bank-relative paths ("<...>" marks a failed export
+// with no real file, same convention as imgSrc() in App.tsx). Loaded via
+// canvas rather than a raw fetch so any source format jsPDF doesn't natively
+// support still lands as a PNG it can embed.
+function loadImagePng(src: string): Promise<{ dataUrl: string; w: number; h: number } | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { resolve(null); return; }
+        ctx.drawImage(img, 0, 0);
+        resolve({ dataUrl: canvas.toDataURL("image/png"), w: img.naturalWidth || 1, h: img.naturalHeight || 1 });
+      } catch { resolve(null); }
+    };
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
 }
 
 /* A live-poll participant's own missed questions, with explanations — unlike
    exportMissed() (personal practice history), a poll session is transient and
    nowhere else to revisit afterward, so this is the one export that includes
-   the AI explanation. Images are linked back to the live site by absolute URL
-   (the downloaded file is opened standalone, so a relative path would break). */
-export function exportPollMissed(rows: { q: PollExplQ; myChoice: string | null }[], meta: { code: string; who: string }) {
-  const body = rows.map(({ q, myChoice }) => pollMissedBlock(q, myChoice)).join("");
-  const sub = `${meta.who} · Poll ${meta.code} · ${rows.length} missed question${rows.length === 1 ? "" : "s"} · exported ${new Date().toLocaleDateString()}`;
-  download(`prite-poll-${meta.code}-missed.html`, shell("Questions I missed", sub, body || "<p>You didn't miss anything — nice work! 🎉</p>"));
+   the AI explanation. A real PDF (not the HTML-then-print-to-PDF route the
+   other exports use) so it opens and prints cleanly on a phone with no extra
+   steps — the audience residents actually hit this on. */
+export async function exportPollMissed(rows: { q: PollExplQ; myChoice: string | null }[], meta: { code: string; who: string }) {
+  const { jsPDF } = await import("jspdf");
+  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 48;
+  const contentW = pageW - margin * 2;
+  let y = margin;
+
+  const ensureSpace = (needed: number) => {
+    if (y + needed > pageH - margin) { doc.addPage(); y = margin; }
+  };
+  const textLines = (text: string, size: number, lineH: number) => {
+    doc.setFontSize(size);
+    return { lines: doc.splitTextToSize(text, contentW) as string[], lineH };
+  };
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(19);
+  doc.setTextColor(20); doc.text("Questions I missed", margin, y); y += 22;
+  doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(120);
+  doc.text(`${meta.who} · Poll ${meta.code} · ${rows.length} missed question${rows.length === 1 ? "" : "s"} · exported ${new Date().toLocaleDateString()}`, margin, y);
+  y += 26;
+
+  if (!rows.length) {
+    doc.setFont("helvetica", "normal"); doc.setFontSize(12); doc.setTextColor(60);
+    doc.text("You didn't miss anything — nice work!", margin, y);
+  }
+
+  for (const { q, myChoice } of rows) {
+    const correct = q.answer_letters?.length ? q.answer_letters : q.answer_letter ? [q.answer_letter] : [];
+
+    ensureSpace(20);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(140);
+    doc.text(`${q.year} · Q${q.q_index}`, margin, y); y += 15;
+
+    doc.setTextColor(20); doc.setFont("helvetica", "normal");
+    const { lines: stemLines } = textLines(q.stem, 12.5, 16);
+    ensureSpace(stemLines.length * 16 + 6);
+    doc.text(stemLines, margin, y); y += stemLines.length * 16 + 8;
+
+    doc.setFontSize(11);
+    for (const o of q.options) {
+      const isC = correct.includes(o.letter);
+      const isMine = myChoice === o.letter;
+      const suffix = isC ? "  ✓" : isMine ? "  ← your answer" : "";
+      const lines = doc.splitTextToSize(`${o.letter}. ${o.text}${suffix}`, contentW - 12);
+      ensureSpace(lines.length * 13.5 + 3);
+      doc.setFont("helvetica", isC ? "bold" : "normal");
+      if (isC) doc.setTextColor(21, 95, 57);
+      else if (isMine) doc.setTextColor(163, 49, 49);
+      else doc.setTextColor(50, 53, 62);
+      doc.text(lines, margin + 12, y);
+      y += lines.length * 13.5 + 3;
+    }
+    y += 4;
+
+    ensureSpace(16);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(90);
+    doc.text(`Correct answer: ${correct.join(", ")}${q.answer_text ? " — " + q.answer_text : ""} · ${myChoice ? `You picked ${myChoice}` : "You didn't vote"}`, margin, y);
+    y += 18;
+
+    const images = (q.explanation_images ?? []).filter((p) => !p.startsWith("<"));
+    if (q.explanation_text || images.length) {
+      ensureSpace(16);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(14, 122, 107);
+      doc.text("EXPLANATION", margin, y); y += 15;
+      doc.setFont("helvetica", "normal"); doc.setTextColor(35);
+      if (q.explanation_text) {
+        const { lines } = textLines(q.explanation_text, 11, 14.5);
+        for (const line of lines) { ensureSpace(14.5); doc.text(line, margin, y); y += 14.5; }
+        y += 4;
+      }
+      for (const p of images) {
+        const img = await loadImagePng(window.location.origin + "/" + p);
+        if (!img) continue;
+        const scale = Math.min(contentW / img.w, 280 / img.h, 1);
+        const w = img.w * scale, h = img.h * scale;
+        ensureSpace(h + 10);
+        doc.addImage(img.dataUrl, "PNG", margin, y, w, h);
+        y += h + 10;
+      }
+    } else {
+      ensureSpace(14);
+      doc.setFont("helvetica", "italic"); doc.setFontSize(9.5); doc.setTextColor(150);
+      doc.text("No explanation available for this question.", margin, y);
+      y += 14;
+    }
+
+    y += 10;
+    ensureSpace(1);
+    doc.setDrawColor(225);
+    doc.line(margin, y - 6, pageW - margin, y - 6);
+    y += 6;
+  }
+
+  saveBlob(`prite-poll-${meta.code}-missed.pdf`, doc.output("blob"));
 }
 
 export function exportGroupNotes(

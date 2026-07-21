@@ -3171,6 +3171,21 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
   const [standingsFontSize, setStandingsFontSize] = useState(20); // adjustable text size for the answer-key stem/options/explanation
   const [pollStemScale, setPollStemScale] = useState(1.8); // adjustable text size for the question, independent of the choices (default 180% for room readability)
   const [pollOptScale, setPollOptScale] = useState(1.8);    // adjustable text size for the answer choices, independent of the question (default 180%)
+  const [explImgScale, setExplImgScale] = useState(1.3); // adjustable size for explanation images on the big screen
+  // Top bar size — bigger by default for room readability, and drag-resizable
+  // (pull the handle below the bar up or down) for whoever's presenting.
+  const [headScale, setHeadScale] = useState(1.4);
+  const headDragRef = useRef<{ startY: number; startScale: number } | null>(null);
+  const onHeadDragStart = (e: React.PointerEvent) => {
+    headDragRef.current = { startY: e.clientY, startScale: headScale };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onHeadDragMove = (e: React.PointerEvent) => {
+    if (!headDragRef.current) return;
+    const dy = e.clientY - headDragRef.current.startY;
+    setHeadScale(Math.max(1, Math.min(2.2, headDragRef.current.startScale + dy / 160)));
+  };
+  const onHeadDragEnd = () => { headDragRef.current = null; };
   const [showExpl, setShowExpl] = useState(false); // reveal the current question's explanation on the big screen (per-question, reset each question)
   const [hideChoices, setHideChoices] = useState(true); // default: choices off the big screen, shown on phones instead
   const [choicesLayout, setChoicesLayout] = useState<"side" | "bottom">("side"); // default: choices beside the question
@@ -3197,11 +3212,12 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
   const correctRef = useRef<Map<string, string[]>>(new Map()); // qid -> correct letters (recorded on reveal)
   const chanRef = useRef<ReturnType<NonNullable<typeof supabase>["channel"]> | null>(null);
 
-  // Cumulative team leaderboard: ranked by correct answers per person who
-  // actually answered — not raw point total, and not per-vote accuracy —
-  // so a team that fields more players (or gets more of them to vote) doesn't
-  // win on headcount alone. Derived fresh from the raw vote log each call, so
-  // it's idempotent (re-reveals and re-renders never double-count).
+  // Cumulative team leaderboard: ranked by the team's TOTAL correct answers
+  // (everyone's correct votes added together as one entity), not an average
+  // per player — a bigger team fielding more correct answers should out-rank
+  // a smaller team, the way a real team score works. Derived fresh from the
+  // raw vote log each call, so it's idempotent (re-reveals and re-renders
+  // never double-count).
   const computeStandings = (): TeamStanding[] => {
     const correctCount = new Map<string, number>();
     const answerers = new Map<string, Set<string>>();
@@ -3225,9 +3241,9 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
       .map((team) => {
         const n = answerers.get(team)?.size ?? 0;
         const c = correctCount.get(team) ?? 0;
-        return { team, score: n > 0 ? Math.round((c / n) * 10) / 10 : 0, members: members.get(team)?.size ?? 0, correct: c, answerers: n };
+        return { team, score: c, members: members.get(team)?.size ?? 0, correct: c, answerers: n };
       })
-      .sort((a, b) => b.score - a.score || b.answerers - a.answerers || a.team.localeCompare(b.team));
+      .sort((a, b) => b.score - a.score || a.team.localeCompare(b.team));
   };
 
   // Cumulative individual leaderboard: per participant, how many revealed
@@ -3431,16 +3447,16 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
   return (
     <div style={s.pollRoot}>
       <style>{CSS}</style>
-      <div style={s.pollHead}>
+      <div style={{ ...s.pollHead, fontSize: 16 * headScale, padding: `${16 * headScale}px ${26 * headScale}px` }}>
         {qr && (
           <button style={s.qrThumb} onClick={() => setQrBig(true)} title="Tap to enlarge for scanning">
-            <img src={qr} alt={`QR code to join poll ${code}`} style={s.qrThumbImg} />
+            <img src={qr} alt={`QR code to join poll ${code}`} style={{ ...s.qrThumbImg, width: 48 * headScale, height: 48 * headScale }} />
           </button>
         )}
-        <span style={s.pollLive}><Radio size={16} strokeWidth={2.4} /> LIVE POLL</span>
-        <span style={s.pollJoin}>Scan, or join at <b style={{ color: "#fff" }}>{joinHost}</b> · code <b style={s.pollCode}>{code}</b></span>
+        <span style={{ ...s.pollLive, fontSize: 14 * headScale }}><Radio size={16 * headScale} strokeWidth={2.4} /> LIVE POLL</span>
+        <span style={{ ...s.pollJoin, fontSize: 15 * headScale }}>Scan, or join at <b style={{ color: "#fff" }}>{joinHost}</b> · code <b style={{ ...s.pollCode, fontSize: 18 * headScale }}>{code}</b></span>
         <span style={{ ...s.pollVoters, ...(allVoted && !revealed ? { color: "#48c78e" } : {}) }}>
-          <Users size={16} strokeWidth={2.3} /> {voterCount}{joinedCount > 0 ? ` of ${joinedCount}` : ""} voted{allVoted && !revealed ? " · all in!" : ""}
+          <Users size={16 * headScale} strokeWidth={2.3} /> {voterCount}{joinedCount > 0 ? ` of ${joinedCount}` : ""} voted{allVoted && !revealed ? " · all in!" : ""}
         </span>
         {teamMode === "auto" && !finished && (
           <button
@@ -3454,7 +3470,17 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
         )}
         {timeLeft != null && (
           <>
-            <span className={timeLeft <= 10 ? "timerLow" : undefined} style={{ ...s.timerPill, ...(timeLeft <= 10 ? s.timerPillLow : {}) }}><Clock size={14} strokeWidth={2.5} /> {fmtTime(timeLeft)}</span>
+            {/* Timer gets an extra boost on top of the header scale — it's the
+                one thing everyone across the room needs to read at a glance. */}
+            <span
+              className={timeLeft <= 10 ? "timerLow" : undefined}
+              style={{
+                ...s.timerPill, ...(timeLeft <= 10 ? s.timerPillLow : {}),
+                fontSize: 14 * headScale * 1.5, padding: `${6 * headScale}px ${12 * headScale}px`,
+              }}
+            >
+              <Clock size={14 * headScale * 1.5} strokeWidth={2.5} /> {fmtTime(timeLeft)}
+            </span>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 2 }} title="Add or remove time — also becomes the default for questions after this one">
               <button style={{ ...s.pollBtn, padding: "6px 8px" }} onClick={() => bumpTimer(-15)} title="-15 seconds"><Minus size={13} strokeWidth={2.4} /></button>
               <button style={{ ...s.pollBtn, padding: "6px 8px" }} onClick={() => bumpTimer(15)} title="+15 seconds"><Plus size={13} strokeWidth={2.4} /></button>
@@ -3525,6 +3551,16 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
         )}
         <button style={s.pollClose} onClick={confirmClose} title="End poll"><X size={18} strokeWidth={2.4} /></button>
       </div>
+      <div
+        style={s.pollHeadDrag}
+        onPointerDown={onHeadDragStart}
+        onPointerMove={onHeadDragMove}
+        onPointerUp={onHeadDragEnd}
+        onPointerCancel={onHeadDragEnd}
+        title="Drag to resize the top bar"
+      >
+        <span style={s.pollHeadDragBar} />
+      </div>
 
       <div style={s.pollBody}>
         {finished ? (
@@ -3562,7 +3598,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
                     <span style={s.teamRank}>{i === 0 ? <Crown size={20} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
                     <span style={s.teamName}>{t.team}</span>
                     <span style={s.teamMembers}>{t.members} {t.members === 1 ? "player" : "players"} · {t.correct} correct · {t.answerers} answered</span>
-                    <span style={s.teamScore}>{t.score}/player</span>
+                    <span style={s.teamScore}>{t.score} pts</span>
                   </div>
                 ))}
               </div>
@@ -3727,7 +3763,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
             leaderboard. The peek resets on every question change (goTo). */}
         {isIndividualMode && revealed && individuals.length > 0 && (
           peekStandings ? (
-            <div style={s.pollStats}>
+            <div style={s.pollStatsLive}>
               <div style={s.pollStatsHead}>
                 <span style={s.teamBoardHead}><Trophy size={16} strokeWidth={2.4} /> Current standings</span>
                 <button style={s.pollStatsExport} onClick={() => setPeekStandings(false)} title="Hide the standings again">
@@ -3752,7 +3788,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
         {/* Live view shows TEAM stats only — individual standings are an
             opt-in toggle on the finished screen, never during the poll. */}
         {!isIndividualMode && standings.length > 0 && (
-          <div style={s.pollStats}>
+          <div style={s.pollStatsLive}>
             <div style={s.pollStatsHead}>
               <span style={s.teamBoardHead}><Trophy size={16} strokeWidth={2.4} /> Live polling group statistics</span>
               <button style={s.pollStatsExport} onClick={() => exportPollTeams(standings, { code, index: index + 1, total })} title="Download team data (opens in Excel)">
@@ -3764,7 +3800,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
                 <span style={s.teamRank}>{i === 0 ? <Crown size={20} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
                 <span style={s.teamName}>{t.team}</span>
                 <span style={s.teamMembers}>{t.members} {t.members === 1 ? "player" : "players"} · {t.correct} correct · {t.answerers} answered</span>
-                <span style={s.teamScore}>{t.score}/player</span>
+                <span style={s.teamScore}>{t.score} pts</span>
               </div>
             ))}
           </div>
@@ -3813,6 +3849,27 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
           <div style={{ marginTop: 26, padding: "18px 22px", background: "rgba(72,199,142,.06)", border: `1px solid ${T.inkLine}`, borderRadius: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 700, color: "#48c78e", marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.4 }}>
               <Lightbulb size={16} strokeWidth={2.4} /> Explanation
+              {q.explanation_images.length > 0 && (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 2, marginLeft: "auto", textTransform: "none", letterSpacing: 0, fontWeight: 500 }} title="Explanation image size">
+                  <button
+                    style={{ ...s.pollBtn, padding: "4px 7px", opacity: explImgScale <= 0.6 ? 0.4 : 1 }}
+                    onClick={() => setExplImgScale((v) => Math.max(0.6, +(v - 0.15).toFixed(2)))}
+                    disabled={explImgScale <= 0.6}
+                    title="Shrink explanation images"
+                  >
+                    <Minus size={12} strokeWidth={2.4} />
+                  </button>
+                  <span style={{ fontSize: 11, color: "#9aa0ab", width: 32, textAlign: "center" }}>{Math.round(explImgScale * 100)}%</span>
+                  <button
+                    style={{ ...s.pollBtn, padding: "4px 7px", opacity: explImgScale >= 2.4 ? 0.4 : 1 }}
+                    onClick={() => setExplImgScale((v) => Math.min(2.4, +(v + 0.15).toFixed(2)))}
+                    disabled={explImgScale >= 2.4}
+                    title="Enlarge explanation images"
+                  >
+                    <Plus size={12} strokeWidth={2.4} />
+                  </button>
+                </span>
+              )}
             </div>
             {q.explanation_text && (
               <p style={{ margin: 0, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: `calc(clamp(16px, 1.7vw, 22px) * ${pollStemScale})`, lineHeight: 1.6, color: "#dfe3ea", whiteSpace: "pre-wrap" }}>{q.explanation_text}</p>
@@ -3821,7 +3878,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
               <img
                 key={i} src={imgSrc(p)} alt="explanation" loading="lazy"
                 title="Click to enlarge" onClick={() => setZoomImg(imgSrc(p))}
-                style={{ ...s.explImg, maxWidth: 560, maxHeight: 320, width: "auto", height: "auto", objectFit: "contain", cursor: "zoom-in", marginTop: 12 }}
+                style={{ ...s.explImg, maxWidth: 780 * explImgScale, maxHeight: 460 * explImgScale, width: "auto", height: "auto", objectFit: "contain", cursor: "zoom-in", marginTop: 12 }}
               />
             ))}
           </div>
@@ -3856,7 +3913,12 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
         {index >= total - 1 && revealed ? (
           <button style={{ ...s.pollBtn, ...s.pollBtnPrimary }} onClick={() => setFinished(true)}><Trophy size={16} strokeWidth={2.4} /> Finish · standings</button>
         ) : (
-          <button style={s.pollBtn} disabled={index >= total - 1} onClick={() => goTo(index + 1)}>Next <ArrowRight size={16} strokeWidth={2.4} /></button>
+          <>
+            <button style={s.pollBtn} disabled={index >= total - 1} onClick={() => goTo(index + 1)}>Next <ArrowRight size={16} strokeWidth={2.4} /></button>
+            <button style={s.pollBtn} onClick={() => setFinished(true)} title="Jump straight to final standings without going through the remaining questions">
+              <Trophy size={16} strokeWidth={2.4} /> End early
+            </button>
+          </>
         )}
           </>
         )}
@@ -3929,6 +3991,8 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
   const [team, setTeamState] = useState<string>(() => { try { return localStorage.getItem(TEAM_KEY) || ""; } catch { return ""; } });
   const [draft, setDraft] = useState(team);
   const [editing, setEditing] = useState(false);
+  const [zoomImg, setZoomImg] = useState<string | null>(null); // explanation image, tap to enlarge full-screen
+  const [reviewAddState, setReviewAddState] = useState<"idle" | "saving" | "done">("idle"); // adding missed questions to the personal Review queue
   // Question text is hidden by default (residents read it off the big screen)
   // — this is the pull-down "shade" that peeks it on the phone instead, for
   // whoever can't see the screen well. Collapses again on every new question.
@@ -4044,6 +4108,20 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
     return rows;
   };
 
+  // Persist this session's missed questions into the same personal SM-2
+  // review queue the regular practice mode uses (spaced_repetition table) —
+  // a poll session is otherwise gone the moment it ends, with no way to come
+  // back and drill what was missed. Guests have no account to save to.
+  const addMissedToReview = async () => {
+    const qids = [...historyRef.current.entries()]
+      .filter(([, h]) => !h.myChoice || !h.correct.includes(h.myChoice))
+      .map(([qid]) => qid);
+    if (!qids.length) return;
+    setReviewAddState("saving");
+    await Promise.all(qids.map((qid) => ensureTrackedForReview(qid)));
+    setReviewAddState("done");
+  };
+
   // Drag (or tap) the pull tab to peek the current question's text — a
   // threshold-based open/close rather than a finger-following sheet, so it
   // works the same whether you drag or just tap.
@@ -4117,7 +4195,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
           </div>
         )}
         {status !== "error" && !isIndividualMode && !team && (
-          <p style={s.teamScoreHint}>Teams are ranked by correct answers per person who answers — a bigger team doesn't get an edge.</p>
+          <p style={s.teamScoreHint}>Teams are ranked by total correct answers — everyone's votes count toward the team score.</p>
         )}
 
         {status === "error" ? (
@@ -4162,7 +4240,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                     <div style={s.joinExplBox}>
                       <span style={s.joinExplLabel}><Lightbulb size={13} strokeWidth={2.3} /> Explanation</span>
                       {rq.explanation_text && <p style={s.joinExpl}>{rq.explanation_text}</p>}
-                      {rq.explanation_images.map((src, i) => <img key={i} src={src} alt="" style={s.joinExplImg} />)}
+                      {rq.explanation_images.map((src, i) => <img key={i} src={src} alt="" style={{ ...s.joinExplImg, cursor: "zoom-in" }} onClick={() => setZoomImg(src)} />)}
                     </div>
                   )}
                 </>
@@ -4227,7 +4305,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                     <div style={s.joinExplBox}>
                       <span style={s.joinExplLabel}><Lightbulb size={13} strokeWidth={2.3} /> Explanation</span>
                       {cq.explanation_text && <p style={s.joinExpl}>{cq.explanation_text}</p>}
-                      {cq.explanation_images.map((src, i) => <img key={i} src={src} alt="" style={s.joinExplImg} />)}
+                      {cq.explanation_images.map((src, i) => <img key={i} src={src} alt="" style={{ ...s.joinExplImg, cursor: "zoom-in" }} onClick={() => setZoomImg(src)} />)}
                     </div>
                   );
                 })()}
@@ -4262,7 +4340,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                   <div key={t.team} style={{ ...s.teamMiniRow, ...(i === 0 ? s.teamMiniLead : {}), ...(t.team === team ? s.teamMiniMine : {}) }}>
                     <span style={s.teamMiniRank}>{i === 0 ? <Crown size={15} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
                     <span style={s.teamMiniName}>{t.team}{t.team === team ? " (you)" : ""}</span>
-                    <span style={s.teamMiniScore}>{t.score}/player</span>
+                    <span style={s.teamMiniScore}>{t.score} pts</span>
                   </div>
                 ))}
               </div>
@@ -4279,15 +4357,36 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
               <button
                 style={s.teamDownload}
                 onClick={() => exportPollMissed(missedRows(), { code, who: displayName })}
-                title="A study sheet of just the questions you missed, with the full explanation for each"
+                title="A PDF study sheet of just the questions you missed, with the full explanation for each"
               >
-                <Download size={13} strokeWidth={2.3} /> Download my missed questions
+                <Download size={13} strokeWidth={2.3} /> Download my missed questions (PDF)
+              </button>
+            )}
+            {remote.finished && !guest && byId.size > 0 && (
+              <button
+                style={s.teamDownload}
+                onClick={addMissedToReview}
+                disabled={reviewAddState !== "idle"}
+                title="Add everything you missed this session to your personal spaced-repetition Review queue"
+              >
+                {reviewAddState === "done"
+                  ? <><Check size={13} strokeWidth={2.6} /> Added to Review</>
+                  : reviewAddState === "saving"
+                  ? "Adding…"
+                  : <><ListChecks size={13} strokeWidth={2.3} /> Add missed to Review</>}
               </button>
             )}
           </>
         )}
       </div>
       </div>
+
+      {zoomImg && (
+        <div style={s.qrOverlay} onClick={() => setZoomImg(null)}>
+          <img src={zoomImg} alt="Explanation, enlarged" style={s.zoomImg} onClick={(e) => e.stopPropagation()} />
+          <button style={{ ...s.pollClose, position: "absolute", top: 20, right: 20 }} onClick={() => setZoomImg(null)} title="Close"><X size={18} strokeWidth={2.4} /></button>
+        </div>
+      )}
     </div>
   );
 }
@@ -7598,6 +7697,8 @@ const s: Record<string, React.CSSProperties> = {
   // live crowd poll — host (big screen)
   pollRoot: { position: "fixed", inset: 0, zIndex: 90, background: T.ink, color: "#fff", display: "flex", flexDirection: "column", fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif" },
   pollHead: { display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", padding: "16px 26px", borderBottom: `1px solid ${T.inkLine}`, fontSize: 16 },
+  pollHeadDrag: { display: "flex", justifyContent: "center", padding: "3px 0", cursor: "ns-resize", touchAction: "none", borderBottom: `1px solid ${T.inkLine}`, background: "rgba(255,255,255,.02)" },
+  pollHeadDragBar: { width: 56, height: 4, borderRadius: 999, background: "rgba(255,255,255,.18)" },
   pollLive: { display: "inline-flex", alignItems: "center", gap: 7, color: "#e07a5f", fontWeight: 700, letterSpacing: "0.04em", fontSize: 14 },
   pollJoin: { color: "#c7ccd6", fontSize: 15 },
   pollCode: { color: "#fff", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", letterSpacing: "0.18em", background: T.inkSoft, border: `1px solid ${T.inkLine}`, borderRadius: 8, padding: "3px 10px", fontSize: 18 },
@@ -7634,7 +7735,11 @@ const s: Record<string, React.CSSProperties> = {
   // min-height:100% + flex, so short content stays centered but a tall poll
   // (stem peek + options + explanation + history) can scroll with the top
   // still reachable — a plain grid/flex-centered fixed box would clip it.
-  joinRoot: { position: "fixed", inset: 0, zIndex: 90, background: "transparent", overflowY: "auto", WebkitOverflowScrolling: "touch", fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif" },
+  // Explicit height (not just inset:0) so the scrollable area is recomputed
+  // when a mobile browser's address bar shows/hides — inset:0 alone can leave
+  // stale content (e.g. the reveal explanation) below the fold and unreachable.
+  // overscrollBehavior stops the drag from chaining into the page behind it.
+  joinRoot: { position: "fixed", inset: 0, height: "100dvh", zIndex: 90, background: "transparent", overflowY: "auto", overscrollBehavior: "contain", touchAction: "pan-y", WebkitOverflowScrolling: "touch", fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif" },
   // `margin:auto` (not flex `center`) so a card taller than the viewport stays
   // fully scrollable on phones — flex centering clips the top out of reach.
   joinScroll: { minHeight: "100%", display: "flex", padding: 20, boxSizing: "border-box" },
@@ -7653,7 +7758,11 @@ const s: Record<string, React.CSSProperties> = {
 
   // live polling group statistics — host (big screen), pinned at the top
   pollStats: { marginBottom: 28, paddingBottom: 22, borderBottom: `1px solid ${T.inkLine}`, display: "flex", flexDirection: "column", gap: 8 },
-  pollStatsHead: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap", marginBottom: 4 },
+  // Same panel, but capped in height with its own scroll — used while a
+  // question is still on screen (live team stats, individual-mode peek) so a
+  // big-class roster doesn't push the question itself off the visible area.
+  pollStatsLive: { marginBottom: 22, paddingBottom: 16, borderBottom: `1px solid ${T.inkLine}`, display: "flex", flexDirection: "column", gap: 8, maxHeight: "34vh", overflowY: "auto" },
+  pollStatsHead: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap", marginBottom: 4, position: "sticky", top: 0, background: T.ink, paddingBottom: 4, zIndex: 1 },
   pollStatsExport: { display: "inline-flex", alignItems: "center", gap: 7, background: T.inkSoft, color: "#e7eaf0", border: `1px solid ${T.inkLine}`, padding: "8px 14px", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer" },
   teamBoardHead: { display: "inline-flex", alignItems: "center", gap: 9, color: "#f2c14e", fontWeight: 700, letterSpacing: "0.03em", fontSize: 15 },
   teamRow: { display: "flex", alignItems: "center", gap: 16, background: T.inkSoft, border: `1.5px solid ${T.inkLine}`, borderRadius: 12, padding: "12px 18px", fontSize: "clamp(16px, 1.7vw, 21px)" },
