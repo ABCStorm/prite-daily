@@ -351,6 +351,26 @@ def resolve_answer(answer_raw, options):
         txt = "; ".join((f"{l}. {opt_text(options, l)}").strip() for l in keep)
         return _ans(keep[0], keep, oneline(txt), True, "multi", ["multi_select"])
 
+    # repeated "L. <option text>" answer box, e.g.
+    #   "A. Catatonia F. Neuroleptic malignant syndrome H. Major depressive…"
+    # This is how the "Select three" slides list their key. It must be caught
+    # BEFORE the single-leading-letter branch below, which would otherwise take
+    # only the first letter and drop the other two. Each captured letter is
+    # validated against the option set and its text against that option, so a
+    # genuine single answer that merely contains "X. " mid-sentence won't trip
+    # it (its stray letter wouldn't text-match a real option).
+    seg = list(re.finditer(r"(?:^|\s)([A-H])\.\s+(.*?)(?=\s[A-H]\.\s|$)", core))
+    lets, ok = [], True
+    for sm in seg:
+        L = sm.group(1).upper()
+        if L in valid and L not in lets and normtext(sm.group(2))[:8] and normtext(sm.group(2))[:8] in normtext(opt_text(options, L)):
+            lets.append(L)
+        else:
+            ok = False
+    if len(lets) >= 2 and ok:
+        txt = "; ".join(f"{l}. {opt_text(options, l)}".strip() for l in lets)
+        return _ans(lets[0], lets, oneline(txt), True, "multi", ["multi_select"])
+
     # single leading letter (validated against the option set)
     m = SINGLE_LETTER_RE.match(core)
     if m and m.group(1).upper() in valid:

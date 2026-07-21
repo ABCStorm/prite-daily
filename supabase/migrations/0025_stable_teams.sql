@@ -36,7 +36,8 @@ begin
   if not is_admin() then
     raise exception 'admin only';
   end if;
-  delete from stable_teams;
+  -- explicit WHERE: the pg-safeupdate guard rejects bare DELETEs (see 0045)
+  delete from stable_teams where true;
   insert into stable_teams (profile_id, team_name)
   select (r->>'profile_id')::uuid, r->>'team_name'
   from jsonb_array_elements(rows) as r;

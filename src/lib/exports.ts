@@ -3,7 +3,7 @@
    as PDF. Per the spec, exports include the ORIGINAL question + answer but
    deliberately omit the AI explanation. */
 
-import { questionId } from "./supabase";
+import { questionId, supabase } from "./supabase";
 import type { GroupNote } from "./db";
 
 type RawQuestion = {
@@ -17,13 +17,23 @@ function esc(s: string) {
   return (s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
 }
 
-function download(filename: string, html: string) {
-  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+// Save a generated file. On desktop this downloads normally. On iOS Safari —
+// which ignores the `download` attribute on blob: URLs — `target="_blank"`
+// makes the file open in a new tab the user can read and then Save/Share,
+// instead of the click silently doing nothing (the bug residents hit trying to
+// download poll results on their phones). The revoke is deferred a long time so
+// a new-tab load on mobile isn't cut off by the blob URL being released.
+function saveBlob(filename: string, blob: Blob) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url; a.download = filename;
+  a.target = "_blank"; a.rel = "noopener";
   document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+function download(filename: string, html: string) {
+  saveBlob(filename, new Blob([html], { type: "text/html;charset=utf-8" }));
 }
 
 /* Live-poll team standings → CSV (opens directly in Excel/Sheets). No
@@ -46,12 +56,7 @@ export function exportPollTeams(
     ...standings.map((t, i) => [i + 1, t.team, t.members, t.answerers, t.correct, t.score]),
   ];
   const csv = rows.map((r) => r.map(cell).join(",")).join("\r\n");
-  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = `prite-poll-${meta.code}-teams.csv`;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  saveBlob(`prite-poll-${meta.code}-teams.csv`, new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
 }
 
 /* Admin archive of official group-review poll sessions → CSV, one row per
@@ -77,12 +82,7 @@ export function exportOfficialPollResults(rows: {
     }
   }
   const csv = out.map((r) => r.map(cell).join(",")).join("\r\n");
-  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = "prite-official-poll-results.csv";
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  saveBlob("prite-official-poll-results.csv", new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
 }
 
 const STYLE = `
@@ -224,14 +224,40 @@ function esc2(s: string) {
   return (s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-/** Build the Lecture Notes field (original question) for the AnKing card. */
+/** Build the Lecture Notes field for the AnKing card: original question plus
+    every AI supplement the app shows — explanation, clinical application,
+    comparison table, concept diagram (pre-rendered SVG, since Anki can't run
+    Mermaid), and historical context (fetched separately from Supabase). */
 export function ankingLecture(q: {
   year: string; q_index: number; stem: string;
   options: { letter: string; text: string }[];
   answer_letter: string | null; answer_text: string;
-}) {
+  explanation_text?: string;
+  clinical_application?: string;
+  comparison_table?: { title?: string; headers: string[]; rows: string[][] } | null;
+  diagram?: { code: string; caption?: string } | null;
+}, extras?: { context?: string | null; diagramSvg?: string | null }) {
+  const nl = (s: string) => esc2(s).replace(/\r?\n/g, "<br>");
+  const section = (title: string, html: string) => `<br><br><b>${title}</b><br>${html}`;
   const opts = q.options.map((o) => `${esc2(o.letter)}. ${esc2(o.text)}`).join("<br>");
-  return `<b>PRITE ${q.year} &middot; Q${q.q_index}</b><br><br>${esc2(q.stem)}<br><br>${opts}<br><br><b>Answer: ${esc2(q.answer_letter ?? "")} &mdash; ${esc2(q.answer_text)}</b>`;
+  const expl = q.explanation_text
+    ? `<br><br><b>Explanation</b> <i>(AI-generated — can occasionally be wrong)</i><br>${nl(q.explanation_text)}`
+    : "";
+  const clin = q.clinical_application ? section("Clinical application", nl(q.clinical_application)) : "";
+  const tbl = q.comparison_table && q.comparison_table.rows?.length
+    ? section(esc2(q.comparison_table.title || "Comparison"),
+        `<table border="1" cellpadding="5" cellspacing="0" style="border-collapse:collapse;">` +
+        `<tr>${q.comparison_table.headers.map((h) => `<th>${esc2(h)}</th>`).join("")}</tr>` +
+        q.comparison_table.rows.map((r) => `<tr>${r.map((c) => `<td>${esc2(c)}</td>`).join("")}</tr>`).join("") +
+        `</table>`)
+    : "";
+  const diag = extras?.diagramSvg
+    ? section("Concept diagram",
+        `<div style="max-width:100%;overflow-x:auto;">${extras.diagramSvg}</div>` +
+        (q.diagram?.caption ? `<i>${esc2(q.diagram.caption)}</i>` : ""))
+    : "";
+  const hist = extras?.context ? section("Historical context", nl(extras.context)) : "";
+  return `<b>PRITE ${q.year} &middot; Q${q.q_index}</b><br><br>${esc2(q.stem)}<br><br>${opts}<br><br><b>Answer: ${esc2(q.answer_letter ?? "")} &mdash; ${esc2(q.answer_text)}</b>${expl}${clin}${tbl}${diag}${hist}`;
 }
 
 /* Anki import file (.txt) in AnKing Overhaul format. Tab-separated with headers
@@ -245,12 +271,7 @@ export function exportAnkiDeck(rows: { cloze: string; lecture: string }[], filen
   ].join("\n");
   // columns map positionally to fields: Text, Extra (empty), Lecture Notes
   const body = rows.map((r) => `${cell(r.cloze)}\t\t${cell(r.lecture)}`).join("\n");
-  const blob = new Blob([header + "\n" + body + "\n"], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  saveBlob(filename, new Blob([header + "\n" + body + "\n"], { type: "text/plain;charset=utf-8" }));
 }
 
 type PptxQ = {
@@ -340,6 +361,117 @@ export async function exportPptx(questions: PptxQ[], filename = "prite-questions
       if (q.explanation_text || images.length) await addExplanationSlide(q, images);
     }
   }
+  await pptx.writeFile({ fileName: filename });
+}
+
+/* Teaching-deck export: renders a study guide's AI-designed slide deck
+   (StudyGuide.slides — layouts "divider" / "bullets" / "bigfact", plus AI
+   illustrations in the private "study-slides" bucket) into a real .pptx —
+   the pre-reading alternative to the audio overview. Deliberately BIG type
+   throughout (readable from the back of a lecture hall); the "notes" text
+   lands in the speaker-notes pane so a presenter could teach straight from
+   it. */
+type TeachingSlide = {
+  layout?: string; title?: string; bullets?: string[]; big_text?: string;
+  support?: string; notes?: string; image_path?: string | null;
+};
+type TeachingGuide = {
+  title: string; intro: string; slides: TeachingSlide[];
+  key_terms: string[]; session_date?: string | null;
+};
+
+const INK = "10343B", TEAL = "0E7A6B", TEAL_LT = "8FD0C6", BODY = "23262F", MUTED = "B8C4C7";
+
+// Download one slide illustration from the private bucket as a data: URL for
+// pptxgenjs. Null (slide stays text-only) on any failure.
+async function slideImageData(path: string): Promise<string | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.storage.from("study-slides").download(path);
+  if (error || !data) { console.warn("slideImageData", error?.message); return null; }
+  return await new Promise((resolve) => {
+    const r = new FileReader();
+    r.onload = () => resolve(typeof r.result === "string" ? r.result : null);
+    r.onerror = () => resolve(null);
+    r.readAsDataURL(data);
+  });
+}
+
+export async function exportTeachingPptx(guide: TeachingGuide, filename = "prite-prereading.pptx") {
+  const { default: PptxGenJS } = await import("pptxgenjs");
+  const pptx = new PptxGenJS();
+  pptx.defineLayout({ name: "W", width: 10, height: 5.63 });
+  pptx.layout = "W";
+
+  // Fetch every illustration up front, concurrently.
+  const images = new Map<string, string>();
+  await Promise.all(guide.slides.filter((sl) => sl.image_path).map(async (sl) => {
+    const data = await slideImageData(sl.image_path!);
+    if (data) images.set(sl.image_path!, data);
+  }));
+
+  // Title slide
+  const title = pptx.addSlide();
+  title.background = { color: INK };
+  title.addText(guide.title, { x: 0.7, y: 1.3, w: 8.6, h: 1.8, fontSize: 40, bold: true, color: "FFFFFF", valign: "bottom" });
+  title.addText("Pre-reading · doesn't give away the quiz", { x: 0.7, y: 3.35, w: 8.6, fontSize: 18, color: TEAL_LT });
+  if (guide.session_date) {
+    title.addText(`For the ${guide.session_date} session`, { x: 0.7, y: 3.95, w: 8.6, fontSize: 15, color: MUTED });
+  }
+  if (guide.intro) title.addNotes(guide.intro);
+
+  for (const sl of guide.slides) {
+    const slide = pptx.addSlide();
+    const img = sl.image_path ? images.get(sl.image_path) : undefined;
+
+    if (sl.layout === "divider") {
+      // Full-bleed teal section break; image (if any) sits right, softly.
+      slide.background = { color: INK };
+      if (img) slide.addImage({ data: img, x: 6.1, y: 1.12, w: 3.4, h: 3.4 });
+      const textW = img ? 5.2 : 8.6;
+      slide.addText(sl.title ?? "", { x: 0.7, y: 1.7, w: textW, h: 1.6, fontSize: 44, bold: true, color: "FFFFFF", valign: "bottom" });
+      slide.addShape("line", { x: 0.75, y: 3.5, w: 2.2, h: 0, line: { color: TEAL_LT, width: 3 } });
+      if (sl.support) slide.addText(sl.support, { x: 0.7, y: 3.65, w: textW, h: 0.9, fontSize: 20, color: TEAL_LT, valign: "top" });
+    } else if (sl.layout === "bigfact") {
+      // One giant teaching point, centered.
+      slide.addText(sl.big_text ?? sl.title ?? "", {
+        x: 0.8, y: 1.15, w: 8.4, h: 2.5, fontSize: 36, bold: true, color: INK, align: "center", valign: "middle",
+      });
+      slide.addShape("line", { x: 4.1, y: 3.85, w: 1.8, h: 0, line: { color: TEAL, width: 3 } });
+      if (sl.support) slide.addText(sl.support, { x: 1.3, y: 4.05, w: 7.4, h: 1.1, fontSize: 18, color: TEAL, align: "center", valign: "top" });
+    } else {
+      // "bullets" (and anything unrecognized): title + few large bullets,
+      // image on the right when present.
+      slide.addText(sl.title ?? "", { x: 0.6, y: 0.4, w: 8.8, h: 0.95, fontSize: 30, bold: true, color: INK, valign: "middle" });
+      slide.addShape("line", { x: 0.62, y: 1.42, w: 8.76, h: 0, line: { color: TEAL, width: 2 } });
+      const textW = img ? 5.3 : 8.5;
+      if (img) slide.addImage({ data: img, x: 6.25, y: 1.75, w: 3.3, h: 3.3 });
+      const bullets = (sl.bullets ?? []).map((b) => ({
+        text: b,
+        options: { bullet: { code: "2022", indent: 18 }, breakLine: true, paraSpaceAfter: 16 },
+      }));
+      slide.addText(bullets as any, { x: 0.8, y: 1.75, w: textW, h: 3.5, fontSize: 22, color: BODY, valign: "top" });
+    }
+    if (sl.notes) slide.addNotes(sl.notes);
+  }
+
+  // Key terms closer (if any)
+  if (guide.key_terms?.length) {
+    const slide = pptx.addSlide();
+    slide.addText("Key terms to know cold", { x: 0.6, y: 0.4, w: 8.8, h: 0.95, fontSize: 30, bold: true, color: INK, valign: "middle" });
+    slide.addShape("line", { x: 0.62, y: 1.42, w: 8.76, h: 0, line: { color: TEAL, width: 2 } });
+    // Two columns so 10 terms still render large.
+    const half = Math.ceil(guide.key_terms.length / 2);
+    const cols = [guide.key_terms.slice(0, half), guide.key_terms.slice(half)];
+    cols.forEach((col, c) => {
+      if (!col.length) return;
+      const terms = col.map((t) => ({
+        text: t,
+        options: { bullet: { code: "2022", indent: 18 }, breakLine: true, paraSpaceAfter: 14 },
+      }));
+      slide.addText(terms as any, { x: 0.8 + c * 4.4, y: 1.75, w: 4.1, h: 3.5, fontSize: 19, color: BODY, valign: "top" });
+    });
+  }
+
   await pptx.writeFile({ fileName: filename });
 }
 

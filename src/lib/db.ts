@@ -32,6 +32,9 @@ export type Profile = {
   role: "resident" | "faculty" | "alumni" | "admin" | "test";
   status: "pending" | "approved" | "blocked";
   training_level: string | null;
+  is_admin: boolean;
+  /** Education chiefs run the review sessions, so the team randomizers skip them. */
+  is_education_chief: boolean;
 };
 
 export async function setTrainingLevel(level: string): Promise<void> {
@@ -43,7 +46,7 @@ export async function setTrainingLevel(level: string): Promise<void> {
 
 export type Settings = {
   user_id: string;
-  regimen: 5 | 10 | 20;
+  regimen: 5 | 10 | 20 | 30 | 40 | 50;
   recycle_missed: boolean;
   recycle_after_days: number;
   review_per_day: number;
@@ -163,6 +166,8 @@ export type BugReport = {
   status: string;
   created_at: string;
   resolved_at: string | null;
+  admin_response: string | null;
+  responded_at: string | null;
   reporter?: { full_name: string | null; email: string } | null;
 };
 
@@ -193,6 +198,14 @@ export async function listBugReports(): Promise<BugReport[]> {
     .order("created_at", { ascending: false });
   if (error) { console.warn("listBugReports", error.message); return []; }
   return (data ?? []) as BugReport[];
+}
+
+/** Admin: write (or edit) the reply the reporter sees on their report. */
+export async function respondToBugReport(id: string, response: string): Promise<void> {
+  if (!supabase) return;
+  await supabase.from("bug_reports")
+    .update({ admin_response: response.trim() || null, responded_at: response.trim() ? new Date().toISOString() : null })
+    .eq("id", id);
 }
 
 /** Admin: change a report's status (open | resolved | dismissed). */
@@ -243,6 +256,43 @@ export async function removeStableTeam(profileId: string): Promise<boolean> {
   const { error } = await supabase.from("stable_teams").delete().eq("profile_id", profileId);
   if (error) { console.warn("removeStableTeam", error.message); return false; }
   return true;
+}
+
+/* --- weekly mixer poll teams --- */
+
+/** The admin-randomized pairing for the upcoming week's didactics (see
+    migration 0045): profile_id -> team name, plus when it was generated and
+    by whom (migration 0046's weekly_teams_meta singleton), so the modal can
+    show "randomized <date> by <name>". */
+export async function getWeeklyTeams(): Promise<{
+  teams: Record<string, string>; generatedAt: string | null; generatedBy: string | null;
+}> {
+  if (!supabase) return { teams: {}, generatedAt: null, generatedBy: null };
+  const [{ data, error }, { data: meta }] = await Promise.all([
+    supabase.from("weekly_teams").select("profile_id, team_name"),
+    supabase.from("weekly_teams_meta").select("generated_at, generated_by, profiles(full_name, email)").eq("id", true).maybeSingle(),
+  ]);
+  if (error) { console.warn("getWeeklyTeams", error.message); return { teams: {}, generatedAt: null, generatedBy: null }; }
+  const teams: Record<string, string> = {};
+  for (const row of data ?? []) teams[row.profile_id as string] = row.team_name as string;
+  const generator = (meta?.profiles as unknown as { full_name: string | null; email: string }[] | { full_name: string | null; email: string } | null);
+  const generatorRow = Array.isArray(generator) ? generator[0] ?? null : generator;
+  return {
+    teams,
+    generatedAt: (meta?.generated_at as string | null) ?? null,
+    generatedBy: generatorRow ? (generatorRow.full_name || generatorRow.email) : null,
+  };
+}
+
+/** Admin: wipe and replace the week's pairing in one transaction.
+    Returns null on success, or the error message (surfaced in the modal so a
+    failure isn't a silent shrug). */
+export async function regenerateWeeklyTeams(assignments: Record<string, string>): Promise<string | null> {
+  if (!supabase) return "not configured";
+  const rows = Object.entries(assignments).map(([profile_id, team_name]) => ({ profile_id, team_name }));
+  const { error } = await supabase.rpc("regenerate_weekly_teams", { rows });
+  if (error) { console.warn("regenerateWeeklyTeams", error.message); return error.message; }
+  return null;
 }
 
 /** Per-question vote breakdown, snapshotted when a presenter marks a live
@@ -406,6 +456,19 @@ export async function getQuestionContext(questionId: string): Promise<string> {
   return data?.context ?? "";
 }
 
+/** Batch fetch of cached historical contexts (for Anki deck export). Chunked
+    so a big deck doesn't overflow the PostgREST URL length limit. */
+export async function getContextsForIds(ids: string[]): Promise<Record<string, string>> {
+  if (!supabase || !ids.length) return {};
+  const out: Record<string, string> = {};
+  for (let i = 0; i < ids.length; i += 150) {
+    const { data } = await supabase
+      .from("question_context").select("question_id, context").in("question_id", ids.slice(i, i + 150));
+    for (const r of data ?? []) if (r.context) out[r.question_id] = r.context;
+  }
+  return out;
+}
+
 /** Every individual note I've written, keyed by question_id (for export). */
 export async function getAllMyNotes(): Promise<{ question_id: string; text: string }[]> {
   if (!supabase) return [];
@@ -455,7 +518,7 @@ export async function listProfiles(): Promise<Profile[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, email, full_name, avatar_url, role, status, training_level")
+    .select("id, email, full_name, avatar_url, role, status, training_level, is_admin, is_education_chief")
     .order("status", { ascending: true })
     .order("email", { ascending: true });
   if (error) { console.warn("listProfiles", error.message); return []; }
@@ -464,11 +527,61 @@ export async function listProfiles(): Promise<Profile[]> {
 
 export async function updateProfile(
   id: string,
-  patch: Partial<Pick<Profile, "status" | "role">>
+  patch: Partial<Pick<Profile, "status" | "role" | "is_admin" | "is_education_chief" | "training_level">>
 ): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from("profiles").update(patch).eq("id", id);
   if (error) console.warn("updateProfile", error.message);
+}
+
+/* --- auto-approval roster (admin-editable; RLS limits it to admins) ---
+   This is the server-side name list the signup trigger matches Google names
+   against. class_year is a graduating year ("2031") for residents, or one of
+   the special buckets: faculty, fellow, admin, test. */
+export type RosterName = { first_name: string; last_name: string; class_year: string | null };
+
+export async function listRosterNames(): Promise<RosterName[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("roster_names")
+    .select("first_name, last_name, class_year")
+    .order("class_year", { ascending: false })
+    .order("last_name", { ascending: true });
+  if (error) { console.warn("listRosterNames", error.message); return []; }
+  return (data ?? []) as RosterName[];
+}
+
+/** Returns null on success or an error message (e.g. duplicate name). */
+export async function addRosterName(first: string, last: string, classYear: string): Promise<string | null> {
+  if (!supabase) return "Not connected";
+  const { error } = await supabase
+    .from("roster_names")
+    .insert({ first_name: first, last_name: last, class_year: classYear });
+  if (!error) return null;
+  return error.code === "23505" ? "That name is already on the list" : error.message;
+}
+
+export async function removeRosterName(first: string, last: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase
+    .from("roster_names").delete().eq("first_name", first).eq("last_name", last);
+  if (error) console.warn("removeRosterName", error.message);
+}
+
+/* --- study-guide creator allowlist (who besides admins may generate) --- */
+export async function listStudyGuideCreators(): Promise<string[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.from("study_guide_creators").select("profile_id");
+  if (error) { console.warn("listStudyGuideCreators", error.message); return []; }
+  return (data ?? []).map((r) => r.profile_id as string);
+}
+
+export async function setStudyGuideCreator(profileId: string, canCreate: boolean): Promise<void> {
+  if (!supabase) return;
+  const { error } = canCreate
+    ? await supabase.from("study_guide_creators").upsert({ profile_id: profileId })
+    : await supabase.from("study_guide_creators").delete().eq("profile_id", profileId);
+  if (error) console.warn("setStudyGuideCreator", error.message);
 }
 
 export type QuestionStats = { attempts: number; correct: number; pct_correct: number; distribution: Record<string, number> };

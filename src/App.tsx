@@ -4412,40 +4412,105 @@ function Center({ children }: { children: React.ReactNode }) {
 // (the card literally stopped painting). Everything here is disabled under
 // prefers-reduced-motion.
 const GATE_GHOSTS = [Brain, Pill, HeartPulse, BookOpen, GraduationCap, Stethoscope];
+// Three depth layers, each its own .gateParallax wrapper so the cursor
+// nudges them by a different amount (see --mx/--my on gateRoot in SignIn) —
+// far things drift a little, near things drift a lot, giving the backdrop a
+// sense of depth without touching any element's own keyframe animation.
 function GateBackdrop() {
   return (
     <div className="gateAurora" aria-hidden>
-      <span className="gateBlob gateBlobA" />
-      <span className="gateBlob gateBlobB" />
-      <span className="gateBlob gateBlobC" />
-      <span className="gateGrid" />
-      {GATE_GHOSTS.map((Icon, i) => (
-        <span
-          key={i}
-          className="gateGhost"
-          style={{
-            left: `${6 + i * 16}%`,
-            top: `${14 + ((i * 37) % 62)}%`,
-            animationDelay: `${i * 1.3}s`,
-            animationDuration: `${11 + (i % 4) * 2.4}s`,
-          }}
-        >
-          <Icon size={26 + (i % 3) * 12} strokeWidth={1.4} />
-        </span>
-      ))}
-      {Array.from({ length: 16 }, (_, i) => (
-        <span
-          key={`sp${i}`}
-          className="gateSpark"
-          style={{
-            left: `${(i * 61) % 100}%`,
-            width: 3 + (i % 3) * 2,
-            height: 3 + (i % 3) * 2,
-            animationDelay: `${(i * 0.9) % 8}s`,
-            animationDuration: `${8 + (i % 5) * 1.7}s`,
-          }}
-        />
-      ))}
+      <div className="gateParallax gateParallaxFar">
+        <span className="gateBlob gateBlobA" />
+        <span className="gateBlob gateBlobB" />
+        <span className="gateBlob gateBlobC" />
+        <span className="gateGrid" />
+      </div>
+      <div className="gateParallax gateParallaxMid">
+        {GATE_GHOSTS.map((Icon, i) => (
+          <span
+            key={i}
+            className="gateGhost"
+            style={{
+              left: `${6 + i * 16}%`,
+              top: `${14 + ((i * 37) % 62)}%`,
+              animationDelay: `${i * 1.3}s`,
+              animationDuration: `${11 + (i % 4) * 2.4}s`,
+            }}
+          >
+            <Icon size={26 + (i % 3) * 12} strokeWidth={1.4} />
+          </span>
+        ))}
+      </div>
+      <div className="gateParallax gateParallaxNear">
+        {Array.from({ length: 16 }, (_, i) => (
+          <span
+            key={`sp${i}`}
+            className="gateSpark"
+            style={{
+              left: `${(i * 61) % 100}%`,
+              width: 3 + (i % 3) * 2,
+              height: 3 + (i % 3) * 2,
+              animationDelay: `${(i * 0.9) % 8}s`,
+              animationDuration: `${8 + (i % 5) * 1.7}s`,
+            }}
+          />
+        ))}
+        {RIBBON_VARIANTS.map((variant, i) => <RibbonBurst key={i} variant={variant} />)}
+      </div>
+    </div>
+  );
+}
+
+// A gradient curve that periodically splits into a fan of ribbons and
+// settles back, looping forever behind the card. Several instances are
+// scattered around the scene (see RIBBON_VARIANTS below), each its own
+// size/angle/opacity and out of phase with the others via a negative
+// animation-delay, so they don't all burst in unison.
+const RIBBON_OFFSETS = [-90, -75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75, 90];
+type RibbonVariant = {
+  top: string; left: string; width: string; height: string;
+  rotate: number; opacity: number; phase: number; // phase: seconds into the 7s cycle to start at
+};
+const RIBBON_VARIANTS: RibbonVariant[] = [
+  { top: "48%", left: "52%", width: "46vmin", height: "92vmin", rotate: 0, opacity: 0.55, phase: 0 },
+  { top: "16%", left: "12%", width: "24vmin", height: "50vmin", rotate: -22, opacity: 0.4, phase: -2.6 },
+  { top: "84%", left: "88%", width: "26vmin", height: "54vmin", rotate: 16, opacity: 0.4, phase: -4.8 },
+  { top: "78%", left: "10%", width: "20vmin", height: "42vmin", rotate: 100, opacity: 0.3, phase: -1.3 },
+];
+function RibbonBurst({ variant }: { variant: RibbonVariant }) {
+  const baseDelay = `${variant.phase}s`;
+  return (
+    <div className="gateRibbon" aria-hidden style={{ opacity: variant.opacity }}>
+      <svg
+        className="gateRibbonSvg"
+        viewBox="0 0 400 800"
+        preserveAspectRatio="none"
+        style={{
+          top: variant.top,
+          left: variant.left,
+          width: variant.width,
+          height: variant.height,
+          transform: `translate(-50%, -50%) rotate(${variant.rotate}deg)`,
+        }}
+      >
+        <defs>
+          <linearGradient id="gateRibbonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#00FFD5" />
+            <stop offset="50%" stopColor="#FFFFFF" />
+            <stop offset="75%" stopColor="#FF7A7A" />
+            <stop offset="100%" stopColor="#8A2BE2" />
+          </linearGradient>
+        </defs>
+        <path className="gateRibbonPath gateRibbonBase" d="M 0 3 C 0 251 2 438 198 436 C 299 434 412 438 407 900" style={{ animationDelay: baseDelay }} />
+        {RIBBON_OFFSETS.map((dy, i) => (
+          <path
+            key={i}
+            className="gateRibbonPath gateRibbonFan"
+            d="M 0 3 C 0 251 2 438 198 436 C 299 434 412 438 407 900"
+            style={{ "--dy": `${dy}px`, animationDelay: `${variant.phase + i * 0.03}s` } as React.CSSProperties}
+          />
+        ))}
+      </svg>
     </div>
   );
 }
@@ -4455,22 +4520,35 @@ function SignIn() {
   // card toward the cursor and slides a soft highlight across it. Written as
   // CSS-var updates on the ring element (no React re-render per mousemove).
   const ringRef = useRef<HTMLDivElement>(null);
-  const onTilt = (e: React.MouseEvent) => {
+  const onTilt = (e: React.MouseEvent<HTMLDivElement>) => {
     const el = ringRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const px = Math.max(-0.7, Math.min(0.7, (e.clientX - (r.left + r.width / 2)) / r.width));
-    const py = Math.max(-0.7, Math.min(0.7, (e.clientY - (r.top + r.height / 2)) / r.height));
-    el.style.setProperty("--tiltX", `${(-py * 6).toFixed(2)}deg`);
-    el.style.setProperty("--tiltY", `${(px * 8).toFixed(2)}deg`);
-    el.style.setProperty("--glareX", `${((px + 0.5) * 100).toFixed(1)}%`);
-    el.style.setProperty("--glareY", `${((py + 0.5) * 100).toFixed(1)}%`);
+    if (el) {
+      const r = el.getBoundingClientRect();
+      const px = Math.max(-0.7, Math.min(0.7, (e.clientX - (r.left + r.width / 2)) / r.width));
+      const py = Math.max(-0.7, Math.min(0.7, (e.clientY - (r.top + r.height / 2)) / r.height));
+      el.style.setProperty("--tiltX", `${(-py * 6).toFixed(2)}deg`);
+      el.style.setProperty("--tiltY", `${(px * 8).toFixed(2)}deg`);
+      el.style.setProperty("--glareX", `${((px + 0.5) * 100).toFixed(1)}%`);
+      el.style.setProperty("--glareY", `${((py + 0.5) * 100).toFixed(1)}%`);
+    }
+    // Background parallax: --mx/--my are set on the root and inherited by
+    // every .gateParallax layer, each scaling them by its own depth — one
+    // JS listener, no per-layer state or re-renders.
+    const root = e.currentTarget;
+    const rr = root.getBoundingClientRect();
+    const mx = Math.max(-0.5, Math.min(0.5, (e.clientX - (rr.left + rr.width / 2)) / rr.width));
+    const my = Math.max(-0.5, Math.min(0.5, (e.clientY - (rr.top + rr.height / 2)) / rr.height));
+    root.style.setProperty("--mx", mx.toFixed(3));
+    root.style.setProperty("--my", my.toFixed(3));
   };
-  const onTiltEnd = () => {
+  const onTiltEnd = (e: React.MouseEvent<HTMLDivElement>) => {
     const el = ringRef.current;
-    if (!el) return;
-    el.style.setProperty("--tiltX", "0deg");
-    el.style.setProperty("--tiltY", "0deg");
+    if (el) {
+      el.style.setProperty("--tiltX", "0deg");
+      el.style.setProperty("--tiltY", "0deg");
+    }
+    e.currentTarget.style.setProperty("--mx", "0");
+    e.currentTarget.style.setProperty("--my", "0");
   };
 
   return (
@@ -7069,12 +7147,36 @@ button:focus-visible { outline: 2px solid ${T.teal}; outline-offset: 2px; }
 @keyframes gateBlobA { to { transform: translate(10vmax, 8vmax) scale(1.22); } }
 @keyframes gateBlobB { to { transform: translate(-9vmax, -7vmax) scale(.88); } }
 @keyframes gateBlobC { to { transform: translate(-12vmax, 7vmax) scale(1.3); } }
+/* Parallax depth layers for the gate backdrop: --mx/--my (set on gateRoot in
+   SignIn, one per mousemove, no re-render) inherit down to each layer, which
+   scales them by its own depth. A CSS transition smooths the per-pixel JS
+   updates into a drift instead of a jitter. */
+.gateParallax { position: absolute; inset: 0; transition: transform .5s cubic-bezier(.2,.6,.3,1); }
+.gateParallaxFar { transform: translate(calc(var(--mx, 0) * 10px), calc(var(--my, 0) * 8px)); }
+.gateParallaxMid { transform: translate(calc(var(--mx, 0) * 20px), calc(var(--my, 0) * 16px)); }
+.gateParallaxNear { transform: translate(calc(var(--mx, 0) * 34px), calc(var(--my, 0) * 26px)); }
 .gateGrid { position: absolute; inset: -30px; background-image: radial-gradient(rgba(255,255,255,.13) 1px, transparent 1.6px); background-size: 26px 26px; -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, #000 25%, transparent 72%); mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, #000 25%, transparent 72%); animation: gateGridPan 30s linear infinite; }
 @keyframes gateGridPan { to { transform: translate(26px, 26px); } }
 .gateGhost { position: absolute; color: rgba(126,224,207,.13); animation-name: gateGhostFloat; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
 @keyframes gateGhostFloat { 0%, 100% { transform: translate(0, 0) rotate(-7deg); } 50% { transform: translate(16px, -26px) rotate(8deg); } }
 .gateSpark { position: absolute; bottom: -12px; border-radius: 50%; background: #7ee0cf; box-shadow: 0 0 10px 2px rgba(126,224,207,.4); opacity: 0; animation-name: gateSparkRise; animation-timing-function: linear; animation-iteration-count: infinite; }
 @keyframes gateSparkRise { 0% { transform: translateY(0); opacity: 0; } 8% { opacity: .85; } 85% { opacity: .3; } 100% { transform: translateY(-104vh); opacity: 0; } }
+/* Ribbon burst: a single curve periodically splits into a fan of gradient
+   ribbons and settles back — ported from a CSS/SVG effect (no JS animation
+   library needed) rather than reaching for framer-motion/motion, matching
+   every other gate effect here. */
+.gateRibbon { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.gateRibbonSvg { position: absolute; }
+.gateRibbonPath { fill: none; stroke: url(#gateRibbonGrad); stroke-width: 2; stroke-linecap: round; }
+.gateRibbonBase { opacity: .7; animation: gateRibbonBaseFade 7s ease-in-out infinite; }
+@keyframes gateRibbonBaseFade { 0%, 55% { opacity: .7; } 64%, 86% { opacity: 0; } 96%, 100% { opacity: .7; } }
+.gateRibbonFan { opacity: 0; animation: gateRibbonFan 7s ease-out infinite; }
+@keyframes gateRibbonFan {
+  0%, 58% { opacity: 0; transform: translateY(0); }
+  64% { opacity: 1; transform: translateY(calc(var(--dy) * .4)); }
+  78% { opacity: 1; transform: translateY(var(--dy)); }
+  88%, 100% { opacity: 0; transform: translateY(0); }
+}
 .gateRing { position: relative; border-radius: 20px; padding: 1.5px; overflow: hidden; background: rgba(255,255,255,.09); box-shadow: 0 30px 80px -30px rgba(0,0,0,.65); z-index: 1; }
 .gateRing::before { content: ""; position: absolute; inset: -55%; background: conic-gradient(from 0deg, rgba(46,196,169,0) 0deg, rgba(46,196,169,0) 120deg, rgba(46,196,169,.9) 165deg, rgba(232,192,105,.9) 190deg, rgba(46,196,169,0) 235deg, rgba(46,196,169,0) 360deg); animation: gateRingSpin 6.5s linear infinite; }
 .gateRing > * { position: relative; z-index: 1; }
@@ -7149,8 +7251,8 @@ button:focus-visible { outline: 2px solid ${T.teal}; outline-offset: 2px; }
   .tabInd { transition: none !important; }
   button:not(.opt):active, .opt:active:not(:disabled) { transform: none !important; }
   .gateBlob, .gateGrid, .gateRing::before, .gateIn, .gs1, .gs2, .gs3, .gs4, .gateMarkAnim, .gatePing, .gateShimmer, .gateBtn::after { animation: none !important; }
-  .gateSpark, .gateGhost { display: none !important; }
-  .gateTilt { transform: none !important; transition: none !important; }
+  .gateSpark, .gateGhost, .gateRibbon { display: none !important; }
+  .gateTilt, .gateParallax { transform: none !important; transition: none !important; }
   .qIn, .qIn .opt:not(.pop), .flameFlicker, .timerLow, .progFillDone { animation: none !important; }
   .confetti { display: none !important; }
   .progFill, .progFillDone { transition: none !important; }

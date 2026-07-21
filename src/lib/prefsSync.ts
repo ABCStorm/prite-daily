@@ -33,6 +33,7 @@ type Blob = {
   timer_on?: boolean;
   timer_secs?: number;
   poll_team?: string;
+  reward_shown_day?: string; // local YYYY-MM-DD the daily-completion reward was last shown (so revisits that day don't replay it)
 };
 
 /* --- localStorage accessors, matching each key's historical format --- */
@@ -70,6 +71,7 @@ function snapshot(uid: string): Blob {
     timer_on: readJson<boolean>("pd_timer_on", false) === true,
     timer_secs: Number(readJson("pd_timer_secs", 60)) || 60,
     poll_team: readStr("prite_poll_team"),
+    reward_shown_day: readStr("pd_reward_shown_day"),
   };
 }
 
@@ -94,6 +96,8 @@ export function syncClientPrefs(uid: string, remoteRaw: Record<string, unknown> 
     timer_on: typeof r.timer_on === "boolean" ? r.timer_on : l.timer_on,
     timer_secs: typeof r.timer_secs === "number" && r.timer_secs > 0 ? r.timer_secs : l.timer_secs,
     poll_team: typeof r.poll_team === "string" && r.poll_team ? r.poll_team : l.poll_team,
+    // ISO-style dates compare lexicographically — keep whichever device showed it later
+    reward_shown_day: [l.reward_shown_day ?? "", typeof r.reward_shown_day === "string" ? r.reward_shown_day : ""].sort().pop() || "",
   };
 
   // write the merged state back into the exact keys/formats the UI reads
@@ -103,6 +107,7 @@ export function syncClientPrefs(uid: string, remoteRaw: Record<string, unknown> 
     if (merged.reminder_prompt_stage) localStorage.setItem(`pd_reminder_prompt_stage_${uid}`, String(merged.reminder_prompt_stage));
     if (merged.ai_disclaimer_stage) localStorage.setItem(`pd_ai_disclaimer_stage_${uid}`, String(merged.ai_disclaimer_stage));
     if (merged.poll_team) localStorage.setItem("prite_poll_team", merged.poll_team);
+    if (merged.reward_shown_day) localStorage.setItem("pd_reward_shown_day", merged.reward_shown_day);
   } catch { /* best-effort */ }
   writeJson("pd_seen_study_guides", merged.seen_study_guides);
   writeJson("pd_webcards_note_dismissed", merged.webcards_note_dismissed);

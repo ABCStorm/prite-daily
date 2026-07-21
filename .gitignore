@@ -16,3 +16,6 @@ extraction/context_gen/sql_parts/
 
 # Supabase CLI local link/cache state (machine-specific)
 supabase/.temp/
+
+# Local research/reference cache for content generation (large, not needed at runtime)
+reference/

@@ -92,12 +92,41 @@ async function synthesizeSpeech(text: string, apiKey: string, voice: string): Pr
   return out;
 }
 
+// One AI illustration for a slide, via OpenAI's image API (same key as TTS).
+// Returns null on any failure — an image is always optional.
+async function generateSlideImage(prompt: string, apiKey: string): Promise<Uint8Array | null> {
+  try {
+    const res = await fetchWithTimeout("https://api.openai.com/v1/images/generations", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+      body: JSON.stringify({ model: "gpt-image-1", prompt, n: 1, size: "1024x1024", quality: "medium" }),
+    }, 120_000);
+    if (!res.ok) { console.warn("image gen " + res.status + ": " + (await res.text())); return null; }
+    const b64 = (await res.json())?.data?.[0]?.b64_json;
+    if (!b64) return null;
+    return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  } catch (e) {
+    console.warn("image gen failed:", e);
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
-    const { saved_test_id, test_name, topics, force, session_date } = await req.json() as {
-      saved_test_id: string; test_name: string; topics: TopicInput[]; force?: boolean; session_date?: string | null;
+    // slides_only: the standalone "Prep slides" button — write the guide text
+    // + slide deck but skip TTS entirely (fast + no OpenAI cost). A later
+    // full request on the same test backfills just the audio from the stored
+    // audio_script without re-calling Claude.
+    // anthropic_key / openai_key: optional bring-your-own keys from the
+    // caller's browser (Settings → AI keys). Used for this request only in
+    // place of the project secrets, never logged or stored.
+    const { saved_test_id, test_name, topics, force, session_date, slides_only, anthropic_key, openai_key } = await req.json() as {
+      saved_test_id: string; test_name: string; topics: TopicInput[]; force?: boolean; session_date?: string | null; slides_only?: boolean;
+      anthropic_key?: string | null; openai_key?: string | null;
     };
+    const ownAnthropicKey = (anthropic_key ?? "").trim();
+    const ownOpenaiKey = (openai_key ?? "").trim();
     if (!saved_test_id) return json({ error: "saved_test_id required" }, 400);
     if (!Array.isArray(topics) || !topics.length) return json({ error: "topics required" }, 400);
 
@@ -111,23 +140,42 @@ Deno.serve(async (req) => {
     const { data: userRes } = await scoped.auth.getUser();
     const uid = userRes.user?.id;
     if (!uid) return json({ error: "Sign in to continue." }, 401);
-    const { data: me } = await admin.from("profiles").select("status").eq("id", uid).maybeSingle();
+    const { data: me } = await admin.from("profiles").select("status, role, is_admin").eq("id", uid).maybeSingle();
     if (me?.status !== "approved") return json({ error: "Your account isn't approved yet." }, 403);
 
-    // 2. cache hit? A row already mid-generation ('generating') or already
-    //    done ('ready') is returned as-is so the caller just polls it; only
-    //    a missing row, a previous error, or an explicit force kicks off a
-    //    fresh run.
-    if (!force) {
-      const { data: cached } = await admin.from("study_guides").select("*").eq("saved_test_id", saved_test_id).maybeSingle();
-      if (cached && cached.status !== "error") return json({ ...cached, cached: true });
+    // generation costs real money (Claude + image gen + TTS), so it's limited
+    // to admins and the study_guide_creators allowlist (the education chiefs).
+    // Reading/listening to finished guides stays open to every approved member.
+    // (0047 moved admin rights to the is_admin flag; role='admin' is legacy.)
+    if (me.role !== "admin" && !me.is_admin) {
+      const { data: allowed } = await admin.from("study_guide_creators").select("profile_id").eq("profile_id", uid).maybeSingle();
+      if (!allowed) return json({ error: "Only the education chiefs can generate study guides — ask one of them to make it (everyone can still view finished guides)." }, 403);
     }
 
-    // 3. generating (or regenerating) is restricted to the saved test's owner
-    //    (RLS on saved_tests scopes the caller's client to their own rows, so
-    //    an empty result means "not yours").
-    const { data: owned } = await scoped.from("saved_tests").select("id").eq("id", saved_test_id).maybeSingle();
-    if (!owned) return json({ error: "You don't own this saved test." }, 403);
+    // 2. cache hit? A row mid-generation is always returned as-is so the
+    //    caller just polls it. A finished row is returned if it already has
+    //    what this caller needs — slides for slides_only, audio otherwise.
+    //    Otherwise fall through and fill in only the missing piece: ttsOnly
+    //    narrates the already-written audio_script (no Claude call) when a
+    //    slides-only guide is later upgraded to a full one; a ready row
+    //    without slides (pre-slides guide) regenerates from scratch.
+    let ttsOnly = false;
+    let cachedTitle: string | null = null;
+    if (!force) {
+      const { data: cached } = await admin.from("study_guides").select("*").eq("saved_test_id", saved_test_id).maybeSingle();
+      if (cached && cached.status !== "error") {
+        const hasSlides = Array.isArray(cached.slides) && cached.slides.length > 0;
+        if (cached.status === "generating") return json({ ...cached, cached: true });
+        if (slides_only ? hasSlides : cached.audio_path) return json({ ...cached, cached: true });
+        if (!slides_only && cached.text_ready && cached.audio_script) { ttsOnly = true; cachedTitle = cached.title; }
+      }
+    }
+
+    // 3. the saved test just has to exist — any caller who cleared the
+    //    chiefs/admins gate above may (re)generate for any test, so e.g. an
+    //    admin can add missing audio to a guide another chief created.
+    const { data: exists } = await admin.from("saved_tests").select("id").eq("id", saved_test_id).maybeSingle();
+    if (!exists) return json({ error: "That saved test no longer exists." }, 404);
 
     const fail = async (message: string) => {
       await admin.from("study_guides")
@@ -141,10 +189,20 @@ Deno.serve(async (req) => {
     //    viewable/playable until this run finishes) so pollers see progress
     //    right away, from any tab — this row is also the whole response,
     //    returned before the slow part (Claude + OpenAI TTS) even starts.
+    //    ttsOnly keeps the row's existing (Claude-written) title and jumps
+    //    straight to the narrating stage.
     const { data: placeholder, error: placeholderErr } = await admin
       .from("study_guides")
       .upsert(
-        { saved_test_id, created_by: uid, title: test_name, status: "generating", stage: "writing", error_message: null, generation_started_at: new Date().toISOString(), session_date: session_date ?? null },
+        {
+          saved_test_id, created_by: uid,
+          // title must always be present: Postgres checks NOT NULL on the
+          // proposed insert row BEFORE resolving the on-conflict update, so
+          // omitting it here 500s even though the row already exists.
+          title: ttsOnly ? (cachedTitle ?? test_name) : test_name,
+          status: "generating", stage: ttsOnly ? "narrating" : "writing",
+          error_message: null, generation_started_at: new Date().toISOString(), session_date: session_date ?? null,
+        },
         { onConflict: "saved_test_id" },
       )
       .select("*").single();
@@ -159,8 +217,17 @@ Deno.serve(async (req) => {
       // in fail(), so the row never gets stranded at status='generating'
       // with no error shown.
       try {
-        const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-        if (!apiKey) { await fail("ANTHROPIC_API_KEY not set"); return; }
+        let script = "";
+
+        if (ttsOnly) {
+          // Upgrading a slides-only guide to a full one: the text (and its
+          // narration script) were already written — just narrate it.
+          const { data: row } = await admin.from("study_guides").select("audio_script").eq("saved_test_id", saved_test_id).maybeSingle();
+          script = row?.audio_script ?? "";
+          if (!script) { await fail("no stored narration script to narrate"); return; }
+        } else {
+        const apiKey = ownAnthropicKey || Deno.env.get("ANTHROPIC_API_KEY");
+        if (!apiKey) { await fail("No Anthropic API key — add your own under Settings → Your own AI keys, or set the ANTHROPIC_API_KEY secret"); return; }
 
         const topicLines = topics.map((t, i) => {
           const cat = [t.prite_label, ...(t.topics ?? [])].filter(Boolean).join(", ");
@@ -188,7 +255,7 @@ Respond with ONLY a JSON object, no markdown fencing:
         const aiRes = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
           method: "POST",
           headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-          body: JSON.stringify({ model: MODEL, max_tokens: 8000, messages: [{ role: "user", content: prompt }] }),
+          body: JSON.stringify({ model: MODEL, max_tokens: 12000, messages: [{ role: "user", content: prompt }] }),
         }, 150_000);
         if (!aiRes.ok) { await fail("anthropic " + aiRes.status + ": " + (await aiRes.text())); return; }
         const ai = await aiRes.json();
@@ -196,26 +263,103 @@ Respond with ONLY a JSON object, no markdown fencing:
         let guide: { title: string; intro: string; sections: { heading: string; body: string }[]; key_terms: string[]; audio_script: string };
         try { guide = JSON.parse(raw); } catch { await fail("Claude returned unparseable output"); return; }
 
-        // 6. write the TEXT now — before audio — and flip text_ready. The page
-        //    and the library can show the material immediately; audio catches
-        //    up (or, if it fails below, the text stays viewable regardless).
+        // 6. write the TEXT now — before slides/audio — and flip text_ready.
+        //    The page and the library can show the material immediately; the
+        //    deck and audio catch up (or, if they fail below, the text stays
+        //    viewable regardless).
         const { error: textErr } = await admin.from("study_guides").update({
           title: guide.title, intro: guide.intro,
           sections: guide.sections ?? [], key_terms: guide.key_terms ?? [],
           audio_script: guide.audio_script ?? "",
-          text_ready: true, stage: "narrating",
+          text_ready: true, stage: "designing",
         }).eq("saved_test_id", saved_test_id);
         if (textErr) { await fail("saving the guide text failed: " + textErr.message); return; }
+
+        // 6b. dedicated slide-designer pass — a SECOND Claude call focused
+        //     purely on slide craft (very little text per slide, large type,
+        //     varied layouts), then AI illustration images for the most
+        //     visual slides. Deliberately a separate paid call rather than
+        //     bolting slides onto the prose prompt: the deck reads like a
+        //     designed deck, not reformatted paragraphs.
+        try {
+          const slidePrompt =
+`You are designing a teaching slide deck (PowerPoint) for psychiatry residents, sent as pre-reading before a class session. Below is the written study guide the deck must teach. The same no-spoiler rule applies: this material deliberately avoids resolving any quiz question — do not introduce anything that would.
+
+STUDY GUIDE (JSON):
+${JSON.stringify({ title: guide.title, intro: guide.intro, sections: guide.sections, key_terms: guide.key_terms })}
+
+Design 12-18 slides. Every slide must be readable from the back of a lecture hall: VERY little text, large type. Use these layouts:
+- {"layout": "divider", "title": "<theme name, max 5 words>", "support": "<subtitle, max 12 words>", "notes": "...", "image_prompt": "..."} — a full-bleed section break before each theme.
+- {"layout": "bullets", "title": "<max 8 words>", "bullets": ["<max 8 words each>", ...3-5 total], "notes": "...", "image_prompt": "<optional>"} — the workhorse concept slide.
+- {"layout": "bigfact", "big_text": "<ONE memorable teaching point, max 14 words>", "support": "<max 20 words of context>", "notes": "..."} — use for the highest-yield pearls.
+
+Structure: a "bullets" roadmap slide first, a "divider" opening each theme, concept slides under it, and a final take-home slide. "notes" on every slide are real speaker notes — 2-4 spoken-style sentences carrying the teaching the sparse slide text can't.
+
+"image_prompt": include on the 4-6 MOST visual slides only — a prompt for an AI image generator describing a clean, professional medical-education illustration in a flat modern style with a muted teal palette. The image must contain NO text, labels, letters, or numbers (generators render text badly).
+
+Respond with ONLY a JSON object, no markdown fencing: {"slides": [ ... ]}`;
+
+          const dRes = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+            body: JSON.stringify({ model: MODEL, max_tokens: 9000, messages: [{ role: "user", content: slidePrompt }] }),
+          }, 150_000);
+          if (!dRes.ok) throw new Error("anthropic (slides) " + dRes.status + ": " + (await dRes.text()));
+          const dRaw = ((await dRes.json()).content?.[0]?.text ?? "").trim().replace(/^```json\s*|\s*```$/g, "");
+          const slides = (JSON.parse(dRaw).slides ?? []) as {
+            layout?: string; title?: string; bullets?: string[]; big_text?: string;
+            support?: string; notes?: string; image_prompt?: string; image_path?: string | null;
+          }[];
+          if (!slides.length) throw new Error("slide designer returned no slides");
+
+          // Illustrations: first 6 image_prompts, generated concurrently. A
+          // single failed image just leaves that slide text-only — never
+          // fails the deck.
+          const imgKey = ownOpenaiKey || Deno.env.get("OPENAI_API_KEY");
+          if (imgKey) {
+            const wanted = slides.map((sl, i) => ({ sl, i })).filter((x) => x.sl.image_prompt).slice(0, 6);
+            await Promise.all(wanted.map(async ({ sl, i }) => {
+              const bytes = await generateSlideImage(sl.image_prompt!, imgKey);
+              if (!bytes) return;
+              const path = `${saved_test_id}/${i}.png`;
+              const { error } = await admin.storage.from("study-slides").upload(path, bytes, { contentType: "image/png", upsert: true });
+              if (!error) sl.image_path = path;
+            }));
+          }
+
+          const { error: slidesErr } = await admin.from("study_guides")
+            .update({ slides }).eq("saved_test_id", saved_test_id);
+          if (slidesErr) throw new Error("saving the slides failed: " + slidesErr.message);
+        } catch (e) {
+          // slides_only has nothing else to deliver — surface the error. A
+          // full run still has audio to make; log and move on deck-less.
+          if (slides_only) { await fail(String(e)); return; }
+          console.warn("slide design failed, continuing without deck:", e);
+        }
+
+        // slides_only: done here — no narration. (Any previously generated
+        // audio_path is left in place, though a slides-only run normally has
+        // none.)
+        if (slides_only) {
+          const { error: doneErr } = await admin.from("study_guides").update({
+            status: "ready", stage: null, error_message: null,
+          }).eq("saved_test_id", saved_test_id);
+          if (doneErr) await fail("saving the finished guide failed: " + doneErr.message);
+          return;
+        }
+        await admin.from("study_guides").update({ stage: "narrating" }).eq("saved_test_id", saved_test_id);
+        script = guide.audio_script ?? "";
+        } // end !ttsOnly
 
         // 7. render the narration to speech (OpenAI TTS) and store the MP3.
         //    A failure here leaves status='error' but text_ready stays true,
         //    so the written guide remains readable — only the audio is missing.
-        const openaiKey = Deno.env.get("OPENAI_API_KEY");
-        if (!openaiKey) { await fail("OPENAI_API_KEY not set"); return; }
+        const openaiKey = ownOpenaiKey || Deno.env.get("OPENAI_API_KEY");
+        if (!openaiKey) { await fail("No OpenAI API key — add your own under Settings → Your own AI keys, or set the OPENAI_API_KEY secret"); return; }
         const voice = Deno.env.get("OPENAI_TTS_VOICE") || DEFAULT_VOICE;
         const audioPath = `${saved_test_id}.mp3`;
 
-        const audioBytes = await synthesizeSpeech(guide.audio_script ?? "", openaiKey, voice);
+        const audioBytes = await synthesizeSpeech(script, openaiKey, voice);
         const { error: upErr } = await admin.storage.from("study-audio")
           .upload(audioPath, audioBytes, { contentType: "audio/mpeg", upsert: true });
         if (upErr) { await fail("storage upload failed: " + upErr.message); return; }

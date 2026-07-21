@@ -179,6 +179,19 @@ Deno.serve(async (req) => {
       </tr></table>${note}`;
   };
 
+  // The current 2-week contest ends (and the leaderboard resets) on this date.
+  // Shown right under the rank line so the "past 2 weeks" ranking has a concrete
+  // deadline. Omitted in the post-cutoff blackout, when no contest is running
+  // and the ranking falls back to a rolling window with no fixed reset.
+  const contestResetHtml = (endYmd: string | null): string => {
+    if (!endYmd) return "";
+    const [y, m, d] = endYmd.split("-").map(Number);
+    const label = new Date(Date.UTC(y, m - 1, d))
+      .toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+    return `<p style="font-size:13px;line-height:1.5;color:#5c6d6a;margin:-8px 0 18px;font-family:-apple-system,Segoe UI,system-ui,sans-serif">🏁 This ranking is over the <b>past 2 weeks</b>. The current round ends <b>${label}</b>, then the leaderboard resets for a fresh 2-week race.</p>`;
+  };
+  const resetHtml = contestResetHtml(period?.end ?? null);
+
   // Winner-announcement card — only rendered the one morning after a contest
   // period ends. Framed differently for the winner(s) themselves vs. everyone
   // else, so it reads as a personal result, not a generic broadcast.
@@ -223,6 +236,7 @@ Deno.serve(async (req) => {
 
       <p style="font-size:15px;line-height:1.55;color:#23262f;margin:0 0 12px">${greeting}</p>
       <p style="font-size:15px;line-height:1.55;color:#23262f;margin:0 0 18px">${rankLine}</p>
+      ${resetHtml}
 
       ${countdownHtml(r.examDate)}
 

@@ -119,6 +119,10 @@ level · 0006 flashcards · 0007 email-auth (abandoned) · 0008 revert-to-Google
 0015 answers.cleared · 0016 one-account-per-name approval trigger.**
 The authoritative `handle_new_user()` trigger is now **0016** (build future
 changes on it, not 0008/0010/0011).
+**Numbering:** run `ls supabase/migrations | tail` and take the next free
+number BEFORE writing a new migration — parallel work sessions once produced
+two different 0048s (since renumbered). Numbers are documentation-only
+(migrations are applied by hand), so a collision is confusing, not fatal.
 
 ## Gotchas / non-obvious things
 - **Git remote:** private repo at **https://github.com/ABCStorm/prite-daily**

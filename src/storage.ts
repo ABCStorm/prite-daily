@@ -14,7 +14,7 @@ export type AnswerRecord = {
 };
 
 export type Settings = {
-  regimen: 5 | 10 | 20;
+  regimen: 5 | 10 | 20 | 30 | 40 | 50;
   recycleMissed: boolean;
   recycleAfterDays: number;
   examDate: string | null; // ISO yyyy-mm-dd

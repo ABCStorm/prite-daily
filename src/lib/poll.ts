@@ -26,11 +26,19 @@ export const channelName = (code: string) => `poll-${code.toUpperCase()}`;
 // counts behind that average, for display.
 export type TeamStanding = { team: string; score: number; members: number; correct: number; answerers: number };
 
+// A single participant's standing across all revealed questions — for the
+// individual leaderboard (both the "individual" team mode and the host's
+// optional individual view of a team poll). `score` is correct answers.
+export type IndividualStanding = { voter: string; name: string; score: number; answered: number };
+
 // How the host wants teams formed for this poll session.
 // "self" — everyone types their own team name.
 // "auto" — reshuffled fresh into balanced teams each time the host runs it.
 // "stable" — everyone uses the season-long roster (see stableTeamLevel below).
-export type TeamMode = "self" | "auto" | "stable";
+// "weekly" — everyone uses the admin-randomized pairing for this week's
+//            didactics (weekly_teams table); persists until re-randomized.
+// "individual" — no teams; everyone competes solo, ranked as individuals.
+export type TeamMode = "self" | "auto" | "stable" | "weekly" | "individual";
 export const TRAINING_LEVELS = ["R1", "R2", "R3", "R4"] as const;
 
 /**
@@ -58,7 +66,9 @@ export type PollState = {
   revealed: boolean;
   correct: string[]; // populated only once revealed
   standings: TeamStanding[]; // cumulative team leaderboard (highest first)
+  individuals?: IndividualStanding[]; // cumulative individual leaderboard (highest first)
   teamMode: TeamMode;
+  started?: boolean; // false while the host hasn't hit "Start" yet — phones show a lobby
   voted?: number;    // votes cast on the live question
   joined?: number;   // participants the host knows about
   finished?: boolean; // host ended the session — show final standings
@@ -66,10 +76,11 @@ export type PollState = {
 
 // Participant → host. `team` is optional — a voter may compete solo. `level`
 // is the voter's PGY year (R1–R4), if known, so the host can auto-balance teams.
-export type PollVote = { qid: string; choice: string; voter: string; team?: string; level?: string };
+export type PollVote = { qid: string; choice: string; voter: string; team?: string; level?: string; name?: string };
 // Participant → host on join (and whenever they pick/change a team), so the host
-// re-broadcasts the current state and learns the voter's team.
-export type PollHello = { voter: string; team?: string; level?: string };
+// re-broadcasts the current state and learns the voter's team. `name` is the
+// participant's display name, for the individual leaderboard.
+export type PollHello = { voter: string; team?: string; level?: string; name?: string };
 // Host → everyone, after running the auto-assign shuffle: voter id -> team name.
 export type PollAssign = { assignments: Record<string, string> };
 
@@ -84,11 +95,17 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+/** Aim for teams of this size; actual sizes stay within ±1 of each other. */
+const TARGET_TEAM_SIZE = 4;
+
 /**
- * Randomly group participants into teams with at most one resident per PGY
- * year (R1–R4) apiece, so a team is never four R1s — instead each team gets a
- * spread of experience levels. Anyone with no known year (not signed in, or
- * hasn't set one) is spread round-robin across the same teams.
+ * Randomly group participants into evenly sized teams (target 4, sizes never
+ * differing by more than 1) with the PGY years spread across teams: each
+ * year's shuffled list is dealt round-robin, so a team is never four R1s.
+ * The team count comes from the TOTAL headcount — NOT the largest class —
+ * which is what previously produced trailing one-person teams once the
+ * smaller classes ran out. Anyone with no known year (not signed in, or
+ * hasn't set one) is dealt into the same rotation.
  */
 export function assignBalancedTeams(entries: { voter: string; level?: string | null }[]): Record<string, string> {
   const order = [...TRAINING_LEVELS, "other"];
@@ -99,13 +116,16 @@ export function assignBalancedTeams(entries: { voter: string; level?: string | n
   }
   for (const [key, list] of buckets) buckets.set(key, shuffle(list));
 
-  const teamCount = Math.max(0, ...order.map((k) => buckets.get(k)!.length));
+  const teamCount = Math.max(1, Math.floor(entries.length / TARGET_TEAM_SIZE));
   const assignments: Record<string, string> = {};
-  for (let i = 0; i < teamCount; i++) {
-    const teamName = `Team ${i + 1}`;
-    for (const key of order) {
-      const voter = buckets.get(key)![i];
-      if (voter) assignments[voter] = teamName;
+  // One continuous deal across all year buckets: consecutive members of the
+  // same year land on different teams, and the running index keeps every
+  // team's size within 1 of the others.
+  let seat = Math.floor(Math.random() * teamCount); // random starting team
+  for (const key of order) {
+    for (const voter of buckets.get(key)!) {
+      assignments[voter] = `Team ${(seat % teamCount) + 1}`;
+      seat++;
     }
   }
   return assignments;
