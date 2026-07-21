@@ -403,6 +403,17 @@ export async function getMyPollStats(): Promise<PollStats> {
   };
 }
 
+/** Distinct questions this user has answered in ANY live poll (recorded only
+    once the host reveals the answer — see recordPollAnswer). Used to credit
+    poll participation toward the personal "questions answered" total, next to
+    the solo-practice `answers` table it's otherwise kept separate from. */
+export async function getPollAnsweredQuestionIds(): Promise<string[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.from("poll_answers").select("question_id");
+  if (error || !data) { console.warn("getPollAnsweredQuestionIds", error?.message); return []; }
+  return [...new Set((data as { question_id: string }[]).map((r) => r.question_id))];
+}
+
 export async function getMyNote(questionId: string): Promise<string> {
   if (!supabase) return "";
   const { data } = await supabase

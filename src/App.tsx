@@ -56,6 +56,7 @@ import {
   POLL_EVENTS, type PollState, type PollVote, type PollHello, type PollAssign, type TeamStanding, type IndividualStanding, type TeamMode,
 } from "./lib/poll";
 import { ImmersiveScene, ImmersiveFlash } from "./ImmersiveScene";
+import { nextPollDrumrollGif } from "./lib/pollGifs";
 import {
   loadQuestionBank,
   getMyAnswers, saveAnswer, clearMissedAnswers, getMyNote, saveMyNote,
@@ -72,7 +73,7 @@ import {
   getMyHighlights, saveMyHighlights, getQuestionContext, getContextsForIds,
   submitBugReport, listBugReports, updateBugReport, respondToBugReport,
   submitOfficialPollResults, listOfficialPollResults, clearOfficialPollResults,
-  recordPollAnswer, getMyPollStats,
+  recordPollAnswer, getMyPollStats, getPollAnsweredQuestionIds,
   ensureTrackedForReview, getDueReviewCards, gradeReviewCard,
   type AnswerRow, type GroupNote as DbGroupNote, type Profile,
   type QuestionStats, type LeaderRow, type Settings, type TagMissRow, type Flashcard, type HlRange, type BugReport,
@@ -615,6 +616,11 @@ export default function App() {
   }, [session]);
 
   const [answers, setAnswers] = useState<Record<string, AnswerRow>>({});
+  // Questions credited from live polls — kept separate from `answers` (polls
+  // don't feed mastery/SRS), but merged into the displayed "done" total so
+  // class participation visibly counts, with a small badge for how much of
+  // it came from polls specifically.
+  const [pollAnsweredIds, setPollAnsweredIds] = useState<string[]>([]);
   const [groupNotes, setGroupNotes] = useState<DbGroupNote[]>([]);
   const [showApprovals, setShowApprovals] = useState(false);
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -682,7 +688,8 @@ export default function App() {
       });
       getDueReviewCards().then(setSrsDue);
       loadTests().then(setSavedTests);
-    } else { setAnswers({}); setAnswersLoaded(false); setSettings(null); setSrsDue([]); setSavedTests([]); setPrefsSynced(false); }
+      getPollAnsweredQuestionIds().then(setPollAnsweredIds);
+    } else { setAnswers({}); setAnswersLoaded(false); setSettings(null); setSrsDue([]); setSavedTests([]); setPrefsSynced(false); setPollAnsweredIds([]); }
   }, [persist]); // eslint-disable-line
 
   // build today's set: due-review (missed, past the recycle interval) first,
@@ -1259,6 +1266,12 @@ export default function App() {
   const isAdmin = !!profile?.is_admin;
   const pendingCount = profiles.filter((p) => p.status === "pending").length;
   const answeredCount = Object.keys(answers).length;
+  // Poll-answered questions count toward the total too (union with practice —
+  // a question answered both ways isn't double-counted), with pollCreditCount
+  // tracking how many of the total came from a poll for the small badge.
+  const pollOnlyCount = pollAnsweredIds.filter((id) => !(id in answers)).length;
+  const totalDoneCount = answeredCount + pollOnlyCount;
+  const pollCreditCount = pollAnsweredIds.length;
   // progress is derived from answers dated today (persists across refresh),
   // not from the live queue (which rebuilds and drops answered questions)
   const target = settings?.regimen ?? 10;
@@ -1467,7 +1480,14 @@ export default function App() {
               {examDays !== null
                 ? <><span style={{ ...s.countNum, color: examDays <= 14 ? "#e07a5f" : T.gold }}>{examDays}</span> {examDays === 1 ? "day" : "days"} to exam</>
                 : <><span style={s.countNum}>{all.length}</span> questions</>}
-              {persist && <> · <span style={s.countNum}>{answeredCount}</span> done</>}
+              {persist && (
+                <>
+                  {" "}· <span style={s.countNum}>{totalDoneCount}</span> done
+                  {pollCreditCount > 0 && (
+                    <span style={s.pollCreditNum} title={`${pollCreditCount} of those were answered in a live class poll`}>+{pollCreditCount} 🎤</span>
+                  )}
+                </>
+              )}
               {persist && doneStreak > 0 && (
                 <> · <span style={s.streakChip} title={`${doneStreak}-day daily streak`}><span className="flameFlicker"><Flame size={11} strokeWidth={2.6} /></span> {doneStreak}</span></>
               )}
@@ -3167,6 +3187,16 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
   // the answer is revealed. Cleared automatically on every question change
   // (goTo), so it never lingers over the next question.
   const [peekStandings, setPeekStandings] = useState(false);
+  // A quick fun-gif "drumroll" beat between ending the poll and the standings
+  // actually appearing — set to a gif URL to show it; auto-advances to the
+  // standings screen a couple seconds later (or immediately on tap/click).
+  const [drumrollGif, setDrumrollGif] = useState<string | null>(null);
+  const finishPoll = () => setDrumrollGif(nextPollDrumrollGif());
+  useEffect(() => {
+    if (!drumrollGif) return;
+    const t = setTimeout(() => { setDrumrollGif(null); setFinished(true); }, 2200);
+    return () => clearTimeout(t);
+  }, [drumrollGif]);
   const [showAnswerKey, setShowAnswerKey] = useState(false); // answer key on the finish screen (hidden by default)
   const [standingsFontSize, setStandingsFontSize] = useState(20); // adjustable text size for the answer-key stem/options/explanation
   const [pollStemScale, setPollStemScale] = useState(1.8); // adjustable text size for the question, independent of the choices (default 180% for room readability)
@@ -3758,52 +3788,50 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
           </div>
         ) : (
           <>
-        {/* Individual mode: standings never sit on screen during the poll —
-            but once the answer is revealed the host can peek at the current
-            leaderboard. The peek resets on every question change (goTo). */}
-        {isIndividualMode && revealed && individuals.length > 0 && (
+        {/* Standings never sit on screen automatically during the poll, in
+            either mode — the room shouldn't see who's winning until the host
+            chooses to reveal it. Once the current question's answer is
+            revealed the host can peek at the leaderboard; the peek resets on
+            every question change (goTo), so it's never left open by accident. */}
+        {revealed && (isIndividualMode ? individuals.length > 0 : standings.length > 0) && (
           peekStandings ? (
             <div style={s.pollStatsLive}>
               <div style={s.pollStatsHead}>
                 <span style={s.teamBoardHead}><Trophy size={16} strokeWidth={2.4} /> Current standings</span>
-                <button style={s.pollStatsExport} onClick={() => setPeekStandings(false)} title="Hide the standings again">
-                  <Users size={14} strokeWidth={2.3} /> Hide
-                </button>
+                <span style={{ display: "inline-flex", gap: 8 }}>
+                  {!isIndividualMode && (
+                    <button style={s.pollStatsExport} onClick={() => exportPollTeams(standings, { code, index: index + 1, total })} title="Download team data (opens in Excel)">
+                      <Download size={14} strokeWidth={2.3} /> Export to Excel
+                    </button>
+                  )}
+                  <button style={s.pollStatsExport} onClick={() => setPeekStandings(false)} title="Hide the standings again">
+                    <Users size={14} strokeWidth={2.3} /> Hide
+                  </button>
+                </span>
               </div>
-              {individuals.map((p, i) => (
-                <div key={p.voter} style={{ ...s.teamRow, ...(i === 0 ? s.teamRowLead : {}) }}>
-                  <span style={s.teamRank}>{i === 0 ? <Crown size={20} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
-                  <span style={s.teamName}>{p.name}</span>
-                  <span style={s.teamMembers}>{p.score} correct · {p.answered} answered</span>
-                  <span style={s.teamScore}>{p.answered > 0 ? Math.round((p.score / p.answered) * 100) : 0}%</span>
-                </div>
-              ))}
+              {isIndividualMode
+                ? individuals.map((p, i) => (
+                    <div key={p.voter} style={{ ...s.teamRow, ...(i === 0 ? s.teamRowLead : {}) }}>
+                      <span style={s.teamRank}>{i === 0 ? <Crown size={20} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
+                      <span style={s.teamName}>{p.name}</span>
+                      <span style={s.teamMembers}>{p.score} correct · {p.answered} answered</span>
+                      <span style={s.teamScore}>{p.answered > 0 ? Math.round((p.score / p.answered) * 100) : 0}%</span>
+                    </div>
+                  ))
+                : standings.map((t, i) => (
+                    <div key={t.team} style={{ ...s.teamRow, ...(i === 0 ? s.teamRowLead : {}) }}>
+                      <span style={s.teamRank}>{i === 0 ? <Crown size={20} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
+                      <span style={s.teamName}>{t.team}</span>
+                      <span style={s.teamMembers}>{t.members} {t.members === 1 ? "player" : "players"} · {t.correct} correct · {t.answerers} answered</span>
+                      <span style={s.teamScore}>{t.score} pts</span>
+                    </div>
+                  ))}
             </div>
           ) : (
             <button style={{ ...s.pollBtn, marginBottom: 14 }} onClick={() => setPeekStandings(true)} title="Peek at the leaderboard — hides again on the next question">
               <Trophy size={15} strokeWidth={2.3} /> Show current standings
             </button>
           )
-        )}
-        {/* Live view shows TEAM stats only — individual standings are an
-            opt-in toggle on the finished screen, never during the poll. */}
-        {!isIndividualMode && standings.length > 0 && (
-          <div style={s.pollStatsLive}>
-            <div style={s.pollStatsHead}>
-              <span style={s.teamBoardHead}><Trophy size={16} strokeWidth={2.4} /> Live polling group statistics</span>
-              <button style={s.pollStatsExport} onClick={() => exportPollTeams(standings, { code, index: index + 1, total })} title="Download team data (opens in Excel)">
-                <Download size={14} strokeWidth={2.3} /> Export to Excel
-              </button>
-            </div>
-            {standings.map((t, i) => (
-              <div key={t.team} style={{ ...s.teamRow, ...(i === 0 ? s.teamRowLead : {}) }}>
-                <span style={s.teamRank}>{i === 0 ? <Crown size={20} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
-                <span style={s.teamName}>{t.team}</span>
-                <span style={s.teamMembers}>{t.members} {t.members === 1 ? "player" : "players"} · {t.correct} correct · {t.answerers} answered</span>
-                <span style={s.teamScore}>{t.score} pts</span>
-              </div>
-            ))}
-          </div>
         )}
         <div style={s.pollMeta}>
           {q.year} · Q{q.q_index} · Question {index + 1} of {total}
@@ -3914,11 +3942,11 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
           </button>
         )}
         {index >= total - 1 && revealed ? (
-          <button style={{ ...s.pollBtn, ...s.pollBtnPrimary }} onClick={() => setFinished(true)}><Trophy size={16} strokeWidth={2.4} /> Finish · standings</button>
+          <button style={{ ...s.pollBtn, ...s.pollBtnPrimary }} onClick={finishPoll}><Trophy size={16} strokeWidth={2.4} /> Finish · standings</button>
         ) : (
           <>
             <button style={s.pollBtn} disabled={index >= total - 1} onClick={() => goTo(index + 1)}>Next <ArrowRight size={16} strokeWidth={2.4} /></button>
-            <button style={s.pollBtn} onClick={() => setFinished(true)} title="Jump straight to final standings without going through the remaining questions">
+            <button style={s.pollBtn} onClick={finishPoll} title="Jump straight to final standings without going through the remaining questions">
               <Trophy size={16} strokeWidth={2.4} /> End early
             </button>
           </>
@@ -3942,6 +3970,17 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
         <div style={s.qrOverlay} onClick={() => setZoomImg(null)}>
           <img src={zoomImg} alt="Explanation, enlarged" style={s.zoomImg} onClick={(e) => e.stopPropagation()} />
           <button style={{ ...s.pollClose, position: "absolute", top: 20, right: 20 }} onClick={() => setZoomImg(null)} title="Close"><X size={18} strokeWidth={2.4} /></button>
+        </div>
+      )}
+
+      {drumrollGif && (
+        <div
+          style={{ ...s.qrOverlay, zIndex: 96, flexDirection: "column", gap: 16, cursor: "pointer" }}
+          onClick={() => { setDrumrollGif(null); setFinished(true); }}
+          title="Tap to skip"
+        >
+          <img src={drumrollGif} alt="" style={{ maxWidth: "min(80vw, 560px)", maxHeight: "56vh", borderRadius: 16, boxShadow: "0 30px 80px -20px rgba(0,0,0,.7)" }} />
+          <span style={{ color: "#fff", fontSize: 16, fontWeight: 700, letterSpacing: 0.3 }}>🥁 And the standings are…</span>
         </div>
       )}
 
@@ -5541,7 +5580,10 @@ function Stats({
   ];
   const [dim, setDim] = useState("prite");
   const [pollStats, setPollStats] = useState<PollStats | null>(null);
-  useEffect(() => { getMyPollStats().then(setPollStats); }, []);
+  const [pollAnsweredIds, setPollAnsweredIds] = useState<string[]>([]);
+  useEffect(() => { getMyPollStats().then(setPollStats); getPollAnsweredQuestionIds().then(setPollAnsweredIds); }, []);
+  const pollOnlyCount = pollAnsweredIds.filter((id) => !(id in answers)).length;
+  const pollCreditCount = pollAnsweredIds.length;
 
   const m = useMemo(() => {
     const entries = Object.values(answers);
@@ -5671,12 +5713,16 @@ function Stats({
           <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
         </div>
         <div style={s.apBody}>
-          {m.answered === 0 ? (
+          {m.answered === 0 && pollCreditCount === 0 ? (
             <p style={s.apEmpty}>You haven’t answered any questions yet. Once you start, your stats will show up here.</p>
           ) : (
             <>
               <div style={s.statGrid}>
-                {card(m.answered, "Questions answered", `${m.attempts} total attempts`)}
+                {card(
+                  <>{m.answered + pollOnlyCount}{pollCreditCount > 0 && <span style={s.pollCreditNum} title={`${pollCreditCount} of those were answered in a live class poll`}>+{pollCreditCount} 🎤</span>}</>,
+                  "Questions answered",
+                  `${m.attempts} total attempts`
+                )}
                 {card(`${m.firstTryAcc}%`, "First-try accuracy", `${m.answered - m.outstanding} of ${m.answered} eventually right`, m.firstTryAcc >= 70 ? T.correctText : m.firstTryAcc >= 50 ? T.gold : T.wrongText)}
                 {card(<><Flame size={18} strokeWidth={2.4} style={{ verticalAlign: "-2px" }} color={m.streak > 0 ? T.gold : T.faint} /> {m.streak}</>, "Day streak", `${m.today} today · ${m.week} this week`, m.streak > 0 ? T.gold : undefined)}
                 {card(m.outstanding, "To review", m.outstanding === 0 ? "all caught up 🎉" : "missed, not yet re-answered", m.outstanding > 0 ? T.wrongText : T.correctText)}
@@ -7437,6 +7483,7 @@ const s: Record<string, React.CSSProperties> = {
   topMeta: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px 13px", marginLeft: "auto", justifyContent: "flex-end" },
   countdown: { color: "#c7ccd6", fontSize: 12.5, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", whiteSpace: "nowrap", flexShrink: 0 },
   countNum: { color: T.gold, fontWeight: 700 },
+  pollCreditNum: { color: T.teal, fontWeight: 700, fontSize: "0.82em", marginLeft: 3 },
   who: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px 7px", justifyContent: "flex-end" },
   avatarSm: { width: 28, height: 28, borderRadius: 8, background: T.teal, color: "#fff", display: "grid", placeItems: "center", fontSize: 11.5, fontWeight: 700, flexShrink: 0 },
   adminTag: { display: "inline-flex", alignItems: "center", gap: 4, color: "#9aa0ab", fontSize: 11, fontWeight: 500, textTransform: "capitalize", whiteSpace: "nowrap", flexShrink: 0 },
