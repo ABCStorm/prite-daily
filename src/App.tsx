@@ -4019,6 +4019,45 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
 
 const TEAM_KEY = "prite_poll_team";
 
+// --- body-scroll lock for full-screen overlays ------------------------------
+// iOS Safari ignores `overflow:hidden` / `overscroll-behavior:contain` on a
+// fixed overlay — a touch-drag "bleeds" through and scrolls the page behind
+// it (the bug residents hit: the poll is open but their drag moves the app
+// underneath). Pinning the BODY itself (position:fixed, offset by the current
+// scroll) is the only reliable stop on iOS; the overlay's own scroll container
+// keeps scrolling normally. The scroll position is captured on lock and
+// restored on release so the user lands back where they were. A counter guards
+// against nested/duplicate locks (and React StrictMode's double-mount in dev).
+let scrollLockCount = 0;
+let savedScrollY = 0;
+function lockBodyScroll() {
+  if (scrollLockCount++ > 0) return;
+  savedScrollY = window.scrollY;
+  const b = document.body;
+  b.style.position = "fixed";
+  b.style.top = `-${savedScrollY}px`;
+  b.style.left = "0";
+  b.style.right = "0";
+  b.style.width = "100%";
+  b.style.overflow = "hidden";
+}
+function unlockBodyScroll() {
+  if (scrollLockCount <= 0) return;
+  if (--scrollLockCount > 0) return;
+  const b = document.body;
+  b.style.position = "";
+  b.style.top = "";
+  b.style.left = "";
+  b.style.right = "";
+  b.style.width = "";
+  b.style.overflow = "";
+  window.scrollTo(0, savedScrollY);
+}
+/** Lock the page body while a full-screen overlay is mounted. */
+function useBodyScrollLock() {
+  useEffect(() => { lockBodyScroll(); return unlockBodyScroll; }, []);
+}
+
 function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, byId, displayName, onClose, guest = false }: {
   code: string; voter: string; trainingLevel: string | null; stableTeam: string | null; weeklyTeam: string | null;
   byId: Map<string, RawQuestion>; displayName: string; onClose: () => void;
@@ -4027,6 +4066,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
   // weekly polls let the guest type the team they've been told to join.
   guest?: boolean;
 }) {
+  useBodyScrollLock(); // pin the page behind us so touch-drags scroll the poll, not the app underneath
   const [remote, setRemote] = useState<PollState | null>(null);
   const [myVote, setMyVote] = useState<string[] | null>(null); // the submitted vote — null until cast
   const [pendingPicks, setPendingPicks] = useState<string[]>([]); // multi-select taps before Submit
