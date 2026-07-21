@@ -52,7 +52,7 @@ import { dueReminderPromptStage, markReminderPromptShown } from "./lib/reminderP
 import { dueAiDisclaimerStage, markAiDisclaimerShown } from "./lib/aiDisclaimerPrompt";
 import { isAutoReminderActive, guessedExamDate } from "./lib/reminderWindow";
 import {
-  makePollCode, channelName, pollJoinUrl, pollCodeFromUrl, clearPollParam, assignBalancedTeams, stableTeamLevel,
+  makePollCode, channelName, pollJoinUrl, pollCodeFromUrl, clearPollParam, assignBalancedTeams, stableTeamLevel, pickIsCorrect,
   POLL_EVENTS, type PollState, type PollVote, type PollHello, type PollAssign, type TeamStanding, type IndividualStanding, type TeamMode,
 } from "./lib/poll";
 import { ImmersiveScene, ImmersiveFlash } from "./ImmersiveScene";
@@ -3204,7 +3204,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [qr, setQr] = useState<string | null>(null); // join-URL QR as a data URL
   const [qrBig, setQrBig] = useState(false);          // enlarged QR overlay
-  const votesRef = useRef<Map<string, Map<string, string>>>(new Map()); // qid -> voter -> choice
+  const votesRef = useRef<Map<string, Map<string, string[]>>>(new Map()); // qid -> voter -> choice(s)
   const teamRef = useRef<Map<string, string>>(new Map());   // voter -> team name
   const levelRef = useRef<Map<string, string>>(new Map());  // voter -> PGY year (R1–R4), if known
   const nameRef = useRef<Map<string, string>>(new Map());   // voter -> display name, for the individual leaderboard
@@ -3234,7 +3234,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
         const team = teamRef.current.get(vId);
         if (!team) continue;
         answerers.get(team)?.add(vId);
-        if (correct.includes(choice)) correctCount.set(team, (correctCount.get(team) ?? 0) + 1);
+        if (pickIsCorrect(choice, correct)) correctCount.set(team, (correctCount.get(team) ?? 0) + 1);
       }
     }
     return [...members.keys()]
@@ -3259,7 +3259,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
       if (!m) continue;
       for (const [vId, choice] of m) {
         answered.set(vId, (answered.get(vId) ?? 0) + 1);
-        if (key.includes(choice)) correct.set(vId, (correct.get(vId) ?? 0) + 1);
+        if (pickIsCorrect(choice, key)) correct.set(vId, (correct.get(vId) ?? 0) + 1);
       }
     }
     return [...answered.keys()]
@@ -3298,7 +3298,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
       qid, year: q?.year ?? "", qIndex: q?.q_index ?? 0,
       nOptions: q?.options.length ?? 0,
       options: q?.options.map((o) => ({ letter: o.letter, text: o.text })) ?? [],
-      index, total, revealed,
+      index, total, multiSelect: q?.multi_select ?? false, revealed,
       correct: revealed ? correctSet : [],
       standings: computeStandings(),
       individuals: computeIndividualStandings(),
@@ -3317,7 +3317,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
     const ch = supabase.channel(channelName(code), { config: { broadcast: { self: false } } });
     ch.on("broadcast", { event: POLL_EVENTS.vote }, ({ payload }: { payload: PollVote }) => {
       const v = payload;
-      if (!v?.qid || !v?.choice || !v?.voter) return;
+      if (!v?.qid || !v?.choice?.length || !v?.voter) return;
       let m = votesRef.current.get(v.qid);
       if (!m) { m = new Map(); votesRef.current.set(v.qid, m); }
       m.set(v.voter, v.choice);
@@ -3356,9 +3356,9 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
   useEffect(() => { if (timeLeft === 0 && !revealed) setRevealed(true); }, [timeLeft, revealed]);
 
   if (!q) return null;
-  const tally = votesRef.current.get(qid) ?? new Map<string, string>();
+  const tally = votesRef.current.get(qid) ?? new Map<string, string[]>();
   const counts: Record<string, number> = {};
-  for (const c of tally.values()) counts[c] = (counts[c] ?? 0) + 1;
+  for (const picks of tally.values()) for (const c of picks) counts[c] = (counts[c] ?? 0) + 1;
   const voterCount = tally.size;
   const joinedCount = joinedRef.current.size;
   const allVoted = joinedCount > 0 && voterCount >= joinedCount;
@@ -3397,11 +3397,11 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
     const questionStats: QuestionStat[] = set.map((qq) => {
       const qqid = questionId(qq.year, qq.q_index);
       const correct = keyFor(qq);
-      const tally = votesRef.current.get(qqid) ?? new Map<string, string>();
+      const tally = votesRef.current.get(qqid) ?? new Map<string, string[]>();
       const counts: Record<string, number> = {};
-      for (const c of tally.values()) counts[c] = (counts[c] ?? 0) + 1;
+      for (const picks of tally.values()) for (const c of picks) counts[c] = (counts[c] ?? 0) + 1;
       const totalVotes = tally.size;
-      const wrongVotes = [...tally.values()].filter((c) => !correct.includes(c)).length;
+      const wrongVotes = [...tally.values()].filter((picks) => !pickIsCorrect(picks, correct)).length;
       return { qid: qqid, year: qq.year, q_index: qq.q_index, stem: qq.stem, correct, counts, totalVotes, wrongVotes };
     });
     const ok = await submitOfficialPollResults({
@@ -3671,9 +3671,9 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
                   const open = expandedKey.has(i);
                   const correct = keyFor(qq);
                   const qqid = questionId(qq.year, qq.q_index);
-                  const qTally = votesRef.current.get(qqid) ?? new Map<string, string>();
+                  const qTally = votesRef.current.get(qqid) ?? new Map<string, string[]>();
                   const qTotalVotes = qTally.size;
-                  const qWrongVotes = [...qTally.values()].filter((c) => !correct.includes(c)).length;
+                  const qWrongVotes = [...qTally.values()].filter((picks) => !pickIsCorrect(picks, correct)).length;
                   const reviewColor = qTotalVotes > 0 ? wrongPctColor(qWrongVotes / qTotalVotes) : "transparent";
                   return (
                     <div key={i} style={{ background: "rgba(255,255,255,.04)", borderRadius: 8, borderLeft: `4px solid ${reviewColor}` }}>
@@ -3805,7 +3805,10 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
             ))}
           </div>
         )}
-        <div style={s.pollMeta}>{q.year} · Q{q.q_index} · Question {index + 1} of {total}</div>
+        <div style={s.pollMeta}>
+          {q.year} · Q{q.q_index} · Question {index + 1} of {total}
+          {q.multi_select && <span style={{ ...s.multiTag, marginLeft: 10 }}><ListChecks size={12} strokeWidth={2.2} /> Select all that apply</span>}
+        </div>
         <div style={{
           display: "flex",
           flexDirection: !hideChoices && choicesLayout === "side" ? "row" : "column",
@@ -3986,7 +3989,8 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
   guest?: boolean;
 }) {
   const [remote, setRemote] = useState<PollState | null>(null);
-  const [myVote, setMyVote] = useState<string | null>(null);
+  const [myVote, setMyVote] = useState<string[] | null>(null); // the submitted vote — null until cast
+  const [pendingPicks, setPendingPicks] = useState<string[]>([]); // multi-select taps before Submit
   const [status, setStatus] = useState<"connecting" | "joined" | "error">("connecting");
   const [team, setTeamState] = useState<string>(() => { try { return localStorage.getItem(TEAM_KEY) || ""; } catch { return ""; } });
   const [draft, setDraft] = useState(team);
@@ -4002,7 +4006,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
   const lastQid = useRef<string>("");
   const teamRef = useRef(team);
   teamRef.current = team;
-  const myVoteRef = useRef<string | null>(null);
+  const myVoteRef = useRef<string[] | null>(null);
   const vibratedQidRef = useRef<string | null>(null); // so a re-broadcast while still revealed doesn't re-fire the buzz
   // My own answer history for this session, keyed by qid — snapshotted the
   // moment each question is revealed (myVoteRef still reflects that question;
@@ -4010,7 +4014,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
   // download at the end, and lets me flip back through past questions (with
   // their full explanation, pulled from the local question bank) while the
   // live question is still on the clock.
-  const historyRef = useRef<Map<string, { correct: string[]; myChoice: string | null; index: number }>>(new Map());
+  const historyRef = useRef<Map<string, { correct: string[]; myChoice: string[] | null; index: number }>>(new Map());
   const [reviewQid, setReviewQid] = useState<string | null>(null); // set while browsing a past question instead of the live one
   const recordedRef = useRef<Set<string>>(new Set()); // qids already persisted to poll_answers, so a re-broadcast doesn't double-insert
 
@@ -4033,27 +4037,30 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
     ch.on("broadcast", { event: POLL_EVENTS.state }, ({ payload }: { payload: PollState }) => {
       if (payload.revealed && payload.qid) {
         historyRef.current.set(payload.qid, { correct: payload.correct, myChoice: myVoteRef.current, index: payload.index });
+        const gotIt = !!myVoteRef.current && pickIsCorrect(myVoteRef.current, payload.correct);
         // Buzz once per reveal if I got it right — a re-broadcast while still
         // revealed (e.g. a late vote count update) shouldn't re-trigger it.
-        if (myVoteRef.current && payload.correct.includes(myVoteRef.current) && vibratedQidRef.current !== payload.qid) {
+        if (gotIt && vibratedQidRef.current !== payload.qid) {
           vibratedQidRef.current = payload.qid;
           if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate([40, 60, 40]);
         }
         // Persist my own answer for the personal poll-stats page — once per
         // qid, and only if I actually voted (not for questions I sat out).
-        if (!guest && voter !== "anon" && myVoteRef.current && !recordedRef.current.has(payload.qid)) {
+        // The DB column is a single TEXT field, so a multi-select pick joins
+        // as "A,C" — nothing else reads it back apart from `correct`.
+        if (!guest && voter !== "anon" && myVoteRef.current?.length && !recordedRef.current.has(payload.qid)) {
           recordedRef.current.add(payload.qid);
           recordPollAnswer({
             question_id: payload.qid,
             poll_code: code,
             team: teamRef.current || null,
-            choice: myVoteRef.current,
-            correct: payload.correct.includes(myVoteRef.current),
+            choice: myVoteRef.current.slice().sort().join(","),
+            correct: gotIt,
           });
         }
       }
       setRemote(payload);
-      if (payload.qid !== lastQid.current) { lastQid.current = payload.qid; setMyVote(null); myVoteRef.current = null; setReviewQid(null); setStemOpen(false); }
+      if (payload.qid !== lastQid.current) { lastQid.current = payload.qid; setMyVote(null); myVoteRef.current = null; setPendingPicks([]); setReviewQid(null); setStemOpen(false); }
     });
     // Host ran the auto-assign shuffle — take the team it picked for me, unless
     // I've already got one (either from a prior shuffle or my own rename).
@@ -4087,23 +4094,37 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
     if (el && el.tagName === "BUTTON") el.blur();
   }, [remote?.qid]);
 
-  const vote = (letter: string) => {
-    if (!remote || remote.revealed) return;
-    setMyVote(letter);
-    myVoteRef.current = letter;
-    chanRef.current?.send({ type: "broadcast", event: POLL_EVENTS.vote, payload: { qid: remote.qid, choice: letter, voter, team: team || undefined, level: trainingLevel || undefined, name: displayName || undefined } });
+  // Casts (or replaces) my vote outright — single-select taps call this
+  // directly with one letter each time; multi-select submits the whole
+  // pending set at once via submitPending() below.
+  const castVote = (letters: string[]) => {
+    if (!remote || remote.revealed || !letters.length) return;
+    setMyVote(letters);
+    myVoteRef.current = letters;
+    chanRef.current?.send({ type: "broadcast", event: POLL_EVENTS.vote, payload: { qid: remote.qid, choice: letters, voter, team: team || undefined, level: trainingLevel || undefined, name: displayName || undefined } });
   };
+  // Single-select: tap a letter and it's cast immediately (tapping another
+  // replaces it, same as before multi-select existed).
+  const vote = (letter: string) => castVote([letter]);
+  // Multi-select: tap toggles a letter in the LOCAL pending set — nothing is
+  // sent until Submit, mirroring the "choose all that apply, then Submit"
+  // flow from the personal practice quiz.
+  const togglePending = (letter: string) => {
+    if (!remote || remote.revealed || myVote) return;
+    setPendingPicks((cur) => (cur.includes(letter) ? cur.filter((l) => l !== letter) : [...cur, letter]));
+  };
+  const submitPending = () => { if (pendingPicks.length) castVote(pendingPicks); };
 
   // Every question I saw revealed, that I either missed or never voted on —
   // built once the poll finishes, from the local question bank (byId) so the
   // export can include the full explanation (never broadcast over the poll
   // channel itself).
   const missedRows = () => {
-    const rows: { q: RawQuestion; myChoice: string | null }[] = [];
+    const rows: { q: RawQuestion; myChoice: string[] | null }[] = [];
     for (const [qid, h] of historyRef.current) {
       const q = byId.get(qid);
       if (!q) continue;
-      if (!h.myChoice || !h.correct.includes(h.myChoice)) rows.push({ q, myChoice: h.myChoice });
+      if (!pickIsCorrect(h.myChoice ?? [], h.correct)) rows.push({ q, myChoice: h.myChoice });
     }
     return rows;
   };
@@ -4114,7 +4135,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
   // back and drill what was missed. Guests have no account to save to.
   const addMissedToReview = async () => {
     const qids = [...historyRef.current.entries()]
-      .filter(([, h]) => !h.myChoice || !h.correct.includes(h.myChoice))
+      .filter(([, h]) => !pickIsCorrect(h.myChoice ?? [], h.correct))
       .map(([qid]) => qid);
     if (!qids.length) return;
     setReviewAddState("saving");
@@ -4150,6 +4171,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
   return (
     <div style={s.joinRoot}>
       <style>{CSS}</style>
+      <div style={s.joinScrollArea}>
       <div style={s.joinScroll}>
       <div style={s.joinCard}>
         <div style={s.joinHead}>
@@ -4211,7 +4233,8 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
               const rh = historyRef.current.get(reviewQid);
               if (!rq) return <p style={s.joinMsg}>That question isn't available to review.</p>;
               const rCorrect = rh?.correct ?? [];
-              const rMine = rh?.myChoice ?? null;
+              const rMine = rh?.myChoice ?? [];
+              const rGotIt = pickIsCorrect(rMine, rCorrect);
               return (
                 <>
                   <div style={s.pollReviewHead}>
@@ -4222,7 +4245,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                   <div style={s.joinOptsFull}>
                     {rq.options.map((o) => {
                       const isCorrect = rCorrect.includes(o.letter);
-                      const isMine = rMine === o.letter;
+                      const isMine = rMine.includes(o.letter);
                       return (
                         <div key={o.letter} style={{ ...s.joinOptFull, cursor: "default", ...(isMine ? s.joinOptMine : {}), ...(isCorrect ? s.joinOptCorrect : {}), ...(isMine && !isCorrect ? s.joinOptWrong : {}) }}>
                           <span style={s.joinOptFullLetter}>{o.letter}</span>
@@ -4234,7 +4257,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                   </div>
                   <p style={s.joinState}>
                     Answer: <b style={{ color: "#fff" }}>{rCorrect.join(", ")}</b>
-                    {rMine ? (rCorrect.includes(rMine) ? " — you got it! 🎉" : ` — you picked ${rMine}`) : " — you didn't vote"}
+                    {rMine.length ? (rGotIt ? " — you got it! 🎉" : ` — you picked ${rMine.join(", ")}`) : " — you didn't vote"}
                   </p>
                   {(rq.explanation_text || rq.explanation_images.length > 0) && (
                     <div style={s.joinExplBox}>
@@ -4269,6 +4292,8 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                 <p style={s.joinMsg}>
                   {remote.finished
                     ? <>Poll complete — thanks for playing! 🎉</>
+                    : remote.multiSelect
+                    ? <>Question {remote.index + 1} of {remote.total} — read it on the big screen, then select ALL that apply.</>
                     : <>Question {remote.index + 1} of {remote.total} — read it on the big screen, then tap your answer.</>}
                 </p>
                 {!remote.finished && !remote.revealed && (remote.joined ?? 0) > 0 && (
@@ -4277,12 +4302,19 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                 {!remote.finished && (
                 <div style={s.joinOptsFull}>
                   {(remote.options?.length ? remote.options : letters.map((L) => ({ letter: L, text: "" }))).map((o) => {
-                    const mine = myVote === o.letter;
+                    const mine = remote.multiSelect
+                      ? (myVote ? myVote.includes(o.letter) : pendingPicks.includes(o.letter))
+                      : myVote?.[0] === o.letter;
                     const correct = remote.revealed && remote.correct.includes(o.letter);
                     const wrong = remote.revealed && mine && !correct;
+                    const locked = remote.revealed || (remote.multiSelect && !!myVote);
                     return (
-                      <button key={o.letter} onClick={() => vote(o.letter)} disabled={remote.revealed}
-                        style={{ ...s.joinOptFull, ...(mine ? s.joinOptMine : {}), ...(correct ? s.joinOptCorrect : {}), ...(wrong ? s.joinOptWrong : {}) }}>
+                      <button
+                        key={o.letter}
+                        onClick={() => (remote.multiSelect ? togglePending(o.letter) : vote(o.letter))}
+                        disabled={locked}
+                        style={{ ...s.joinOptFull, ...(mine ? s.joinOptMine : {}), ...(correct ? s.joinOptCorrect : {}), ...(wrong ? s.joinOptWrong : {}) }}
+                      >
                         <span style={s.joinOptFullLetter}>{o.letter}</span>
                         <span style={{ flex: 1 }}>{o.text}</span>
                         {(correct || wrong) && <span>{correct ? "✓" : "✗"}</span>}
@@ -4291,11 +4323,21 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                   })}
                 </div>
                 )}
+                {!remote.finished && remote.multiSelect && !remote.revealed && !myVote && (
+                  <button
+                    style={{ ...s.pollBtn, ...(pendingPicks.length ? s.pollBtnPrimary : {}), width: "100%", justifyContent: "center", marginTop: 10 }}
+                    onClick={submitPending}
+                    disabled={!pendingPicks.length}
+                  >
+                    <Check size={15} strokeWidth={2.6} /> Submit{pendingPicks.length ? ` (${pendingPicks.length})` : ""}
+                  </button>
+                )}
                 {!remote.finished && (
                 <p style={s.joinState}>
                   {remote.revealed
-                    ? <>Answer: <b style={{ color: "#fff" }}>{remote.correct.join(", ")}</b>{myVote ? (remote.correct.includes(myVote) ? " — you got it! 🎉" : ` — you picked ${myVote}`) : " — you didn't vote"}</>
-                    : myVote ? `You picked ${myVote}. Tap another to change it.` : "Tap a letter to cast your vote."}
+                    ? <>Answer: <b style={{ color: "#fff" }}>{remote.correct.join(", ")}</b>{myVote?.length ? (pickIsCorrect(myVote, remote.correct) ? " — you got it! 🎉" : ` — you picked ${myVote.join(", ")}`) : " — you didn't vote"}</>
+                    : myVote?.length ? `You picked ${myVote.join(", ")}.${remote.multiSelect ? "" : " Tap another to change it."}`
+                    : remote.multiSelect ? "Tap all that apply, then Submit." : "Tap a letter to cast your vote."}
                 </p>
                 )}
                 {!remote.finished && remote.revealed && (() => {
@@ -4378,6 +4420,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
             )}
           </>
         )}
+      </div>
       </div>
       </div>
 
@@ -7735,11 +7778,18 @@ const s: Record<string, React.CSSProperties> = {
   // min-height:100% + flex, so short content stays centered but a tall poll
   // (stem peek + options + explanation + history) can scroll with the top
   // still reachable — a plain grid/flex-centered fixed box would clip it.
-  // Explicit height (not just inset:0) so the scrollable area is recomputed
-  // when a mobile browser's address bar shows/hides — inset:0 alone can leave
-  // stale content (e.g. the reveal explanation) below the fold and unreachable.
-  // overscrollBehavior stops the drag from chaining into the page behind it.
-  joinRoot: { position: "fixed", inset: 0, height: "100dvh", zIndex: 90, background: "transparent", overflowY: "auto", overscrollBehavior: "contain", touchAction: "pan-y", WebkitOverflowScrolling: "touch", fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif" },
+  // A non-scrolling fixed shell, with joinScrollArea (below) doing the actual
+  // scrolling as its own absolutely-positioned layer — iOS Safari has a known
+  // bug where a position:fixed element that is ALSO the overflow:auto element
+  // can refuse to scroll by touch; splitting the "pinned to the viewport" job
+  // from the "scrolls" job from one element into two sidesteps it.
+  joinRoot: { position: "fixed", inset: 0, zIndex: 90, background: "transparent", overflow: "hidden", fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif" },
+  // The actual scroller. Explicit height (not just inset:0) so the scrollable
+  // area is recomputed when a mobile browser's address bar shows/hides —
+  // inset:0 alone can leave stale content (e.g. the reveal explanation) below
+  // the fold and unreachable. overscrollBehavior stops the drag from chaining
+  // into the page behind it.
+  joinScrollArea: { position: "absolute", inset: 0, height: "100%", overflowY: "auto", overscrollBehavior: "contain", touchAction: "pan-y", WebkitOverflowScrolling: "touch" },
   // `margin:auto` (not flex `center`) so a card taller than the viewport stays
   // fully scrollable on phones — flex centering clips the top out of reach.
   joinScroll: { minHeight: "100%", display: "flex", padding: 20, boxSizing: "border-box" },

@@ -63,6 +63,7 @@ export type PollState = {
   options: { letter: string; text: string }[]; // full choice text, so phones can show it even when the host hides choices on the big screen
   index: number;   // 0-based position in the host's set
   total: number;   // size of the host's set
+  multiSelect: boolean; // this question wants "select all that apply" — phones show a Submit step instead of tap-to-vote
   revealed: boolean;
   correct: string[]; // populated only once revealed
   standings: TeamStanding[]; // cumulative team leaderboard (highest first)
@@ -74,9 +75,18 @@ export type PollState = {
   finished?: boolean; // host ended the session — show final standings
 };
 
+/** Exact-match grading — same rule as the personal practice quiz: a
+    multi-select question is only "correct" when the pick set is exactly the
+    correct set, no more and no fewer. Also the right comparison for
+    single-select, where both arrays are always length 1. */
+export function pickIsCorrect(pick: string[], correct: string[]): boolean {
+  return pick.length > 0 && pick.length === correct.length && pick.every((l) => correct.includes(l));
+}
+
 // Participant → host. `team` is optional — a voter may compete solo. `level`
 // is the voter's PGY year (R1–R4), if known, so the host can auto-balance teams.
-export type PollVote = { qid: string; choice: string; voter: string; team?: string; level?: string; name?: string };
+// `choice` is always an array — a single-select vote is just a length-1 array.
+export type PollVote = { qid: string; choice: string[]; voter: string; team?: string; level?: string; name?: string };
 // Participant → host on join (and whenever they pick/change a team), so the host
 // re-broadcasts the current state and learns the voter's team. `name` is the
 // participant's display name, for the individual leaderboard.

@@ -190,7 +190,7 @@ function loadImagePng(src: string): Promise<{ dataUrl: string; w: number; h: num
    the AI explanation. A real PDF (not the HTML-then-print-to-PDF route the
    other exports use) so it opens and prints cleanly on a phone with no extra
    steps — the audience residents actually hit this on. */
-export async function exportPollMissed(rows: { q: PollExplQ; myChoice: string | null }[], meta: { code: string; who: string }) {
+export async function exportPollMissed(rows: { q: PollExplQ; myChoice: string[] | null }[], meta: { code: string; who: string }) {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "pt", format: "letter" });
   const pageW = doc.internal.pageSize.getWidth();
@@ -233,7 +233,7 @@ export async function exportPollMissed(rows: { q: PollExplQ; myChoice: string | 
     doc.setFontSize(11);
     for (const o of q.options) {
       const isC = correct.includes(o.letter);
-      const isMine = myChoice === o.letter;
+      const isMine = (myChoice ?? []).includes(o.letter);
       const suffix = isC ? "  ✓" : isMine ? "  ← your answer" : "";
       const lines = doc.splitTextToSize(`${o.letter}. ${o.text}${suffix}`, contentW - 12);
       ensureSpace(lines.length * 13.5 + 3);
@@ -248,7 +248,7 @@ export async function exportPollMissed(rows: { q: PollExplQ; myChoice: string | 
 
     ensureSpace(16);
     doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(90);
-    doc.text(`Correct answer: ${correct.join(", ")}${q.answer_text ? " — " + q.answer_text : ""} · ${myChoice ? `You picked ${myChoice}` : "You didn't vote"}`, margin, y);
+    doc.text(`Correct answer: ${correct.join(", ")}${q.answer_text ? " — " + q.answer_text : ""} · ${myChoice?.length ? `You picked ${myChoice.join(", ")}` : "You didn't vote"}`, margin, y);
     y += 18;
 
     const images = (q.explanation_images ?? []).filter((p) => !p.startsWith("<"));
