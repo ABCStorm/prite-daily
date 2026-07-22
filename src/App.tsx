@@ -3216,6 +3216,27 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
     setHeadScale(Math.max(1, Math.min(2.2, headDragRef.current.startScale + dy / 160)));
   };
   const onHeadDragEnd = () => { headDragRef.current = null; };
+  // Size the join QR to the full height of the header content, so the room
+  // gets the biggest scannable code the bar allows. We measure the RIGHT-side
+  // content (everything except the QR) and match the QR square to it — matching
+  // (never exceeding) that height means the QR can't grow the header, so
+  // there's no measure→resize feedback loop. A ResizeObserver keeps it in sync
+  // as the bar is drag-resized, the timer/controls change, or the window reflows.
+  const headContentRef = useRef<HTMLDivElement>(null);
+  const [qrPx, setQrPx] = useState(64);
+  useEffect(() => {
+    const el = headContentRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    // Cap so the QR can never grow unboundedly: on the wide projector screen
+    // it shares the row with the content, and an ever-larger QR eating into
+    // that row could otherwise feed back into more wrapping. 320px is far
+    // above any normal header height, so it never interferes in practice.
+    const update = () => setQrPx(Math.max(48, Math.min(320, Math.round(el.offsetHeight))));
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const [showExpl, setShowExpl] = useState(false); // reveal the current question's explanation on the big screen (per-question, reset each question)
   const [hideChoices, setHideChoices] = useState(true); // default: choices off the big screen, shown on phones instead
   const [choicesLayout, setChoicesLayout] = useState<"side" | "bottom">("side"); // default: choices beside the question
@@ -3477,12 +3498,17 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
   return (
     <div style={s.pollRoot}>
       <style>{CSS}</style>
-      <div style={{ ...s.pollHead, fontSize: 16 * headScale, padding: `${16 * headScale}px ${26 * headScale}px` }}>
+      {/* nowrap outer row: [QR][all other header items in one wrapper]. The QR
+          is sized (square) to the measured height of that wrapper — filling the
+          full header height, both rows once the controls wrap — while the
+          wrapper does all the actual wrapping internally. */}
+      <div style={{ ...s.pollHead, flexWrap: "nowrap", alignItems: "center", fontSize: 16 * headScale, padding: `${16 * headScale}px ${26 * headScale}px` }}>
         {qr && (
-          <button style={s.qrThumb} onClick={() => setQrBig(true)} title="Tap to enlarge for scanning">
-            <img src={qr} alt={`QR code to join poll ${code}`} style={{ ...s.qrThumbImg, width: 48 * headScale, height: 48 * headScale }} />
+          <button style={{ ...s.qrThumb, width: qrPx, height: qrPx, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setQrBig(true)} title="Tap to enlarge for scanning">
+            <img src={qr} alt={`QR code to join poll ${code}`} style={{ ...s.qrThumbImg, width: "100%", height: "100%", objectFit: "contain" }} />
           </button>
         )}
+        <div ref={headContentRef} style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 16 * headScale }}>
         <span style={{ ...s.pollLive, fontSize: 14 * headScale }}><Radio size={16 * headScale} strokeWidth={2.4} /> LIVE POLL</span>
         <span style={{ ...s.pollJoin, fontSize: 15 * headScale }}>Scan, or join at <b style={{ color: "#fff" }}>{joinHost}</b> · code <b style={{ ...s.pollCode, fontSize: 18 * headScale }}>{code}</b></span>
         <span style={{ ...s.pollVoters, ...(allVoted && !revealed ? { color: "#48c78e" } : {}) }}>
@@ -3580,6 +3606,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
           </div>
         )}
         <button style={s.pollClose} onClick={confirmClose} title="End poll"><X size={18} strokeWidth={2.4} /></button>
+        </div>
       </div>
       <div
         style={s.pollHeadDrag}
