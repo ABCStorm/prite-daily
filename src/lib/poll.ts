@@ -20,11 +20,13 @@ export function makePollCode(len = 4): string {
 export const channelName = (code: string) => `poll-${code.toUpperCase()}`;
 
 // A team's standing across all revealed questions in the poll. Ranked by
-// correct answers per person who actually answered (not raw point total),
-// so a team with more members — or more members who happened to vote —
-// doesn't win just by having more bodies. `correct`/`answerers` are the raw
-// counts behind that average, for display.
-export type TeamStanding = { team: string; score: number; members: number; correct: number; answerers: number };
+// team accuracy — the share of ALL answers the team submitted that were
+// correct (`correct`/`answered`) — so a bigger team can't win just by
+// fielding more bodies. The host can toggle the ranking to raw total
+// correct instead (see PollState.rankBy). `score` is always the total
+// correct count; `answered` is total votes cast; `answerers` is unique
+// members who voted — all kept raw so either ranking can be displayed.
+export type TeamStanding = { team: string; score: number; members: number; correct: number; answerers: number; answered: number };
 
 // A single participant's standing across all revealed questions — for the
 // individual leaderboard (both the "individual" team mode and the host's
@@ -67,6 +69,7 @@ export type PollState = {
   revealed: boolean;
   correct: string[]; // populated only once revealed
   standings: TeamStanding[]; // cumulative team leaderboard (highest first)
+  rankBy?: "pct" | "total"; // how standings are ranked: team accuracy % (default) or raw total correct — phones show the matching metric
   individuals?: IndividualStanding[]; // cumulative individual leaderboard (highest first)
   teamMode: TeamMode;
   started?: boolean; // false while the host hasn't hit "Start" yet — phones show a lobby

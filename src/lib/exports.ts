@@ -40,7 +40,7 @@ function download(filename: string, html: string) {
    dependency; the leading BOM makes Excel read UTF-8 correctly. Open to anyone
    on either the host or a participant device. */
 export function exportPollTeams(
-  standings: { team: string; score: number; members: number; correct: number; answerers: number }[],
+  standings: { team: string; score: number; members: number; correct: number; answerers: number; answered?: number }[],
   meta: { code: string; index: number; total: number },
 ) {
   const cell = (v: string | number) => {
@@ -50,10 +50,14 @@ export function exportPollTeams(
   const rows: (string | number)[][] = [
     [`Live poll ${meta.code} — team statistics`],
     [`Through question ${meta.index} of ${meta.total}`],
-    [`Ranked by the team's total correct answers`],
+    [`Rows follow the on-screen leaderboard order (team accuracy % by default)`],
     [],
-    ["Rank", "Team", "Players", "Answered", "Correct", "Total points"],
-    ...standings.map((t, i) => [i + 1, t.team, t.members, t.answerers, t.correct, t.score]),
+    ["Rank", "Team", "Players", "Answers cast", "Correct", "Accuracy %", "Total points"],
+    ...standings.map((t, i) => [
+      i + 1, t.team, t.members, t.answered ?? t.answerers, t.correct,
+      (t.answered ?? 0) > 0 ? Math.round((t.correct / t.answered!) * 100) : "",
+      t.score,
+    ]),
   ];
   const csv = rows.map((r) => r.map(cell).join(",")).join("\r\n");
   saveBlob(`prite-poll-${meta.code}-teams.csv`, new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));

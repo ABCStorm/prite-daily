@@ -3184,6 +3184,11 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
   // the answer is revealed. Cleared automatically on every question change
   // (goTo), so it never lingers over the next question.
   const [peekStandings, setPeekStandings] = useState(false);
+  // Team-standings ranking metric. Default is team accuracy — the share of
+  // ALL answers the team submitted that were correct — so a bigger team
+  // can't out-rank a smaller, sharper one just by fielding more bodies.
+  // Toggling flips to the raw total-correct ranking (the old behavior).
+  const [rankByTotal, setRankByTotal] = useState(false);
   // A quick fun-gif "drumroll" beat between ending the poll and the standings
   // actually appearing — set to a gif URL to show it; auto-advances to the
   // standings screen a couple seconds later (or immediately on tap/click).
@@ -3260,19 +3265,22 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
   const correctRef = useRef<Map<string, string[]>>(new Map()); // qid -> correct letters (recorded on reveal)
   const chanRef = useRef<ReturnType<NonNullable<typeof supabase>["channel"]> | null>(null);
 
-  // Cumulative team leaderboard: ranked by the team's TOTAL correct answers
-  // (everyone's correct votes added together as one entity), not an average
-  // per player — a bigger team fielding more correct answers should out-rank
-  // a smaller team, the way a real team score works. Derived fresh from the
-  // raw vote log each call, so it's idempotent (re-reveals and re-renders
-  // never double-count).
+  // Cumulative team leaderboard. The whole team scores as one entity —
+  // everyone's votes pool together — but the default RANKING is team
+  // accuracy (pooled correct ÷ pooled answers), so a bigger team can't win
+  // just by casting more votes: 40/60 (67%) loses to 18/24 (75%). Ties break
+  // on total correct, so among equal accuracies the bigger body of work
+  // wins. The host can toggle to the raw total-correct ranking (rankByTotal).
+  // Derived fresh from the raw vote log each call, so it's idempotent
+  // (re-reveals and re-renders never double-count).
   const computeStandings = (): TeamStanding[] => {
     const correctCount = new Map<string, number>();
+    const answeredCount = new Map<string, number>();
     const answerers = new Map<string, Set<string>>();
     const members = new Map<string, Set<string>>();
     for (const [vId, team] of teamRef.current) {
       if (!team) continue;
-      if (!members.has(team)) { members.set(team, new Set()); answerers.set(team, new Set()); correctCount.set(team, 0); }
+      if (!members.has(team)) { members.set(team, new Set()); answerers.set(team, new Set()); correctCount.set(team, 0); answeredCount.set(team, 0); }
       members.get(team)!.add(vId);
     }
     for (const [qId, correct] of correctRef.current) {
@@ -3282,16 +3290,21 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
         const team = teamRef.current.get(vId);
         if (!team) continue;
         answerers.get(team)?.add(vId);
+        answeredCount.set(team, (answeredCount.get(team) ?? 0) + 1);
         if (pickIsCorrect(choice, correct)) correctCount.set(team, (correctCount.get(team) ?? 0) + 1);
       }
     }
+    const pct = (t: TeamStanding) => (t.answered > 0 ? t.correct / t.answered : 0);
     return [...members.keys()]
       .map((team) => {
         const n = answerers.get(team)?.size ?? 0;
         const c = correctCount.get(team) ?? 0;
-        return { team, score: c, members: members.get(team)?.size ?? 0, correct: c, answerers: n };
+        return { team, score: c, members: members.get(team)?.size ?? 0, correct: c, answerers: n, answered: answeredCount.get(team) ?? 0 };
       })
-      .sort((a, b) => b.score - a.score || a.team.localeCompare(b.team));
+      .sort((a, b) =>
+        rankByTotal
+          ? b.correct - a.correct || pct(b) - pct(a) || a.team.localeCompare(b.team)
+          : pct(b) - pct(a) || b.correct - a.correct || a.team.localeCompare(b.team));
   };
 
   // Cumulative individual leaderboard: per participant, how many revealed
@@ -3349,6 +3362,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
       index, total, multiSelect: q?.multi_select ?? false, revealed,
       correct: revealed ? correctSet : [],
       standings: computeStandings(),
+      rankBy: rankByTotal ? "total" : "pct",
       individuals: computeIndividualStandings(),
       teamMode,
       started,
@@ -3391,8 +3405,9 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
     return () => { supabase?.removeChannel(ch); chanRef.current = null; };
   }, [code]); // eslint-disable-line
 
-  // re-broadcast the live question whenever it changes (incl. the lobby→started flip)
-  useEffect(() => { broadcastRef.current(); }, [index, revealed, finished, started]); // eslint-disable-line
+  // re-broadcast the live question whenever it changes (incl. the lobby→started
+  // flip), and whenever the standings ranking metric flips so phones re-order too
+  useEffect(() => { broadcastRef.current(); }, [index, revealed, finished, started, rankByTotal]); // eslint-disable-line
 
   // per-question countdown; auto-reveal when it hits zero (never runs in the lobby)
   useEffect(() => {
@@ -3627,6 +3642,11 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
               <button style={s.pollBtn} onClick={() => setShowIndividual((v) => !v)} title={isIndividualMode ? "Reveal or hide the individual leaderboard" : "Switch between team and individual standings"}>
                 <Users size={14} strokeWidth={2.3} /> {showIndividual ? (isIndividualMode ? "Hide standings" : "Show teams") : (isIndividualMode ? "Reveal standings" : "Show individuals")}
               </button>
+              {!isIndividualMode && !showIndividual && (
+                <button style={s.pollBtn} onClick={() => setRankByTotal((v) => !v)} title={rankByTotal ? "Rank teams by accuracy — % of the team's answers that were correct (size-fair)" : "Rank teams by raw total correct answers (favors bigger teams)"}>
+                  <Trophy size={14} strokeWidth={2.3} /> {rankByTotal ? "Ranked by total · switch to %" : "Ranked by % correct"}
+                </button>
+              )}
             </div>
             {showIndividual ? (
               individuals.length > 0 ? (
@@ -3651,8 +3671,8 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
                   <div key={t.team} style={{ ...s.teamRow, ...(i === 0 ? s.teamRowLead : {}) }}>
                     <span style={s.teamRank}>{i === 0 ? <Crown size={20} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
                     <span style={s.teamName}>{t.team}</span>
-                    <span style={s.teamMembers}>{t.members} {t.members === 1 ? "player" : "players"} · {t.correct} correct · {t.answerers} answered</span>
-                    <span style={s.teamScore}>{t.score} pts</span>
+                    <span style={s.teamMembers}>{t.members} {t.members === 1 ? "player" : "players"} · {t.correct}/{t.answered} answers correct</span>
+                    <span style={s.teamScore}>{rankByTotal ? `${t.score} pts` : `${t.answered > 0 ? Math.round((t.correct / t.answered) * 100) : 0}%`}</span>
                   </div>
                 ))}
               </div>
@@ -3824,6 +3844,11 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
                 <span style={s.teamBoardHead}><Trophy size={16} strokeWidth={2.4} /> Current standings</span>
                 <span style={{ display: "inline-flex", gap: 8 }}>
                   {!isIndividualMode && (
+                    <button style={s.pollStatsExport} onClick={() => setRankByTotal((v) => !v)} title={rankByTotal ? "Rank teams by accuracy — % of the team's answers that were correct (size-fair)" : "Rank teams by raw total correct answers (favors bigger teams)"}>
+                      <Trophy size={14} strokeWidth={2.3} /> {rankByTotal ? "By total" : "By %"}
+                    </button>
+                  )}
+                  {!isIndividualMode && (
                     <button style={s.pollStatsExport} onClick={() => exportPollTeams(standings, { code, index: index + 1, total })} title="Download team data (opens in Excel)">
                       <Download size={14} strokeWidth={2.3} /> Export to Excel
                     </button>
@@ -3846,8 +3871,8 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
                     <div key={t.team} style={{ ...s.teamRow, ...(i === 0 ? s.teamRowLead : {}) }}>
                       <span style={s.teamRank}>{i === 0 ? <Crown size={20} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
                       <span style={s.teamName}>{t.team}</span>
-                      <span style={s.teamMembers}>{t.members} {t.members === 1 ? "player" : "players"} · {t.correct} correct · {t.answerers} answered</span>
-                      <span style={s.teamScore}>{t.score} pts</span>
+                      <span style={s.teamMembers}>{t.members} {t.members === 1 ? "player" : "players"} · {t.correct}/{t.answered} answers correct</span>
+                      <span style={s.teamScore}>{rankByTotal ? `${t.score} pts` : `${t.answered > 0 ? Math.round((t.correct / t.answered) * 100) : 0}%`}</span>
                     </div>
                   ))}
             </div>
@@ -4434,7 +4459,9 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                   <div key={t.team} style={{ ...s.teamMiniRow, ...(i === 0 ? s.teamMiniLead : {}), ...(t.team === team ? s.teamMiniMine : {}) }}>
                     <span style={s.teamMiniRank}>{i === 0 ? <Crown size={15} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
                     <span style={s.teamMiniName}>{t.team}{t.team === team ? " (you)" : ""}</span>
-                    <span style={s.teamMiniScore}>{t.score} pts</span>
+                    {/* Match the host's ranking metric; fall back to points when an
+                        older host build broadcasts without rankBy/answered. */}
+                    <span style={s.teamMiniScore}>{remote.rankBy !== "total" && t.answered > 0 ? `${Math.round((t.correct / t.answered) * 100)}%` : `${t.score} pts`}</span>
                   </div>
                 ))}
               </div>
