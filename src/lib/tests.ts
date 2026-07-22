@@ -47,6 +47,16 @@ export async function renameTest(id: string, name: string): Promise<void> {
   if (error) console.warn(error);
 }
 
+/** Replace a test's question list (add/remove/reorder). Returns false on
+    failure so the caller can keep the editor open and warn. RLS restricts the
+    update to the owner's own row. */
+export async function updateTestQids(id: string, qids: string[]): Promise<boolean> {
+  if (!supabase) return false;
+  const { error } = await supabase.from("saved_tests").update({ qids: [...qids] }).eq("id", id);
+  if (error) { console.warn(error); return false; }
+  return true;
+}
+
 export async function deleteTest(id: string): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from("saved_tests").delete().eq("id", id);

@@ -80,7 +80,7 @@ import {
   type OfficialPollResult, type QuestionStat, type SrsRow, type PollStats,
 } from "./lib/db";
 import { exportMyNotes, exportGroupNotes, exportMissed, ankingLecture, exportPptx, exportTeachingPptx, exportPollTeams, exportOfficialPollResults, exportPollMissed } from "./lib/exports";
-import { loadTests, saveTest, renameTest, deleteTest, type SavedTest } from "./lib/tests";
+import { loadTests, saveTest, renameTest, deleteTest, updateTestQids, type SavedTest } from "./lib/tests";
 import {
   generateStudyGuide, getStudyGuide, getStudyGuideAudioUrl, listStudyGuidesForTests, listLibraryStudyGuides, canGenerateStudyGuides,
   getOwnAiKeys, setOwnAiKeys, type OwnAiKeys,
@@ -558,6 +558,7 @@ export default function App() {
   // --- saved tests (hand-picked sets for class sessions, see lib/tests.ts) ---
   const [savedTests, setSavedTests] = useState<SavedTest[]>([]);
   const [showTests, setShowTests] = useState(false);
+  const [editingTest, setEditingTest] = useState<SavedTest | null>(null); // saved test open in the add/remove/reorder editor
   useEffect(() => { writePref("pd_exam_mode", examMode); schedulePrefsPush(); }, [examMode]);
   useEffect(() => { writePref("pd_timer_on", timerOn); schedulePrefsPush(); }, [timerOn]);
   useEffect(() => { writePref("pd_timer_secs", timerSecs); schedulePrefsPush(); }, [timerSecs]);
@@ -2474,6 +2475,7 @@ export default function App() {
               fire(`Built "${t.name}" as PowerPoint`);
             } catch (e) { fire("PowerPoint export failed"); console.warn(e); }
           }}
+          onEdit={(t) => setEditingTest(t)}
           onRename={async (t) => {
             const name = window.prompt("New name:", t.name);
             if (!name?.trim()) return;
@@ -2493,6 +2495,22 @@ export default function App() {
             const guide = guidesByTest[t.id];
             if ((guide?.slides?.length ?? 0) > 0) downloadTeachingDeck(t, guide); // already written — just build the file
             else buildStudyGuide(t, false, null, true);
+          }}
+        />
+      )}
+
+      {editingTest && all && (
+        <TestEditor
+          test={editingTest}
+          all={all}
+          byId={byId}
+          onClose={() => setEditingTest(null)}
+          onSave={async (qids) => {
+            const ok = await updateTestQids(editingTest.id, qids);
+            if (!ok) { fire("Couldn't save — try signing in again"); return; }
+            setSavedTests(await loadTests());
+            setEditingTest(null);
+            fire(`Updated "${editingTest.name}" — ${qids.length} question${qids.length === 1 ? "" : "s"}`);
           }}
         />
       )}
@@ -6273,7 +6291,7 @@ function StudyGuideCreateModal({
 }
 
 function TestsPanel({
-  tests, byId, onClose, onStudy, onHost, onPptx, onRename, onDelete, guidesByTest, onStudyGuide, onOpenGuide, onSlides, canGenerate,
+  tests, byId, onClose, onStudy, onHost, onPptx, onEdit, onRename, onDelete, guidesByTest, onStudyGuide, onOpenGuide, onSlides, canGenerate,
 }: {
   tests: SavedTest[];
   byId: Map<string, RawQuestion>;
@@ -6281,6 +6299,7 @@ function TestsPanel({
   onStudy: (t: SavedTest) => void;
   onHost: (t: SavedTest) => void;
   onPptx: (t: SavedTest) => void;
+  onEdit: (t: SavedTest) => void;
   onRename: (t: SavedTest) => void;
   onDelete: (t: SavedTest) => void;
   guidesByTest: Record<string, StudyGuide>;
@@ -6405,6 +6424,9 @@ function TestsPanel({
                         </button>
                       );
                     })()}
+                    <button style={{ ...s.ghost, marginLeft: 0 }} onClick={() => onEdit(t)} title="Add, remove, or reorder this test's questions">
+                      <ListChecks size={13} strokeWidth={2.3} /> Edit questions
+                    </button>
                     <button style={{ ...s.ghost, marginLeft: 0 }} onClick={() => onRename(t)} title="Rename">
                       <Pencil size={13} strokeWidth={2.3} /> Rename
                     </button>
@@ -6417,6 +6439,140 @@ function TestsPanel({
             })}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* Edit an existing saved test: add questions (search the bank), remove ones,
+   and reorder. Built because AI-generated tests sometimes repeat questions
+   already used — the host wants to prune/swap them without rebuilding the set
+   from scratch. Works on a local copy of the qid list; nothing is written
+   until Save. */
+function TestEditor({
+  test, all, byId, onClose, onSave,
+}: {
+  test: SavedTest;
+  all: RawQuestion[];
+  byId: Map<string, RawQuestion>;
+  onClose: () => void;
+  onSave: (qids: string[]) => Promise<void>;
+}) {
+  const [qids, setQids] = useState<string[]>(test.qids);
+  const [search, setSearch] = useState("");
+  const [saving, setSaving] = useState(false);
+  const dirty = qids.length !== test.qids.length || qids.some((id, i) => id !== test.qids[i]);
+
+  const inTest = useMemo(() => new Set(qids), [qids]);
+  const remove = (id: string) => setQids((cur) => cur.filter((x) => x !== id));
+  const add = (id: string) => setQids((cur) => (cur.includes(id) ? cur : [...cur, id]));
+  const move = (i: number, dir: -1 | 1) => setQids((cur) => {
+    const j = i + dir;
+    if (j < 0 || j >= cur.length) return cur;
+    const next = [...cur];
+    [next[i], next[j]] = [next[j], next[i]];
+    return next;
+  });
+
+  // Candidate questions to add: match the search across stem/answer, excluding
+  // ones already in the test. Only search once there's a query, and cap the
+  // list so a broad term doesn't render thousands of rows.
+  const matches = useMemo(() => {
+    const s = search.trim().toLowerCase();
+    if (!s) return [];
+    const out: RawQuestion[] = [];
+    for (const q of all) {
+      const id = questionId(q.year, q.q_index);
+      if (inTest.has(id)) continue;
+      if (q.stem.toLowerCase().includes(s) || (q.answer_text ?? "").toLowerCase().includes(s) ||
+          `${q.year} ${q.q_index}`.toLowerCase().includes(s) || (q.prite_label ?? "").toLowerCase().includes(s)) {
+        out.push(q);
+        if (out.length >= 40) break;
+      }
+    }
+    return out;
+  }, [all, search, inTest]);
+
+  const save = async () => {
+    if (!qids.length) { if (!window.confirm("This test would have no questions. Save anyway?")) return; }
+    setSaving(true);
+    await onSave(qids);
+    setSaving(false);
+  };
+
+  return (
+    <div style={s.scrim} onClick={onClose}>
+      <div style={{ ...s.apPanel, maxWidth: 640 }} onClick={(e) => e.stopPropagation()} className="rise">
+        <div style={s.apHead}>
+          <div>
+            <div style={s.apEyebrow}>Add, remove & reorder questions</div>
+            <div style={s.apTitle}>Edit “{test.name}”</div>
+          </div>
+          <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
+        </div>
+
+        <div style={s.apBody}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: T.muted, textTransform: "uppercase", letterSpacing: 0.4, margin: "2px 0 10px" }}>
+            In this test · {qids.length} question{qids.length === 1 ? "" : "s"}
+          </div>
+          {qids.length === 0 && <p style={s.apEmpty}>No questions yet — search below to add some.</p>}
+          {qids.map((id, i) => {
+            const q = byId.get(id);
+            return (
+              <div key={id} style={s.deckRow}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 2 }}>
+                  <button style={s.reorderBtn} onClick={() => move(i, -1)} disabled={i === 0} title="Move up"><ChevronUp size={14} strokeWidth={2.4} /></button>
+                  <button style={s.reorderBtn} onClick={() => move(i, 1)} disabled={i === qids.length - 1} title="Move down"><ChevronDown size={14} strokeWidth={2.4} /></button>
+                </div>
+                <div style={{ ...s.deckRowText, cursor: "default" }}>
+                  <div style={s.deckRowMeta}>
+                    {i + 1}. {q ? <>{q.year} · Q{q.q_index} · {q.prite_label}</> : <span style={{ color: T.wrongLine }}>{id} · not in current bank</span>}
+                  </div>
+                  {q && <div style={s.deckRowStem}>{q.stem}</div>}
+                </div>
+                <button style={{ ...s.reorderBtn, color: T.wrongLine }} onClick={() => remove(id)} title="Remove from test"><X size={15} strokeWidth={2.4} /></button>
+              </div>
+            );
+          })}
+
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: T.muted, textTransform: "uppercase", letterSpacing: 0.4, margin: "20px 0 8px" }}>Add a question</div>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by word, year, or Q# (e.g. lithium, 2023, 137)"
+            style={{ ...s.deckSearch, marginBottom: 10 }}
+            autoFocus
+          />
+          {search.trim() && matches.length === 0 && <p style={s.apEmpty}>No other questions match “{search.trim()}”.</p>}
+          {matches.map((q) => {
+            const id = questionId(q.year, q.q_index);
+            return (
+              <div key={id} style={s.deckRow}>
+                <button style={{ ...s.reorderBtn, color: T.tealDeep, marginTop: 2 }} onClick={() => add(id)} title="Add to test"><Plus size={16} strokeWidth={2.6} /></button>
+                <div style={{ ...s.deckRowText, cursor: "default" }}>
+                  <div style={s.deckRowMeta}>
+                    {q.year} · Q{q.q_index} · {q.prite_label}
+                    {(q.repeat_count ?? 1) > 1 && (
+                      <span style={s.repeatBadge} title={`Also appears in ${q.repeat_years?.filter((y) => y !== q.year).join(", ")}`}>
+                        <Repeat size={10} strokeWidth={2.4} /> {q.repeat_count}×
+                      </span>
+                    )}
+                  </div>
+                  <div style={s.deckRowStem}>{q.stem}</div>
+                  <div style={s.deckRowAns}>→ {q.answer_letter} · {q.answer_text}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={s.deckFoot}>
+          <button style={{ ...s.primarySm, opacity: saving ? 0.5 : 1 }} disabled={saving} onClick={save}>
+            <Check size={14} strokeWidth={2.4} /> {saving ? "Saving…" : dirty ? "Save changes" : "Done"}
+          </button>
+          <button style={{ ...s.ghost, marginLeft: 0 }} onClick={onClose}>Cancel</button>
+          <span style={s.flashNote}>{dirty ? "Unsaved changes" : "No changes yet"}</span>
+        </div>
       </div>
     </div>
   );
@@ -7668,6 +7824,7 @@ const s: Record<string, React.CSSProperties> = {
   deckSelRow: { display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 10 },
   deckCount: { display: "flex", alignItems: "center", fontSize: 13, color: T.muted, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
   deckRow: { display: "flex", alignItems: "flex-start", gap: 11, padding: "11px 4px", borderBottom: `1px solid ${T.paperEdge}` },
+  reorderBtn: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: 26, height: 22, flexShrink: 0, background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 7, color: T.muted, cursor: "pointer", padding: 0 },
   deckRowText: { display: "flex", flexDirection: "column", gap: 3, minWidth: 0, flex: 1, cursor: "pointer" },
   deckRowMeta: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 10.5, letterSpacing: "0.04em", textTransform: "uppercase", color: T.faint },
   repeatBadge: { display: "inline-flex", alignItems: "center", gap: 2, marginLeft: 6, padding: "1px 5px", borderRadius: 999, background: T.goldSoft, color: T.gold, fontWeight: 700, letterSpacing: 0 },
