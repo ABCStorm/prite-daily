@@ -184,6 +184,30 @@ function loadImagePng(src: string): Promise<{ dataUrl: string; w: number; h: num
   });
 }
 
+/* jsPDF's built-in Helvetica encodes WinAnsi (CP1252) only: any character
+   outside it (✓, ←, Greek letters, primes…) renders as mojibake AND corrupts
+   the whole line's letter-spacing. Map the common offenders to readable
+   equivalents, keep everything CP1252 actually supports, and turn whatever
+   survives into "?" so one stray glyph can never garble a line again. */
+const PDF_CHAR_MAP: [RegExp, string][] = [
+  [/[\u2032]/g, "'"], [/[\u2033]/g, '"'],                 // primes
+  [/[\u2212]/g, "-"], [/[\u2000-\u200B\u202F\u205F\u3000]/g, " "], // minus sign, exotic spaces
+  [/[\u2190]/g, "<-"], [/[\u2192]/g, "->"], [/[\u2191]/g, "^"], [/[\u2193]/g, "v"],
+  [/[\u2713\u2714]/g, "*"], [/[\u2717\u2718]/g, "x"],
+  [/[\u2264]/g, "<="], [/[\u2265]/g, ">="], [/[\u2260]/g, "!="], [/[\u2248]/g, "~"],
+  [/[\u03B1]/g, "alpha"], [/[\u03B2]/g, "beta"], [/[\u03B3]/g, "gamma"], [/[\u03B4]/g, "delta"],
+  [/[\u0394]/g, "Delta"], [/[\u03BC]/g, "\u00B5"], [/[\u03C3]/g, "sigma"], [/[\u03C0]/g, "pi"],
+  [/[\u03BA]/g, "kappa"], [/[\u03BB]/g, "lambda"], [/[\u03B8]/g, "theta"], [/[\u03C9]/g, "omega"],
+];
+// Latin-1 plus the extra printables CP1252 really has (curly quotes/dashes,
+// bullet, ellipsis, daggers, per-mille, guillemets, Euro, TM, OE/oe etc).
+const PDF_OK = /[\x00-\xFF\u0152\u0153\u0160\u0161\u0178\u017D\u017E\u0192\u02C6\u02DC\u2013\u2014\u2018\u2019\u201A\u201C\u201D\u201E\u2020\u2021\u2022\u2026\u2030\u2039\u203A\u20AC\u2122]/;
+function pdfSafe(s: string): string {
+  let out = s ?? "";
+  for (const [re, rep] of PDF_CHAR_MAP) out = out.replace(re, rep);
+  return Array.from(out, (ch) => (PDF_OK.test(ch) ? ch : "?")).join("");
+}
+
 /* A live-poll participant's own missed questions, with explanations — unlike
    exportMissed() (personal practice history), a poll session is transient and
    nowhere else to revisit afterward, so this is the one export that includes
@@ -210,7 +234,7 @@ export async function exportPollMissed(rows: { q: PollExplQ; myChoice: string[] 
   doc.setFont("helvetica", "bold"); doc.setFontSize(19);
   doc.setTextColor(20); doc.text("Questions I missed", margin, y); y += 22;
   doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(120);
-  doc.text(`${meta.who} · Poll ${meta.code} · ${rows.length} missed question${rows.length === 1 ? "" : "s"} · exported ${new Date().toLocaleDateString()}`, margin, y);
+  doc.text(pdfSafe(`${meta.who} · Poll ${meta.code} · ${rows.length} missed question${rows.length === 1 ? "" : "s"} · exported ${new Date().toLocaleDateString()}`), margin, y);
   y += 26;
 
   if (!rows.length) {
@@ -226,7 +250,7 @@ export async function exportPollMissed(rows: { q: PollExplQ; myChoice: string[] 
     doc.text(`${q.year} · Q${q.q_index}`, margin, y); y += 15;
 
     doc.setTextColor(20); doc.setFont("helvetica", "normal");
-    const { lines: stemLines } = textLines(q.stem, 12.5, 16);
+    const { lines: stemLines } = textLines(pdfSafe(q.stem), 12.5, 16);
     ensureSpace(stemLines.length * 16 + 6);
     doc.text(stemLines, margin, y); y += stemLines.length * 16 + 8;
 
@@ -234,8 +258,10 @@ export async function exportPollMissed(rows: { q: PollExplQ; myChoice: string[] 
     for (const o of q.options) {
       const isC = correct.includes(o.letter);
       const isMine = (myChoice ?? []).includes(o.letter);
-      const suffix = isC ? "  ✓" : isMine ? "  ← your answer" : "";
-      const lines = doc.splitTextToSize(`${o.letter}. ${o.text}${suffix}`, contentW - 12);
+      // Plain-text markers, not ✓/← — WinAnsi has no glyphs for those and one
+      // unsupported char used to garble the whole line (see pdfSafe above).
+      const suffix = isC && isMine ? "  (correct — your pick)" : isC ? "  (correct)" : isMine ? "  (your answer)" : "";
+      const lines = doc.splitTextToSize(pdfSafe(`${o.letter}. ${o.text}${suffix}`), contentW - 12);
       ensureSpace(lines.length * 13.5 + 3);
       doc.setFont("helvetica", isC ? "bold" : "normal");
       if (isC) doc.setTextColor(21, 95, 57);
@@ -246,10 +272,16 @@ export async function exportPollMissed(rows: { q: PollExplQ; myChoice: string[] 
     }
     y += 4;
 
-    ensureSpace(16);
     doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(90);
-    doc.text(`Correct answer: ${correct.join(", ")}${q.answer_text ? " — " + q.answer_text : ""} · ${myChoice?.length ? `You picked ${myChoice.join(", ")}` : "You didn't vote"}`, margin, y);
-    y += 18;
+    // splitTextToSize here too — a long official answer_text used to run
+    // straight off the right edge of the page.
+    const metaLines = doc.splitTextToSize(
+      pdfSafe(`Correct answer: ${correct.join(", ")}${q.answer_text ? " — " + q.answer_text : ""} · ${myChoice?.length ? `You picked ${myChoice.join(", ")}` : "You didn't vote"}`),
+      contentW,
+    ) as string[];
+    ensureSpace(metaLines.length * 13 + 5);
+    doc.text(metaLines, margin, y);
+    y += metaLines.length * 13 + 5;
 
     const images = (q.explanation_images ?? []).filter((p) => !p.startsWith("<"));
     if (q.explanation_text || images.length) {
@@ -258,7 +290,7 @@ export async function exportPollMissed(rows: { q: PollExplQ; myChoice: string[] 
       doc.text("EXPLANATION", margin, y); y += 15;
       doc.setFont("helvetica", "normal"); doc.setTextColor(35);
       if (q.explanation_text) {
-        const { lines } = textLines(q.explanation_text, 11, 14.5);
+        const { lines } = textLines(pdfSafe(q.explanation_text), 11, 14.5);
         for (const line of lines) { ensureSpace(14.5); doc.text(line, margin, y); y += 14.5; }
         y += 4;
       }
