@@ -168,7 +168,7 @@ const AI_STYLE_TEXT: Record<AiStyle, string> = {
 };
 const AI_TARGETS: { key: string; label: string; url: (p: string) => string }[] = [
   { key: "google", label: "Google AI", url: (p) => `https://www.google.com/search?udm=50&q=${encodeURIComponent(p)}` },
-  { key: "openevidence", label: "OpenEvidence", url: (p) => `https://www.openevidence.com/search?q=${encodeURIComponent(p)}` },
+  { key: "openevidence", label: "OpenEvidence", url: (p) => `https://www.openevidence.com/ask?q=${encodeURIComponent(p)}` },
   { key: "chatgpt", label: "ChatGPT", url: (p) => `https://chatgpt.com/?q=${encodeURIComponent(p)}` },
   { key: "claude", label: "Claude", url: (p) => `https://claude.ai/new?q=${encodeURIComponent(p)}` },
   { key: "grok", label: "Grok", url: (p) => `https://grok.com/?q=${encodeURIComponent(p)}` },
@@ -6615,7 +6615,8 @@ function TestEditor({
     }
     const otherYears = (q.repeat_years ?? []).filter((y) => y !== q.year);
     if ((q.repeat_count ?? 1) > 1 && otherYears.length) {
-      tags.push(<span key="yr" style={s.tagYear} title={`This PRITE item also appeared in ${otherYears.join(", ")}`}><Repeat size={10} strokeWidth={2.4} /> Also {otherYears.join(", ")}</span>);
+      const label = otherYears.length === 1 ? `Question also in ${otherYears[0]} test` : `Question also in ${otherYears.join(", ")} tests`;
+      tags.push(<span key="yr" style={s.tagYear} title={`This PRITE item also appeared on the ${otherYears.join(", ")} exam`}><Repeat size={10} strokeWidth={2.4} /> {label}</span>);
     }
     const others = (testsByGroupKey.get(g) ?? []).filter((t) => t.id !== test.id);
     if (others.length) {
