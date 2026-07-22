@@ -230,6 +230,16 @@ function shuffled<T>(arr: T[]): T[] {
   return a;
 }
 
+// A stable key that groups a question with its cross-year repeats. The bank
+// stores the SAME PRITE item that recurred in multiple years as separate
+// records (see repeat_count/repeat_years), and the recurrences share a
+// near-identical stem — so a normalized stem collapses them into one group.
+// Used to keep a generated test from including a question twice (once as its
+// 2019 copy, again as its 2023 copy) or reusing one already in a saved test.
+function questionGroupKey(q: { stem: string }): string {
+  return (q.stem ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().slice(0, 160);
+}
+
 // Daily sets lead with the most recently tested exams (2022 → 2025), since those
 // best reflect what's likely on the upcoming PRITE. Older years follow,
 // most-recent-first. Lower rank = served sooner.
@@ -816,6 +826,17 @@ export default function App() {
     if (all) for (const qq of all) m.set(questionId(qq.year, qq.q_index), qq);
     return m;
   }, [all]);
+  // Repeat-groups already used across ALL of this user's saved tests, so the
+  // random test generator can skip questions (and their cross-year twins)
+  // already handed out in a prior week's set.
+  const usedGroupKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const t of savedTests) for (const id of t.qids) {
+      const q = byId.get(id);
+      if (q) keys.add(questionGroupKey(q));
+    }
+    return keys;
+  }, [savedTests, byId]);
   const inToday = persist && mode === "today";
   // custom sets work signed-out too (e.g. studying a saved test in local mode)
   const inCustom = mode === "custom" && customQueue.length > 0;
@@ -2431,6 +2452,7 @@ export default function App() {
       {showDeck && all && (
         <DeckBuilder
           all={all} byId={byId} fire={fire}
+          usedGroupKeys={usedGroupKeys}
           onClose={() => setShowDeck(false)}
           onOpen={(qid) => {
             const idx = all.findIndex((qq) => questionId(qq.year, qq.q_index) === qid);
@@ -5920,7 +5942,7 @@ function Insights({ onClose }: { onClose: () => void }) {
 }
 
 function DeckBuilder({
-  all, byId, onClose, onOpen, onStudy, onSaveTest, fire,
+  all, byId, onClose, onOpen, onStudy, onSaveTest, fire, usedGroupKeys,
 }: {
   all: RawQuestion[];
   byId: Map<string, RawQuestion>;
@@ -5929,6 +5951,7 @@ function DeckBuilder({
   onStudy?: (qs: RawQuestion[], label: string) => void;
   onSaveTest?: (qids: string[]) => void;
   fire: (m: string) => void;
+  usedGroupKeys?: Set<string>; // repeat-groups already in the user's saved tests
 }) {
   const [search, setSearch] = useState("");
   const [scope, setScope] = useState<"both" | "stem" | "choices" | "answer">("both");
@@ -5939,6 +5962,10 @@ function DeckBuilder({
   const [topic, setTopic] = useState("all");
   const [repeatMin, setRepeatMin] = useState("all");
   const [sortBy, setSortBy] = useState<"default" | "repeats">("default");
+  // On by default: collapse cross-year repeats to one, and drop questions
+  // already handed out in a saved test — so a generated set doesn't repeat
+  // last week's or double up the same item. Uncheck to see everything.
+  const [avoidDup, setAvoidDup] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [shuffleOrder, setShuffleOrder] = useState(false);
@@ -5957,7 +5984,8 @@ function DeckBuilder({
   const dxs = useMemo(() => uniq("diagnosis"), [all]);
   const topics = useMemo(() => uniq("topics"), [all]);
 
-  const matches = useMemo(() => {
+  // Raw filter/search result, before de-duplication.
+  const rawMatches = useMemo(() => {
     const filtered = all.filter((q) => {
       if (year !== "all" && q.year !== year) return false;
       if (cat !== "all" && q.prite_category !== cat) return false;
@@ -5982,8 +6010,26 @@ function DeckBuilder({
     return filtered;
   }, [all, year, cat, med, dx, topic, repeatMin, sortBy, search, scope]);
 
+  // De-duplicated view: drop questions whose repeat-group is already in a
+  // saved test, then collapse remaining cross-year twins to one apiece
+  // (keeping the first, so the sort/order is preserved). This is the working
+  // set everything below acts on, so Pick-random / Study / Save all inherit it.
+  const matches = useMemo(() => {
+    if (!avoidDup) return rawMatches;
+    const out: RawQuestion[] = [];
+    const seen = new Set<string>();
+    for (const q of rawMatches) {
+      const g = questionGroupKey(q);
+      if (usedGroupKeys?.has(g) || seen.has(g)) continue;
+      seen.add(g);
+      out.push(q);
+    }
+    return out;
+  }, [rawMatches, avoidDup, usedGroupKeys]);
+  const dupHidden = rawMatches.length - matches.length;
+
   // when the filter changes, select all matches by default
-  useEffect(() => { setSelected(new Set(matches.map((q) => questionId(q.year, q.q_index)))); }, [year, cat, med, dx, topic, repeatMin, sortBy, search, scope]); // eslint-disable-line
+  useEffect(() => { setSelected(new Set(matches.map((q) => questionId(q.year, q.q_index)))); }, [year, cat, med, dx, topic, repeatMin, sortBy, search, scope, avoidDup]); // eslint-disable-line
 
   const toggle = (id: string) => setSelected((cur) => {
     const n = new Set(cur); n.has(id) ? n.delete(id) : n.add(id); return n;
@@ -6096,6 +6142,12 @@ function DeckBuilder({
           </div>
           <div style={s.deckCount}>
             <span><b style={{ color: T.text }}>{matches.length}</b> match · <b style={{ color: T.teal }}>{selected.size}</b> selected</span>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, color: T.muted, cursor: "pointer", marginLeft: 14 }}
+              title="Skip cross-year repeats of the same question and any question already in one of your saved tests — so a generated set doesn't reuse last week's or double up an item">
+              <input type="checkbox" checked={avoidDup} onChange={(e) => setAvoidDup(e.target.checked)} />
+              Avoid repeats &amp; already-used
+              {avoidDup && dupHidden > 0 && <span style={{ color: T.faint }}>({dupHidden} hidden)</span>}
+            </label>
             <span style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
               <input
                 type="number" min={1} max={Math.max(1, matches.length)}
