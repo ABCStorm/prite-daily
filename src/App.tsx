@@ -837,6 +837,25 @@ export default function App() {
     }
     return keys;
   }, [savedTests, byId]);
+  // Which saved tests ("polls") each repeat-group appears in — powers the
+  // "also used in another poll" marker in the test editor. A test is listed
+  // once per group even if it holds several members of that group.
+  const testsByGroupKey = useMemo(() => {
+    const m = new Map<string, { id: string; name: string }[]>();
+    for (const t of savedTests) {
+      const seen = new Set<string>();
+      for (const id of t.qids) {
+        const q = byId.get(id);
+        if (!q) continue;
+        const g = questionGroupKey(q);
+        if (seen.has(g)) continue;
+        seen.add(g);
+        if (!m.has(g)) m.set(g, []);
+        m.get(g)!.push({ id: t.id, name: t.name });
+      }
+    }
+    return m;
+  }, [savedTests, byId]);
   const inToday = persist && mode === "today";
   // custom sets work signed-out too (e.g. studying a saved test in local mode)
   const inCustom = mode === "custom" && customQueue.length > 0;
@@ -2526,6 +2545,7 @@ export default function App() {
           test={editingTest}
           all={all}
           byId={byId}
+          testsByGroupKey={testsByGroupKey}
           onClose={() => setEditingTest(null)}
           onSave={async (qids) => {
             const ok = await updateTestQids(editingTest.id, qids);
@@ -6502,11 +6522,12 @@ function TestsPanel({
    from scratch. Works on a local copy of the qid list; nothing is written
    until Save. */
 function TestEditor({
-  test, all, byId, onClose, onSave,
+  test, all, byId, testsByGroupKey, onClose, onSave,
 }: {
   test: SavedTest;
   all: RawQuestion[];
   byId: Map<string, RawQuestion>;
+  testsByGroupKey: Map<string, { id: string; name: string }[]>;
   onClose: () => void;
   onSave: (qids: string[]) => Promise<void>;
 }) {
@@ -6516,6 +6537,36 @@ function TestEditor({
   const dirty = qids.length !== test.qids.length || qids.some((id, i) => id !== test.qids[i]);
 
   const inTest = useMemo(() => new Set(qids), [qids]);
+  // How many questions in the CURRENT (unsaved) test share each repeat-group,
+  // so we can flag the two ECT items that are really the same question.
+  const groupCountsHere = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const id of qids) {
+      const q = byId.get(id);
+      if (q) { const g = questionGroupKey(q); m.set(g, (m.get(g) ?? 0) + 1); }
+    }
+    return m;
+  }, [qids, byId]);
+
+  // The little repeat/reuse tags for a question. `dupHere` adds the
+  // within-this-test warning (only shown for rows already in the test, not
+  // for search candidates).
+  const tagsFor = (q: RawQuestion, dupHere: boolean) => {
+    const g = questionGroupKey(q);
+    const tags: React.ReactNode[] = [];
+    if (dupHere && (groupCountsHere.get(g) ?? 0) > 1) {
+      tags.push(<span key="dup" style={s.tagDup} title="Another question in this test is the same item — you probably want only one">⚠ Duplicate in this test</span>);
+    }
+    const otherYears = (q.repeat_years ?? []).filter((y) => y !== q.year);
+    if ((q.repeat_count ?? 1) > 1 && otherYears.length) {
+      tags.push(<span key="yr" style={s.tagYear} title={`This PRITE item also appeared in ${otherYears.join(", ")}`}><Repeat size={10} strokeWidth={2.4} /> Also {otherYears.join(", ")}</span>);
+    }
+    const others = (testsByGroupKey.get(g) ?? []).filter((t) => t.id !== test.id);
+    if (others.length) {
+      tags.push(<span key="poll" style={s.tagUsed} title={`Already in your saved test${others.length === 1 ? "" : "s"}: ${others.map((t) => t.name).join(", ")}`}><ListChecks size={10} strokeWidth={2.4} /> {others.length === 1 ? `In “${others[0].name}”` : `In ${others.length} other tests`}</span>);
+    }
+    return tags.length ? <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>{tags}</div> : null;
+  };
   const remove = (id: string) => setQids((cur) => cur.filter((x) => x !== id));
   const add = (id: string) => setQids((cur) => (cur.includes(id) ? cur : [...cur, id]));
   const move = (i: number, dir: -1 | 1) => setQids((cur) => {
@@ -6581,6 +6632,7 @@ function TestEditor({
                     {i + 1}. {q ? <>{q.year} · Q{q.q_index} · {q.prite_label}</> : <span style={{ color: T.wrongLine }}>{id} · not in current bank</span>}
                   </div>
                   {q && <div style={s.deckRowStem}>{q.stem}</div>}
+                  {q && tagsFor(q, true)}
                 </div>
                 <button style={{ ...s.reorderBtn, color: T.wrongLine }} onClick={() => remove(id)} title="Remove from test"><X size={15} strokeWidth={2.4} /></button>
               </div>
@@ -6604,14 +6656,10 @@ function TestEditor({
                 <div style={{ ...s.deckRowText, cursor: "default" }}>
                   <div style={s.deckRowMeta}>
                     {q.year} · Q{q.q_index} · {q.prite_label}
-                    {(q.repeat_count ?? 1) > 1 && (
-                      <span style={s.repeatBadge} title={`Also appears in ${q.repeat_years?.filter((y) => y !== q.year).join(", ")}`}>
-                        <Repeat size={10} strokeWidth={2.4} /> {q.repeat_count}×
-                      </span>
-                    )}
                   </div>
                   <div style={s.deckRowStem}>{q.stem}</div>
                   <div style={s.deckRowAns}>→ {q.answer_letter} · {q.answer_text}</div>
+                  {tagsFor(q, false)}
                 </div>
               </div>
             );
@@ -7880,6 +7928,12 @@ const s: Record<string, React.CSSProperties> = {
   deckRowText: { display: "flex", flexDirection: "column", gap: 3, minWidth: 0, flex: 1, cursor: "pointer" },
   deckRowMeta: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 10.5, letterSpacing: "0.04em", textTransform: "uppercase", color: T.faint },
   repeatBadge: { display: "inline-flex", alignItems: "center", gap: 2, marginLeft: 6, padding: "1px 5px", borderRadius: 999, background: T.goldSoft, color: T.gold, fontWeight: 700, letterSpacing: 0 },
+  // Repeat/reuse tags in the test editor. Distinct colors: red = same item
+  // twice in THIS set; gold = recurred across PRITE years; teal = already in
+  // another of your saved tests/polls.
+  tagDup: { display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 999, background: T.wrongBg, color: T.wrongText, fontSize: 11, fontWeight: 700 },
+  tagYear: { display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 999, background: T.goldSoft, color: T.gold, fontSize: 11, fontWeight: 700 },
+  tagUsed: { display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 999, background: T.tealSoft, color: T.tealDeep, fontSize: 11, fontWeight: 700 },
   deckRowStem: { fontSize: 13.5, color: T.text, lineHeight: 1.45 },
   deckRowAns: { fontSize: 12.5, color: T.tealDeep, fontWeight: 500 },
   deckFoot: { display: "flex", alignItems: "center", gap: 13, padding: "14px 22px", borderTop: `1px solid ${T.paperEdge}`, flexWrap: "wrap" },
