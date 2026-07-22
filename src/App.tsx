@@ -474,7 +474,6 @@ export default function App() {
   const [hostCode, setHostCode] = useState<string | null>(null);   // big screen is hosting
   const [joinCode, setJoinCode] = useState<string | null>(null);   // this device is a participant
   const [hostClosing, setHostClosing] = useState(false);           // play the poll pull-out before unmounting the host
-  const [joinClosing, setJoinClosing] = useState(false);           // …and the participant
   const [srsClosing, setSrsClosing] = useState(false);             // …and the flashcard review
   const [hostSet, setHostSet] = useState<RawQuestion[] | null>(null); // poll a saved test instead of the current set
   const [hostFromTests, setHostFromTests] = useState(false); // hosting was launched from the saved-tests panel — reopen it when the poll (or the team-mode prompt) closes
@@ -1183,6 +1182,24 @@ export default function App() {
   if (isConfigured && authLoading) return <Center>Signing you in…</Center>;
   if (isConfigured && !session && guestPollCode)
     return <GuestPoll code={guestPollCode} onClose={() => { setGuestPollCode(null); clearPollParam(); }} />;
+  // A participant joining a live poll takes over the whole screen as its OWN
+  // page — NOT a fixed overlay layered on the app. A real full-screen page
+  // scrolls the document natively, which is the only thing iOS Safari handles
+  // reliably (the fixed-overlay + inner-scroll-container version kept trapping
+  // touch scroll on phones). Nothing of the main app is mounted behind it.
+  if (isConfigured && session && joinCode)
+    return (
+      <PollParticipant
+        code={joinCode}
+        voter={profile?.id ?? session?.user?.id ?? "anon"}
+        trainingLevel={profile?.training_level ?? null}
+        stableTeam={profile ? stableTeams[profile.id] ?? null : null}
+        weeklyTeam={profile ? weeklyTeams[profile.id] ?? null : null}
+        byId={byId}
+        displayName={profile?.full_name || profile?.email || session?.user.email || "You"}
+        onClose={() => setJoinCode(null)}
+      />
+    );
   if (isConfigured && !session) return <SignIn />;
   if (isConfigured && session && (!profile || profile.status !== "approved"))
     return <Pending email={session.user.email ?? ""} status={profile?.status ?? "pending"} />;
@@ -2603,26 +2620,6 @@ export default function App() {
           <PollPresenter code={hostCode} set={hostSet ?? set} startIndex={hostSet ? 0 : qi} timerSecs={timerSecs} onTimerSecsChange={setTimerSecs} teamMode={teamMode} onClose={() => setHostClosing(true)} />
         </ImmersiveScene>
       )}
-      {joinCode && (
-        <ImmersiveScene
-          sceneKey="arena"
-          backdropZ={89}
-          closing={joinClosing}
-          onExited={() => { setJoinCode(null); setJoinClosing(false); }}
-        >
-          <PollParticipant
-            code={joinCode}
-            voter={profile?.id ?? session?.user?.id ?? "anon"}
-            trainingLevel={profile?.training_level ?? null}
-            stableTeam={profile ? stableTeams[profile.id] ?? null : null}
-            weeklyTeam={profile ? weeklyTeams[profile.id] ?? null : null}
-            byId={byId}
-            displayName={displayName}
-            onClose={() => setJoinClosing(true)}
-          />
-        </ImmersiveScene>
-      )}
-
       <canvas ref={confettiRef} style={s.confetti} />
 
       {streakReward?.kind === "login" && <Balloons />}
@@ -4046,45 +4043,6 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
 
 const TEAM_KEY = "prite_poll_team";
 
-// --- body-scroll lock for full-screen overlays ------------------------------
-// iOS Safari ignores `overflow:hidden` / `overscroll-behavior:contain` on a
-// fixed overlay — a touch-drag "bleeds" through and scrolls the page behind
-// it (the bug residents hit: the poll is open but their drag moves the app
-// underneath). Pinning the BODY itself (position:fixed, offset by the current
-// scroll) is the only reliable stop on iOS; the overlay's own scroll container
-// keeps scrolling normally. The scroll position is captured on lock and
-// restored on release so the user lands back where they were. A counter guards
-// against nested/duplicate locks (and React StrictMode's double-mount in dev).
-let scrollLockCount = 0;
-let savedScrollY = 0;
-function lockBodyScroll() {
-  if (scrollLockCount++ > 0) return;
-  savedScrollY = window.scrollY;
-  const b = document.body;
-  b.style.position = "fixed";
-  b.style.top = `-${savedScrollY}px`;
-  b.style.left = "0";
-  b.style.right = "0";
-  b.style.width = "100%";
-  b.style.overflow = "hidden";
-}
-function unlockBodyScroll() {
-  if (scrollLockCount <= 0) return;
-  if (--scrollLockCount > 0) return;
-  const b = document.body;
-  b.style.position = "";
-  b.style.top = "";
-  b.style.left = "";
-  b.style.right = "";
-  b.style.width = "";
-  b.style.overflow = "";
-  window.scrollTo(0, savedScrollY);
-}
-/** Lock the page body while a full-screen overlay is mounted. */
-function useBodyScrollLock() {
-  useEffect(() => { lockBodyScroll(); return unlockBodyScroll; }, []);
-}
-
 function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, byId, displayName, onClose, guest = false }: {
   code: string; voter: string; trainingLevel: string | null; stableTeam: string | null; weeklyTeam: string | null;
   byId: Map<string, RawQuestion>; displayName: string; onClose: () => void;
@@ -4093,7 +4051,6 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
   // weekly polls let the guest type the team they've been told to join.
   guest?: boolean;
 }) {
-  useBodyScrollLock(); // pin the page behind us so touch-drags scroll the poll, not the app underneath
   const [remote, setRemote] = useState<PollState | null>(null);
   const [myVote, setMyVote] = useState<string[] | null>(null); // the submitted vote — null until cast
   const [pendingPicks, setPendingPicks] = useState<string[]>([]); // multi-select taps before Submit
@@ -4261,8 +4218,6 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
   return (
     <div style={s.joinRoot}>
       <style>{CSS}</style>
-      <div style={s.joinScrollArea}>
-      <div style={s.joinScroll}>
       <div style={s.joinCard}>
         <div style={s.joinHead}>
           <span style={s.pollLive}><Radio size={15} strokeWidth={2.4} /> Poll {code}</span>
@@ -4507,8 +4462,6 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
             )}
           </>
         )}
-      </div>
-      </div>
       </div>
 
       {zoomImg && (
@@ -7858,7 +7811,7 @@ const s: Record<string, React.CSSProperties> = {
   pollAnswerLine: { fontSize: 18, color: "#c7ccd6" },
   qrThumb: { padding: 5, border: "none", borderRadius: 10, background: "#fff", cursor: "pointer", lineHeight: 0, flexShrink: 0, boxShadow: "0 4px 14px -6px rgba(0,0,0,.5)" },
   qrThumbImg: { display: "block", width: 48, height: 48 },
-  qrOverlay: { position: "absolute", inset: 0, zIndex: 5, background: "rgba(11,13,20,.86)", display: "grid", placeItems: "center", padding: 24 },
+  qrOverlay: { position: "fixed", inset: 0, zIndex: 60, background: "rgba(11,13,20,.86)", display: "grid", placeItems: "center", padding: 24 },
   qrCard: { display: "flex", flexDirection: "column", alignItems: "center", gap: 14, background: "#fff", borderRadius: 20, padding: "26px 26px 22px" },
   qrBigImg: { display: "block", width: "min(60vh, 70vw, 420px)", height: "min(60vh, 70vw, 420px)" },
   qrCardCode: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 30, fontWeight: 700, letterSpacing: "0.22em", color: "#11131c" },
@@ -7869,25 +7822,15 @@ const s: Record<string, React.CSSProperties> = {
   zoomImg: { display: "block", maxWidth: "92vw", maxHeight: "88vh", width: "auto", height: "auto", objectFit: "contain", borderRadius: 12, background: "#fff", cursor: "default" },
 
   // live crowd poll — participant (phone)
-  // Fixed full-screen scroll container. The card is centered by joinScroll's
-  // min-height:100% + flex, so short content stays centered but a tall poll
-  // (stem peek + options + explanation + history) can scroll with the top
-  // still reachable — a plain grid/flex-centered fixed box would clip it.
-  // A non-scrolling fixed shell, with joinScrollArea (below) doing the actual
-  // scrolling as its own absolutely-positioned layer — iOS Safari has a known
-  // bug where a position:fixed element that is ALSO the overflow:auto element
-  // can refuse to scroll by touch; splitting the "pinned to the viewport" job
-  // from the "scrolls" job from one element into two sidesteps it.
-  joinRoot: { position: "fixed", inset: 0, zIndex: 90, background: "transparent", overflow: "hidden", fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif" },
-  // The actual scroller. Explicit height (not just inset:0) so the scrollable
-  // area is recomputed when a mobile browser's address bar shows/hides —
-  // inset:0 alone can leave stale content (e.g. the reveal explanation) below
-  // the fold and unreachable. overscrollBehavior stops the drag from chaining
-  // into the page behind it.
-  joinScrollArea: { position: "absolute", inset: 0, height: "100%", overflowY: "auto", overscrollBehavior: "contain", touchAction: "pan-y", WebkitOverflowScrolling: "touch" },
+  // The participant poll is its OWN full-screen page (not a fixed overlay): a
+  // normal-flow block that grows with its content so the DOCUMENT scrolls
+  // natively — the one scroll model iOS Safari never fights. `margin:auto` on
+  // the card (below) centres it when short and lets it overflow-and-scroll when
+  // tall, with no inner scroll container to trap touches. Opaque background
+  // since nothing of the app is mounted behind it.
+  joinRoot: { minHeight: "100dvh", width: "100%", display: "flex", padding: 20, boxSizing: "border-box", background: T.ink, fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif" },
   // `margin:auto` (not flex `center`) so a card taller than the viewport stays
-  // fully scrollable on phones — flex centering clips the top out of reach.
-  joinScroll: { minHeight: "100%", display: "flex", padding: 20, boxSizing: "border-box" },
+  // fully scrollable — flex centering would clip the top out of reach.
   joinCard: { width: "100%", maxWidth: 460, margin: "auto", background: T.inkSoft, border: `1px solid ${T.inkLine}`, borderRadius: 18, padding: 22, boxShadow: "0 24px 60px -20px rgba(0,0,0,.7)" },
   joinHead: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 },
   joinMsg: { color: "#c7ccd6", fontSize: 15, lineHeight: 1.5, margin: "0 0 18px" },
