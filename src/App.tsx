@@ -4118,6 +4118,60 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
 
 const TEAM_KEY = "prite_poll_team";
 
+// Extra study material for a revealed poll question, as tap-to-open chips
+// inside the answer box: the "in practice" scenario, historical context
+// (fetched on demand), a YouTube search, and an "Ask AI" launcher that opens
+// an external chatbot in a NEW tab — so a participant can dig deeper without
+// leaving the poll. Only rendered for signed-in participants (guests have no
+// local question bank, so `q` is never available for them).
+function PollExtras({ q }: { q: RawQuestion }) {
+  const [open, setOpen] = useState<null | "practice" | "context" | "video" | "ai">(null);
+  const [ctx, setCtx] = useState<string | null>(null);
+  const [ctxLoaded, setCtxLoaded] = useState(false);
+  const toggle = (k: NonNullable<typeof open>) => setOpen((cur) => (cur === k ? null : k));
+  useEffect(() => {
+    if (open === "context" && !ctxLoaded) {
+      setCtxLoaded(true);
+      getQuestionContext(questionId(q.year, q.q_index)).then((c) => setCtx(c ?? ""));
+    }
+  }, [open, ctxLoaded, q]);
+  const chip = (k: NonNullable<typeof open>, label: string, icon: React.ReactNode, show = true) => show ? (
+    <button style={{ ...s.pollExtraChip, ...(open === k ? s.pollExtraChipOn : {}) }} onClick={() => toggle(k)}>{icon} {label}</button>
+  ) : null;
+  const videoQuery = q.video_query || `${q.answer_text || ""} psychiatry`.trim();
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div style={s.pollExtraChips}>
+        {chip("practice", "In practice", <Stethoscope size={12} strokeWidth={2.3} />, !!q.clinical_application)}
+        {chip("context", "Context", <Lightbulb size={12} strokeWidth={2.3} />)}
+        {chip("video", "Video", <Youtube size={12} strokeWidth={2.3} />)}
+        {chip("ai", "Ask AI", <Sparkles size={12} strokeWidth={2.3} />)}
+      </div>
+      {open === "practice" && <p style={s.pollExtraBody}>{q.clinical_application}</p>}
+      {open === "context" && (
+        <p style={s.pollExtraBody}>{!ctxLoaded || ctx === null ? "Loading…" : ctx || "No extra context has been written for this question yet."}</p>
+      )}
+      {open === "video" && (
+        <a style={s.pollExtraVideo} href={`https://www.youtube.com/results?search_query=${encodeURIComponent(videoQuery)}`} target="_blank" rel="noopener noreferrer">
+          <Youtube size={16} strokeWidth={2} /> <span style={{ flex: 1 }}>Search YouTube for <b style={{ color: "#fff" }}>{videoQuery}</b></span> <ExternalLink size={13} strokeWidth={2} />
+        </a>
+      )}
+      {open === "ai" && (
+        <div style={s.pollExtraBody}>
+          <div style={{ fontSize: 12, color: "#9aa0ab", marginBottom: 8 }}>Opens in a new tab — the poll stays right here.</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {AI_TARGETS.map((t) => (
+              <button key={t.key} style={s.pollAiTarget} onClick={() => openBgTab(t.url(askAiPrompt(q, "explain", true)))}>
+                {t.label} <ExternalLink size={11} strokeWidth={2.2} />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, byId, displayName, onClose, guest = false }: {
   code: string; voter: string; trainingLevel: string | null; stableTeam: string | null; weeklyTeam: string | null;
   byId: Map<string, RawQuestion>; displayName: string; onClose: () => void;
@@ -4389,13 +4443,13 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                     Answer: <b style={{ color: "#fff" }}>{rCorrect.join(", ")}</b>
                     {rMine.length ? (rGotIt ? " — you got it! 🎉" : ` — you picked ${rMine.join(", ")}`) : " — you didn't vote"}
                   </p>
-                  {(rq.explanation_text || rq.explanation_images.length > 0) && (
-                    <div style={s.joinExplBox}>
-                      <span style={s.joinExplLabel}><Lightbulb size={13} strokeWidth={2.3} /> Explanation</span>
-                      {rq.explanation_text && <p style={s.joinExpl}>{rq.explanation_text}</p>}
-                      {rq.explanation_images.map((src, i) => <img key={i} src={src} alt="" style={{ ...s.joinExplImg, cursor: "zoom-in" }} onClick={() => setZoomImg(src)} />)}
-                    </div>
-                  )}
+                  <div style={s.joinExplBox}>
+                    <span style={s.joinExplLabel}><Lightbulb size={13} strokeWidth={2.3} /> Explanation</span>
+                    {rq.explanation_text && <p style={s.joinExpl}>{rq.explanation_text}</p>}
+                    {rq.explanation_images.map((src, i) => <img key={i} src={src} alt="" style={{ ...s.joinExplImg, cursor: "zoom-in" }} onClick={() => setZoomImg(src)} />)}
+                    {!rq.explanation_text && rq.explanation_images.length === 0 && <p style={{ ...s.joinExpl, fontStyle: "italic", color: "#8a9099" }}>No explanation slide — see the extras below.</p>}
+                    <PollExtras q={rq} />
+                  </div>
                 </>
               );
             })() : (
@@ -4469,12 +4523,14 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                 )}
                 {!remote.finished && remote.revealed && (() => {
                   const cq = byId.get(remote.qid);
-                  if (!cq || (!cq.explanation_text && cq.explanation_images.length === 0)) return null;
+                  if (!cq) return null; // guests / bank not loaded — no extras to show
                   return (
                     <div style={s.joinExplBox}>
                       <span style={s.joinExplLabel}><Lightbulb size={13} strokeWidth={2.3} /> Explanation</span>
                       {cq.explanation_text && <p style={s.joinExpl}>{cq.explanation_text}</p>}
                       {cq.explanation_images.map((src, i) => <img key={i} src={src} alt="" style={{ ...s.joinExplImg, cursor: "zoom-in" }} onClick={() => setZoomImg(src)} />)}
+                      {!cq.explanation_text && cq.explanation_images.length === 0 && <p style={{ ...s.joinExpl, fontStyle: "italic", color: "#8a9099" }}>No explanation slide — see the extras below.</p>}
+                      <PollExtras q={cq} />
                     </div>
                   );
                 })()}
@@ -8183,6 +8239,14 @@ const s: Record<string, React.CSSProperties> = {
   joinExplBox: { marginTop: 12, marginBottom: 4, background: T.ink, border: `1px solid ${T.inkLine}`, borderRadius: 12, padding: "12px 14px" },
   joinExplLabel: { display: "inline-flex", alignItems: "center", gap: 6, color: "#f2c14e", fontWeight: 700, fontSize: 12.5, letterSpacing: "0.02em", textTransform: "uppercase" },
   joinExpl: { margin: "8px 0 0", color: "#c7ccd6", fontSize: 14.5, lineHeight: 1.55, whiteSpace: "pre-wrap" },
+  // Tap-to-open extra-material chips inside the poll answer box (In practice /
+  // Context / Video / Ask AI), dark-themed to match the participant view.
+  pollExtraChips: { display: "flex", flexWrap: "wrap", gap: 7, marginTop: 12 },
+  pollExtraChip: { display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.12)", color: "#c7ccd6", borderRadius: 999, padding: "5px 11px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" },
+  pollExtraChipOn: { background: "rgba(242,193,78,.16)", border: "1px solid rgba(242,193,78,.5)", color: "#f2c14e" },
+  pollExtraBody: { margin: "10px 0 0", color: "#c7ccd6", fontSize: 14, lineHeight: 1.55, whiteSpace: "pre-wrap", background: "rgba(255,255,255,.03)", borderRadius: 10, padding: "11px 13px" },
+  pollExtraVideo: { display: "flex", alignItems: "center", gap: 9, marginTop: 10, textDecoration: "none", color: "#c7ccd6", background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 10, padding: "11px 13px", fontSize: 13.5 },
+  pollAiTarget: { display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(120,144,230,.14)", border: "1px solid rgba(120,144,230,.4)", color: "#aeb8ea", borderRadius: 9, padding: "7px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer" },
   joinExplImg: { display: "block", maxWidth: "100%", borderRadius: 8, marginTop: 10 },
   pollReviewHead: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 4 },
   pollReviewBar: { marginTop: 16, paddingTop: 14, borderTop: `1px solid ${T.inkLine}` },
