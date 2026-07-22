@@ -4078,8 +4078,8 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
           onClick={() => { setDrumrollGif(null); setFinished(true); }}
           title="Tap to skip"
         >
-          <img src={drumrollGif} alt="" style={{ maxWidth: "min(80vw, 560px)", maxHeight: "56vh", borderRadius: 16, boxShadow: "0 30px 80px -20px rgba(0,0,0,.7)" }} />
-          <span style={{ color: "#fff", fontSize: 16, fontWeight: 700, letterSpacing: 0.3 }}>🥁 And the standings are…</span>
+          <img src={drumrollGif} alt="" style={{ maxWidth: "min(94vw, 1200px)", maxHeight: "82vh", width: "auto", height: "auto", objectFit: "contain", borderRadius: 18, boxShadow: "0 40px 100px -20px rgba(0,0,0,.75)" }} />
+          <span style={{ color: "#fff", fontSize: "clamp(22px, 3.2vw, 40px)", fontWeight: 800, letterSpacing: 0.3 }}>🥁 And the standings are…</span>
         </div>
       )}
 
