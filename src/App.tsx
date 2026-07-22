@@ -4218,6 +4218,16 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
   return (
     <div style={s.joinRoot}>
       <style>{CSS}</style>
+      {/* Ambient arena room behind the card — fixed + pointer-events:none, so
+          it's pure paint: it can't capture touches or alter document scroll. */}
+      <div aria-hidden style={s.joinBackdrop}>
+        <div className="imm-drift" style={s.joinBackdropImg} />
+        <div style={s.joinBackdropTint} />
+      </div>
+      {/* One-shot fly-into-the-arena clip on join (token=1 plays on mount).
+          ImmersiveFlash is a temporary fixed video that fades itself out —
+          it never wraps the content, so the scroll model stays native. */}
+      <ImmersiveFlash sceneKey="arena" dir="in" token={1} />
       <div style={s.joinCard}>
         <div style={s.joinHead}>
           <span style={s.pollLive}><Radio size={15} strokeWidth={2.4} /> Poll {code}</span>
@@ -7461,6 +7471,11 @@ button:focus-visible { outline: 2px solid ${T.teal}; outline-offset: 2px; }
   .mobMenuOpen .mobExtra { display: inline-flex !important; }
   .mobMenuOpen .topActions { display: flex !important; }
 }
+/* Slow ambient drift for the participant poll's arena backdrop (same motion
+   ImmersiveScene uses for its settled-room backdrop). */
+@keyframes immDrift { from { transform: scale(1.045) translate(-1%,-.5%); } to { transform: scale(1.11) translate(1.5%,1%); } }
+.imm-drift { animation: immDrift 26s ease-in-out infinite alternate; }
+@media (prefers-reduced-motion: reduce) { .imm-drift { animation: none !important; } }
 `;
 
 /* ---------------------------------------------------------------------- */
@@ -7829,9 +7844,17 @@ const s: Record<string, React.CSSProperties> = {
   // tall, with no inner scroll container to trap touches. Opaque background
   // since nothing of the app is mounted behind it.
   joinRoot: { minHeight: "100dvh", width: "100%", display: "flex", padding: 20, boxSizing: "border-box", background: T.ink, fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif" },
+  // Decorative arena-room backdrop behind the card (same look ImmersiveScene
+  // gave the old overlay). position:fixed + pointerEvents:none: it paints to
+  // the viewport but can't intercept touches or join the layout, so the page's
+  // native document scroll is completely untouched by it.
+  joinBackdrop: { position: "fixed", inset: 0, zIndex: 0, overflow: "hidden", pointerEvents: "none" },
+  joinBackdropImg: { position: "absolute", inset: "-5%", backgroundImage: "url(/immersive/arena-bg.webp)", backgroundSize: "cover", backgroundPosition: "center", filter: "blur(9px) brightness(.42) saturate(1.05)", transform: "scale(1.06)" },
+  joinBackdropTint: { position: "absolute", inset: 0, background: "radial-gradient(120% 80% at 50% 30%, rgba(13,15,22,.12), rgba(13,15,22,.72))" },
   // `margin:auto` (not flex `center`) so a card taller than the viewport stays
   // fully scrollable — flex centering would clip the top out of reach.
-  joinCard: { width: "100%", maxWidth: 460, margin: "auto", background: T.inkSoft, border: `1px solid ${T.inkLine}`, borderRadius: 18, padding: 22, boxShadow: "0 24px 60px -20px rgba(0,0,0,.7)" },
+  // relative+zIndex lifts it above the fixed backdrop layer.
+  joinCard: { position: "relative", zIndex: 1, width: "100%", maxWidth: 460, margin: "auto", background: T.inkSoft, border: `1px solid ${T.inkLine}`, borderRadius: 18, padding: 22, boxShadow: "0 24px 60px -20px rgba(0,0,0,.7)" },
   joinHead: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 },
   joinMsg: { color: "#c7ccd6", fontSize: 15, lineHeight: 1.5, margin: "0 0 18px" },
   joinOpts: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(64px, 1fr))", gap: 12 },
