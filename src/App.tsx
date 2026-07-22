@@ -4107,7 +4107,6 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
   // — this is the pull-down "shade" that peeks it on the phone instead, for
   // whoever can't see the screen well. Collapses again on every new question.
   const [stemOpen, setStemOpen] = useState(false);
-  const stemDragRef = useRef<{ startY: number } | null>(null);
   const chanRef = useRef<ReturnType<NonNullable<typeof supabase>["channel"]> | null>(null);
   const lastQid = useRef<string>("");
   const teamRef = useRef(team);
@@ -4249,21 +4248,6 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
     setReviewAddState("done");
   };
 
-  // Drag (or tap) the pull tab to peek the current question's text — a
-  // threshold-based open/close rather than a finger-following sheet, so it
-  // works the same whether you drag or just tap.
-  const onStemPullDown = (e: React.PointerEvent) => {
-    stemDragRef.current = { startY: e.clientY };
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-  const onStemPullMove = (e: React.PointerEvent) => {
-    if (!stemDragRef.current) return;
-    const dy = e.clientY - stemDragRef.current.startY;
-    if (dy > 28) setStemOpen(true);
-    else if (dy < -28) setStemOpen(false);
-  };
-  const onStemPullUp = () => { stemDragRef.current = null; };
-
   const letters = remote ? Array.from({ length: remote.nOptions }, (_, i) => String.fromCharCode(65 + i)) : [];
   const isIndividualMode = remote?.teamMode === "individual";
   const isStableMode = remote?.teamMode === "stable" || remote?.teamMode === "weekly"; // both use a fixed saved roster
@@ -4377,20 +4361,17 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
             })() : (
               <>
                 {!remote.finished && byId.size > 0 && (
-                  <div
+                  <button
+                    type="button"
                     style={s.stemPull}
                     onClick={() => setStemOpen((v) => !v)}
-                    onPointerDown={onStemPullDown}
-                    onPointerMove={onStemPullMove}
-                    onPointerUp={onStemPullUp}
-                    onPointerCancel={onStemPullUp}
                   >
                     <span style={s.stemPullBar} />
                     <span style={s.stemPullLabel}>
                       {stemOpen ? <ChevronUp size={13} strokeWidth={2.4} /> : <ChevronDown size={13} strokeWidth={2.4} />}
-                      {stemOpen ? "Hide question text" : "Pull down for question text"}
+                      {stemOpen ? "Hide question text" : "Show question text"}
                     </span>
-                  </div>
+                  </button>
                 )}
                 {!remote.finished && stemOpen && (
                   <p style={s.stemPeek}>{byId.get(remote.qid)?.stem}</p>
@@ -7963,7 +7944,11 @@ const s: Record<string, React.CSSProperties> = {
   pollReviewChipsRow: { display: "flex", flexWrap: "wrap", gap: 8 },
   pollReviewChip: { background: T.ink, color: "#c7ccd6", border: `1px solid ${T.inkLine}`, borderRadius: 8, padding: "6px 11px", fontSize: 13, fontWeight: 600, cursor: "pointer" },
   pollReviewChipActive: { background: T.teal, color: "#fff", border: `1px solid ${T.teal}` },
-  stemPull: { display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "6px 0 12px", cursor: "grab", userSelect: "none", touchAction: "none" },
+  // A plain tap button — NOT a drag gesture. A draggable pull-tab needs
+  // touch-action:none + pointer capture, which turns this strip into a dead
+  // zone that swallows a phone user's scroll (they land on the bar trying to
+  // scroll the poll and nothing moves). Tap-to-toggle keeps scrolling free.
+  stemPull: { display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "6px 0 12px", cursor: "pointer", userSelect: "none", background: "none", border: "none", width: "100%", font: "inherit" },
   stemPullBar: { width: 36, height: 4, borderRadius: 999, background: T.inkLine },
   stemPullLabel: { display: "inline-flex", alignItems: "center", gap: 5, color: T.faint, fontSize: 12.5, fontWeight: 600 },
   stemPeek: { margin: "0 0 14px", padding: "12px 14px", background: T.ink, border: `1px solid ${T.inkLine}`, borderRadius: 12, color: "#e7eaf0", fontSize: 16, lineHeight: 1.5 },
