@@ -1261,6 +1261,9 @@ export default function App() {
   const isCorrect =
     revealed && picked.length > 0 &&
     picked.length === correctSet.length && picked.every((l) => correctSet.includes(l));
+  const requiredSelections = correctSet.length;
+  const canSubmit = !!q && picked.length > 0 &&
+    (!q.multi_select || picked.length === requiredSelections);
 
   const togglePick = (key: string) => {
     if (revealed) return;
@@ -1277,7 +1280,9 @@ export default function App() {
 
   const finalize = async (timedOut = false) => {
     if (revealed) return;
-    if (!timedOut && !picked.length) return; // need a pick unless the clock ran out
+    // Multi-select items are exact-count questions. Do not let a hurried tap
+    // submit an incomplete (or over-complete) set as a wrong answer.
+    if (!timedOut && !canSubmit) return;
     setRevealed(true);
     const right =
       picked.length > 0 &&
@@ -1823,7 +1828,7 @@ export default function App() {
         <div style={s.progressRow} className={examActive ? "examDim" : undefined}>
           <span style={s.qeyebrow}>{q.year} · Q{q.q_index} <span style={{ color: T.faint }}>(slide {q.slide_number})</span></span>
           {reviewMode && <span style={{ ...s.multiTag, color: T.teal, background: T.tealSoft }}><RotateCcw size={12} strokeWidth={2.2} /> Reviewing missed — try again</span>}
-          {q.multi_select && <span style={s.multiTag}><ListChecks size={12} strokeWidth={2.2} /> Select all that apply</span>}
+          {q.multi_select && <span style={s.multiTag}><ListChecks size={12} strokeWidth={2.2} /> Select {requiredSelections} answers</span>}
           {persist && (
             <button style={s.reportBtn} onClick={() => setShowReport(true)} title="Report a problem with this question">
               <Bug size={12} strokeWidth={2.2} /> Report a problem
@@ -1859,6 +1864,13 @@ export default function App() {
             onChange={updateHighlights}
             style={{ ...s.stem, marginBottom: 18, ...(examActive ? { fontSize: 23, lineHeight: 1.58 } : {}) }}
           />
+
+          {q.multi_select && !revealed && (
+            <div style={s.multiBanner} role="note" aria-label={`Select exactly ${requiredSelections} answers`}>
+              <ListChecks size={15} strokeWidth={2.4} />
+              <span><strong>Select exactly {requiredSelections} answers.</strong> This question has more than one correct answer.</span>
+            </div>
+          )}
 
           <div style={s.options}>
             {q.options.map((o, oi) => {
@@ -1916,12 +1928,17 @@ export default function App() {
 
           {!revealed ? (
             <div style={s.actionRow}>
-              <span style={s.actionHint}>
-                {picked.length ? `Selected ${picked.slice().sort().join(", ")}` : (q.multi_select ? "Choose all that apply" : "Choose an answer")}
+              <span style={{ ...s.actionHint, ...(q.multi_select && picked.length > requiredSelections ? { color: T.wrongText } : {}) }} aria-live="polite">
+                {q.multi_select
+                  ? (picked.length
+                    ? `${picked.length} of ${requiredSelections} selected (${picked.slice().sort().join(", ")})${picked.length > requiredSelections ? " — remove a choice" : ""}`
+                    : `Choose ${requiredSelections} answers`)
+                  : (picked.length ? `Selected ${picked.slice().sort().join(", ")}` : "Choose an answer")}
               </span>
               <button
-                style={{ ...s.primary, opacity: picked.length ? 1 : 0.45, cursor: picked.length ? "pointer" : "not-allowed" }}
+                style={{ ...s.primary, opacity: canSubmit ? 1 : 0.45, cursor: canSubmit ? "pointer" : "not-allowed" }}
                 onClick={submit}
+                disabled={!canSubmit}
               >
                 {examActive ? "Lock in" : "Submit"}{q.multi_select && picked.length ? ` (${picked.length})` : ""}
               </button>
@@ -3409,7 +3426,9 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
       qid, year: q?.year ?? "", qIndex: q?.q_index ?? 0,
       nOptions: q?.options.length ?? 0,
       options: q?.options.map((o) => ({ letter: o.letter, text: o.text })) ?? [],
-      index, total, multiSelect: q?.multi_select ?? false, revealed,
+      index, total, multiSelect: q?.multi_select ?? false,
+      requiredSelections: q?.multi_select ? correctSet.length : 1,
+      revealed,
       correct: revealed ? correctSet : [],
       standings: computeStandings(),
       rankBy: rankByTotal ? "total" : "pct",
@@ -3934,7 +3953,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
         )}
         <div style={s.pollMeta}>
           {q.year} · Q{q.q_index} · Question {index + 1} of {total}
-          {q.multi_select && <span style={{ ...s.multiTag, marginLeft: 10 }}><ListChecks size={12} strokeWidth={2.2} /> Select all that apply</span>}
+          {q.multi_select && <span style={{ ...s.multiTag, marginLeft: 10 }}><ListChecks size={12} strokeWidth={2.2} /> Select {correctSet.length} answers</span>}
         </div>
         <div style={{
           display: "flex",
@@ -4304,7 +4323,11 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
     if (!remote || remote.revealed || myVote) return;
     setPendingPicks((cur) => (cur.includes(letter) ? cur.filter((l) => l !== letter) : [...cur, letter]));
   };
-  const submitPending = () => { if (pendingPicks.length) castVote(pendingPicks); };
+  const submitPending = () => {
+    if (!pendingPicks.length) return;
+    if (remote?.requiredSelections && pendingPicks.length !== remote.requiredSelections) return;
+    castVote(pendingPicks);
+  };
 
   // Every question I saw revealed, that I either missed or never voted on —
   // built once the poll finishes, from the local question bank (byId) so the
@@ -4474,7 +4497,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                   {remote.finished
                     ? <>Poll complete — thanks for playing! 🎉</>
                     : remote.multiSelect
-                    ? <>Question {remote.index + 1} of {remote.total} — read it on the big screen, then select ALL that apply.</>
+                    ? <>Question {remote.index + 1} of {remote.total} — <strong>{remote.requiredSelections ? `select exactly ${remote.requiredSelections} answers` : "select all that apply"}.</strong></>
                     : <>Question {remote.index + 1} of {remote.total} — read it on the big screen, then tap your answer.</>}
                 </p>
                 {!remote.finished && !remote.revealed && (remote.joined ?? 0) > 0 && (
@@ -4505,20 +4528,36 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                 </div>
                 )}
                 {!remote.finished && remote.multiSelect && !remote.revealed && !myVote && (
-                  <button
-                    style={{ ...s.pollBtn, ...(pendingPicks.length ? s.pollBtnPrimary : {}), width: "100%", justifyContent: "center", marginTop: 10 }}
-                    onClick={submitPending}
-                    disabled={!pendingPicks.length}
-                  >
-                    <Check size={15} strokeWidth={2.6} /> Submit{pendingPicks.length ? ` (${pendingPicks.length})` : ""}
-                  </button>
+                  <>
+                    <p
+                      style={{ ...s.joinState, margin: "12px 0 0", ...(remote.requiredSelections && pendingPicks.length > remote.requiredSelections ? { color: "#f1a38f" } : {}) }}
+                      aria-live="polite"
+                    >
+                      {remote.requiredSelections
+                        ? `${pendingPicks.length} of ${remote.requiredSelections} selected${pendingPicks.length > remote.requiredSelections ? " — remove a choice" : ""}`
+                        : `${pendingPicks.length} selected`}
+                    </p>
+                    <button
+                      style={{
+                        ...s.pollBtn,
+                        ...((remote.requiredSelections ? pendingPicks.length === remote.requiredSelections : pendingPicks.length > 0) ? s.pollBtnPrimary : {}),
+                        width: "100%", justifyContent: "center", marginTop: 10,
+                      }}
+                      onClick={submitPending}
+                      disabled={remote.requiredSelections ? pendingPicks.length !== remote.requiredSelections : !pendingPicks.length}
+                    >
+                      <Check size={15} strokeWidth={2.6} /> Submit{pendingPicks.length ? ` (${pendingPicks.length})` : ""}
+                    </button>
+                  </>
                 )}
                 {!remote.finished && (
                 <p style={s.joinState}>
                   {remote.revealed
                     ? <>Answer: <b style={{ color: "#fff" }}>{remote.correct.join(", ")}</b>{myVote?.length ? (pickIsCorrect(myVote, remote.correct) ? " — you got it! 🎉" : ` — you picked ${myVote.join(", ")}`) : " — you didn't vote"}</>
                     : myVote?.length ? `You picked ${myVote.join(", ")}.${remote.multiSelect ? "" : " Tap another to change it."}`
-                    : remote.multiSelect ? "Tap all that apply, then Submit." : "Tap a letter to cast your vote."}
+                    : remote.multiSelect
+                      ? (remote.requiredSelections ? `Select exactly ${remote.requiredSelections} answers, then Submit.` : "Tap all that apply, then Submit.")
+                      : "Tap a letter to cast your vote."}
                 </p>
                 )}
                 {!remote.finished && remote.revealed && (() => {
@@ -7999,6 +8038,7 @@ const s: Record<string, React.CSSProperties> = {
   qeyebrow: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 12, letterSpacing: "0.04em", color: "#8c93a1", textTransform: "uppercase" },
   reportBtn: { marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: "none", color: T.faint, fontSize: 12, cursor: "pointer", padding: "2px 4px" },
   multiTag: { display: "inline-flex", alignItems: "center", gap: 5, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 11, color: T.gold, background: T.goldSoft, borderRadius: 6, padding: "3px 9px" },
+  multiBanner: { display: "flex", alignItems: "center", gap: 9, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 14, lineHeight: 1.4, color: T.gold, background: T.goldSoft, border: `1px solid ${T.gold}`, borderRadius: 10, padding: "11px 14px", margin: "0 0 14px" },
 
   qcard: { background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 16, padding: "26px 26px 22px", boxShadow: "0 1px 0 rgba(0,0,0,.04), 0 18px 40px -28px rgba(20,24,40,.5)" },
   caughtCard: { width: "100%", maxWidth: 440, background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 18, padding: "32px 28px", textAlign: "center", boxShadow: "0 30px 80px -30px rgba(0,0,0,.5)" },

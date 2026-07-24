@@ -66,6 +66,7 @@ export type PollState = {
   index: number;   // 0-based position in the host's set
   total: number;   // size of the host's set
   multiSelect: boolean; // this question wants "select all that apply" — phones show a Submit step instead of tap-to-vote
+  requiredSelections?: number; // exact number of choices expected; optional so participants remain compatible with an older host
   revealed: boolean;
   correct: string[]; // populated only once revealed
   standings: TeamStanding[]; // cumulative team leaderboard (highest first)
