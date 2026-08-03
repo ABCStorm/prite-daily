@@ -6,12 +6,21 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "audio:prompts": "node scripts/audio/generate-audio-scripts.mjs --kind prompt --output extraction/output/audio_prompts.jsonl --state extraction/output/audio_prompts.state.json --batch-size 50 --reasoning-effort low",
+    "audio:render": "node scripts/audio/render-fish-audio.mjs",
+    "audio:exports": "node scripts/audio/build-audio-exports.mjs",
+    "audio:r2": "node scripts/audio/migrate-audio-to-r2.mjs",
+    "audio:archive:48k": "node scripts/audio/prepare-r2-audio-archive.mjs",
+    "audio:archive:r2": "node scripts/audio/upload-r2-audio-archive.mjs",
+    "audio:archive:retire-v2": "node scripts/audio/retire-r2-v2-exports.mjs",
+    "audio:archive:audit-r2": "node --env-file=supabase/.temp/audio-batch.env scripts/audio/audit-r2-audio-inventory.mjs",
     "typecheck": "tsc -b",
     "preview": "vite preview"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",
     "@types/qrcode": "^1.5.6",
+    "fflate": "^0.8.3",
     "file-saver": "^2.0.5",
     "genanki-js": "^2.0.0",
     "jspdf": "^4.2.1",
@@ -25,11 +34,13 @@
     "sql.js": "^1.14.1"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260801.1",
     "@types/file-saver": "^2.0.7",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "typescript": "^5.4.5",
-    "vite": "^5.4.8"
+    "vite": "^5.4.8",
+    "wrangler": "^4.118.0"
   }
 }

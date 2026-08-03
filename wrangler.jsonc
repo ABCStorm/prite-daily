@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "prite-daily",
+  "pages_build_output_dir": "./dist",
+  "compatibility_date": "2026-08-01",
+  "r2_buckets": [
+    {
+      "binding": "AUDIO",
+      "bucket_name": "prite-daily-audio"
+    }
+  ]
+}

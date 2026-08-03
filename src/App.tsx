@@ -8,10 +8,16 @@ import {
   ChevronDown, ChevronUp, ChevronRight, Share2, Archive, Baby, Mail, Minus, Plus, Repeat,
   Eye, EyeOff, PanelRight, PanelBottom,
   BookOpen, Volume2, Play, Pause, Square, Copy, Shuffle, GripVertical,
-  Brain, Pill, HeartPulse, GraduationCap,
+  Brain, Pill, HeartPulse, GraduationCap, LayoutDashboard, Pin,
 } from "lucide-react";
 import mermaid from "mermaid";
 import { nextRewardPost, RewardKind } from "./lib/motivation";
+import { ExplanationText } from "./lib/explanationFormat";
+import { KaplanPanel } from "./lib/kaplanPanel";
+import { loadKaplanRefs, type KaplanRef } from "./lib/kaplanRefs";
+import { ZoomLightbox } from "./lib/ZoomLightbox";
+import { ScenarioIllustration } from "./lib/ScenarioIllustration";
+import { mnemonicsForQuestion, type Mnemonic } from "./lib/mnemonics";
 import QRCode from "qrcode";
 
 mermaid.initialize({ startOnLoad: false, theme: "neutral", securityLevel: "loose", fontFamily: "inherit" });
@@ -56,12 +62,13 @@ import {
   POLL_EVENTS, type PollState, type PollVote, type PollHello, type PollAssign, type TeamStanding, type IndividualStanding, type TeamMode,
 } from "./lib/poll";
 import { ImmersiveScene, ImmersiveFlash } from "./ImmersiveScene";
-import { nextPollDrumrollGif } from "./lib/pollGifs";
+import { nextPollDrumrollGif, prefetchPollDrumrollGifs } from "./lib/pollGifs";
+import { AdminUsageDashboard } from "./AdminUsageDashboard";
 import {
   loadQuestionBank,
   getMyAnswers, saveAnswer, clearMissedAnswers, getMyNote, saveMyNote,
   getGroupNotes, addGroupNote, deleteGroupNote,
-  listProfiles, updateProfile, setTrainingLevel, getStableTeams, regenerateStableTeams, setStableTeam, removeStableTeam,
+  listProfiles, updateProfile, declineAccess, setTrainingLevel, getStableTeams, regenerateStableTeams, setStableTeam, removeStableTeam,
   listRosterNames, addRosterName, removeRosterName, type RosterName,
   listStudyGuideCreators, setStudyGuideCreator,
   getWeeklyTeams, regenerateWeeklyTeams,
@@ -87,6 +94,11 @@ import {
   studyGuideUrl, studyGuideIdFromUrl, clearStudyParam, type StudyGuide, type LibraryStudyGuide,
 } from "./lib/studyGuides";
 import { SRS_GRADES, intervalLabel, sm2Next, SRS_DEFAULT, type SrsGrade, type SrsState } from "./lib/srs";
+import {
+  getAudioDrills, getAudioClipUrl, getAudioExportBlob,
+  listAudioReviewProgress, saveAudioReviewProgress,
+  type AudioReviewProgress,
+} from "./lib/audioDrills";
 
 /* ----------------------------------------------------------------------
    PRITE daily question screen — now driven by the REAL extracted bank
@@ -107,6 +119,39 @@ const T = {
 };
 
 type RawOption = { letter: string; text: string };
+
+function MnemonicCard({ mnemonic }: { mnemonic: Mnemonic }) {
+  return (
+    <article style={{ border: `1px solid ${T.paperEdge}`, borderRadius: 12, padding: "15px 17px", background: T.paper }}>
+      <div style={{ display: "flex", gap: 9, alignItems: "baseline", flexWrap: "wrap" }}>
+        <strong style={{ color: T.tealDeep, fontSize: 17 }}>{mnemonic.title}</strong>
+        <span style={{ color: T.muted, fontSize: 12 }}>{mnemonic.purpose}</span>
+      </div>
+      <p style={{ margin: "8px 0 10px", color: T.text, fontSize: 14.5, lineHeight: 1.55 }}>{mnemonic.memoryAid}</p>
+      <ul style={{ margin: "0 0 8px", paddingLeft: 20, color: T.text, fontSize: 13.5, lineHeight: 1.55 }}>
+        {mnemonic.breakdown.map((item) => <li key={item}>{item}</li>)}
+      </ul>
+      {mnemonic.caveat && <p style={{ margin: "8px 0", color: T.muted, fontSize: 12.5, lineHeight: 1.5 }}>{mnemonic.caveat}</p>}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 9 }}>
+        {mnemonic.sources.map((source) => (
+          <a key={source.url} href={source.url} target="_blank" rel="noopener noreferrer" style={{ color: T.teal, fontSize: 12 }}>
+            {source.label} <ExternalLink size={10} strokeWidth={2} style={{ verticalAlign: "-1px" }} />
+          </a>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+type FigureAttribution = {
+  image_path?: string;
+  original_path?: string;
+  label: string;
+  url: string;
+  license: string;
+  license_url: string;
+  modifications?: string;
+};
 type QTags = {
   diagnosis?: string[]; medication?: string[]; psychotherapy?: string[];
   neuro?: string[]; historical?: string[]; setting?: string | null;
@@ -121,6 +166,8 @@ type RawQuestion = {
   answer_letter: string | null; answer_letters: string[]; multi_select: boolean;
   answer_text: string; answer_source: string; answer_raw: string;
   explanation_text: string; figure_images: string[]; explanation_images: string[];
+  figure_attributions?: FigureAttribution[];
+  image_attributions?: FigureAttribution[];
   clinical_application?: string; video_query?: string;
   diagram?: { code: string; caption?: string } | null;
   comparison_table?: { title?: string; headers: string[]; rows: string[][] } | null;
@@ -140,6 +187,71 @@ function initials(name: string) {
 
 function imgSrc(p: string) {
   return p.startsWith("<") ? "" : "/" + p; // skip failed-export placeholders
+}
+
+function imageAttribution(q: RawQuestion, path: string, kind: "figure" | "explanation", index: number) {
+  const exact = q.image_attributions?.find((credit) => credit.image_path === path);
+  if (exact) return exact;
+  // Backward compatibility for the first replacement-image audit, whose
+  // credits were stored positionally before image_path/original_path existed.
+  if (kind === "figure") return q.figure_attributions?.[index];
+  return undefined;
+}
+
+function AuditedQuestionImage({
+  q, path, kind, index, alt, style, onZoom, dark = false, showCredit = true,
+}: {
+  q: RawQuestion;
+  path: string;
+  kind: "figure" | "explanation";
+  index: number;
+  alt: string;
+  style: React.CSSProperties;
+  onZoom: (src: string) => void;
+  dark?: boolean;
+  showCredit?: boolean;
+}) {
+  const credit = imageAttribution(q, path, kind, index);
+  const [showOriginal, setShowOriginal] = useState(false);
+  const visiblePath = showOriginal && credit?.original_path ? credit.original_path : path;
+  const visibleSrc = imgSrc(visiblePath);
+  const muted = dark ? "#aeb4c0" : T.muted;
+  const accent = dark ? "#8fd9b6" : T.teal;
+
+  return (
+    <div style={{ display: "inline-flex", maxWidth: "100%", flexDirection: "column", alignItems: "center" }}>
+      <img
+        src={visibleSrc}
+        alt={alt}
+        style={style}
+        loading="lazy"
+        onClick={() => onZoom(visibleSrc)}
+        title="Click to enlarge"
+      />
+      {credit && (credit.original_path || showCredit) && (
+        <div style={{ margin: "6px 0 10px", maxWidth: 760, textAlign: "center", color: muted, fontSize: 11, lineHeight: 1.45 }}>
+          {credit.original_path && (
+            <button
+              type="button"
+              onClick={() => setShowOriginal((value) => !value)}
+              style={{ margin: "0 7px 3px 0", padding: 0, border: 0, background: "transparent", color: accent, cursor: "pointer", font: "inherit", textDecoration: "underline" }}
+            >
+              {showOriginal ? "View clearer replacement" : "View original PRITE image"}
+            </button>
+          )}
+          {showOriginal ? (
+            <span>Original image from the PRITE source deck.</span>
+          ) : showCredit ? (
+            <span>
+              Clearer replacement: <a href={credit.url} target="_blank" rel="noreferrer" style={{ color: accent }}>{credit.label}</a>{" "}
+              (<a href={credit.license_url} target="_blank" rel="noreferrer" style={{ color: accent }}>{credit.license}</a>
+              {credit.modifications ? `; ${credit.modifications}` : ""})
+            </span>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function ago(iso: string) {
@@ -400,6 +512,14 @@ function readPref<T>(key: string, fallback: T): T {
 function writePref(key: string, value: unknown) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* best-effort */ }
 }
+const LEARNING_SECTION_IDS = new Set([
+  "explanation", "textbook", "practice", "mnemonic", "context",
+  "diagram", "video", "mine", "group", "flash",
+]);
+function readLearningOpenPref(): Set<string> {
+  return new Set(readPref<string[]>("pd_learning_open_sections", ["explanation"])
+    .filter((id) => LEARNING_SECTION_IDS.has(id)));
+}
 function fmtTime(s: number) {
   const m = Math.floor(s / 60), sec = s % 60;
   return `${m}:${String(sec).padStart(2, "0")}`;
@@ -421,6 +541,12 @@ function streakMessage(kind: "login" | "completion", streak: number): string {
 export default function App() {
   const [all, setAll] = useState<RawQuestion[] | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
+  // question id -> supporting Kaplan & Sadock passage(s); empty until loaded
+  const [kaplanRefs, setKaplanRefs] = useState<Record<string, KaplanRef>>({});
+  // Why citations didn't load, if they didn't. Surfaced in the study-set filter:
+  // this used to fail silently, which made a broken fetch indistinguishable from
+  // "this question just has no citation".
+  const [kaplanErr, setKaplanErr] = useState<string | null>(null);
 
   const [year, setYear] = useState<string>("all");
   const [qi, setQi] = useState(0);
@@ -428,7 +554,10 @@ export default function App() {
   const [picked, setPicked] = useState<string[]>([]);
   const [crossed, setCrossed] = useState<string[]>([]); // options crossed out (right-click), per question
   const [revealed, setRevealed] = useState(false);
-  const [tab, setTab] = useState("explanation");
+  const [preferredOpenSections, setPreferredOpenSections] = useState<Set<string>>(readLearningOpenPref);
+  const preferredOpenSectionsRef = useRef(preferredOpenSections);
+  const [openSections, setOpenSections] = useState<Set<string>>(() => new Set(preferredOpenSections));
+  useEffect(() => { preferredOpenSectionsRef.current = preferredOpenSections; }, [preferredOpenSections]);
   // "Ask AI" panel: open/closed, chosen explanation style, and free-text question
   const [askOpen, setAskOpen] = useState(false);
   const [askStyle, setAskStyle] = useState<AiStyle>("explain");
@@ -439,8 +568,6 @@ export default function App() {
   const [jump, setJump] = useState("");
 
   const confettiRef = useRef<HTMLCanvasElement | null>(null);
-  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-  const [ind, setInd] = useState({ left: 0, width: 0, top: 0 });
 
   // --- streak rewards (client-side, see lib/streaks.ts) ---
   const [streakReward, setStreakReward] = useState<{ kind: "login" | "completion"; streak: number; level: number } | null>(null);
@@ -657,6 +784,7 @@ export default function App() {
   const [showInsights, setShowInsights] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showDeck, setShowDeck] = useState(false);
+  const [showAudioDrills, setShowAudioDrills] = useState(false);
   const [card, setCard] = useState<Flashcard | null>(null);
   const [cardBusy, setCardBusy] = useState(false);
   const [editCard, setEditCard] = useState<{ cloze: string; extra: string } | null>(null);
@@ -666,7 +794,28 @@ export default function App() {
   const [showSiteReport, setShowSiteReport] = useState(false); // general "report a site problem" (footer)
   const [showBugs, setShowBugs] = useState(false);        // admin bug-report triage
   const [bugs, setBugs] = useState<BugReport[]>([]);
+
+  // --- reply notifications: nudge a reporter when an admin has answered one of
+  //     their bug reports since they last opened "My reports". "Seen" is tracked
+  //     per-account in localStorage as { reportId: responded_at } so a fresh
+  //     reply (or an edited one with a newer responded_at) re-notifies, and
+  //     reading it clears both the toast and the nav badge. Kept above the early
+  //     returns below so the hook order stays stable. ---
+  const replyAckKey = `pd_bugreply_ack_${profile?.id ?? session?.user?.id ?? "anon"}`;
+  const [replyAck, setReplyAck] = useState<Record<string, string>>({});
+  useEffect(() => { setReplyAck(readPref(replyAckKey, {})); }, [replyAckKey]);
+  const unreadReplies = useMemo(
+    () => (profile?.is_admin ? [] : bugs.filter((b) => b.admin_response && b.responded_at && (!replyAck[b.id] || replyAck[b.id] < b.responded_at!))),
+    [profile?.is_admin, bugs, replyAck],
+  );
+  const markRepliesRead = () => {
+    const next = { ...replyAck };
+    for (const b of bugs) if (b.admin_response && b.responded_at) next[b.id] = b.responded_at;
+    setReplyAck(next); writePref(replyAckKey, next);
+  };
+  const openMyReports = () => { setShowBugs(true); markRepliesRead(); };
   const [showOfficialResults, setShowOfficialResults] = useState(false); // admin "official" poll-results archive
+  const [showUsageDash, setShowUsageDash] = useState(false); // admin residency usage graphs
   const [officialResults, setOfficialResults] = useState<OfficialPollResult[]>([]);
   const [showSrs, setShowSrs] = useState(false);          // spaced-repetition review panel
   const [srsDue, setSrsDue] = useState<SrsRow[]>([]);      // cards due right now (drives the header badge + panel queue)
@@ -693,6 +842,10 @@ export default function App() {
           setTimerSecs(clampSecs(merged.timer_secs ?? 60));
           setSecsDraft(String(clampSecs(merged.timer_secs ?? 60)));
           setSeenGuideIds(new Set(merged.seen_study_guides));
+          const learningDefaults = new Set(merged.learning_open_sections ?? ["explanation"]);
+          preferredOpenSectionsRef.current = learningDefaults;
+          setPreferredOpenSections(learningDefaults);
+          setOpenSections(new Set(learningDefaults));
         }
         setPrefsSynced(true);
       });
@@ -813,6 +966,25 @@ export default function App() {
     return () => { alive = false; };
   }, [signedIn, approved]);
 
+  // Kaplan & Sadock citations live behind the same sign-in gate as the bank
+  // (they're verbatim excerpts of a copyrighted textbook). Only ~1,600 of the
+  // ~3,600 questions have one, so a miss here is normal, not an error — the
+  // Textbook tab simply doesn't appear. A failure to load is non-fatal too:
+  // every other tab keeps working.
+  useEffect(() => {
+    if (isConfigured && !(signedIn && approved)) return;
+    let alive = true;
+    loadKaplanRefs()
+      .then((m) => { if (alive) { setKaplanRefs(m); setKaplanErr(null); } })
+      .catch((e) => {
+        // Citations are a bonus and must never block the app — but record why,
+        // so a failure is diagnosable instead of looking like "no citations".
+        if (alive) setKaplanErr(String(e?.message ?? e));
+        console.warn("[kaplan] citations failed to load:", e);
+      });
+    return () => { alive = false; };
+  }, [signedIn, approved]);
+
   const years = useMemo(
     () => (all ? Array.from(new Set(all.map((q) => q.year))).sort() : []),
     [all]
@@ -869,9 +1041,11 @@ export default function App() {
   const examActive = examMode && inPractice && !examReview;
   const showAnswer = revealed && !examActive;
 
-  // reset tab + load this question's notes (mine + group) on navigation
+  // Start each answer with the resident's account-synced defaults. Cards they
+  // open or close normally stay temporary; only the explicit "Keep open"
+  // control changes this set for future questions and future sign-ins.
   useEffect(() => {
-    setTab("explanation"); setDraft(""); setStats(null); setCard(null); setEditCard(null); setContext(null); setCrossed([]);
+    setOpenSections(new Set(preferredOpenSectionsRef.current)); setDraft(""); setStats(null); setCard(null); setEditCard(null); setContext(null); setCrossed([]);
     setAskOpen(false); setAskText("");
     if (navQid && persist) {
       getMyNote(navQid).then(setMyNote);
@@ -880,19 +1054,19 @@ export default function App() {
     } else { setMyNote(""); setGroupNotes([]); setHighlights([]); }
   }, [navQid, persist]); // eslint-disable-line
 
-  // lazy-load the shared historical-context blurb when its tab is opened
+  // lazy-load the shared historical-context blurb when its card is opened
   useEffect(() => {
-    if (tab !== "context" || !persist || context !== null) return;
+    if (!openSections.has("context") || !persist || context !== null) return;
     const cur = set[qi];
     if (cur) getQuestionContext(questionId(cur.year, cur.q_index)).then((c) => setContext(c ?? ""));
-  }, [tab, qi, persist, mode]); // eslint-disable-line
+  }, [openSections, qi, persist, mode]); // eslint-disable-line
 
-  // lazy-load the cached flashcard when the Flashcard tab is opened
+  // lazy-load the cached flashcard when the Flashcard card is opened
   useEffect(() => {
-    if (tab !== "flash" || !persist || card) return;
+    if (!openSections.has("flash") || !persist || card) return;
     const cur = set[qi];
     if (cur) getFlashcard(questionId(cur.year, cur.q_index)).then((c) => { if (c) setCard(c); });
-  }, [tab, qi, persist, mode]); // eslint-disable-line
+  }, [openSections, qi, persist, mode]); // eslint-disable-line
 
   // per-question class stats: fetch once the answer is actually shown
   useEffect(() => {
@@ -942,11 +1116,6 @@ export default function App() {
     const t = setTimeout(() => setToast(null), 2600);
     return () => clearTimeout(t);
   }, [toast]);
-
-  useEffect(() => {
-    const el = tabRefs.current[tab];
-    if (el) setInd({ left: el.offsetLeft, width: el.offsetWidth, top: el.offsetTop + el.offsetHeight - 1 });
-  }, [tab, revealed, qi]);
 
   const fire = (msg: string) => setToast(msg);
 
@@ -1312,18 +1481,45 @@ export default function App() {
 
   const hasExpl = q ? (q.explanation_text || q.explanation_images.length > 0) : false;
   const hasDiagram = q ? !!(q.diagram?.code || (q.comparison_table && q.comparison_table.rows?.length)) : false;
-  const tabs: [string, string, React.ReactNode][] = [
-    ["explanation", "Explanation", <Layers size={14} strokeWidth={2.2} />],
-    ["practice", "In practice", <Stethoscope size={14} strokeWidth={2.2} />],
-    ["context", "Context", <Lightbulb size={14} strokeWidth={2.2} />],
-    ...(hasDiagram
-      ? ([["diagram", "Diagram", <Network size={14} strokeWidth={2.2} />]] as [string, string, React.ReactNode][])
+  const mnemonics = q ? mnemonicsForQuestion(q) : [];
+  // Roughly 45% of questions have a verified textbook passage; the card is hidden
+  // entirely for the rest rather than showing an empty state on every other question.
+  const kaplan = q ? kaplanRefs[questionId(q.year, q.q_index)] : undefined;
+  const sections: [string, string, string, React.ReactNode][] = [
+    ["explanation", "Explanation", "Why this answer is correct", <Layers size={17} strokeWidth={2.1} />],
+    ...(kaplan
+      ? ([["textbook", "Textbook", "Verified Kaplan & Sadock support", <BookOpen size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
       : []),
-    ["video", "Video", <Youtube size={14} strokeWidth={2.2} />],
-    ["mine", "My notes", <NotebookPen size={14} strokeWidth={2.2} />],
-    ["group", "Group notes", <Users size={14} strokeWidth={2.2} />],
-    ["flash", "Flashcard", <Sparkles size={14} strokeWidth={2.2} />],
+    ["practice", "In practice", "See it in a clinical scenario", <Stethoscope size={17} strokeWidth={2.1} />],
+    ...(mnemonics.length
+      ? ([["mnemonic", "Mnemonic", "Quick ways to remember it", <Brain size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
+      : []),
+    ["context", "Context", "The story behind the concept", <Lightbulb size={17} strokeWidth={2.1} />],
+    ...(hasDiagram
+      ? ([["diagram", "Diagram", "Visual map and comparison", <Network size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
+      : []),
+    ["video", "Video", "Continue with a focused search", <Youtube size={17} strokeWidth={2.1} />],
+    ["mine", "My notes", "Your private study space", <NotebookPen size={17} strokeWidth={2.1} />],
+    ["group", "Group notes", "Learn with your class", <Users size={17} strokeWidth={2.1} />],
+    ["flash", "Flashcard", "Turn this into an Anki card", <Sparkles size={17} strokeWidth={2.1} />],
   ];
+  const toggleSection = (id: string) => setOpenSections((current) => {
+    const next = new Set(current);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const togglePreferredSection = (id: string) => {
+    const next = new Set(preferredOpenSectionsRef.current);
+    const willKeepOpen = !next.has(id);
+    if (willKeepOpen) next.add(id); else next.delete(id);
+    preferredOpenSectionsRef.current = next;
+    setPreferredOpenSections(next);
+    writePref("pd_learning_open_sections", [...next]);
+    schedulePrefsPush();
+    // Choosing "Keep open" should be immediately visible; removing the saved
+    // default intentionally leaves this one card's current state untouched.
+    if (willKeepOpen) setOpenSections((current) => new Set(current).add(id));
+  };
 
   const qid = q ? questionId(q.year, q.q_index) : "";
   const isAdmin = !!profile?.is_admin;
@@ -1358,7 +1554,7 @@ export default function App() {
   // touch live poll / exam state, so a stray click can't blow up a session.
   const goHome = () => {
     setShowTests(false); setShowBoard(false); setShowStats(false); setShowInsights(false);
-    setShowApprovals(false); setShowBugs(false); setShowOfficialResults(false); setShowSettings(false);
+    setShowApprovals(false); setShowBugs(false); setShowOfficialResults(false); setShowUsageDash(false); setShowSettings(false);
     setShowGuideLibrary(false); setShowDeck(false); setShowMissed(false); setShowSrs(false);
     setShowCapite(false); setOpenStudyGuideId(null); setHostFromTests(false);
     switchMode("today");
@@ -1581,6 +1777,11 @@ export default function App() {
                   <BarChart3 size={13} strokeWidth={2.3} /> <span className="btnTxt">Residency Insights</span>
                 </button>
                 {isAdmin && (
+                  <button style={s.approveBtn} className="topActBtn" onClick={() => setShowUsageDash(true)} title="Residency usage dashboard">
+                    <LayoutDashboard size={13} strokeWidth={2.3} /> <span className="btnTxt">Usage</span>
+                  </button>
+                )}
+                {isAdmin && (
                   <button style={s.approveBtn} className="topActBtn" onClick={() => setShowApprovals(true)} title="Approvals">
                     <ShieldCheck size={13} strokeWidth={2.3} /> <span className="btnTxt">Approvals</span>
                     {pendingCount > 0 && <span style={s.pendingBadge}>{pendingCount}</span>}
@@ -1593,9 +1794,9 @@ export default function App() {
                   </button>
                 )}
                 {!isAdmin && bugs.length > 0 && (
-                  <button style={s.approveBtn} className="topActBtn" onClick={() => setShowBugs(true)} title="Your bug reports & feature requests — and any replies from the admins">
+                  <button style={s.approveBtn} className="topActBtn" onClick={openMyReports} title="Your bug reports & feature requests — and any replies from the admins">
                     <Bug size={13} strokeWidth={2.3} /> <span className="btnTxt">My reports</span>
-                    {bugs.some((b) => b.admin_response) && <span style={s.pendingBadge}>{bugs.filter((b) => b.admin_response).length}</span>}
+                    {unreadReplies.length > 0 && <span style={s.pendingBadge}>{unreadReplies.length}</span>}
                   </button>
                 )}
                 {isAdmin && (
@@ -1622,7 +1823,12 @@ export default function App() {
         </div>
       </header>
 
-      <main style={examActive ? { ...s.well, maxWidth: 880 } : s.well}>
+      <main style={
+        examActive ? { ...s.well, maxWidth: 880 }
+          // Textbook pages are large screenshots — give them most of the screen width.
+          : openSections.has("textbook") && showAnswer ? { ...s.well, maxWidth: 1100 }
+          : s.well
+      }>
         {/* Navigation / filter row */}
         <div style={s.nav} className={examActive ? "examDim" : undefined}>
           {persist && (
@@ -1638,8 +1844,14 @@ export default function App() {
               </button>
             </div>
           )}
-          <button style={s.deckBtn} className="mobExtra" onClick={() => setShowDeck(true)} title="Search & filter questions">
-            <Search size={13} strokeWidth={2.4} /> Search
+          {/* Not behind the mobile Menu: this is the one control that answers
+              "give me my wrong ones" / "give me ones I haven't done", and a
+              resident asked for it because they couldn't find it on a phone. */}
+          <button style={s.deckBtn} onClick={() => setShowDeck(true)} title="Filter questions by topic, year, or your own history — the ones you missed, or the ones you've never tried">
+            <Search size={13} strokeWidth={2.4} /> Filter
+          </button>
+          <button style={s.deckBtn} className="mobExtra" onClick={() => setShowAudioDrills(true)} title="Listen to active-recall questions by topic">
+            <Volume2 size={13} strokeWidth={2.4} /> Listen
           </button>
           <button
             className="mobExtra"
@@ -1689,14 +1901,6 @@ export default function App() {
                   />
                 </span>
               </span>
-              {missedOutstanding > 0 && (
-                <button style={s.missChip} className="mobExtra" onClick={openMissed} title="Read & review your missed questions">
-                  <span className="flameFlicker"><Flame size={12} strokeWidth={2.2} color={T.gold} /></span>
-                  <span>
-                    {missedOutstanding} learning {missedOutstanding === 1 ? "opportunity" : "opportunities"}
-                  </span>
-                </button>
-              )}
             </>
           ) : inCustom ? (
             <span style={s.todayProg}>
@@ -1714,6 +1918,15 @@ export default function App() {
                 <option key={y} value={y}>{y} ({all.filter((x) => x.year === y).length})</option>
               ))}
             </select>
+          )}
+          {/* Redo-my-misses lives outside the mode branch (and outside the
+              mobile Menu) — it used to only appear in Today on a wide screen,
+              which is why residents thought the feature didn't exist. */}
+          {persist && missedOutstanding > 0 && (
+            <button style={s.missChip} onClick={openMissed} title="The questions you got wrong — read them over or take another crack at them">
+              <span className="flameFlicker"><Flame size={12} strokeWidth={2.2} color={T.gold} /></span>
+              <span>Redo {missedOutstanding} missed</span>
+            </button>
           )}
           {set.length > 0 && (
             <div style={s.navMid}>
@@ -1817,8 +2030,13 @@ export default function App() {
             <span style={s.doneIcon}><Check size={15} strokeWidth={3} color="#fff" /></span>
             <span><b>That's your {target} for today.</b> Nice work — come back tomorrow for a fresh set.</span>
             <button style={s.doneBtn} onClick={() => { buildToday(true); setQi(0); }}><RotateCcw size={13} strokeWidth={2.3} /> Another set</button>
-            <button style={{ ...s.doneBtn, background: "transparent" }} onClick={() => switchMode("browse")}>Browse all</button>
-            <button style={{ ...s.doneBtn, background: "transparent" }} onClick={() => setReward(true)} title="Pick a little reward"><Flame size={13} strokeWidth={2.3} /> Reward</button>
+            {missedOutstanding > 0 && (
+              <button style={{ ...s.doneBtn, marginLeft: 0, background: "transparent" }} onClick={() => { startReview(); fire("Retrying the ones you missed"); }} title="Take another crack at the questions you got wrong">
+                <Flame size={13} strokeWidth={2.3} /> Redo {missedOutstanding} missed
+              </button>
+            )}
+            <button style={{ ...s.doneBtn, marginLeft: 0, background: "transparent" }} onClick={() => switchMode("browse")}>Browse all</button>
+            <button style={{ ...s.doneBtn, marginLeft: 0, background: "transparent" }} onClick={() => setReward(true)} title="Pick a little reward"><Flame size={13} strokeWidth={2.3} /> Reward</button>
           </div>
         )}
 
@@ -1839,19 +2057,23 @@ export default function App() {
         {/* Question card */}
         <section style={examActive ? { ...s.qcard, marginTop: 30, padding: "36px 38px 30px" } : s.qcard}>
           {q.figure_images.filter((p) => imgSrc(p)).length > 0 && (
-            <div style={s.figRow}>
-              {q.figure_images.filter((p) => imgSrc(p)).map((p, i) => (
-                <img
-                  key={i}
-                  src={imgSrc(p)}
-                  alt="question figure (click to enlarge)"
-                  style={{ ...s.figImg, cursor: "zoom-in" }}
-                  loading="lazy"
-                  onClick={() => setZoomImg(imgSrc(p))}
-                  title="Click to enlarge"
-                />
-              ))}
-            </div>
+            <>
+              <div style={s.figRow}>
+                {q.figure_images.filter((p) => imgSrc(p)).map((p, i) => (
+                  <AuditedQuestionImage
+                    key={i}
+                    q={q}
+                    path={p}
+                    kind="figure"
+                    index={i}
+                    alt="question figure (click to enlarge)"
+                    style={{ ...s.figImg, cursor: "zoom-in" }}
+                    onZoom={setZoomImg}
+                    showCredit={showAnswer}
+                  />
+                ))}
+              </div>
+            </>
           )}
           {/* keyed by question id so the stem + options replay their entrance
               cascade on every navigation (figures stay outside — remounting
@@ -2043,38 +2265,96 @@ export default function App() {
           </div>
         )}
 
-        {/* Tabs */}
+        {/* Scrollable learning stack — all of the answer's supporting material
+            stays visible as a table of contents instead of disappearing behind tabs. */}
         {showAnswer && (
           <section style={s.below}>
-            <nav style={s.tabs}>
-              {tabs.map(([id, label, icon]) => (
+            <div style={s.learningHead} className="learningHead">
+              <div>
+                <span style={s.learningEyebrow}>Learning guide</span>
+                <h3 style={s.learningTitle}>Build out the answer</h3>
+                <p style={s.learningHint}>Choose <b>Keep open</b> on any card to save your defaults across devices.</p>
+              </div>
+              <div style={s.learningActions} className="learningActions">
                 <button
-                  key={id}
-                  ref={(el) => (tabRefs.current[id] = el)}
-                  onClick={() => setTab(id)}
-                  style={{ ...s.tab, ...(tab === id ? s.tabActive : {}) }}
-                  className="tab"
+                  style={s.learningAction}
+                  onClick={() => setOpenSections(new Set(sections.map(([id]) => id)))}
                 >
-                  {icon}{label}
-                  {id === "group" && groupNotes.length > 0 && <span style={s.tabCount}>{groupNotes.length}</span>}
+                  Expand all
                 </button>
-              ))}
-              <span className="tabInd" style={{ ...s.tabInd, left: ind.left, width: ind.width, top: ind.top }} />
-            </nav>
+                <button style={s.learningAction} onClick={() => setOpenSections(new Set())}>Collapse all</button>
+              </div>
+            </div>
 
-            <div style={s.panel}>
-              {tab === "explanation" && (
+            <div style={s.learningStack}>
+              {sections.map(([id, label, summary, icon], sectionIndex) => {
+                const isOpen = openSections.has(id);
+                const isKeptOpen = preferredOpenSections.has(id);
+                const bodyId = `learning-${q.year}-${q.q_index}-${id}`;
+                return (
+                  <article
+                    key={id}
+                    className={`learningCard learningCardIn${isOpen ? " learningCardOpen" : ""}`}
+                    style={{ ...s.learningCard, animationDelay: `${Math.min(sectionIndex * 35, 245)}ms` }}
+                  >
+                    <div className="learningCardHeader" style={s.learningCardHeader}>
+                      <button
+                        type="button"
+                        className="learningCardButton"
+                        style={s.learningCardButton}
+                        onClick={() => toggleSection(id)}
+                        aria-expanded={isOpen}
+                        aria-controls={bodyId}
+                      >
+                        <span style={{ ...s.learningIndex, ...(isOpen ? s.learningIndexOpen : {}) }}>
+                          {String(sectionIndex + 1).padStart(2, "0")}
+                        </span>
+                        <span style={{ ...s.learningIcon, ...(isOpen ? s.learningIconOpen : {}) }}>{icon}</span>
+                        <span style={s.learningCardText}>
+                          <span style={s.learningCardTitle}>{label}</span>
+                          <span style={s.learningCardSummary}>{summary}</span>
+                        </span>
+                        {id === "group" && groupNotes.length > 0 && <span style={s.learningCount}>{groupNotes.length}</span>}
+                        <ChevronDown
+                          className="learningChevron"
+                          style={{ ...s.learningChevron, transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+                          size={18}
+                          strokeWidth={2.2}
+                        />
+                      </button>
+                      <button
+                        type="button"
+                        className={`learningKeep${isKeptOpen ? " learningKeepOn" : ""}`}
+                        style={{ ...s.learningKeep, ...(isKeptOpen ? s.learningKeepOn : {}) }}
+                        onClick={() => togglePreferredSection(id)}
+                        aria-pressed={isKeptOpen}
+                        aria-label={`${isKeptOpen ? "Stop keeping" : "Keep"} ${label} open by default`}
+                        title={`${isKeptOpen ? "Remove" : "Save"} this section as an open-by-default preference`}
+                      >
+                        <Pin size={13} strokeWidth={2.2} fill={isKeptOpen ? "currentColor" : "none"} />
+                        <span className="learningKeepLabel">{isKeptOpen ? "Kept open" : "Keep open"}</span>
+                      </button>
+                    </div>
+                    <div
+                      id={bodyId}
+                      role="region"
+                      aria-label={label}
+                      className={`learningBody${isOpen ? " learningBodyOpen" : ""}`}
+                    >
+                      <div style={s.learningBodyInner} className="learningBodyInner">
+              {id === "explanation" && (
                 <div className="fade">
-                  {q.explanation_text && <p style={s.expl}>{q.explanation_text}</p>}
+                  {q.explanation_text && <ExplanationText text={q.explanation_text} style={s.expl} />}
                   {q.explanation_images.filter((p) => imgSrc(p)).map((p, i) => (
-                    <img
+                    <AuditedQuestionImage
                       key={i}
-                      src={imgSrc(p)}
+                      q={q}
+                      path={p}
+                      kind="explanation"
+                      index={i}
                       alt="explanation (click to enlarge)"
                       style={{ ...s.explImg, cursor: "zoom-in" }}
-                      loading="lazy"
-                      onClick={() => setZoomImg(imgSrc(p))}
-                      title="Click to enlarge"
+                      onZoom={setZoomImg}
                     />
                   ))}
                   {!hasExpl && (
@@ -2086,11 +2366,18 @@ export default function App() {
                 </div>
               )}
 
-              {tab === "practice" && (
+              {id === "textbook" && kaplan && (
+                <div className="fade">
+                  <KaplanPanel data={kaplan} theme={T} onZoom={setZoomImg} />
+                </div>
+              )}
+
+              {id === "practice" && (
                 <div className="fade">
                   {q.clinical_application ? (
                     <>
                       <label style={s.lbl}>How a resident would use this — an example scenario</label>
+                      <ScenarioIllustration year={q.year} qIndex={q.q_index} onZoom={setZoomImg} />
                       <p style={s.expl}>{q.clinical_application}</p>
                     </>
                   ) : (
@@ -2102,7 +2389,19 @@ export default function App() {
                 </div>
               )}
 
-              {tab === "context" && (
+              {id === "mnemonic" && mnemonics.length > 0 && (
+                <div className="fade">
+                  <label style={s.lbl}><Brain size={13} strokeWidth={2.2} /> Memory aids for this topic</label>
+                  <div style={{ display: "grid", gap: 14 }}>
+                    {mnemonics.map((mnemonic) => <MnemonicCard key={mnemonic.id} mnemonic={mnemonic} />)}
+                  </div>
+                  <p style={{ ...s.videoNote, marginTop: 14 }}>
+                    Mnemonics are recall aids, not diagnostic criteria. Verify the complete criteria and clinical context.
+                  </p>
+                </div>
+              )}
+
+              {id === "context" && (
                 <div className="fade">
                   <label style={s.lbl}><Lightbulb size={13} strokeWidth={2.2} /> Historical &amp; memorable context — the story behind the answer</label>
                   {context === null ? (
@@ -2118,7 +2417,7 @@ export default function App() {
                 </div>
               )}
 
-              {tab === "video" && (
+              {id === "video" && (
                 <div className="fade">
                   <label style={s.lbl}>Related videos · opens a YouTube search in a new tab</label>
                   <a
@@ -2142,7 +2441,7 @@ export default function App() {
                 </div>
               )}
 
-              {tab === "diagram" && (
+              {id === "diagram" && (
                 <div className="fade">
                   {q.diagram?.code && (
                     <div style={{ marginBottom: q.comparison_table ? 22 : 0 }}>
@@ -2181,7 +2480,7 @@ export default function App() {
                 </div>
               )}
 
-              {tab === "mine" && (
+              {id === "mine" && (
                 <div className="fade">
                   <label style={s.lbl}>Private to you · saved to your account</label>
                   <textarea
@@ -2200,7 +2499,7 @@ export default function App() {
                 </div>
               )}
 
-              {tab === "group" && (
+              {id === "group" && (
                 <div className="fade">
                   <div style={s.threadHead}>
                     <label style={s.lbl}>Shared with your class · attributed</label>
@@ -2246,7 +2545,7 @@ export default function App() {
                 </div>
               )}
 
-              {tab === "flash" && (
+              {id === "flash" && (
                 <div className="fade">
                   {!card && !editCard && (
                     <div style={s.flashEmpty}>
@@ -2300,6 +2599,11 @@ export default function App() {
                   )}
                 </div>
               )}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
 
             <div style={s.nextRow}>
@@ -2459,6 +2763,9 @@ export default function App() {
       )}
       {birdOn && <BirdFlight onDone={() => setBirdOn(false)} />}
 
+      {showUsageDash && isAdmin && (
+        <AdminUsageDashboard onClose={() => setShowUsageDash(false)} />
+      )}
       {showOfficialResults && isAdmin && (
         <OfficialResultsPanel
           results={officialResults}
@@ -2489,6 +2796,9 @@ export default function App() {
         <DeckBuilder
           all={all} byId={byId} fire={fire}
           usedGroupKeys={usedGroupKeys}
+          answers={answers}
+          kaplanRefs={kaplanRefs}
+          kaplanErr={kaplanErr}
           onClose={() => setShowDeck(false)}
           onOpen={(qid) => {
             const idx = all.findIndex((qq) => questionId(qq.year, qq.q_index) === qid);
@@ -2506,6 +2816,7 @@ export default function App() {
           }}
         />
       )}
+      {showAudioDrills && all && <AudioDrillsPanel all={all} onClose={() => setShowAudioDrills(false)} fire={fire} />}
 
       {showTests && (
         <TestsPanel
@@ -2654,16 +2965,7 @@ export default function App() {
       )}
 
       {zoomImg && (
-        <div style={{ ...s.scrim, cursor: "zoom-out" }} onClick={() => setZoomImg(null)}>
-          <img src={zoomImg} alt="Enlarged" style={{ ...s.zoomImg, cursor: "zoom-out" }} />
-          <button
-            style={{ ...s.close, position: "absolute", top: 18, right: 18 }}
-            onClick={() => setZoomImg(null)}
-            title="Close"
-          >
-            <X size={16} strokeWidth={2.4} />
-          </button>
-        </div>
+        <ZoomLightbox src={zoomImg} alt="Enlarged" onClose={() => setZoomImg(null)} />
       )}
 
       {teamModePrompt !== false && (
@@ -2723,6 +3025,24 @@ export default function App() {
       )}
 
       {toast && <div style={s.toast} className="toast">{toast}</div>}
+
+      {/* actionable reply notification — persists until read or dismissed */}
+      {!isAdmin && unreadReplies.length > 0 && !showBugs && (
+        <div style={s.replyToast} className="toast" role="status" aria-live="polite">
+          <button style={s.replyToastMain} onClick={openMyReports}>
+            <span style={s.replyToastIcon}><Mail size={15} strokeWidth={2.4} /></span>
+            <span>
+              {unreadReplies.length === 1
+                ? "An admin replied to your report"
+                : `The admins replied to ${unreadReplies.length} of your reports`}
+              <span style={s.replyToastCta}> — tap to read</span>
+            </span>
+          </button>
+          <button style={s.replyToastX} onClick={markRepliesRead} aria-label="Dismiss" title="Dismiss">
+            <X size={15} strokeWidth={2.6} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -3269,13 +3589,32 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
   // A quick fun-gif "drumroll" beat between ending the poll and the standings
   // actually appearing — set to a gif URL to show it; auto-advances to the
   // standings screen a couple seconds later (or immediately on tap/click).
+  // Timer starts only after the gif has loaded so a slow/heavy file doesn't
+  // flash a frozen first frame and then cut to standings mid-download.
   const [drumrollGif, setDrumrollGif] = useState<string | null>(null);
-  const finishPoll = () => setDrumrollGif(nextPollDrumrollGif());
+  const [drumrollReady, setDrumrollReady] = useState(false);
+  // Bumps on each Finish so React remounts the <img> and the gif restarts from
+  // frame 0. Keeps the URL stable so the prefetched browser cache still hits.
+  const [drumrollKey, setDrumrollKey] = useState(0);
+  const finishPoll = () => {
+    setDrumrollReady(false);
+    setDrumrollKey((k) => k + 1);
+    setDrumrollGif(nextPollDrumrollGif());
+  };
+  // Prefetch the celebration pool while the host is running the poll so Finish
+  // is almost always instant and animated.
+  useEffect(() => { prefetchPollDrumrollGifs(); }, []);
   useEffect(() => {
-    if (!drumrollGif) return;
-    const t = setTimeout(() => { setDrumrollGif(null); setFinished(true); }, 2200);
+    if (!drumrollGif || !drumrollReady) return;
+    const t = setTimeout(() => { setDrumrollGif(null); setDrumrollReady(false); setFinished(true); }, 2800);
     return () => clearTimeout(t);
-  }, [drumrollGif]);
+  }, [drumrollGif, drumrollReady]);
+  // Safety: if the gif never loads (blocked CDN, offline), don't trap the host.
+  useEffect(() => {
+    if (!drumrollGif || drumrollReady) return;
+    const t = setTimeout(() => { setDrumrollGif(null); setDrumrollReady(false); setFinished(true); }, 6000);
+    return () => clearTimeout(t);
+  }, [drumrollGif, drumrollReady]);
   const [showAnswerKey, setShowAnswerKey] = useState(false); // answer key on the finish screen (hidden by default)
   const [standingsFontSize, setStandingsFontSize] = useState(20); // adjustable text size for the answer-key stem/options/explanation
   const [pollStemScale, setPollStemScale] = useState(1.8); // adjustable text size for the question, independent of the choices (default 180% for room readability)
@@ -3854,13 +4193,12 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
                           {qq.explanation_text || qq.explanation_images.length > 0 ? (
                             <>
                               {qq.explanation_text && (
-                                <p style={{ margin: "0 0 10px", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: standingsFontSize, lineHeight: 1.6, color: "#aeb4c0", whiteSpace: "pre-wrap" }}>{qq.explanation_text}</p>
+                                <ExplanationText text={qq.explanation_text} accent="#8fd9b6" style={{ margin: "0 0 10px", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: standingsFontSize, lineHeight: 1.6, color: "#aeb4c0" }} />
                               )}
                               {qq.explanation_images.filter((p) => imgSrc(p)).map((p, i) => (
-                                <img
-                                  key={i} src={imgSrc(p)} alt="explanation" loading="lazy"
-                                  title="Click to enlarge"
-                                  onClick={() => setZoomImg(imgSrc(p))}
+                                <AuditedQuestionImage
+                                  key={i} q={qq} path={p} kind="explanation" index={i} alt="explanation"
+                                  onZoom={setZoomImg} dark
                                   style={{ ...s.explImg, maxWidth: 420, maxHeight: 240, width: "auto", height: "auto", objectFit: "contain", cursor: "zoom-in" }}
                                 />
                               ))}
@@ -4021,12 +4359,12 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
               )}
             </div>
             {q.explanation_text && (
-              <p style={{ margin: 0, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: `calc(clamp(16px, 1.7vw, 22px) * ${pollStemScale})`, lineHeight: 1.6, color: "#dfe3ea", whiteSpace: "pre-wrap" }}>{q.explanation_text}</p>
+              <ExplanationText text={q.explanation_text} style={{ margin: 0, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: `calc(clamp(16px, 1.7vw, 22px) * ${pollStemScale})`, lineHeight: 1.6, color: "#dfe3ea" }} />
             )}
             {q.explanation_images.filter((p) => imgSrc(p)).map((p, i) => (
-              <img
-                key={i} src={imgSrc(p)} alt="explanation" loading="lazy"
-                title="Click to enlarge" onClick={() => setZoomImg(imgSrc(p))}
+              <AuditedQuestionImage
+                key={i} q={q} path={p} kind="explanation" index={i} alt="explanation"
+                onZoom={setZoomImg} dark
                 style={{ ...s.explImg, maxWidth: 780 * explImgScale, maxHeight: 460 * explImgScale, width: "auto", height: "auto", objectFit: "contain", cursor: "zoom-in", marginTop: 12 }}
               />
             ))}
@@ -4085,20 +4423,50 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
       )}
 
       {zoomImg && (
-        <div style={s.qrOverlay} onClick={() => setZoomImg(null)}>
-          <img src={zoomImg} alt="Explanation, enlarged" style={s.zoomImg} onClick={(e) => e.stopPropagation()} />
-          <button style={{ ...s.pollClose, position: "absolute", top: 20, right: 20 }} onClick={() => setZoomImg(null)} title="Close"><X size={18} strokeWidth={2.4} /></button>
-        </div>
+        <ZoomLightbox src={zoomImg} alt="Explanation, enlarged" onClose={() => setZoomImg(null)} />
       )}
 
       {drumrollGif && (
         <div
-          style={{ ...s.qrOverlay, zIndex: 96, flexDirection: "column", gap: 16, cursor: "pointer" }}
-          onClick={() => { setDrumrollGif(null); setFinished(true); }}
+          style={{
+            ...s.qrOverlay,
+            zIndex: 96,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 20,
+            cursor: "pointer",
+            padding: "min(4vh, 32px) min(3vw, 24px)",
+          }}
+          onClick={() => { setDrumrollGif(null); setDrumrollReady(false); setFinished(true); }}
           title="Tap to skip"
         >
-          <img src={drumrollGif} alt="" style={{ maxWidth: "min(94vw, 1200px)", maxHeight: "82vh", width: "auto", height: "auto", objectFit: "contain", borderRadius: 18, boxShadow: "0 40px 100px -20px rgba(0,0,0,.75)" }} />
-          <span style={{ color: "#fff", fontSize: "clamp(22px, 3.2vw, 40px)", fontWeight: 800, letterSpacing: 0.3 }}>🥁 And the standings are…</span>
+          {/* Giphy originals are often only 200–500px wide. Force a large display
+              box and let object-fit scale the gif UP so it fills a classroom
+              projector / desktop, instead of sitting as a tiny native-size image. */}
+          <img
+            key={drumrollKey}
+            src={drumrollGif}
+            alt=""
+            onLoad={() => setDrumrollReady(true)}
+            onError={() => { setDrumrollGif(null); setDrumrollReady(false); setFinished(true); }}
+            style={{
+              width: "min(92vw, 1100px)",
+              height: "min(78vh, 720px)",
+              maxWidth: "92vw",
+              maxHeight: "78vh",
+              objectFit: "contain",
+              borderRadius: 18,
+              boxShadow: "0 40px 100px -20px rgba(0,0,0,.75)",
+              background: "rgba(0,0,0,.25)",
+              opacity: drumrollReady ? 1 : 0.35,
+              transition: "opacity .2s ease",
+            }}
+          />
+          <span style={{ color: "#fff", fontSize: "clamp(22px, 3.2vw, 40px)", fontWeight: 800, letterSpacing: 0.3 }}>
+            {drumrollReady ? "🥁 And the standings are…" : "🥁 Drumroll…"}
+          </span>
         </div>
       )}
 
@@ -4166,7 +4534,12 @@ function PollExtras({ q }: { q: RawQuestion }) {
         {chip("video", "Video", <Youtube size={12} strokeWidth={2.3} />)}
         {chip("ai", "Ask AI", <Sparkles size={12} strokeWidth={2.3} />)}
       </div>
-      {open === "practice" && <p style={s.pollExtraBody}>{q.clinical_application}</p>}
+      {open === "practice" && (
+        <>
+          <ScenarioIllustration year={q.year} qIndex={q.q_index} maxWidth={300} />
+          <p style={s.pollExtraBody}>{q.clinical_application}</p>
+        </>
+      )}
       {open === "context" && (
         <p style={s.pollExtraBody}>{!ctxLoaded || ctx === null ? "Loading…" : ctx || "No extra context has been written for this question yet."}</p>
       )}
@@ -4468,8 +4841,10 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                   </p>
                   <div style={s.joinExplBox}>
                     <span style={s.joinExplLabel}><Lightbulb size={13} strokeWidth={2.3} /> Explanation</span>
-                    {rq.explanation_text && <p style={s.joinExpl}>{rq.explanation_text}</p>}
-                    {rq.explanation_images.map((src, i) => <img key={i} src={src} alt="" style={{ ...s.joinExplImg, cursor: "zoom-in" }} onClick={() => setZoomImg(src)} />)}
+                    {rq.explanation_text && <ExplanationText text={rq.explanation_text} accent="#8fd9b6" style={s.joinExpl} />}
+                    {rq.explanation_images.filter((src) => imgSrc(src)).map((src, i) => (
+                      <AuditedQuestionImage key={i} q={rq} path={src} kind="explanation" index={i} alt="explanation" style={{ ...s.joinExplImg, cursor: "zoom-in" }} onZoom={setZoomImg} dark />
+                    ))}
                     {!rq.explanation_text && rq.explanation_images.length === 0 && <p style={{ ...s.joinExpl, fontStyle: "italic", color: "#8a9099" }}>No explanation slide — see the extras below.</p>}
                     <PollExtras q={rq} />
                   </div>
@@ -4566,8 +4941,10 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                   return (
                     <div style={s.joinExplBox}>
                       <span style={s.joinExplLabel}><Lightbulb size={13} strokeWidth={2.3} /> Explanation</span>
-                      {cq.explanation_text && <p style={s.joinExpl}>{cq.explanation_text}</p>}
-                      {cq.explanation_images.map((src, i) => <img key={i} src={src} alt="" style={{ ...s.joinExplImg, cursor: "zoom-in" }} onClick={() => setZoomImg(src)} />)}
+                      {cq.explanation_text && <ExplanationText text={cq.explanation_text} accent="#8fd9b6" style={s.joinExpl} />}
+                      {cq.explanation_images.filter((src) => imgSrc(src)).map((src, i) => (
+                        <AuditedQuestionImage key={i} q={cq} path={src} kind="explanation" index={i} alt="explanation" style={{ ...s.joinExplImg, cursor: "zoom-in" }} onZoom={setZoomImg} dark />
+                      ))}
                       {!cq.explanation_text && cq.explanation_images.length === 0 && <p style={{ ...s.joinExpl, fontStyle: "italic", color: "#8a9099" }}>No explanation slide — see the extras below.</p>}
                       <PollExtras q={cq} />
                     </div>
@@ -4647,10 +5024,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
       </div>
 
       {zoomImg && (
-        <div style={s.qrOverlay} onClick={() => setZoomImg(null)}>
-          <img src={zoomImg} alt="Explanation, enlarged" style={s.zoomImg} onClick={(e) => e.stopPropagation()} />
-          <button style={{ ...s.pollClose, position: "absolute", top: 20, right: 20 }} onClick={() => setZoomImg(null)} title="Close"><X size={18} strokeWidth={2.4} /></button>
-        </div>
+        <ZoomLightbox src={zoomImg} alt="Explanation, enlarged" onClose={() => setZoomImg(null)} />
       )}
     </div>
   );
@@ -4947,11 +5321,11 @@ function Pending({ email, status }: { email: string; status: string }) {
       <GateBackdrop />
       <div style={s.gateCard}>
         <span style={{ ...s.gateMark, background: T.gold }}><Clock size={22} strokeWidth={2.3} color="#fff" /></span>
-        <h1 style={s.gateTitle}>{status === "blocked" ? "Access blocked" : "Awaiting approval"}</h1>
+        <h1 style={s.gateTitle}>{status === "blocked" ? "Access not available" : "Awaiting approval"}</h1>
         <p style={s.gateSub}>
           You’re signed in as <b style={{ color: "#fff" }}>{email}</b>.{" "}
           {status === "blocked"
-            ? "An admin has blocked this account."
+            ? "This site is for internal residency use only (PRITE questions are copyrighted). If you believe this is a mistake, email correllsoftware@gmail.com."
             : "An admin needs to approve you before you can start. You’ll get in as soon as they do."}
         </p>
         <button style={s.googleBtn} onClick={() => signOut()}><LogOut size={15} strokeWidth={2.2} /> Sign out</button>
@@ -5254,10 +5628,28 @@ function Approvals({
   const [addLast, setAddLast] = useState("");
   const [addYear, setAddYear] = useState(String(ayEnd + 4)); // default: incoming intern class
   const [rosterMsg, setRosterMsg] = useState<string | null>(null);
+  const [decliningId, setDecliningId] = useState<string | null>(null);
+  const [declineMsg, setDeclineMsg] = useState<string | null>(null);
   useEffect(() => {
     listRosterNames().then(setRoster);
     listStudyGuideCreators().then(setCreators);
   }, []);
+
+  // Block the account and email a polite copyright / residency-only notice.
+  const decline = async (p: Profile) => {
+    const who = p.full_name || p.email;
+    if (!window.confirm(
+      `Decline ${who}?\n\nThey'll be blocked and emailed that PRITE questions are copyrighted and for internal residency use only. Contact listed: correllsoftware@gmail.com.`
+    )) return;
+    setDecliningId(p.id);
+    setDeclineMsg(null);
+    const err = await declineAccess(p.id);
+    setDecliningId(null);
+    onRefresh();
+    setDeclineMsg(err
+      ? `Declined, but: ${err}`
+      : `Declined ${who} and sent the copyright notice email.`);
+  };
 
   const rosterEntries = (roster ?? []).map((r) => ({ first: r.first_name, last: r.last_name, year: r.class_year ?? "" }));
   // Prefer the live table for the "on roster" badge; the hardcoded mirror in
@@ -5327,8 +5719,21 @@ function Approvals({
           <div style={s.apEmail}>{p.email} · {roleLabel}{p.status !== "pending" ? ` · ${p.status}` : ""}</div>
         </div>
         <div style={s.apActions}>
-          {p.status !== "approved" && (
+          {p.status !== "approved" && p.status !== "blocked" && (
             <button style={s.apApprove} onClick={() => onAct(p.id, { status: "approved" })}>Approve</button>
+          )}
+          {p.status === "pending" && !isSelf && (
+            <button
+              style={s.apDecline}
+              disabled={decliningId === p.id}
+              title="Block this request and email a polite notice that PRITE questions are copyrighted and for internal residency use only"
+              onClick={() => decline(p)}
+            >
+              {decliningId === p.id ? "Declining…" : "Decline"}
+            </button>
+          )}
+          {p.status === "blocked" && (
+            <button style={s.apApprove} onClick={() => onAct(p.id, { status: "approved" })}>Unblock</button>
           )}
           {p.status === "approved" && (
             <>
@@ -5405,8 +5810,9 @@ function Approvals({
               </button>
             </>
           )}
-          {p.status !== "blocked" && !isSelf && (
-            <button style={s.apBlock} title="Block" onClick={() => onAct(p.id, { status: "blocked" })}>
+          {/* Silent block (no email) — for removing existing members without a notice. Pending users use Decline instead. */}
+          {p.status === "approved" && !isSelf && (
+            <button style={s.apBlock} title="Block without emailing" onClick={() => onAct(p.id, { status: "blocked" })}>
               <X size={14} strokeWidth={2.4} />
             </button>
           )}
@@ -5432,6 +5838,12 @@ function Approvals({
           <div style={s.apBody}>
             <div style={s.apSectionLbl}>Pending {pending.length > 0 && <span style={s.pendingBadge}>{pending.length}</span>}</div>
             {pending.length ? pending.map(row) : <p style={s.apEmpty}>No one waiting. Residents whose Google name matches the roster are approved automatically.</p>}
+            {pending.length > 0 && (
+              <p style={{ ...s.apEmpty, marginTop: 8, fontStyle: "normal" }}>
+                <b>Decline</b> blocks the request and emails a polite notice that PRITE questions are copyrighted and for internal residency use only (contact: correllsoftware@gmail.com).
+              </p>
+            )}
+            {declineMsg && <p style={{ ...s.apEmpty, marginTop: 10, fontStyle: "normal", color: T.text }}>{declineMsg}</p>}
             {others.length > 0 && <div style={{ ...s.apSectionLbl, marginTop: 18 }}>Members</div>}
             {others.map(row)}
           </div>
@@ -6056,8 +6468,343 @@ function Insights({ onClose }: { onClose: () => void }) {
   );
 }
 
+/* How a question sits with the person studying: never attempted, missed on the
+   last attempt, or answered right. Drives the "Your history" filter and the
+   one-click quick-start presets at the top of the builder — the two questions
+   residents actually ask ("give me my wrong ones" / "give me new ones"). */
+type ProgressFilter = "all" | "unseen" | "missed" | "correct";
+const progressLabel: Record<ProgressFilter, string> = {
+  all: "New & already-answered",
+  unseen: "Haven't tried yet",
+  missed: "Got wrong",
+  correct: "Got right",
+};
+
+type AudioExportVariant = {
+  playback_rate: number;
+  between_question_seconds?: number;
+  path: string;
+  filename: string;
+  bytes: number;
+  duration_seconds: number;
+  parts?: { path: string; filename: string; bytes: number; offset?: number }[];
+};
+
+type AudioExportEntry = Omit<AudioExportVariant, "playback_rate"> & {
+  scope_key: string;
+  topic: string;
+  question_count: number;
+  variants?: AudioExportVariant[];
+};
+
+const AUDIO_PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2] as const;
+const AUDIO_VOLUME_GAINS = [1, 1.1, 1.25, 1.5] as const;
+
+function AudioDrillsPanel({ all, onClose, fire }: { all: RawQuestion[]; onClose: () => void; fire: (m: string) => void }) {
+  const [topic, setTopic] = useState("all");
+  const [count, setCount] = useState<number | "all">(20);
+  const [recallSecs, setRecallSecs] = useState(4);
+  const [transitionSecs, setTransitionSecs] = useState(1);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const [volumeGain, setVolumeGain] = useState(1.25);
+  const [order, setOrder] = useState<"shuffle" | "bank">("shuffle");
+  const [shuffleSeed, setShuffleSeed] = useState(0);
+  const [playState, setPlayState] = useState<"idle" | "loading" | "playing">("idle");
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [playbackTotal, setPlaybackTotal] = useState(0);
+  const [playbackPhase, setPlaybackPhase] = useState<"question" | "thinking" | "answer" | "between" | null>(null);
+  const [savedProgress, setSavedProgress] = useState<AudioReviewProgress[]>([]);
+  const [exports, setExports] = useState<AudioExportEntry[]>([]);
+  const [downloadBusy, setDownloadBusy] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<{ current: number; total: number } | null>(null);
+  const [downloadRate, setDownloadRate] = useState(1);
+  const [downloadGap, setDownloadGap] = useState(1);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioGainRef = useRef<GainNode | null>(null);
+  const audioSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const finishCurrent = useRef<(() => void) | null>(null);
+  const stopped = useRef(false);
+  const playbackRun = useRef(0);
+  const activeSession = useRef<Omit<AudioReviewProgress, "user_id" | "updated_at"> | null>(null);
+  // The parent passes onClose inline, so its identity changes whenever a toast
+  // or other parent state updates. Keep the latest callback in a ref: an effect
+  // keyed to onClose would run its cleanup on every such render and stop audio
+  // immediately after the "Playing…" toast appears.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const byQuestionId = useMemo(() => new Map(all.map((q) => [questionId(q.year, q.q_index), q])), [all]);
+  const topics = useMemo(() => Array.from(new Set(all.flatMap((q) => q.tags?.topics ?? []))).sort(), [all]);
+  const matching = useMemo(() => all.filter((q) => topic === "all" || (q.tags?.topics ?? []).includes(topic)), [all, topic]);
+  const chosen = useMemo(() => {
+    const pool = [...matching];
+    if (order === "shuffle") {
+      // Fisher-Yates gives each new session a fresh mix without changing the
+      // underlying question bank or the user's selected topic.
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+    }
+    return pool.slice(0, count === "all" ? pool.length : count);
+  }, [matching, count, order, shuffleSeed]);
+  const currentProgress = useMemo(
+    () => savedProgress.find((p) => p.scope_key === topic && !p.completed && p.current_index < p.question_ids.length) ?? null,
+    [savedProgress, topic],
+  );
+  const currentExport = useMemo(() => exports.find((e) => e.scope_key === topic) ?? null, [exports, topic]);
+  const currentExportVariants = useMemo<AudioExportVariant[]>(() => {
+    if (!currentExport) return [];
+    const variants = currentExport.variants?.length
+      ? currentExport.variants
+      : [{ playback_rate: 1, path: currentExport.path, filename: currentExport.filename, bytes: currentExport.bytes, duration_seconds: currentExport.duration_seconds }];
+    return variants.map((variant) => ({ ...variant, between_question_seconds: variant.between_question_seconds ?? currentExport.between_question_seconds ?? 1 }));
+  }, [currentExport]);
+  const downloadGapOptions = useMemo(() => [...new Set(currentExportVariants.map((variant) => variant.between_question_seconds ?? 1))].sort(), [currentExportVariants]);
+  const currentGapVariants = useMemo(() => currentExportVariants.filter((variant) => (variant.between_question_seconds ?? 1) === downloadGap), [currentExportVariants, downloadGap]);
+  const currentExportVariant = currentGapVariants.find((variant) => variant.playback_rate === downloadRate) ?? currentGapVariants[0] ?? null;
+
+  useEffect(() => {
+    let alive = true;
+    listAudioReviewProgress().then((rows) => { if (alive) setSavedProgress(rows); });
+    // Version the URL as well as sending no-store headers. Pages deployment
+    // aliases can briefly retain an older static JSON object across a release.
+    fetch("/data/audio_exports.json?v=audio-5100-topics-r2", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((manifest) => { if (alive && Array.isArray(manifest?.exports)) setExports(manifest.exports); })
+      .catch(() => { /* Exports can be populated after the player ships. */ });
+    return () => { alive = false; };
+  }, []);
+  useEffect(() => {
+    if (downloadGapOptions.length && !downloadGapOptions.includes(downloadGap)) {
+      setDownloadGap(downloadGapOptions[0]);
+    }
+  }, [downloadGapOptions, downloadGap]);
+  useEffect(() => {
+    if (currentGapVariants.length && !currentGapVariants.some((variant) => variant.playback_rate === downloadRate)) {
+      setDownloadRate(currentGapVariants[0].playback_rate);
+    }
+  }, [currentGapVariants, downloadRate]);
+  const stop = useCallback((resetUi = true) => {
+    playbackRun.current += 1;
+    stopped.current = true;
+    audioRef.current?.pause();
+    finishCurrent.current?.();
+    finishCurrent.current = null;
+    if (resetUi) { setPlayState("idle"); setActiveIndex(null); setPlaybackTotal(0); setPlaybackPhase(null); }
+  }, []);
+  useEffect(() => {
+    const keydown = (e: KeyboardEvent) => { if (e.key === "Escape") onCloseRef.current(); };
+    window.addEventListener("keydown", keydown);
+    return () => {
+      window.removeEventListener("keydown", keydown);
+      stop(false);
+      if (audioContextRef.current) void audioContextRef.current.close();
+      audioContextRef.current = null; audioGainRef.current = null; audioSourceRef.current = null; audioRef.current = null;
+    };
+  }, [stop]);
+  const persistSession = (session: Omit<AudioReviewProgress, "user_id" | "updated_at">) => {
+    const optimistic: AudioReviewProgress = { ...session, user_id: "", updated_at: new Date().toISOString() };
+    setSavedProgress((previous) => session.completed
+      ? previous.filter((row) => row.scope_key !== session.scope_key)
+      : [optimistic, ...previous.filter((row) => row.scope_key !== session.scope_key)]);
+    void saveAudioReviewProgress(session);
+  };
+  const play = async (resume?: AudioReviewProgress) => {
+    const sourceQueue = resume
+      ? resume.question_ids.map((id) => byQuestionId.get(id)).filter(Boolean) as RawQuestion[]
+      : chosen;
+    const startAt = resume ? Math.min(resume.current_index, Math.max(sourceQueue.length - 1, 0)) : 0;
+    if (!sourceQueue.length) { fire("This saved review no longer has matching questions"); return; }
+    const session: Omit<AudioReviewProgress, "user_id" | "updated_at"> = {
+      scope_key: resume?.scope_key ?? topic,
+      topic: resume?.topic ?? topic,
+      question_ids: sourceQueue.map((q) => questionId(q.year, q.q_index)),
+      current_index: startAt,
+      recall_seconds: resume?.recall_seconds ?? recallSecs,
+      transition_seconds: resume?.transition_seconds ?? transitionSecs,
+      playback_rate: resume?.playback_rate ?? playbackRate,
+      order_mode: resume?.order_mode ?? order,
+      completed: false,
+    };
+    if (resume) {
+      setRecallSecs(resume.recall_seconds);
+      setTransitionSecs(resume.transition_seconds);
+      setPlaybackRate(resume.playback_rate ?? 1);
+      setOrder(resume.order_mode);
+    }
+    activeSession.current = session;
+    persistSession(session);
+    stop();
+    const runId = playbackRun.current;
+    stopped.current = false; setPlayState("loading");
+    // HTMLMediaElement volume tops out at 100%. Route the one reusable player
+    // through Web Audio so the default can be modestly louder without altering
+    // playback rate or requiring the user to raise their device volume.
+    const player = audioRef.current ?? new Audio();
+    audioRef.current = player;
+    if (!audioContextRef.current && typeof AudioContext !== "undefined") {
+      const context = new AudioContext();
+      const source = context.createMediaElementSource(player);
+      const gain = context.createGain();
+      source.connect(gain); gain.connect(context.destination);
+      audioContextRef.current = context; audioSourceRef.current = source; audioGainRef.current = gain;
+    }
+    if (audioGainRef.current) audioGainRef.current.gain.value = volumeGain;
+    if (audioContextRef.current?.state === "suspended") void audioContextRef.current.resume();
+    const ids = sourceQueue.slice(startAt).map((q) => questionId(q.year, q.q_index));
+    const ready = await getAudioDrills(ids);
+    if (stopped.current || runId !== playbackRun.current) return;
+    if (!ids.length || !ready[ids[0]]) { setPlayState("idle"); fire("Audio couldn't be loaded for this selection"); return; }
+    setPlaybackTotal(sourceQueue.length); setPlayState("playing");
+    const wait = (ms: number) => new Promise<void>((resolve) => {
+      let done = false;
+      const finish = () => { if (done) return; done = true; window.clearTimeout(timer); finishCurrent.current = null; resolve(); };
+      const timer = window.setTimeout(finish, ms);
+      finishCurrent.current = finish;
+    });
+    // Reuse one media element for the entire queue. Mobile browsers commonly
+    // allow the element started by the user's click but reject fresh Audio()
+    // instances created later after an awaited pause. That looked like the
+    // first question played and every answer/subsequent question was skipped.
+    const playUrl = (url: string) => new Promise<boolean>((resolve) => {
+      const a = player;
+      a.src = url;
+      a.playbackRate = session.playback_rate;
+      let done = false;
+      const finish = (played = true) => {
+        if (done) return;
+        done = true;
+        a.onended = null; a.onerror = null;
+        URL.revokeObjectURL(url);
+        finishCurrent.current = null;
+        resolve(played);
+      };
+      finishCurrent.current = finish;
+      a.onended = () => finish(true); a.onerror = () => finish(false);
+      a.play().catch(() => finish(false));
+    });
+    const run = async (i: number): Promise<void> => {
+      if (stopped.current || runId !== playbackRun.current) return;
+      if (i >= sourceQueue.length) {
+        session.current_index = sourceQueue.length;
+        session.completed = true;
+        persistSession(session);
+        activeSession.current = null;
+        setPlayState("idle"); setActiveIndex(null); setPlaybackTotal(0); setPlaybackPhase(null);
+        fire(`Finished ${sourceQueue.length} questions`); return;
+      }
+      session.current_index = i;
+      persistSession(session);
+      setActiveIndex(i);
+      setPlaybackPhase("question");
+      const d = ready[questionId(sourceQueue[i].year, sourceQueue[i].q_index)];
+      if (!d?.prompt_audio_path || !d.answer_audio_path) {
+        setPlayState("idle"); setActiveIndex(null); fire("Playback stopped because a clip couldn't be loaded"); return;
+      }
+      const prompt = await getAudioClipUrl(d.prompt_audio_path!);
+      if (!prompt) { setPlayState("idle"); setActiveIndex(null); fire("Playback stopped because a clip couldn't be loaded"); return; }
+      if (!(await playUrl(prompt))) { setPlayState("idle"); setActiveIndex(null); fire("Playback was blocked—tap Start review again"); return; }
+      if (stopped.current || runId !== playbackRun.current) return;
+      setPlaybackPhase("thinking");
+      await wait(session.recall_seconds * 1000); if (stopped.current || runId !== playbackRun.current) return;
+      const answer = await getAudioClipUrl(d.answer_audio_path!);
+      if (!answer) { setPlayState("idle"); setActiveIndex(null); fire("Playback stopped because a clip couldn't be loaded"); return; }
+      setPlaybackPhase("answer");
+      if (!(await playUrl(answer))) { setPlayState("idle"); setActiveIndex(null); fire("Playback was blocked—tap Start review again"); return; }
+      if (stopped.current || runId !== playbackRun.current) return;
+      session.current_index = i + 1;
+      session.completed = session.current_index >= sourceQueue.length;
+      persistSession(session);
+      if (session.completed) { await run(i + 1); return; }
+      setPlaybackPhase("between");
+      await wait(session.transition_seconds * 1000);
+      if (stopped.current || runId !== playbackRun.current) return;
+      await run(i + 1);
+    };
+    void run(startAt); fire(`${resume ? "Resuming" : "Playing"} ${sourceQueue.length} active-recall questions`);
+  };
+  const downloadExport = async () => {
+    if (!currentExport || !currentExportVariant || downloadBusy) return;
+    setDownloadBusy(true);
+    try {
+      let url: string | null = null;
+      if (currentExportVariant.parts?.length) {
+        const blobs: Blob[] = [];
+        for (let index = 0; index < currentExportVariant.parts.length; index += 1) {
+          setDownloadProgress({ current: index + 1, total: currentExportVariant.parts.length });
+          const part = currentExportVariant.parts[index];
+          const blob = await getAudioExportBlob(part.path, part.offset === undefined ? undefined : { offset: part.offset, bytes: part.bytes });
+          if (!blob) throw new Error("A library section couldn't be downloaded");
+          if (blob.size !== currentExportVariant.parts[index].bytes) throw new Error("A library section was incomplete");
+          blobs.push(blob);
+        }
+        const complete = new Blob(blobs, { type: "audio/mpeg" });
+        if (complete.size !== currentExportVariant.bytes) throw new Error("The complete library file was incomplete");
+        url = URL.createObjectURL(complete);
+      } else {
+        const blob = await getAudioExportBlob(currentExportVariant.path);
+        if (blob && blob.size !== currentExportVariant.bytes) throw new Error("The downloaded MP3 was incomplete");
+        if (blob) url = URL.createObjectURL(blob);
+      }
+      if (!url) throw new Error("The download couldn't be prepared");
+      const link = document.createElement("a");
+      link.href = url; link.download = currentExportVariant.filename;
+      document.body.appendChild(link); link.click(); link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url!), 60_000);
+      fire(`Downloading ${currentExport.topic} at ${currentExportVariant.playback_rate}× with ${currentExportVariant.between_question_seconds ?? 1}-second gaps`);
+    } catch (error) {
+      console.warn("downloadAudioExport", error);
+      fire("The download couldn't be completed—please try again");
+    } finally {
+      setDownloadProgress(null);
+      setDownloadBusy(false);
+    }
+  };
+  const field = { display: "grid", gap: 7, fontSize: 12, fontWeight: 700, color: T.muted, letterSpacing: ".02em" } as const;
+  const control = { width: "100%", padding: "11px 38px 11px 12px", borderRadius: 10, border: `1px solid ${T.paperEdge}`, background: "#fff", color: T.text, fontSize: 14.5, fontFamily: "inherit", cursor: "pointer" } as const;
+  const queueLabel = `${chosen.length.toLocaleString()} ${chosen.length === 1 ? "question" : "questions"}`;
+  const topicLabel = topic === "all" ? "All topics" : topic;
+  const matchingScope = topic === "all" ? "across the library" : `in ${topic}`;
+  const exportSize = currentExportVariant
+    ? currentExportVariant.bytes >= 1024 ** 3
+      ? `${(currentExportVariant.bytes / (1024 ** 3)).toFixed(1)} GB`
+      : `${(currentExportVariant.bytes / (1024 ** 2)).toFixed(1)} MB`
+    : "";
+  const exportHours = currentExportVariant ? `${Math.round(currentExportVariant.duration_seconds / 360) / 10} hr` : "";
+  return <div style={s.scrim} className="scrimIn" onMouseDown={onClose} role="presentation"><section style={{ position: "relative", width: "min(700px, calc(100vw - 28px))", maxHeight: "min(760px, calc(100vh - 28px))", overflowY: "auto", background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 20, boxShadow: "0 30px 90px -28px rgba(0,0,0,.72)" }} className="materialize audioModal" onMouseDown={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="audio-title">
+    <header style={{ display: "flex", alignItems: "flex-start", gap: 13, padding: "24px 62px 20px 24px", borderBottom: `1px solid ${T.paperEdge}`, background: "linear-gradient(135deg, #f7fbf9 0%, #faf7f1 62%)" }}>
+      <span style={{ display: "grid", placeItems: "center", width: 44, height: 44, flexShrink: 0, borderRadius: 13, color: "#fff", background: T.teal, boxShadow: "0 8px 20px -10px rgba(14,122,107,.8)" }}><Volume2 size={22} /></span>
+      <div><h2 id="audio-title" style={{ margin: 0, color: T.text, fontSize: 22, letterSpacing: "-.02em" }}>Open-ended audio review</h2><p style={{ color: T.muted, margin: "4px 0 0", fontSize: 14, lineHeight: 1.45 }}>Hear a concise question—without answer choices—think through the pause, then hear the answer.</p></div>
+      <button style={{ ...s.close, position: "absolute", top: 20, right: 20 }} onClick={onClose} aria-label="Close audio player"><X size={17} strokeWidth={2.3} /></button>
+    </header>
+    <div style={{ padding: "22px 24px 24px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 16, color: T.tealDeep, fontSize: 12.5 }}><span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontWeight: 700 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: T.teal }} />Audio library ready</span><span>{all.length.toLocaleString()} questions</span></div>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(150px, .46fr)", gap: 12 }} className="audioGrid"><label style={field}>TOPIC<select value={topic} onChange={(e) => { stop(); setTopic(e.target.value); }} style={control}><option value="all">All topics</option>{topics.map((t) => <option key={t}>{t}</option>)}</select></label><label style={field}>QUEUE SIZE<select value={count} onChange={(e) => { stop(); setCount(e.target.value === "all" ? "all" : Number(e.target.value)); }} style={control}>{[10, 20, 40, 100].map((n) => <option key={n} value={n}>Up to {n}</option>)}<option value="all">All matching</option></select></label></div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 12, marginTop: 14 }} className="audioGrid"><label style={field}>ORDER<select value={order} onChange={(e) => { stop(); setOrder(e.target.value as typeof order); }} style={control}><option value="shuffle">Shuffled</option><option value="bank">Bank order</option></select></label><label style={field}>PLAYBACK SPEED<select value={playbackRate} onChange={(e) => { const next = Number(e.target.value); setPlaybackRate(next); if (audioRef.current) audioRef.current.playbackRate = next; if (activeSession.current) { activeSession.current.playback_rate = next; persistSession(activeSession.current); } }} style={control}>{AUDIO_PLAYBACK_RATES.map((rate) => <option key={rate} value={rate}>{rate}×</option>)}</select></label><label style={field}>VOLUME<select value={volumeGain} onChange={(e) => { const next = Number(e.target.value); setVolumeGain(next); if (audioGainRef.current) audioGainRef.current.gain.value = next; }} style={control}>{AUDIO_VOLUME_GAINS.map((gain) => <option key={gain} value={gain}>{Math.round(gain * 100)}%</option>)}</select></label><label style={field}>THINKING PAUSE<select value={recallSecs} onChange={(e) => setRecallSecs(Number(e.target.value))} style={control}>{[3, 4, 5, 6, 8, 10].map((n) => <option key={n} value={n}>{n} sec</option>)}</select></label><label style={field}>BETWEEN QUESTIONS<select value={transitionSecs} onChange={(e) => setTransitionSecs(Number(e.target.value))} style={control}>{[1, 2, 3, 5].map((n) => <option key={n} value={n}>{n} sec</option>)}</select></label></div>
+      <div style={{ marginTop: 18, padding: "14px 15px", borderRadius: 12, border: "1px solid rgba(14,122,107,.12)", background: T.tealSoft, color: T.tealDeep, fontSize: 14, lineHeight: 1.45 }}><b>{queueLabel} in this review.</b> <span style={{ color: T.muted }}>{matching.length.toLocaleString()} {matching.length === 1 ? "question" : "questions"} {matchingScope}.</span>{order === "shuffle" && matching.length > 1 && <button onClick={() => { stop(); setShuffleSeed((n) => n + 1); }} style={{ display: "inline-flex", alignItems: "center", gap: 4, marginLeft: 8, padding: 0, border: 0, background: "transparent", color: T.tealDeep, font: "inherit", fontWeight: 700, cursor: "pointer" }}><Shuffle size={13} /> Reshuffle</button>}</div>
+      {currentProgress && playState === "idle" && <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 12, padding: "13px 15px", borderRadius: 12, border: `1px solid ${T.gold}55`, background: T.goldSoft, color: T.text }}>
+        <div style={{ flex: 1, minWidth: 190 }}><b style={{ fontSize: 14 }}>Continue where you left off</b><div style={{ marginTop: 3, color: T.muted, fontSize: 12.5 }}>Question {currentProgress.current_index + 1} of {currentProgress.question_ids.length} · saved {new Date(currentProgress.updated_at).toLocaleDateString()}</div></div>
+        <button style={{ ...s.ghost, background: "#fff", padding: "8px 13px" }} onClick={() => void play(currentProgress)}><Play size={14} /> Continue</button>
+      </div>}
+      {playState !== "idle" && <div style={{ marginTop: 14, padding: "15px 16px", borderRadius: 13, background: T.ink, color: "#fff", overflow: "hidden" }} aria-live="polite">
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}><span className="audioPulse" aria-hidden><Volume2 size={17} /></span><div style={{ minWidth: 0 }}><b>{playState === "loading" ? "Preparing your review" : `Question ${(activeIndex ?? 0) + 1} of ${playbackTotal}`}</b><div style={{ color: "#b9c4cf", fontSize: 13, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{playState === "loading" ? `Loading ${queueLabel}…` : playbackPhase === "question" ? `Question · ${playbackRate}×` : playbackPhase === "thinking" ? `Thinking pause · ${activeSession.current?.recall_seconds ?? recallSecs} sec` : playbackPhase === "answer" ? `Answer & teaching point · ${playbackRate}×` : playbackPhase === "between" ? "Next question coming up" : topicLabel}</div></div></div>
+        <div style={{ height: 5, borderRadius: 999, marginTop: 13, background: "rgba(255,255,255,.16)", overflow: "hidden" }}><div style={{ height: "100%", width: playState === "loading" ? "8%" : `${(((activeIndex ?? 0) + 1) / Math.max(playbackTotal, 1)) * 100}%`, background: "#7ee0cf", borderRadius: 999, transition: "width .35s ease" }} /></div>
+        <div className="audioWave" aria-hidden><i /><i /><i /><i /><i /><i /><i /></div>
+      </div>}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginTop: 18 }} className="audioActions"><button style={{ ...s.primarySm, minWidth: 144, justifyContent: "center", padding: "10px 16px" }} disabled={!chosen.length || playState !== "idle"} onClick={() => void play()}><Play size={15} /> {playState === "loading" ? "Preparing…" : playState === "playing" ? "Playing" : currentProgress ? "Start over" : "Start review"}</button>{playState !== "idle" && <button style={{ ...s.ghost, padding: "10px 15px" }} onClick={() => stop()}><Square size={13} /> Save & stop</button>}<span style={{ marginLeft: "auto", color: T.faint, fontSize: 12.5 }}>Progress saves automatically</span></div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 18, paddingTop: 17, borderTop: `1px solid ${T.paperEdge}` }}>
+        <div style={{ flex: 1, minWidth: 210 }}><b style={{ color: T.text, fontSize: 14 }}>{topic === "all" ? "Take the complete library offline" : "Take the complete topic offline"}</b><div style={{ marginTop: 3, color: T.faint, fontSize: 12.5 }}>{currentExport ? `One open-ended MP3 · ${currentExport.question_count.toLocaleString()} questions · ${currentExportVariant?.between_question_seconds ?? 1}-sec gaps · ${exportHours} · ${exportSize}${currentExportVariant?.parts?.length ? ` · securely assembled from ${currentExportVariant.parts.length} sections` : ""}` : "The single-file open-ended download for this selection is being prepared."}</div></div>
+        <label style={{ ...field, minWidth: 100 }}>MP3 GAP<select value={downloadGap} onChange={(e) => setDownloadGap(Number(e.target.value))} disabled={!downloadGapOptions.length} style={{ ...control, paddingTop: 9, paddingBottom: 9 }}>{downloadGapOptions.map((gap) => <option key={gap} value={gap}>{gap} sec</option>)}</select></label>
+        <label style={{ ...field, minWidth: 100 }}>MP3 SPEED<select value={downloadRate} onChange={(e) => setDownloadRate(Number(e.target.value))} disabled={!currentGapVariants.length} style={{ ...control, paddingTop: 9, paddingBottom: 9 }}>{currentGapVariants.map((variant) => <option key={variant.playback_rate} value={variant.playback_rate}>{variant.playback_rate}×</option>)}</select></label>
+        <button style={{ ...s.ghost, padding: "9px 14px" }} disabled={!currentExportVariant || downloadBusy} onClick={() => void downloadExport()}><Download size={14} /> {downloadProgress ? `Assembling ${downloadProgress.current}/${downloadProgress.total}…` : downloadBusy ? "Preparing…" : "Download MP3"}</button>
+      </div>
+    </div>
+  </section></div>;
+}
+
 function DeckBuilder({
-  all, byId, onClose, onOpen, onStudy, onSaveTest, fire, usedGroupKeys,
+  all, byId, onClose, onOpen, onStudy, onSaveTest, fire, usedGroupKeys, answers, kaplanRefs, kaplanErr,
 }: {
   all: RawQuestion[];
   byId: Map<string, RawQuestion>;
@@ -6067,6 +6814,9 @@ function DeckBuilder({
   onSaveTest?: (qids: string[]) => void;
   fire: (m: string) => void;
   usedGroupKeys?: Set<string>; // repeat-groups already in the user's saved tests
+  answers: Record<string, AnswerRow>; // this user's attempt history
+  kaplanRefs: Record<string, KaplanRef>; // question id -> textbook citation, {} until loaded
+  kaplanErr?: string | null; // why they didn't load, shown instead of a silently dead filter
 }) {
   const [search, setSearch] = useState("");
   const [scope, setScope] = useState<"both" | "stem" | "choices" | "answer">("both");
@@ -6075,12 +6825,18 @@ function DeckBuilder({
   const [med, setMed] = useState("all");
   const [dx, setDx] = useState("all");
   const [topic, setTopic] = useState("all");
+  const [progress, setProgress] = useState<ProgressFilter>("all");
   const [repeatMin, setRepeatMin] = useState("all");
+  const [kaplan, setKaplan] = useState<"all" | "with" | "without">("all");
   const [sortBy, setSortBy] = useState<"default" | "repeats">("default");
   // On by default: collapse cross-year repeats to one, and drop questions
   // already handed out in a saved test — so a generated set doesn't repeat
   // last week's or double up the same item. Uncheck to see everything.
   const [avoidDup, setAvoidDup] = useState(true);
+  // Restrict to the categories this resident scores worst in (see weakAreas).
+  const [weakOnly, setWeakOnly] = useState(false);
+  // The nine dropdowns start folded: most people want a preset and a "go".
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [shuffleOrder, setShuffleOrder] = useState(false);
@@ -6099,6 +6855,80 @@ function DeckBuilder({
   const dxs = useMemo(() => uniq("diagnosis"), [all]);
   const topics = useMemo(() => uniq("topics"), [all]);
 
+  // Where each question stands for this user. "Got wrong" keys off the latest
+  // attempt and ignores `cleared` — dismissing the learning-opportunities nag
+  // shouldn't erase the fact that you missed it and might want another go.
+  const progressOf = (q: RawQuestion): ProgressFilter => {
+    const row = answers[questionId(q.year, q.q_index)];
+    return !row ? "unseen" : row.correct ? "correct" : "missed";
+  };
+  const progressCounts = useMemo(() => {
+    const c = { all: all.length, unseen: 0, missed: 0, correct: 0 };
+    for (const q of all) c[progressOf(q)]++;
+    return c;
+  }, [all, answers]); // eslint-disable-line
+
+  /* The categories this resident is weakest in, worst first.
+     Accuracy only means something once there's a bit of history, so a category
+     needs MIN_TRIED attempts to be ranked at all — otherwise one unlucky
+     question would brand a whole section as a weak spot. We keep those scoring
+     below their own overall accuracy, capped at 5 so the resulting set stays
+     focused rather than becoming "most of the bank". */
+  const weakAreas = useMemo(() => {
+    const MIN_TRIED = 4;
+    const tally = new Map<string, { tried: number; right: number }>();
+    for (const q of all) {
+      const row = answers[questionId(q.year, q.q_index)];
+      if (!row || !q.prite_category) continue;
+      const t = tally.get(q.prite_category) ?? { tried: 0, right: 0 };
+      t.tried += 1;
+      if (row.correct) t.right += 1;
+      tally.set(q.prite_category, t);
+    }
+    const totalTried = [...tally.values()].reduce((n, t) => n + t.tried, 0);
+    const totalRight = [...tally.values()].reduce((n, t) => n + t.right, 0);
+    if (!totalTried) return [];
+    const overall = totalRight / totalTried;
+    return [...tally.entries()]
+      .filter(([, t]) => t.tried >= MIN_TRIED)
+      .map(([c, t]) => ({ cat: c, acc: t.right / t.tried, tried: t.tried }))
+      .filter((r) => r.acc < overall)
+      .sort((a, b) => a.acc - b.acc)
+      .slice(0, 5);
+  }, [all, answers]); // eslint-disable-line
+  const weakCatSet = useMemo(() => new Set(weakAreas.map((w) => w.cat)), [weakAreas]);
+  /* How many of the folded-away filters are actually doing something. Drives the
+     badge on "More filters" so a narrowed result never looks unexplained. */
+  const activeFilterCount = useMemo(() => {
+    let n = 0;
+    for (const v of [year, cat, topic, med, dx, repeatMin, kaplan, progress]) if (v !== "all") n += 1;
+    if (sortBy !== "default") n += 1;
+    if (scope !== "both") n += 1;
+    if (weakOnly) n += 1;
+    return n;
+  }, [year, cat, topic, med, dx, repeatMin, kaplan, progress, sortBy, scope, weakOnly]);
+  const catLabel = useMemo(() => new Map(cats), [cats]);
+
+  // How many questions each one-tap preset would actually hand you.
+  const presetCounts = useMemo(() => {
+    const highYield = new Set<string>();
+    const weak = new Set<string>();
+    for (const q of all) {
+      if ((q.repeat_count ?? 1) >= 3) highYield.add(questionGroupKey(q));
+      if (weakCatSet.has(q.prite_category ?? "") && progressOf(q) !== "correct") {
+        weak.add(questionGroupKey(q));
+      }
+    }
+    return { highYield: highYield.size, weak: weak.size };
+  }, [all, weakCatSet, answers]); // eslint-disable-line
+
+  // How many of the loaded questions have a textbook citation. Counted against
+  // `all` rather than the bundle so the number matches what's actually browsable.
+  const kaplanCount = useMemo(
+    () => all.reduce((n, q) => n + (kaplanRefs[questionId(q.year, q.q_index)] ? 1 : 0), 0),
+    [all, kaplanRefs]
+  );
+
   // Raw filter/search result, before de-duplication.
   const rawMatches = useMemo(() => {
     const filtered = all.filter((q) => {
@@ -6107,7 +6937,18 @@ function DeckBuilder({
       if (med !== "all" && !(q.tags?.medication ?? []).includes(med)) return false;
       if (dx !== "all" && !(q.tags?.diagnosis ?? []).includes(dx)) return false;
       if (topic !== "all" && !(q.tags?.topics ?? []).includes(topic)) return false;
+      if (progress !== "all" && progressOf(q) !== progress) return false;
       if (repeatMin !== "all" && (q.repeat_count ?? 1) < parseInt(repeatMin, 10)) return false;
+      // Weak-areas mode: only the low-accuracy categories, and skip anything
+      // already answered correctly — practising those isn't what's needed here.
+      if (weakOnly) {
+        if (!weakCatSet.has(q.prite_category ?? "")) return false;
+        if (progressOf(q) === "correct") return false;
+      }
+      if (kaplan !== "all") {
+        const cited = !!kaplanRefs[questionId(q.year, q.q_index)];
+        if (kaplan === "with" ? !cited : cited) return false;
+      }
       if (search.trim()) {
         const s = search.toLowerCase();
         const inStem = q.stem.toLowerCase().includes(s);
@@ -6123,7 +6964,7 @@ function DeckBuilder({
       return [...filtered].sort((a, b) => (b.repeat_count ?? 1) - (a.repeat_count ?? 1));
     }
     return filtered;
-  }, [all, year, cat, med, dx, topic, repeatMin, sortBy, search, scope]);
+  }, [all, year, cat, med, dx, topic, progress, answers, repeatMin, kaplan, kaplanRefs, sortBy, search, scope, weakOnly, weakCatSet]); // eslint-disable-line
 
   // De-duplicated view: drop questions whose repeat-group is already in a
   // saved test, then collapse remaining cross-year twins to one apiece
@@ -6144,7 +6985,7 @@ function DeckBuilder({
   const dupHidden = rawMatches.length - matches.length;
 
   // when the filter changes, select all matches by default
-  useEffect(() => { setSelected(new Set(matches.map((q) => questionId(q.year, q.q_index)))); }, [year, cat, med, dx, topic, repeatMin, sortBy, search, scope, avoidDup]); // eslint-disable-line
+  useEffect(() => { setSelected(new Set(matches.map((q) => questionId(q.year, q.q_index)))); }, [year, cat, med, dx, topic, progress, repeatMin, kaplan, sortBy, search, scope, avoidDup]); // eslint-disable-line
 
   const toggle = (id: string) => setSelected((cur) => {
     const n = new Set(cur); n.has(id) ? n.delete(id) : n.add(id); return n;
@@ -6156,6 +6997,7 @@ function DeckBuilder({
     if (!ordered.length) return;
     if (shuffleOrder) ordered = shuffled(ordered);
     const parts: string[] = [];
+    if (progress !== "all") parts.push(progressLabel[progress]);
     if (cat !== "all") parts.push(cats.find(([k]) => k === cat)?.[1] ?? cat);
     if (dx !== "all") parts.push(dx);
     if (med !== "all") parts.push(med);
@@ -6163,6 +7005,38 @@ function DeckBuilder({
     if (topic !== "all") parts.push(topic);
     if (search.trim()) parts.push(`"${search.trim()}"`);
     onStudy?.(ordered, parts.join(" · "));
+  };
+
+  /* One-click presets. Each clears every other filter first, so a resident who
+     wants "the ones I got wrong" gets exactly that instead of the leftovers of
+     whatever they last searched. Repeat-collapsing stays on for fresh questions
+     (no point studying the same item twice) but comes off for history-based
+     picks — if you missed both copies of a repeat, you should see both. */
+  const applyPreset = (p: ProgressFilter) => {
+    setSearch(""); setScope("both");
+    setYear("all"); setCat("all"); setMed("all"); setDx("all"); setTopic("all");
+    setRepeatMin("all"); setSortBy("default"); setWeakOnly(false);
+    setAvoidDup(p === "all" || p === "unseen");
+    setProgress(p);
+  };
+
+  /* Questions the PRITE has asked 3+ times across the years — the closest thing
+     the bank has to a "this will be on the exam" list. Sorted most-repeated
+     first, de-duplicated so you see each one once rather than once per year. */
+  const applyHighYield = () => {
+    setSearch(""); setScope("both");
+    setYear("all"); setCat("all"); setMed("all"); setDx("all"); setTopic("all");
+    setProgress("all"); setWeakOnly(false); setKaplan("all");
+    setRepeatMin("3"); setSortBy("repeats"); setAvoidDup(true);
+  };
+
+  /* Your lowest-accuracy categories, minus anything you've already gotten
+     right. Needs some answer history before it can rank anything. */
+  const applyWeakAreas = () => {
+    setSearch(""); setScope("both");
+    setYear("all"); setCat("all"); setMed("all"); setDx("all"); setTopic("all");
+    setProgress("all"); setRepeatMin("all"); setSortBy("default"); setKaplan("all");
+    setAvoidDup(true); setWeakOnly(true);
   };
 
   // randomly select N of the current matches (capped to however many match)
@@ -6209,7 +7083,7 @@ function DeckBuilder({
   const shown = matches.slice(0, 250);
   return (
     <div style={s.scrim} onClick={onClose}>
-      <div style={{ ...s.apPanel, maxWidth: 640 }} onClick={(e) => e.stopPropagation()} className="rise">
+      <div style={{ ...s.apPanel, maxWidth: 640 }} onClick={(e) => e.stopPropagation()} className="rise deckPanel">
         <div style={s.apHead}>
           <div>
             <div style={s.apEyebrow}>Search · study · export</div>
@@ -6218,43 +7092,182 @@ function DeckBuilder({
           <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
         </div>
         <div style={s.deckFilters}>
+          {/* Quick start: the two things people actually come here for, one tap
+              each, above the fold. Everything below still composes on top. */}
+          <div style={s.quickRow}>
+            <span style={s.quickLabel} className="quickLabel">Quick start</span>
+            {([
+              { p: "unseen" as const, icon: <Sparkles size={13} strokeWidth={2.3} />, text: "Ones I haven't tried" },
+              { p: "missed" as const, icon: <RotateCcw size={13} strokeWidth={2.3} />, text: "Ones I got wrong" },
+              { p: "correct" as const, icon: <Check size={13} strokeWidth={2.6} />, text: "Ones I got right" },
+              { p: "all" as const, icon: <Layers size={13} strokeWidth={2.3} />, text: "Everything" },
+            ]).map(({ p, icon, text }) => (
+              <button
+                key={p}
+                style={{ ...s.quickBtn, ...(progress === p ? s.quickBtnOn : {}) }}
+                onClick={() => applyPreset(p)}
+                title={
+                  p === "unseen" ? "Questions you've never answered"
+                    : p === "missed" ? "Questions you missed on your last attempt — a second crack at them"
+                      : p === "correct" ? "Questions you've already gotten right"
+                        : "Clear every filter and start over"
+                }
+              >
+                {icon} {text} <b style={{ fontWeight: 700 }}>{progressCounts[p].toLocaleString()}</b>
+              </button>
+            ))}
+          </div>
+          {/* Two targeted sets people asked for: the questions the exam keeps
+              reusing, and the sections you personally score worst in. */}
+          <div style={s.quickRow}>
+            <span style={s.quickLabel} className="quickLabel">Targeted</span>
+            <button
+              style={{ ...s.quickBtn, ...(repeatMin === "3" && sortBy === "repeats" && !weakOnly ? s.quickBtnOn : {}) }}
+              onClick={applyHighYield}
+              title="Questions the PRITE has asked 3 or more times across different years — the highest-yield items in the bank"
+            >
+              <Repeat size={13} strokeWidth={2.3} /> High-yield repeats{" "}
+              <b style={{ fontWeight: 700 }}>{presetCounts.highYield.toLocaleString()}</b>
+            </button>
+            <button
+              style={{ ...s.quickBtn, ...(weakOnly ? s.quickBtnOn : {}), ...(weakAreas.length ? {} : { opacity: 0.45, cursor: "not-allowed" }) }}
+              onClick={() => weakAreas.length && applyWeakAreas()}
+              disabled={!weakAreas.length}
+              title={
+                weakAreas.length
+                  ? `Your lowest-scoring categories: ${weakAreas.map((w) => catLabel.get(w.cat) ?? w.cat).join(", ")}`
+                  : "Answer a few more questions first — this needs some history before it can tell which sections are giving you trouble"
+              }
+            >
+              <Target size={13} strokeWidth={2.3} /> Areas I&rsquo;m weakest in{" "}
+              <b style={{ fontWeight: 700 }}>{weakAreas.length ? presetCounts.weak.toLocaleString() : "—"}</b>
+            </button>
+          </div>
+          <p style={s.quickHint}>
+            {weakOnly && weakAreas.length ? (
+              <>
+                Your weakest sections right now:{" "}
+                {weakAreas.map((w, i) => (
+                  <span key={w.cat}>
+                    {i > 0 ? ", " : ""}
+                    <b style={{ color: T.text }}>{catLabel.get(w.cat) ?? w.cat}</b>{" "}
+                    ({Math.round(w.acc * 100)}% of {w.tried})
+                  </span>
+                ))}
+                . Ones you already got right are left out.
+              </>
+            ) : (
+              <>Pick one, narrow it further below if you like, then hit <b style={{ color: T.text }}>Study these</b> at the bottom.</>
+            )}
+          </p>
           <div style={s.deckSearchRow}>
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search for a word (e.g. fluoxetine)" style={{ ...s.deckSearch, marginBottom: 0, flex: 1 }} />
-            <div style={s.scopeToggle}>
-              {(["both", "stem", "choices", "answer"] as const).map((sc) => (
-                <button key={sc} style={{ ...s.scopeBtn, ...(scope === sc ? s.scopeOn : {}) }} onClick={() => setScope(sc)}>
-                  {sc === "both" ? "Anywhere" : sc === "stem" ? "Stem" : sc === "choices" ? "Choices" : "Answer"}
-                </button>
-              ))}
+            <button
+              style={{ ...s.moreBtn, ...(showAdvanced || activeFilterCount > 0 ? s.moreBtnOn : {}) }}
+              onClick={() => setShowAdvanced((v) => !v)}
+              aria-expanded={showAdvanced}
+              title="Year, category, topic, medication, diagnosis, repeats, textbook citations, and sort order"
+            >
+              {showAdvanced ? <ChevronUp size={14} strokeWidth={2.4} /> : <ChevronDown size={14} strokeWidth={2.4} />}
+              More filters
+              {activeFilterCount > 0 && <span style={s.moreCount}>{activeFilterCount}</span>}
+            </button>
+            {activeFilterCount > 0 && (
+              <button style={s.clearBtn} onClick={() => applyPreset("all")} title="Clear every filter and start over">
+                Clear
+              </button>
+            )}
+          </div>
+
+          {/* Everything below is optional. It stays folded away by default so the
+              panel opens as "pick a set and go" rather than a wall of dropdowns. */}
+          {showAdvanced && (
+            <div style={s.advWrap}>
+              <div style={s.advGroup}>
+                <span style={s.advLabel}>What it&rsquo;s about</span>
+                <div style={s.deckSelRow}>
+                  <select value={cat} onChange={(e) => setCat(e.target.value)} style={{ ...s.cohortSel, ...(cat !== "all" ? s.cohortSelOn : {}) }}>
+                    <option value="all">Any category</option>{cats.map(([c, l]) => <option key={c} value={c}>{l}</option>)}
+                  </select>
+                  <select value={topic} onChange={(e) => setTopic(e.target.value)} style={{ ...s.cohortSel, ...(topic !== "all" ? s.cohortSelOn : {}) }}>
+                    <option value="all">Any topic</option>{topics.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <select value={med} onChange={(e) => setMed(e.target.value)} style={{ ...s.cohortSel, ...(med !== "all" ? s.cohortSelOn : {}) }}>
+                    <option value="all">Any medication</option>{meds.map((m) => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                  <select value={dx} onChange={(e) => setDx(e.target.value)} style={{ ...s.cohortSel, ...(dx !== "all" ? s.cohortSelOn : {}) }}>
+                    <option value="all">Any diagnosis</option>{dxs.map((d) => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                  <select value={year} onChange={(e) => setYear(e.target.value)} style={{ ...s.cohortSel, ...(year !== "all" ? s.cohortSelOn : {}) }}>
+                    <option value="all">Any year</option>{years.map((y) => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div style={s.advGroup}>
+                <span style={s.advLabel}>How you&rsquo;ve done &amp; how high-yield</span>
+                <div style={s.deckSelRow}>
+                  <select
+                    value={progress}
+                    onChange={(e) => setProgress(e.target.value as ProgressFilter)}
+                    style={{ ...s.cohortSel, ...(progress !== "all" ? s.cohortSelOn : {}) }}
+                    title="Filter by how you've done on each question so far"
+                  >
+                    <option value="all">Your history: any ({progressCounts.all.toLocaleString()})</option>
+                    <option value="unseen">Haven&rsquo;t tried yet ({progressCounts.unseen.toLocaleString()})</option>
+                    <option value="missed">I got wrong ({progressCounts.missed.toLocaleString()})</option>
+                    <option value="correct">I got right ({progressCounts.correct.toLocaleString()})</option>
+                  </select>
+                  <select value={repeatMin} onChange={(e) => setRepeatMin(e.target.value)} style={{ ...s.cohortSel, ...(repeatMin !== "all" ? s.cohortSelOn : {}) }} title="Questions reused (verbatim or near-verbatim) across multiple years">
+                    <option value="all">Any (repeat or not)</option>
+                    <option value="2">Repeated 2+ years</option>
+                    <option value="3">Repeated 3+ years</option>
+                    <option value="4">Repeated 4+ years</option>
+                  </select>
+                  <select
+                    value={kaplan}
+                    onChange={(e) => setKaplan(e.target.value as "all" | "with" | "without")}
+                    style={{ ...s.cohortSel, ...(kaplan !== "all" ? s.cohortSelOn : {}) }}
+                    disabled={kaplanCount === 0}
+                    title={kaplanErr
+                      ? `Textbook citations couldn't load — ${kaplanErr}`
+                      : kaplanCount === 0
+                        ? "Textbook citations are still loading…"
+                        : "Questions with a verified supporting passage from Kaplan & Sadock, shown on the question's Textbook tab"}
+                  >
+                    <option value="all">Any (textbook or not)</option>
+                    <option value="with">Has textbook citation{kaplanCount ? ` (${kaplanCount})` : ""}</option>
+                    <option value="without">No textbook citation</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={s.advGroup}>
+                <span style={s.advLabel}>Search &amp; order</span>
+                <div style={s.deckSelRow}>
+                  <div style={s.scopeToggle}>
+                    {(["both", "stem", "choices", "answer"] as const).map((sc) => (
+                      <button key={sc} style={{ ...s.scopeBtn, ...(scope === sc ? s.scopeOn : {}) }} onClick={() => setScope(sc)}>
+                        {sc === "both" ? "Anywhere" : sc === "stem" ? "Stem" : sc === "choices" ? "Choices" : "Answer"}
+                      </button>
+                    ))}
+                  </div>
+                  <select value={sortBy} onChange={(e) => setSortBy(e.target.value as "default" | "repeats")} style={{ ...s.cohortSel, ...(sortBy !== "default" ? s.cohortSelOn : {}) }} title="Order the results below">
+                    <option value="default">Sort: default order</option>
+                    <option value="repeats">Sort: most repeated first</option>
+                  </select>
+                </div>
+              </div>
+
+              {kaplanErr && (
+                <span style={{ fontSize: 12, color: T.wrongText, background: T.wrongBg,
+                               border: `1px solid ${T.wrongLine}33`, borderRadius: 8,
+                               padding: "6px 10px", alignSelf: "center", maxWidth: 460 }}>
+                  Textbook citations couldn&rsquo;t load — {kaplanErr}
+                </span>
+              )}
             </div>
-          </div>
-          <div style={s.deckSelRow}>
-            <select value={year} onChange={(e) => setYear(e.target.value)} style={s.cohortSel}>
-              <option value="all">Any year</option>{years.map((y) => <option key={y} value={y}>{y}</option>)}
-            </select>
-            <select value={cat} onChange={(e) => setCat(e.target.value)} style={s.cohortSel}>
-              <option value="all">Any category</option>{cats.map(([c, l]) => <option key={c} value={c}>{l}</option>)}
-            </select>
-            <select value={topic} onChange={(e) => setTopic(e.target.value)} style={s.cohortSel}>
-              <option value="all">Any topic</option>{topics.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-            <select value={med} onChange={(e) => setMed(e.target.value)} style={s.cohortSel}>
-              <option value="all">Any medication</option>{meds.map((m) => <option key={m} value={m}>{m}</option>)}
-            </select>
-            <select value={dx} onChange={(e) => setDx(e.target.value)} style={s.cohortSel}>
-              <option value="all">Any diagnosis</option>{dxs.map((d) => <option key={d} value={d}>{d}</option>)}
-            </select>
-            <select value={repeatMin} onChange={(e) => setRepeatMin(e.target.value)} style={s.cohortSel} title="Questions reused (verbatim or near-verbatim) across multiple years">
-              <option value="all">Any (repeat or not)</option>
-              <option value="2">Repeated 2+ years</option>
-              <option value="3">Repeated 3+ years</option>
-              <option value="4">Repeated 4+ years</option>
-            </select>
-            <select value={sortBy} onChange={(e) => setSortBy(e.target.value as "default" | "repeats")} style={s.cohortSel} title="Order the results below">
-              <option value="default">Sort: default order</option>
-              <option value="repeats">Sort: most repeated first</option>
-            </select>
-          </div>
+          )}
           <div style={s.deckCount}>
             <span><b style={{ color: T.text }}>{matches.length}</b> match · <b style={{ color: T.teal }}>{selected.size}</b> selected</span>
             <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, color: T.muted, cursor: "pointer", marginLeft: 14 }}
@@ -6277,15 +7290,38 @@ function DeckBuilder({
             </span>
           </div>
         </div>
-        <div style={s.apBody}>
-          {matches.length === 0 && <p style={s.apEmpty}>No questions match these filters.</p>}
+        <div style={s.apBody} className="deckBody">
+          {matches.length === 0 && (
+            <p style={s.apEmpty}>
+              {progress === "missed" && progressCounts.missed === 0
+                ? "You haven't missed any questions yet — nothing to redo."
+                : progress === "unseen" && progressCounts.unseen === 0
+                  ? "You've answered every question in the bank. Try “Ones I got wrong” instead."
+                  : progress === "correct" && progressCounts.correct === 0
+                    ? "No answered-correctly questions yet."
+                    : "No questions match these filters."}
+            </p>
+          )}
           {shown.map((q) => {
             const id = questionId(q.year, q.q_index);
+            const st = progressOf(q);
             return (
               <div key={id} style={s.deckRow}>
                 <input type="checkbox" checked={selected.has(id)} onChange={() => toggle(id)} style={{ marginTop: 4 }} />
                 <div style={s.deckRowText} onClick={() => onOpen(id)} title="Open this question">
                   <div style={s.deckRowMeta}>
+                    {/* At-a-glance history, so a mixed list is still scannable */}
+                    <span
+                      style={{
+                        ...s.histBadge,
+                        color: st === "missed" ? T.wrongText : st === "correct" ? T.correctText : T.faint,
+                        background: st === "missed" ? T.wrongBg : st === "correct" ? T.correctBg : "transparent",
+                        borderColor: st === "missed" ? T.wrongLine : st === "correct" ? T.correctLine : T.paperEdge,
+                      }}
+                      title={st === "missed" ? "You missed this one" : st === "correct" ? "You got this one right" : "You haven't tried this one"}
+                    >
+                      {st === "missed" ? "Missed" : st === "correct" ? "Correct" : "New"}
+                    </span>
                     {q.year} · Q{q.q_index} · {q.prite_label}
                     {(q.repeat_count ?? 1) > 1 && (
                       <span style={s.repeatBadge} title={`Also appears in ${q.repeat_years?.filter((y) => y !== q.year).join(", ")}`}>
@@ -7164,7 +8200,7 @@ function MissedPanel({
           <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
         </div>
         <div style={s.missActions}>
-          <button style={s.apApprove} onClick={onReview}><RotateCcw size={13} strokeWidth={2.3} /> Review these</button>
+          <button style={s.apApprove} onClick={onReview} title="Start a practice run of these questions, answers hidden, so you can try them again"><RotateCcw size={13} strokeWidth={2.3} /> Try these again</button>
           <button style={s.ghost} onClick={onExport}><Download size={13} strokeWidth={2.2} /> Export all</button>
           {rows.length > 0 && (
             <button style={s.missClear} onClick={onClear} title="Hide these from your learning opportunities (history is kept)"><Check size={13} strokeWidth={2.4} /> Clear all</button>
@@ -7647,6 +8683,23 @@ button { font-family: inherit; -webkit-appearance: none; appearance: none; }
 .opt:disabled { cursor: default; }
 .opt { transition: transform .12s cubic-bezier(.2,.7,.3,1), border-color .12s ease, box-shadow .15s ease; }
 .tab:hover { color: ${T.text}; }
+/* The answer reads as a scrollable collection of chapters. Each chapter keeps
+   its label and purpose visible, and opens with a restrained paper-fold motion. */
+.learningCard { position: relative; isolation: isolate; transition: transform .2s cubic-bezier(.2,.7,.3,1), border-color .2s ease, box-shadow .2s ease; }
+.learningCard::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: linear-gradient(180deg, ${T.teal}, #69c5ad); opacity: 0; transition: opacity .2s ease; z-index: 2; }
+.learningCard::after { content: ""; position: absolute; width: 210px; height: 210px; right: -120px; top: -150px; border-radius: 50%; background: radial-gradient(circle, rgba(14,122,107,.12), rgba(14,122,107,0) 68%); opacity: 0; transform: scale(.7); transition: opacity .3s ease, transform .45s cubic-bezier(.2,.7,.3,1); pointer-events: none; z-index: -1; }
+.learningCard:hover { transform: translateY(-1px); border-color: ${T.teal}55 !important; box-shadow: 0 14px 34px -26px rgba(17,51,51,.65); }
+.learningCardOpen::before, .learningCardOpen::after { opacity: 1; }
+.learningCardOpen::after { transform: scale(1); }
+.learningCardButton:hover .learningChevron { color: ${T.teal} !important; }
+.learningKeep:hover { color: ${T.tealDeep} !important; border-color: ${T.teal}88 !important; background: ${T.tealSoft} !important; transform: translateY(-1px); }
+.learningKeepOn { box-shadow: 0 5px 13px -9px rgba(14,122,107,.8); }
+.learningBody { display: grid; grid-template-rows: 0fr; opacity: 0; visibility: hidden; transition: grid-template-rows .38s cubic-bezier(.2,.72,.25,1), opacity .2s ease, visibility 0s linear .38s; }
+.learningBodyOpen { grid-template-rows: 1fr; opacity: 1; visibility: visible; transition: grid-template-rows .42s cubic-bezier(.2,.72,.25,1), opacity .28s ease .08s, visibility 0s linear 0s; }
+.learningBody > div { min-height: 0; overflow: hidden; }
+.learningBodyOpen .learningBodyInner { padding-top: 20px !important; padding-bottom: 22px !important; border-top-width: 1px !important; border-top-color: ${T.paperEdge} !important; }
+.learningCardIn { animation: learningCardIn .36s cubic-bezier(.22,.75,.28,1) both; }
+@keyframes learningCardIn { from { opacity: 0; transform: translateY(9px); } }
 /* Exam focus mode: fade the surrounding chrome down to a whisper, bring it
    back on hover so the question is the only thing competing for attention. */
 .examDim { opacity: .1; transition: opacity .4s ease; }
@@ -7664,6 +8717,37 @@ button { font-family: inherit; -webkit-appearance: none; appearance: none; }
 @keyframes grow { from { width: 0 !important; } }
 .toast { animation: tin .3s ease both; }
 @keyframes tin { from { opacity: 0; transform: translateY(8px); } }
+@media (max-width: 560px) { .audioGrid { grid-template-columns: 1fr !important; } }
+@media (max-width: 560px) {
+  .learningCardHeader { grid-template-columns: minmax(0,1fr) auto !important; }
+  .learningCardButton { grid-template-columns: 36px minmax(0,1fr) auto !important; padding: 14px !important; }
+  .learningCardButton > span:first-child { display: none !important; }
+  .learningCardButton .learningChevron { grid-column: 3; }
+  .learningCardButton > span:nth-child(2) { grid-column: 1; }
+  .learningCardButton > span:nth-child(3) { grid-column: 2; }
+  .learningCardButton > span:nth-last-child(2):not(:nth-child(3)) { grid-column: 3; }
+  .learningKeep { width: 34px; height: 34px; padding: 0 !important; margin: 0 10px 0 2px !important; align-self: center; justify-content: center; }
+  .learningKeepLabel { display: none; }
+  .learningHead { align-items: flex-end !important; }
+  .learningActions { justify-content: flex-end !important; }
+  .learningBodyInner { padding-left: 15px !important; padding-right: 15px !important; }
+  .learningBodyOpen .learningBodyInner { padding-top: 16px !important; padding-bottom: 16px !important; }
+  .audioModal { border-radius: 16px !important; }
+  .audioActions > span { width: 100%; margin-left: 0 !important; }
+}
+.audioPulse { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; color: #10231f; background: #7ee0cf; animation: audioPulse 1.35s ease-in-out infinite; }
+@keyframes audioPulse { 0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(126,224,207,.42); } 50% { transform: scale(1.08); box-shadow: 0 0 0 10px rgba(126,224,207,0); } }
+.audioWave { display: flex; align-items: center; gap: 3px; height: 18px; margin-top: 10px; }
+.audioWave i { display: block; width: 3px; height: 6px; border-radius: 3px; background: #7ee0cf; animation: audioWave .8s ease-in-out infinite alternate; }
+.audioWave i:nth-child(2) { animation-delay: .12s; }.audioWave i:nth-child(3) { animation-delay: .24s; }.audioWave i:nth-child(4) { animation-delay: .36s; }.audioWave i:nth-child(5) { animation-delay: .48s; }.audioWave i:nth-child(6) { animation-delay: .6s; }.audioWave i:nth-child(7) { animation-delay: .72s; }
+@keyframes audioWave { from { height: 5px; opacity: .45; } to { height: 18px; opacity: 1; } }
+/* Placeholder shimmer while a private textbook page image is being fetched. */
+@keyframes ksShimmer { from { background-position: 180% 0; } to { background-position: -80% 0; } }
+/* The textbook page-window pager takes focus so left/right arrows page through
+   the section. It needs a visible focus ring for that to be discoverable, but
+   only for keyboard users — :focus-visible keeps it off after a mouse click. */
+.ksPager:focus { outline: none; }
+.ksPager:focus-visible { outline: 2px solid #0e7a6b; outline-offset: 2px; }
 /* Press feedback: instant on pointer-down (short in), soft springy release (longer out). */
 button:not(.opt) { transition: transform .16s cubic-bezier(.2,.7,.3,1); }
 button:not(.opt):active { transform: scale(.96); transition-duration: .06s; }
@@ -7824,6 +8908,8 @@ button:focus-visible { outline: 2px solid ${T.teal}; outline-offset: 2px; }
   .qIn, .qIn .opt:not(.pop), .flameFlicker, .timerLow, .progFillDone { animation: none !important; }
   .confetti { display: none !important; }
   .progFill, .progFillDone { transition: none !important; }
+  .learningCard, .learningCard::before, .learningCard::after, .learningBody, .learningChevron { transition: none !important; }
+  .learningCardIn { animation: none !important; }
 }
 /* The mobile "Menu" toggle lives in the header; desktop never sees it. */
 .mobMenuBtn { display: none !important; align-items: center; gap: 5px; }
@@ -7839,6 +8925,14 @@ button:focus-visible { outline: 2px solid ${T.teal}; outline-offset: 2px; }
   .mobExtra { display: none !important; }
   .mobMenuOpen .mobExtra { display: inline-flex !important; }
   .mobMenuOpen .topActions { display: flex !important; }
+  /* On a phone the quick-start presets stack, so the eyebrow gets its own line
+     instead of stealing width from the first (widest) button. */
+  .quickLabel { flex-basis: 100%; margin-bottom: 2px; }
+  /* The study-set builder's filters are taller than a phone screen, and the
+     inner-scroll layout pushed the "Study these" footer off the bottom where
+     nobody could reach it. Below 680px the whole panel scrolls instead. */
+  .deckPanel { overflow-y: auto !important; }
+  .deckPanel .deckBody { overflow: visible !important; }
 }
 /* Slow ambient drift for the participant poll's arena backdrop (same motion
    ImmersiveScene uses for its settled-room backdrop). */
@@ -7895,6 +8989,7 @@ const s: Record<string, React.CSSProperties> = {
   apEmail: { fontSize: 12.5, color: T.muted, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
   apActions: { display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" as const, justifyContent: "flex-end", marginLeft: "auto" },
   apApprove: { background: T.teal, color: "#fff", border: "none", padding: "7px 13px", borderRadius: 8, fontSize: 12.5, fontWeight: 600, cursor: "pointer" },
+  apDecline: { background: "#fff", color: T.wrongLine, border: `1px solid ${T.wrongLine}88`, padding: "7px 13px", borderRadius: 8, fontSize: 12.5, fontWeight: 600, cursor: "pointer" },
   apSelect: { background: "#fff", color: T.text, border: `1px solid ${T.paperEdge}`, borderRadius: 8, padding: "6px 8px", fontSize: 12.5, cursor: "pointer" },
   apBlock: { display: "grid", placeItems: "center", width: 30, height: 30, borderRadius: 8, background: "#fff", color: T.wrongLine, border: `1px solid ${T.paperEdge}`, cursor: "pointer" },
   apToggle: { background: "#fff", color: T.muted, border: `1px solid ${T.paperEdge}`, borderRadius: 999, padding: "6px 12px", fontSize: 12.5, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" as const },
@@ -7935,7 +9030,7 @@ const s: Record<string, React.CSSProperties> = {
   insTabs: { display: "flex", gap: 4, flexWrap: "wrap", padding: "2px 20px 14px", borderBottom: `1px solid ${T.paperEdge}` },
   insTab: { background: T.paper, color: T.muted, border: `1px solid ${T.paperEdge}`, padding: "6px 11px", borderRadius: 8, fontSize: 12.5, fontWeight: 500, cursor: "pointer" },
   insTabOn: { background: T.teal, color: "#fff", border: `1px solid ${T.teal}` },
-  cohortSel: { background: "#fff", color: T.text, border: `1px solid ${T.paperEdge}`, borderRadius: 9, padding: "7px 10px", fontSize: 13, cursor: "pointer" },
+  cohortSel: { background: "#fff", color: T.text, border: `1px solid ${T.paperEdge}`, borderRadius: 9, padding: "7px 10px", fontSize: 13, cursor: "pointer", maxWidth: "100%", minWidth: 0 },
   insHead: { display: "flex", justifyContent: "space-between", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 11, letterSpacing: "0.04em", textTransform: "uppercase", color: T.faint, margin: "10px 4px 12px" },
   insHeadR: { textAlign: "right" },
   insRow: { display: "flex", alignItems: "center", gap: 10, padding: "7px 4px" },
@@ -8012,13 +9107,31 @@ const s: Record<string, React.CSSProperties> = {
   jumpBtn: { background: T.teal, color: "#fff", border: "none", borderRadius: 9, padding: "8px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer" },
   deckBtn: { display: "inline-flex", alignItems: "center", gap: 6, background: T.inkSoft, color: "#e7d9b4", border: `1px solid ${T.inkLine}`, padding: "8px 12px", borderRadius: 9, fontSize: 12.5, fontWeight: 500, cursor: "pointer" },
   deckFilters: { padding: "2px 20px 12px", borderBottom: `1px solid ${T.paperEdge}` },
+  // Quick-start presets — deliberately the biggest, plainest-English control in
+  // the panel, since "my wrong ones" / "ones I haven't done" is what people ask.
+  quickRow: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: 7, marginBottom: 6 },
+  quickLabel: { fontSize: 11, fontWeight: 700, letterSpacing: ".09em", textTransform: "uppercase", color: T.faint, marginRight: 2 },
+  quickBtn: { display: "inline-flex", alignItems: "center", gap: 6, background: T.paper, color: T.text, border: `1px solid ${T.paperEdge}`, borderRadius: 999, padding: "7px 13px", fontSize: 13, fontWeight: 600, cursor: "pointer" },
+  quickBtnOn: { background: T.teal, color: "#fff", border: `1px solid ${T.teal}` },
+  quickHint: { margin: "0 0 10px", fontSize: 12, color: T.faint, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
+  cohortSelOn: { border: `1px solid ${T.teal}`, color: T.teal, fontWeight: 600 },
+  histBadge: { display: "inline-block", border: "1px solid", borderRadius: 999, padding: "0 7px", fontSize: 10.5, fontWeight: 700, letterSpacing: ".02em", marginRight: 7, verticalAlign: "1px" },
   deckSearch: { width: "100%", border: `1px solid ${T.paperEdge}`, borderRadius: 9, padding: "10px 13px", fontSize: 14, background: "#fff", color: T.text, marginBottom: 9 },
   deckSearchRow: { display: "flex", alignItems: "center", gap: 8, marginBottom: 9, flexWrap: "wrap" },
   scopeToggle: { display: "inline-flex", background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 9, padding: 2, gap: 2 },
   scopeBtn: { background: "transparent", color: T.muted, border: "none", padding: "7px 12px", borderRadius: 7, fontSize: 12.5, fontWeight: 600, cursor: "pointer" },
   scopeOn: { background: T.teal, color: "#fff" },
-  deckSelRow: { display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 10 },
-  deckCount: { display: "flex", alignItems: "center", fontSize: 13, color: T.muted, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
+  deckSelRow: { display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 0 },
+  moreBtn: { display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", color: T.muted, border: `1px solid ${T.paperEdge}`, borderRadius: 9, padding: "9px 13px", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" },
+  moreBtnOn: { color: T.teal, border: `1px solid ${T.teal}` },
+  moreCount: { display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 18, height: 18, padding: "0 5px", borderRadius: 999, background: T.teal, color: "#fff", fontSize: 11, fontWeight: 700 },
+  clearBtn: { background: "transparent", color: T.muted, border: "none", padding: "9px 6px", fontSize: 13, fontWeight: 600, cursor: "pointer", textDecoration: "underline" },
+  advWrap: { display: "flex", flexDirection: "column", gap: 12, padding: "12px 13px", marginBottom: 10, background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 10 },
+  advGroup: { display: "flex", flexDirection: "column", gap: 6 },
+  advLabel: { fontSize: 11, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: T.faint },
+  // wraps rather than squeezing — on a phone the count + dedupe toggle + the
+  // select/clear buttons can't share one line without clipping
+  deckCount: { display: "flex", alignItems: "center", flexWrap: "wrap", rowGap: 8, fontSize: 13, color: T.muted, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
   deckRow: { display: "flex", alignItems: "flex-start", gap: 11, padding: "11px 4px", borderBottom: `1px solid ${T.paperEdge}` },
   reorderBtn: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: 26, height: 22, flexShrink: 0, background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 7, color: T.muted, cursor: "pointer", padding: 0 },
   deckRowText: { display: "flex", flexDirection: "column", gap: 3, minWidth: 0, flex: 1, cursor: "pointer" },
@@ -8083,13 +9196,28 @@ const s: Record<string, React.CSSProperties> = {
   verdictMeta: { marginLeft: "auto", fontSize: 12.5, color: T.muted, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", maxWidth: "100%" },
 
   below: { marginTop: 18 },
-  tabs: { position: "relative", display: "flex", gap: 4, borderBottom: `1px solid ${T.inkLine}`, flexWrap: "wrap" },
-  tab: { display: "flex", alignItems: "center", gap: 7, background: "transparent", border: "none", color: "#8c93a1", padding: "9px 13px", fontSize: 13.5, fontWeight: 500, cursor: "pointer", borderBottom: "2px solid transparent", marginBottom: -1 },
-  tabActive: { color: "#fff" },
-  tabInd: { position: "absolute", height: 2, background: T.teal, borderRadius: 2, pointerEvents: "none" },
-  tabCount: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 11, background: T.inkSoft, color: "#c7ccd6", borderRadius: 20, padding: "1px 7px" },
-
-  panel: { background: T.paper, border: `1px solid ${T.paperEdge}`, borderTop: "none", borderRadius: "0 0 14px 14px", padding: 22 },
+  learningHead: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 18, marginBottom: 12, flexWrap: "wrap" },
+  learningEyebrow: { display: "block", color: "#63d6bf", fontSize: 10.5, fontWeight: 800, letterSpacing: "0.13em", textTransform: "uppercase", marginBottom: 3 },
+  learningTitle: { color: "#f4f6f9", fontSize: 19, lineHeight: 1.2, letterSpacing: "-0.02em", margin: 0, fontWeight: 700 },
+  learningHint: { color: "#9199a8", fontSize: 11.5, lineHeight: 1.4, margin: "5px 0 0", maxWidth: 470 },
+  learningActions: { display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" },
+  learningAction: { background: T.inkSoft, color: "#b9c0cc", border: `1px solid ${T.inkLine}`, borderRadius: 999, padding: "6px 10px", fontSize: 11.5, fontWeight: 650, cursor: "pointer" },
+  learningStack: { display: "grid", gap: 10 },
+  learningCard: { background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 14, overflow: "hidden", boxShadow: "0 5px 18px -18px rgba(0,0,0,.55)" },
+  learningCardHeader: { position: "relative", zIndex: 1, display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", alignItems: "stretch", background: "linear-gradient(110deg, rgba(255,255,255,.96), rgba(247,246,242,.92))" },
+  learningCardButton: { width: "100%", display: "grid", gridTemplateColumns: "38px 42px minmax(0,1fr) auto auto", alignItems: "center", gap: 11, padding: "15px 10px 15px 18px", background: "transparent", color: T.text, border: "none", textAlign: "left", cursor: "pointer" },
+  learningKeep: { alignSelf: "center", display: "inline-flex", alignItems: "center", gap: 5, margin: "0 16px 0 2px", padding: "6px 9px", borderRadius: 999, borderWidth: 1, borderStyle: "solid", borderColor: T.paperEdge, background: "rgba(255,255,255,.82)", color: T.muted, fontSize: 10.5, fontWeight: 700, whiteSpace: "nowrap", cursor: "pointer", transition: "color .18s ease, border-color .18s ease, background .18s ease, transform .18s ease" },
+  learningKeepOn: { color: T.tealDeep, borderColor: `${T.teal}88`, background: T.tealSoft },
+  learningIndex: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", color: "#a4a5a1", fontSize: 10.5, fontWeight: 750, letterSpacing: "0.08em", transition: "color .2s ease" },
+  learningIndexOpen: { color: T.teal },
+  learningIcon: { width: 36, height: 36, display: "grid", placeItems: "center", borderRadius: 11, color: T.muted, background: "#fff", borderWidth: 1, borderStyle: "solid", borderColor: T.paperEdge, boxShadow: "0 4px 10px -8px rgba(0,0,0,.38)", transition: "color .2s ease, background .2s ease, border-color .2s ease, transform .25s cubic-bezier(.2,.7,.3,1)" },
+  learningIconOpen: { color: "#fff", background: T.teal, borderColor: T.teal, transform: "rotate(-2deg) scale(1.04)" },
+  learningCardText: { minWidth: 0, display: "flex", alignItems: "baseline", gap: "6px 11px", flexWrap: "wrap" },
+  learningCardTitle: { color: T.text, fontSize: 15.5, fontWeight: 750, lineHeight: 1.25, letterSpacing: "-0.01em" },
+  learningCardSummary: { color: T.muted, fontSize: 12.5, lineHeight: 1.35, fontWeight: 450 },
+  learningCount: { display: "inline-grid", placeItems: "center", minWidth: 22, height: 22, padding: "0 7px", borderRadius: 999, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 10.5, fontWeight: 750, background: T.tealSoft, color: T.tealDeep },
+  learningChevron: { color: T.faint, transition: "transform .3s cubic-bezier(.2,.75,.25,1), color .2s ease", flexShrink: 0 },
+  learningBodyInner: { borderTop: "0 solid transparent", padding: "0 22px" },
 
   expl: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 16.5, lineHeight: 1.6, color: T.text, margin: "0 0 16px", whiteSpace: "pre-wrap" },
   explImg: { display: "block", maxWidth: "100%", borderRadius: 10, border: `1px solid ${T.paperEdge}`, background: "#fff", margin: "0 0 12px" },
@@ -8160,6 +9288,11 @@ const s: Record<string, React.CSSProperties> = {
   confetti: { position: "fixed", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 70 },
   balloonField: { position: "fixed", inset: 0, overflow: "hidden", pointerEvents: "none", zIndex: 75 },
   toast: { position: "fixed", bottom: 22, left: "50%", transform: "translateX(-50%)", background: T.ink, color: "#fff", padding: "11px 18px", borderRadius: 11, fontSize: 13.5, fontWeight: 500, boxShadow: "0 16px 40px -16px rgba(0,0,0,.6)", zIndex: 60, maxWidth: "90vw", textAlign: "center" },
+  replyToast: { position: "fixed", bottom: 80, left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "stretch", gap: 2, background: T.ink, color: "#fff", borderRadius: 13, boxShadow: "0 18px 44px -16px rgba(0,0,0,.62)", zIndex: 61, maxWidth: "92vw", overflow: "hidden" },
+  replyToastMain: { display: "flex", alignItems: "center", gap: 10, background: "transparent", border: "none", color: "#fff", padding: "13px 8px 13px 16px", fontSize: 13.5, fontWeight: 600, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", cursor: "pointer", textAlign: "left", lineHeight: 1.35 },
+  replyToastIcon: { display: "grid", placeItems: "center", width: 26, height: 26, borderRadius: 8, background: T.teal, color: "#fff", flexShrink: 0 },
+  replyToastCta: { color: T.tealSoft, fontWeight: 700, whiteSpace: "nowrap" },
+  replyToastX: { display: "grid", placeItems: "center", width: 40, background: "transparent", border: "none", borderLeft: "1px solid rgba(255,255,255,.14)", color: "rgba(255,255,255,.72)", cursor: "pointer", flexShrink: 0 },
 
   disclaimer: { maxWidth: 620, margin: "44px auto 0", paddingTop: 16, borderTop: `1px solid ${T.inkLine}`, color: T.faint, fontSize: 11.5, lineHeight: 1.5, textAlign: "center" },
   siteReportBtn: { display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: `1px solid ${T.paperEdge}`, color: T.muted, fontSize: 12, padding: "6px 12px", borderRadius: 8, cursor: "pointer" },

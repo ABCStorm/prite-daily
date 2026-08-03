@@ -1,3 +1,17 @@
+-- ============================================================================
+-- SUPERSEDED 2026-07-28 — DO NOT APPLY.
+--
+-- Hosting moved to a PRIVATE Cloudflare R2 bucket fronted by the
+-- `workers/textbook-images` Worker. Reasons: the shipped screenshot set is
+-- 614 MB and would not fit Supabase Storage's 1 GB free tier, and R2 has no
+-- egress fees. Access control is equivalent — the Worker validates the same
+-- Supabase session before serving any page.
+--
+-- Kept only as a record of the rejected alternative. See the
+-- "Hosting the screenshots" section of
+-- .claude/skills/kaplan-sadock-citations/SKILL.md
+-- ============================================================================
+
 -- ----------------------------------------------------------------------------
 -- textbook-excerpts bucket: page screenshots from Kaplan & Sadock's
 -- Comprehensive Textbook of Psychiatry (10th ed.) that support a question's

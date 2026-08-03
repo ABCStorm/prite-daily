@@ -1,0 +1,14 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["scripts"],
+  "properties": {
+    "scripts": {
+      "type": "object",
+      "description": "The runner replaces this template with exact per-batch question ID properties.",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {}
+    }
+  }
+}

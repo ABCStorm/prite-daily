@@ -1,0 +1,489 @@
+{
+  "generated_at": "2026-08-02T20:23:23.891Z",
+  "bank_sha256": "8e6c8fa030e9e38bd38e7395da0256bdf74d29844546ac0a8c395ac3b71a37c4",
+  "question_count": 5100,
+  "catalog_entries": 37,
+  "questions_with_mnemonics": 1464,
+  "coverage_percent": 28.7,
+  "mnemonic_assignments": 1895,
+  "maximum_per_question": 2,
+  "by_year": {
+    "2009": 100,
+    "2010": 99,
+    "2011": 79,
+    "2012": 87,
+    "2013": 97,
+    "2014": 103,
+    "2015": 98,
+    "2016": 73,
+    "2017": 78,
+    "2018": 78,
+    "2019": 84,
+    "2020": 79,
+    "2021": 97,
+    "2022": 72,
+    "2023": 83,
+    "2024": 80,
+    "2025": 77
+  },
+  "by_mnemonic": {
+    "psychosis_time": 259,
+    "cognition": 194,
+    "mania": 173,
+    "mdd": 160,
+    "lithium": 127,
+    "personality": 108,
+    "ocd": 91,
+    "ptsd": 74,
+    "adhd": 69,
+    "autism": 68,
+    "insomnia": 65,
+    "somatic": 54,
+    "delirium": 52,
+    "gad": 50,
+    "mi": 39,
+    "narcolepsy": 38,
+    "rls": 27,
+    "parkinson": 26,
+    "bulimia": 25,
+    "anorexia": 24,
+    "mse": 24,
+    "mature_defenses": 23,
+    "eps": 18,
+    "adjustment": 17,
+    "pdd": 15,
+    "osa": 13,
+    "schizoaffective": 12,
+    "test_accuracy": 10,
+    "malpractice": 9,
+    "nms": 8,
+    "capacity": 8,
+    "serotonin": 7,
+    "sleep_waves": 5,
+    "wernicke": 2,
+    "errors": 1
+  },
+  "review_samples": {
+    "adhd": [
+      "2009-1: Anxiety disorder / Learning disorder",
+      "2009-115: Attention-deficit hyperactivity disorder (ADHD), inattentive type",
+      "2009-168: Hyperactivity",
+      "2009-212: substance use disorders.",
+      "2009-285: Treatment with stimulants has been shown to reduce tics in children with comorbid ADHD and a tic disorder."
+    ],
+    "personality": [
+      "2009-3: Borderline",
+      "2009-6: Pervasive insomnia",
+      "2009-12: The patient exhibits a subtly appealing seductiveness.",
+      "2009-17: Recent alcohol abuse",
+      "2009-19: Asperger disorder."
+    ],
+    "insomnia": [
+      "2009-6: Pervasive insomnia",
+      "2009-64: Lorazepam",
+      "2009-69: 2 months",
+      "2009-169: Insomnia",
+      "2009-267: Zolpidem"
+    ],
+    "cognition": [
+      "2009-13: basal ganglia.",
+      "2009-21: Lewy body disease",
+      "2009-39: Progressive supranuclear palsy",
+      "2009-41: Charles Bonnet syndrome.",
+      "2009-45: Attempt to decrease or stop the patient’s medication dose at least every 3 months."
+    ],
+    "psychosis_time": [
+      "2009-15: General Health Questionnaire",
+      "2009-22: Bipolar disorder",
+      "2009-24: Clozapine",
+      "2009-31: Eugen Bleuler.",
+      "2009-36: Assertive community treatment"
+    ],
+    "autism": [
+      "2009-19: Asperger disorder.",
+      "2009-101: express some concern, because most children this age can effectively make themselves understood.",
+      "2009-113: Infants are born with sophisticated perceptual abilities that facilitate attachment.",
+      "2009-179: prevent hospitalizations or residential placements.",
+      "2009-235: anxiety."
+    ],
+    "mania": [
+      "2009-20: Lithium carbonate",
+      "2009-22: Bipolar disorder",
+      "2009-97: Religious or spiritual problem",
+      "2009-150: Haloperidol",
+      "2009-170: Major depressive disorder"
+    ],
+    "lithium": [
+      "2009-20: Lithium carbonate",
+      "2009-24: Clozapine",
+      "2009-33: Continue citalopram at the present dose with no additional medication.",
+      "2009-42: Lithium",
+      "2009-53: Lithium"
+    ],
+    "parkinson": [
+      "2009-28: Pramipexole",
+      "2009-143: Parkinson disease",
+      "2010-4: Asymmetrical onset and progression of motor symptoms",
+      "2010-148: Quetiapine",
+      "2011-52: Parkinson disease"
+    ],
+    "delirium": [
+      "2009-29: Delirium tremens",
+      "2009-39: Progressive supranuclear palsy",
+      "2009-43: Amnestic disorder",
+      "2009-81: Anticholinergic delirium",
+      "2009-108: To reduce neuropsychiatric symptoms in the patient"
+    ],
+    "mdd": [
+      "2009-33: Continue citalopram at the present dose with no additional medication.",
+      "2009-69: 2 months",
+      "2009-72: Fluoxetine",
+      "2009-214: major depressive disorder.",
+      "2009-221: breathing related sleep disorder."
+    ],
+    "mse": [
+      "2009-41: Charles Bonnet syndrome.",
+      "2009-70: Mental status examination",
+      "2009-216: Circumstantiality",
+      "2011-33: Niacin",
+      "2011-91: Schedule a meeting with the medical team, patient, and family."
+    ],
+    "somatic": [
+      "2009-44: having a childish, fantastic quality.",
+      "2010-39: Hypochondriasis with poor insight",
+      "2010-210: Undifferentiated somatoform disorder",
+      "2010-276: Rehabilitative treatment",
+      "2012-83: Glossopharyngeal neuralgia"
+    ],
+    "ptsd": [
+      "2009-47: Normal grief",
+      "2009-84: Severity and proximity of trauma",
+      "2009-136: Acute stress",
+      "2010-14: Autism",
+      "2010-34: Reactive attachment disorder"
+    ],
+    "bulimia": [
+      "2009-59: cognitive-behavioral therapy (CBT) has been shown to be effective in bulimia nervosa.",
+      "2009-107: Bulimia nervosa, purging type",
+      "2010-242: Fluoxetine",
+      "2011-210: bulimia nervosa.",
+      "2011-269: usually do not maintain a normal weight."
+    ],
+    "narcolepsy": [
+      "2009-71: Kleine-Levin syndrome",
+      "2009-221: breathing related sleep disorder.",
+      "2010-77: sleep apnea.",
+      "2010-215: Clomipramine",
+      "2011-263: Hypocretin"
+    ],
+    "osa": [
+      "2009-71: Kleine-Levin syndrome",
+      "2014-216: Kleine-Levin syndrome",
+      "2014-272: Positive pressure therapy",
+      "2014-278: Carpal tunnel syndrome",
+      "2018-88: cluster headache"
+    ],
+    "ocd": [
+      "2009-77: Cognitive-behavioral therapy (CBT)",
+      "2009-97: Religious or spiritual problem",
+      "2009-115: Attention-deficit hyperactivity disorder (ADHD), inattentive type",
+      "2009-176: increase the dose of sertraline to 200 mg.",
+      "2009-201: Motivational interviewing"
+    ],
+    "mi": [
+      "2009-77: Cognitive-behavioral therapy (CBT)",
+      "2009-102: Twelve-step facilitation",
+      "2009-201: Motivational interviewing",
+      "2010-59: Develop discrepancy",
+      "2011-36: Assertive community treatment"
+    ],
+    "eps": [
+      "2009-79: Cessation of smoking",
+      "2010-85: Propranolol",
+      "2012-239: propranolol.",
+      "2013-152: Dementia with Lewy bodies",
+      "2016-34: number of available dopamine receptors"
+    ],
+    "anorexia": [
+      "2009-107: Bulimia nervosa, purging type",
+      "2009-131: Reproductive hormone dysfunction",
+      "2010-110: Self-induced vomiting",
+      "2010-202: osteoporosis.",
+      "2010-295: Decreased serum potassium"
+    ],
+    "nms": [
+      "2009-183: Dopamine agonists",
+      "2010-5: Dopamine agonists",
+      "2010-65: Fever and severe muscle rigidity",
+      "2013-113: Skeletal muscle relaxation",
+      "2014-117: Dopamine agonists"
+    ],
+    "serotonin": [
+      "2009-280: serotonin syndrome.",
+      "2010-169: serotonin syndrome.",
+      "2011-49: Serotonin syndrome",
+      "2014-6: serotonin syndrome",
+      "2015-70: St. John's wort"
+    ],
+    "pdd": [
+      "2009-288: Double depression",
+      "2010-77: sleep apnea.",
+      "2011-13: Maternity blues",
+      "2011-98: Adjustment disorder with depressed mood",
+      "2011-129: Interpret this transferential response and invite the patient to discuss it further."
+    ],
+    "adjustment": [
+      "2009-288: Double depression",
+      "2010-119: Specific phobia",
+      "2010-129: normal regression.",
+      "2010-165: depression with atypical features.",
+      "2010-270: agoraphobia without panic."
+    ],
+    "sleep_waves": [
+      "2010-118: Stage 4",
+      "2013-88: Stage 4, non-REM",
+      "2021-8: Beta",
+      "2021-141: Non-REM stage N3",
+      "2023-136: Slow wave sleep"
+    ],
+    "schizoaffective": [
+      "2010-140: Discontinue clozapine",
+      "2012-37: Alcohol-induced psychotic disorder",
+      "2012-141: uncommon side effect of the antimalarial treatment.",
+      "2014-27: Delirium associated with alcohol withdrawal",
+      "2014-28: Assertive community treatment"
+    ],
+    "gad": [
+      "2010-210: Undifferentiated somatoform disorder",
+      "2011-229: Depressive",
+      "2011-249: Specific phobia",
+      "2012-13: Panic disorder",
+      "2012-51: Adjustment disorder with anxiety"
+    ],
+    "mature_defenses": [
+      "2010-219: Ego psychology",
+      "2012-133: defense mechanisms.",
+      "2013-3: Introjection",
+      "2014-237: Sublimation",
+      "2016-24: Supportive"
+    ],
+    "rls": [
+      "2011-104: Pramipexole",
+      "2012-64: Periodic limb movement disorder",
+      "2012-144: Sleep paralysis",
+      "2013-69: Sleep phase delay",
+      "2013-102: Increased fragmentation"
+    ],
+    "malpractice": [
+      "2012-237: Incorrect treatment",
+      "2013-277: Duty",
+      "2014-225: Preponderance of evidence",
+      "2015-203: Patient did not suffer an appreciably bad outcome",
+      "2018-282: Suicide"
+    ],
+    "capacity": [
+      "2013-270: Seek out decision-making surrogates / Deliver treatment in the patient's best interests",
+      "2014-131: does not appreciate the consequences of refusing treatment",
+      "2019-123: twelve years",
+      "2019-134: Assess patient's capacity to refuse",
+      "2020-33: Assess capacity to refuse"
+    ],
+    "errors": [
+      "2014-147: Finding the antidepressant is effective when it actually is not effective"
+    ],
+    "test_accuracy": [
+      "2014-211: Carbohydrate-deficient transferrin (CDT)",
+      "2015-172: Sertraline",
+      "2015-216: specificity of the test",
+      "2017-53: False positives through repeated association tests",
+      "2018-109: Sensitivity"
+    ],
+    "wernicke": [
+      "2018-118: Wernicke-Korsakoff syndrome",
+      "2024-118: Wernicke-Korsakoff syndrome"
+    ]
+  },
+  "source_checks": [
+    {
+      "label": "PsychDB: Major Depressive Disorder",
+      "url": "https://www.psychdb.com/mood/1-depression/home",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://www.psychdb.com/mood/1-depression/home"
+    },
+    {
+      "label": "PsychDB: Persistent Depressive Disorder",
+      "url": "https://www.psychdb.com/mood/persistent-depressive-disorder-dysthymia",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://www.psychdb.com/mood/persistent-depressive-disorder-dysthymia"
+    },
+    {
+      "label": "PsychDB: Bipolar II Disorder",
+      "url": "https://www.psychdb.com/bipolar/bipolar-ii",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://www.psychdb.com/bipolar/bipolar-ii"
+    },
+    {
+      "label": "PsychDB: Generalized Anxiety Disorder",
+      "url": "https://www.psychdb.com/anxiety/gad",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://www.psychdb.com/anxiety/gad"
+    },
+    {
+      "label": "PsychDB: Posttraumatic Stress Disorder",
+      "url": "https://www.psychdb.com/trauma-and-stressors/ptsd",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://www.psychdb.com/trauma-and-stressors/ptsd"
+    },
+    {
+      "label": "Peer-reviewed DSM mnemonic scoping review",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7232614/",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7232614/"
+    },
+    {
+      "label": "PsychDB: Introduction to Personality Disorders",
+      "url": "https://www.psychdb.com/personality/introduction",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://www.psychdb.com/personality/introduction"
+    },
+    {
+      "label": "PsychDB: Antisocial Personality Disorder",
+      "url": "https://www.psychdb.com/personality/antisocial",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://www.psychdb.com/personality/antisocial"
+    },
+    {
+      "label": "PsychDB: Delirium",
+      "url": "https://www.psychdb.com/cl/1-delirium",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://www.psychdb.com/cl/1-delirium"
+    },
+    {
+      "label": "PsychDB: Introduction to Memory and Cognition",
+      "url": "https://www.psychdb.com/cognitive-testing/memory",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://www.psychdb.com/cognitive-testing/memory"
+    },
+    {
+      "label": "PsychDB: Anorexia Nervosa",
+      "url": "https://www.psychdb.com/eating-disorders/anorexia",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://www.psychdb.com/eating-disorders/anorexia"
+    },
+    {
+      "label": "PsychDB: Introduction to Sleep Medicine",
+      "url": "https://www.psychdb.com/sleep/1-introduction/home",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://www.psychdb.com/sleep/1-introduction/home"
+    },
+    {
+      "label": "PsychDB: Motivational Interviewing",
+      "url": "https://www.psychdb.com/psychotherapy/mi",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://www.psychdb.com/psychotherapy/mi"
+    },
+    {
+      "label": "PsychDB: Defenses",
+      "url": "https://www.psychdb.com/psychotherapy/psychodynamic/defenses",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://www.psychdb.com/psychotherapy/psychodynamic/defenses"
+    },
+    {
+      "label": "PsychDB: Mental Status Exam",
+      "url": "https://www.psychdb.com/teaching/mental-status-exam-mse",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://www.psychdb.com/teaching/mental-status-exam-mse"
+    },
+    {
+      "label": "PsychDB: Lithium",
+      "url": "https://www.psychdb.com/meds/mood-stabilizers-anticonvulsants/1-lithium",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://www.psychdb.com/meds/mood-stabilizers-anticonvulsants/1-lithium"
+    },
+    {
+      "label": "PsychDB: Neuroleptic Malignant Syndrome",
+      "url": "https://www.psychdb.com/meds/antipsychotics/nms-neuroleptic-malignant-syndrome",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://www.psychdb.com/meds/antipsychotics/nms-neuroleptic-malignant-syndrome"
+    },
+    {
+      "label": "PsychDB: Serotonin Syndrome",
+      "url": "https://www.psychdb.com/meds/antidepressants/serotonin",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://www.psychdb.com/meds/antidepressants/serotonin"
+    },
+    {
+      "label": "PsychDB: Extrapyramidal Symptoms",
+      "url": "https://www.psychdb.com/meds/antipsychotics/eps",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://www.psychdb.com/meds/antipsychotics/eps"
+    },
+    {
+      "label": "PsychDB: Parkinson's Disease",
+      "url": "https://www.psychdb.com/geri/parkinsons",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://www.psychdb.com/geri/parkinsons"
+    },
+    {
+      "label": "PsychDB: Wernicke-Korsakoff Syndrome",
+      "url": "https://www.psychdb.com/cl/wernicke-korsakoff",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://www.psychdb.com/cl/wernicke-korsakoff"
+    },
+    {
+      "label": "PMC: Applying diagnostic-test results",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3572661/",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3572661/"
+    },
+    {
+      "label": "NIST: Type I and Type II errors",
+      "url": "https://www.itl.nist.gov/div898/handbook/prc/section1/prc131.htm",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://www.itl.nist.gov/div898/handbook/prc/section1/prc131.htm"
+    },
+    {
+      "label": "AAFP: Evaluating Medical Decision-Making Capacity",
+      "url": "https://www.aafp.org/pubs/afp/issues/2018/0701/p40.html",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://www.aafp.org/afp/2018/0701/p40"
+    },
+    {
+      "label": "PMC: Malpractice Law and Psychiatry",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7011304/",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7011304/"
+    }
+  ],
+  "safeguards": [
+    "Matching uses structured tags plus the stem and keyed answer text; distractor options are excluded.",
+    "Each question receives no more than two mnemonics.",
+    "Every mnemonic has at least one external source and an independently phrased expansion.",
+    "Question IDs and question-bank content are not modified; matching occurs at display/export time."
+  ]
+}

@@ -1,0 +1,1242 @@
+[
+ {
+  "id": "2014-0291",
+  "arm": "photo-flux-schnell",
+  "blind": "img_0001.jpg",
+  "fidelity": 1,
+  "plausibility": 2,
+  "craft": 3,
+  "usefulness": 1,
+  "defects": [
+   "generic_stock",
+   "empty_or_abstract"
+  ],
+  "note": "Just a drowsy man in bed; no seizure, ED, or clinical context shown."
+ },
+ {
+  "id": "2022-0288",
+  "arm": "raw-mini-med",
+  "blind": "img_0002.webp",
+  "fidelity": 4,
+  "plausibility": 4,
+  "craft": 4,
+  "usefulness": 4,
+  "defects": [],
+  "note": "Couple therapy scene, woman touching chest showing vulnerable emotion, fits EFT well."
+ },
+ {
+  "id": "2016-0121",
+  "arm": "photo-flux-schnell",
+  "blind": "img_0003.jpg",
+  "fidelity": 2,
+  "plausibility": 2,
+  "craft": 3,
+  "usefulness": 2,
+  "defects": [
+   "wrong_setting",
+   "generic_stock"
+  ],
+  "note": "Home portrait, not ED; no distress/agitation or clinical context shown."
+ },
+ {
+  "id": "2018-0191",
+  "arm": "photo-mini-med",
+  "blind": "img_0004.webp",
+  "fidelity": 3,
+  "plausibility": 3,
+  "craft": 3,
+  "usefulness": 2,
+  "defects": [
+   "distressing",
+   "wrong_setting"
+  ],
+  "note": "Shows agitation/kicking but not the offered-choice de-escalation moment."
+ },
+ {
+  "id": "2021-0065",
+  "arm": "photo-mini-med",
+  "blind": "img_0005.webp",
+  "fidelity": 2,
+  "plausibility": 3,
+  "craft": 3,
+  "usefulness": 2,
+  "defects": [
+   "generic_stock",
+   "wrong_setting"
+  ],
+  "note": "Woman with headache holding pill; no presentation, boardroom, or shaking hands shown."
+ },
+ {
+  "id": "2011-0263",
+  "arm": "photo-flux-krea",
+  "blind": "img_0006.jpg",
+  "fidelity": 1,
+  "plausibility": 2,
+  "craft": 3,
+  "usefulness": 1,
+  "defects": [
+   "generic_stock",
+   "empty_or_abstract"
+  ],
+  "note": "Just a man sleeping in bed; no narcolepsy/cataplexy cues at all."
+ },
+ {
+  "id": "2012-0152",
+  "arm": "photo-flux-krea",
+  "blind": "img_0007.jpg",
+  "fidelity": 2,
+  "plausibility": 3,
+  "craft": 3,
+  "usefulness": 2,
+  "defects": [
+   "text_in_image",
+   "generic_stock"
+  ],
+  "note": "Generic chart-checking scene; no sense of repeated/anxious checking or supervision."
+ },
+ {
+  "id": "2012-0152",
+  "arm": "raw-mini-med",
+  "blind": "img_0008.webp",
+  "fidelity": 2,
+  "plausibility": 3,
+  "craft": 4,
+  "usefulness": 2,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Generic stressed clinician at keyboard; no visible repetitive checking or undoing conveyed."
+ },
+ {
+  "id": "2020-0005",
+  "arm": "photo-flux-krea",
+  "blind": "img_0009.jpg",
+  "fidelity": 1,
+  "plausibility": 2,
+  "craft": 3,
+  "usefulness": 1,
+  "defects": [
+   "wrong_setting",
+   "wrong_patient_age",
+   "generic_stock",
+   "empty_or_abstract"
+  ],
+  "note": "Just a shirtless torso; no clinic, meds, or metformin cue shown."
+ },
+ {
+  "id": "2020-0005",
+  "arm": "photo-mini-med",
+  "blind": "img_0010.webp",
+  "fidelity": 4,
+  "plausibility": 4,
+  "craft": 3,
+  "usefulness": 4,
+  "defects": [],
+  "note": "Doctor showing pill to overweight patient; matches metformin add-on scenario well."
+ },
+ {
+  "id": "2011-0011",
+  "arm": "raw-mini-med",
+  "blind": "img_0011.webp",
+  "fidelity": 4,
+  "plausibility": 4,
+  "craft": 4,
+  "usefulness": 4,
+  "defects": [],
+  "note": "Clinician counseling depressed patient beside light-therapy box, clear teaching cue."
+ },
+ {
+  "id": "2017-0032",
+  "arm": "raw-mini-med",
+  "blind": "img_0012.webp",
+  "fidelity": 3,
+  "plausibility": 3,
+  "craft": 3,
+  "usefulness": 3,
+  "defects": [
+   "wrong_setting"
+  ],
+  "note": "No trauma cues visible; doubled stethoscope tubing; otherwise fits euphoric disinhibition"
+ },
+ {
+  "id": "2019-0039",
+  "arm": "photo-flux-krea",
+  "blind": "img_0013.jpg",
+  "fidelity": 1,
+  "plausibility": 2,
+  "craft": 2,
+  "usefulness": 1,
+  "defects": [
+   "wrong_setting",
+   "generic_stock",
+   "empty_or_abstract"
+  ],
+  "note": "Just a face with odd white smudge; no link to refeeding/phosphorus monitoring."
+ },
+ {
+  "id": "2019-0012",
+  "arm": "raw-mini-med",
+  "blind": "img_0014.webp",
+  "fidelity": 4,
+  "plausibility": 4,
+  "craft": 3,
+  "usefulness": 4,
+  "defects": [],
+  "note": "Bedside teaching with brainstem excitatory/inhibitory arrows overlay; clear concept, no withdrawal signs."
+ },
+ {
+  "id": "2020-0103",
+  "arm": "raw-mini-med",
+  "blind": "img_0015.webp",
+  "fidelity": 3,
+  "plausibility": 4,
+  "craft": 4,
+  "usefulness": 3,
+  "defects": [],
+  "note": "Generic therapy-session image; no cue to latency stage or peers."
+ },
+ {
+  "id": "2025-0034",
+  "arm": "photo-mini-med",
+  "blind": "img_0016.webp",
+  "fidelity": 3,
+  "plausibility": 4,
+  "craft": 4,
+  "usefulness": 3,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Home visit shown but no multidisciplinary team, just one worker."
+ },
+ {
+  "id": "2024-0273",
+  "arm": "photo-flux-krea",
+  "blind": "img_0017.jpg",
+  "fidelity": 1,
+  "plausibility": 2,
+  "craft": 3,
+  "usefulness": 1,
+  "defects": [
+   "wrong_setting",
+   "generic_stock",
+   "empty_or_abstract"
+  ],
+  "note": "Pregnant belly close-up; no postpartum unit, medication, or clinical context shown."
+ },
+ {
+  "id": "2024-0273",
+  "arm": "raw-mini-med",
+  "blind": "img_0018.webp",
+  "fidelity": 2,
+  "plausibility": 3,
+  "craft": 4,
+  "usefulness": 2,
+  "defects": [
+   "wrong_setting"
+  ],
+  "note": "Shows pregnant belly, not postpartum discharge with newborn."
+ },
+ {
+  "id": "2011-0011",
+  "arm": "photo-flux-schnell",
+  "blind": "img_0019.jpg",
+  "fidelity": 1,
+  "plausibility": 2,
+  "craft": 4,
+  "usefulness": 1,
+  "defects": [
+   "generic_stock",
+   "wrong_setting"
+  ],
+  "note": "Just a pensive woman by window; no light therapy or clinical content."
+ },
+ {
+  "id": "2014-0069",
+  "arm": "raw-mini-med",
+  "blind": "img_0020.webp",
+  "fidelity": 3,
+  "plausibility": 4,
+  "craft": 4,
+  "usefulness": 3,
+  "defects": [],
+  "note": "Captures vacant look, red eyes; missing perioral 'glue-sniffer' rash detail."
+ },
+ {
+  "id": "2025-0034",
+  "arm": "photo-flux-schnell",
+  "blind": "img_0021.jpg",
+  "fidelity": 1,
+  "plausibility": 2,
+  "craft": 3,
+  "usefulness": 1,
+  "defects": [
+   "wrong_setting",
+   "wrong_patient_age",
+   "generic_stock",
+   "empty_or_abstract"
+  ],
+  "note": "Two close-up faces, no ACT team, no community setting shown."
+ },
+ {
+  "id": "2017-0111",
+  "arm": "photo-flux-krea",
+  "blind": "img_0022.jpg",
+  "fidelity": 3,
+  "plausibility": 3,
+  "craft": 4,
+  "usefulness": 3,
+  "defects": [
+   "generic_stock",
+   "empty_or_abstract"
+  ],
+  "note": "Moody portrait with facial hyperpigmentation, but no clinical setting or clear signs."
+ },
+ {
+  "id": "2019-0039",
+  "arm": "photo-flux-schnell",
+  "blind": "img_0023.jpg",
+  "fidelity": 1,
+  "plausibility": 3,
+  "craft": 3,
+  "usefulness": 1,
+  "defects": [
+   "generic_stock",
+   "wrong_patient_age"
+  ],
+  "note": "Patient not emaciated; no refeeding/monitoring cues, generic hospital bed scene."
+ },
+ {
+  "id": "2016-0121",
+  "arm": "photo-mini-med",
+  "blind": "img_0024.webp",
+  "fidelity": 4,
+  "plausibility": 4,
+  "craft": 4,
+  "usefulness": 4,
+  "defects": [],
+  "note": "Distressed postpartum mother, clinician reassuring, infant safe in bassinet nearby."
+ },
+ {
+  "id": "2017-0032",
+  "arm": "photo-flux-krea",
+  "blind": "img_0025.jpg",
+  "fidelity": 1,
+  "plausibility": 2,
+  "craft": 4,
+  "usefulness": 1,
+  "defects": [
+   "wrong_setting",
+   "generic_stock",
+   "empty_or_abstract"
+  ],
+  "note": "Serious portrait, no injury, no hospital, no disinhibited affect shown."
+ },
+ {
+  "id": "2014-0006",
+  "arm": "photo-flux-krea",
+  "blind": "img_0026.jpg",
+  "fidelity": 1,
+  "plausibility": 2,
+  "craft": 2,
+  "usefulness": 1,
+  "defects": [
+   "generic_stock",
+   "wrong_setting"
+  ],
+  "note": "Generic calm bedside scene; no diaphoresis, clonus, tremor, or agitation shown."
+ },
+ {
+  "id": "2019-0012",
+  "arm": "photo-flux-krea",
+  "blind": "img_0027.jpg",
+  "fidelity": 1,
+  "plausibility": 3,
+  "craft": 3,
+  "usefulness": 1,
+  "defects": [
+   "generic_stock",
+   "empty_or_abstract"
+  ],
+  "note": "Just a resting patient; no withdrawal signs, no neurotransmitter concept shown."
+ },
+ {
+  "id": "2025-0034",
+  "arm": "photo-flux-krea",
+  "blind": "img_0028.jpg",
+  "fidelity": 1,
+  "plausibility": 2,
+  "craft": 3,
+  "usefulness": 1,
+  "defects": [
+   "generic_stock",
+   "empty_or_abstract"
+  ],
+  "note": "Just a pensive man's portrait; no ACT team, no discharge, no clinical context."
+ },
+ {
+  "id": "2022-0288",
+  "arm": "photo-flux-schnell",
+  "blind": "img_0029.jpg",
+  "fidelity": 2,
+  "plausibility": 3,
+  "craft": 4,
+  "usefulness": 2,
+  "defects": [
+   "wrong_setting",
+   "generic_stock"
+  ],
+  "note": "Tense couple portrait, no therapy setting or EFT cues shown."
+ },
+ {
+  "id": "2014-0006",
+  "arm": "photo-mini-med",
+  "blind": "img_0030.webp",
+  "fidelity": 2,
+  "plausibility": 4,
+  "craft": 4,
+  "usefulness": 2,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Generic distressed ED patient; no diaphoresis, tremor, clonus, or reflex exam shown."
+ },
+ {
+  "id": "2017-0111",
+  "arm": "photo-flux-schnell",
+  "blind": "img_0031.jpg",
+  "fidelity": 3,
+  "plausibility": 2,
+  "craft": 3,
+  "usefulness": 3,
+  "defects": [
+   "wrong_setting",
+   "wrong_patient_age"
+  ],
+  "note": "Shows hyperpigmented palms but no clinical/psych setting, patient looks older."
+ },
+ {
+  "id": "2015-0225",
+  "arm": "photo-mini-med",
+  "blind": "img_0032.webp",
+  "fidelity": 2,
+  "plausibility": 4,
+  "craft": 4,
+  "usefulness": 2,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Plain patient-clinician talk; nothing conveys paraphasia or language testing."
+ },
+ {
+  "id": "2017-0250",
+  "arm": "photo-mini-med",
+  "blind": "img_0033.webp",
+  "fidelity": 3,
+  "plausibility": 4,
+  "craft": 4,
+  "usefulness": 3,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Doctor shows pill bottle to young woman; no pregnancy/folate cues shown."
+ },
+ {
+  "id": "2011-0263",
+  "arm": "photo-flux-schnell",
+  "blind": "img_0034.jpg",
+  "fidelity": 1,
+  "plausibility": 3,
+  "craft": 3,
+  "usefulness": 1,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Just a sleeping face; no cataplexy, no daytime setting, no context."
+ },
+ {
+  "id": "2022-0117",
+  "arm": "photo-flux-krea",
+  "blind": "img_0035.jpg",
+  "fidelity": 1,
+  "plausibility": 2,
+  "craft": 2,
+  "usefulness": 1,
+  "defects": [
+   "text_in_image",
+   "generic_stock",
+   "wrong_setting"
+  ],
+  "note": "Modern conference talk, not 1840s asylum/jail reform scenes; garbled text."
+ },
+ {
+  "id": "2014-0069",
+  "arm": "photo-flux-schnell",
+  "blind": "img_0036.jpg",
+  "fidelity": 2,
+  "plausibility": 2,
+  "craft": 3,
+  "usefulness": 2,
+  "defects": [
+   "wrong_setting",
+   "generic_stock",
+   "empty_or_abstract"
+  ],
+  "note": "Tired child close-up, but no red eyes, rhinorrhea, or clinic context."
+ },
+ {
+  "id": "2019-0012",
+  "arm": "photo-mini-med",
+  "blind": "img_0037.webp",
+  "fidelity": 2,
+  "plausibility": 4,
+  "craft": 4,
+  "usefulness": 2,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Generic bedside consult; no cue to withdrawal, tremor, or transmitter physiology."
+ },
+ {
+  "id": "2018-0191",
+  "arm": "raw-mini-med",
+  "blind": "img_0038.webp",
+  "fidelity": 4,
+  "plausibility": 4,
+  "craft": 3,
+  "usefulness": 4,
+  "defects": [],
+  "note": "Agitated patient kicking gurney, calm staff offering oral med with cup."
+ },
+ {
+  "id": "2009-0188",
+  "arm": "photo-flux-schnell",
+  "blind": "img_0039.jpg",
+  "fidelity": 1,
+  "plausibility": 2,
+  "craft": 2,
+  "usefulness": 1,
+  "defects": [
+   "text_in_image",
+   "generic_stock",
+   "wrong_setting"
+  ],
+  "note": "Generic close-up of hands/paper, no payday-craving or clinical planning content."
+ },
+ {
+  "id": "2014-0069",
+  "arm": "photo-flux-krea",
+  "blind": "img_0040.jpg",
+  "fidelity": 3,
+  "plausibility": 2,
+  "craft": 3,
+  "usefulness": 3,
+  "defects": [
+   "distressing",
+   "wrong_setting"
+  ],
+  "note": "Right age, perioral rash but no clinic setting, no vacant look, no bloody rash sores plausible"
+ },
+ {
+  "id": "2018-0191",
+  "arm": "photo-flux-schnell",
+  "blind": "img_0041.jpg",
+  "fidelity": 2,
+  "plausibility": 4,
+  "craft": 3,
+  "usefulness": 2,
+  "defects": [
+   "text_in_image",
+   "generic_stock"
+  ],
+  "note": "Calm bedside scene; missing agitation, kicking, or explicit choice being offered."
+ },
+ {
+  "id": "2020-0103",
+  "arm": "photo-flux-krea",
+  "blind": "img_0042.jpg",
+  "fidelity": 1,
+  "plausibility": 2,
+  "craft": 3,
+  "usefulness": 1,
+  "defects": [
+   "wrong_patient_age",
+   "generic_stock",
+   "empty_or_abstract"
+  ],
+  "note": "Toddler close-up portrait, not school-age child; no scene context."
+ },
+ {
+  "id": "2022-0288",
+  "arm": "photo-mini-med",
+  "blind": "img_0043.webp",
+  "fidelity": 4,
+  "plausibility": 5,
+  "craft": 4,
+  "usefulness": 4,
+  "defects": [],
+  "note": "Couple in session, woman touching partner's arm shows vulnerable bid moment."
+ },
+ {
+  "id": "2009-0188",
+  "arm": "photo-flux-krea",
+  "blind": "img_0044.jpg",
+  "fidelity": 1,
+  "plausibility": 2,
+  "craft": 3,
+  "usefulness": 1,
+  "defects": [
+   "generic_stock",
+   "wrong_setting",
+   "empty_or_abstract"
+  ],
+  "note": "Just a portrait; no cue, payday plan, or clinical context shown."
+ },
+ {
+  "id": "2018-0191",
+  "arm": "photo-flux-krea",
+  "blind": "img_0045.jpg",
+  "fidelity": 2,
+  "plausibility": 2,
+  "craft": 3,
+  "usefulness": 2,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Patient calmly stretches leg onto gurney; no crisis or choice offered."
+ },
+ {
+  "id": "2017-0250",
+  "arm": "photo-flux-krea",
+  "blind": "img_0046.jpg",
+  "fidelity": 1,
+  "plausibility": 2,
+  "craft": 4,
+  "usefulness": 1,
+  "defects": [
+   "generic_stock",
+   "wrong_setting",
+   "empty_or_abstract"
+  ],
+  "note": "Just a portrait; no clinic, meds, folic acid, or teaching point shown."
+ },
+ {
+  "id": "2021-0065",
+  "arm": "photo-flux-schnell",
+  "blind": "img_0047.jpg",
+  "fidelity": 3,
+  "plausibility": 4,
+  "craft": 4,
+  "usefulness": 2,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Shows anxious presenter in crowd, but no propranolol/treatment cue"
+ },
+ {
+  "id": "2019-0039",
+  "arm": "raw-mini-med",
+  "blind": "img_0048.webp",
+  "fidelity": 4,
+  "plausibility": 4,
+  "craft": 4,
+  "usefulness": 4,
+  "defects": [],
+  "note": "Gaunt patient, IV, lab draw, doctor reviewing results—fits refeeding monitoring well."
+ },
+ {
+  "id": "2014-0291",
+  "arm": "raw-mini-med",
+  "blind": "img_0049.webp",
+  "fidelity": 4,
+  "plausibility": 4,
+  "craft": 4,
+  "usefulness": 4,
+  "defects": [],
+  "note": "ED bed, seizing clenched-fist man, clinician prepping benzo syringe."
+ },
+ {
+  "id": "2011-0011",
+  "arm": "photo-mini-med",
+  "blind": "img_0050.webp",
+  "fidelity": 1,
+  "plausibility": 3,
+  "craft": 4,
+  "usefulness": 1,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Generic therapy consult; no light therapy, winter, or monitoring depicted."
+ },
+ {
+  "id": "2019-0012",
+  "arm": "photo-flux-schnell",
+  "blind": "img_0051.jpg",
+  "fidelity": 1,
+  "plausibility": 2,
+  "craft": 3,
+  "usefulness": 1,
+  "defects": [
+   "wrong_setting",
+   "generic_stock",
+   "empty_or_abstract"
+  ],
+  "note": "Home bedroom, no clinical setting, no neurotransmitter or withdrawal cues shown."
+ },
+ {
+  "id": "2020-0005",
+  "arm": "raw-mini-med",
+  "blind": "img_0052.webp",
+  "fidelity": 2,
+  "plausibility": 3,
+  "craft": 3,
+  "usefulness": 2,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Generic weight-related consult; no cue to olanzapine, metabolic labs, or metformin."
+ },
+ {
+  "id": "2017-0250",
+  "arm": "photo-flux-schnell",
+  "blind": "img_0053.jpg",
+  "fidelity": 1,
+  "plausibility": 2,
+  "craft": 3,
+  "usefulness": 1,
+  "defects": [
+   "wrong_setting",
+   "generic_stock",
+   "empty_or_abstract"
+  ],
+  "note": "Street portrait with backpack; no clinic, no folic acid, no counseling shown."
+ },
+ {
+  "id": "2017-0111",
+  "arm": "photo-mini-med",
+  "blind": "img_0054.webp",
+  "fidelity": 3,
+  "plausibility": 4,
+  "craft": 3,
+  "usefulness": 2,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Apathetic hospital patient, but no visible hyperpigmentation of creases/scars."
+ },
+ {
+  "id": "2024-0273",
+  "arm": "photo-mini-med",
+  "blind": "img_0055.webp",
+  "fidelity": 2,
+  "plausibility": 3,
+  "craft": 4,
+  "usefulness": 2,
+  "defects": [
+   "generic_stock",
+   "wrong_setting"
+  ],
+  "note": "No postpartum cues, no baby, no medication context shown."
+ },
+ {
+  "id": "2017-0250",
+  "arm": "raw-mini-med",
+  "blind": "img_0056.webp",
+  "fidelity": 4,
+  "plausibility": 4,
+  "craft": 3,
+  "usefulness": 4,
+  "defects": [
+   "text_in_image"
+  ],
+  "note": "Clear folic acid bottle and epilepsy/mood brain icon convey teaching point."
+ },
+ {
+  "id": "2009-0166",
+  "arm": "raw-mini-med",
+  "blind": "img_0057.webp",
+  "fidelity": 4,
+  "plausibility": 4,
+  "craft": 4,
+  "usefulness": 4,
+  "defects": [],
+  "note": "Panicked patient, hand on chest, car-crash picture cues collision link."
+ },
+ {
+  "id": "2022-0117",
+  "arm": "photo-mini-med",
+  "blind": "img_0058.webp",
+  "fidelity": 1,
+  "plausibility": 3,
+  "craft": 3,
+  "usefulness": 1,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Generic conference presenter; nothing about Dix, jails, or history."
+ },
+ {
+  "id": "2014-0006",
+  "arm": "raw-mini-med",
+  "blind": "img_0059.webp",
+  "fidelity": 3,
+  "plausibility": 4,
+  "craft": 3,
+  "usefulness": 2,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Sweaty distressed patient in ED bed, but no clonus/rigidity/tremor shown."
+ },
+ {
+  "id": "2009-0188",
+  "arm": "photo-mini-med",
+  "blind": "img_0060.webp",
+  "fidelity": 2,
+  "plausibility": 4,
+  "craft": 3,
+  "usefulness": 2,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Generic therapy conversation; no payday, calendar, or cue-specific cues shown."
+ },
+ {
+  "id": "2021-0065",
+  "arm": "photo-flux-krea",
+  "blind": "img_0061.jpg",
+  "fidelity": 2,
+  "plausibility": 3,
+  "craft": 4,
+  "usefulness": 2,
+  "defects": [
+   "generic_stock",
+   "empty_or_abstract"
+  ],
+  "note": "Just a portrait; no presentation setting, no clinical/medication cue."
+ },
+ {
+  "id": "2021-0065",
+  "arm": "raw-mini-med",
+  "blind": "img_0062.webp",
+  "fidelity": 3,
+  "plausibility": 4,
+  "craft": 4,
+  "usefulness": 3,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Anxious young woman, doctor holding pill; no presentation/performance cue shown."
+ },
+ {
+  "id": "2014-0291",
+  "arm": "photo-flux-krea",
+  "blind": "img_0063.jpg",
+  "fidelity": 1,
+  "plausibility": 2,
+  "craft": 2,
+  "usefulness": 1,
+  "defects": [
+   "generic_stock",
+   "empty_or_abstract",
+   "wrong_setting"
+  ],
+  "note": "Close-up of tired man holding gauze; no seizure, ED, or meds shown."
+ },
+ {
+  "id": "2017-0032",
+  "arm": "photo-mini-med",
+  "blind": "img_0064.webp",
+  "fidelity": 3,
+  "plausibility": 4,
+  "craft": 4,
+  "usefulness": 3,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Euphoric, gesturing patient with consulting doctor; no trauma/injury cues shown."
+ },
+ {
+  "id": "2024-0273",
+  "arm": "photo-flux-schnell",
+  "blind": "img_0065.jpg",
+  "fidelity": 1,
+  "plausibility": 2,
+  "craft": 3,
+  "usefulness": 1,
+  "defects": [
+   "generic_stock",
+   "wrong_setting"
+  ],
+  "note": "Just a close-up portrait; no postpartum, medication, or discharge context."
+ },
+ {
+  "id": "2020-0103",
+  "arm": "photo-flux-schnell",
+  "blind": "img_0066.jpg",
+  "fidelity": 2,
+  "plausibility": 3,
+  "craft": 3,
+  "usefulness": 2,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Generic classroom kids photo, no link to latency-stage concept."
+ },
+ {
+  "id": "2022-0117",
+  "arm": "photo-flux-schnell",
+  "blind": "img_0067.jpg",
+  "fidelity": 2,
+  "plausibility": 3,
+  "craft": 4,
+  "usefulness": 2,
+  "defects": [
+   "generic_stock",
+   "empty_or_abstract"
+  ],
+  "note": "Generic period portrait; no jail, chains, or legislature evidence."
+ },
+ {
+  "id": "2012-0152",
+  "arm": "photo-flux-schnell",
+  "blind": "img_0068.jpg",
+  "fidelity": 1,
+  "plausibility": 2,
+  "craft": 3,
+  "usefulness": 1,
+  "defects": [
+   "wrong_setting",
+   "generic_stock"
+  ],
+  "note": "Just two people's faces; no order checking, no computer, no OCD cue."
+ },
+ {
+  "id": "2022-0288",
+  "arm": "photo-flux-krea",
+  "blind": "img_0069.jpg",
+  "fidelity": 2,
+  "plausibility": 3,
+  "craft": 4,
+  "usefulness": 2,
+  "defects": [
+   "wrong_setting",
+   "generic_stock"
+  ],
+  "note": "Intimate couple close-up, no therapy setting or therapist shown."
+ },
+ {
+  "id": "2017-0111",
+  "arm": "raw-mini-med",
+  "blind": "img_0070.webp",
+  "fidelity": 4,
+  "plausibility": 4,
+  "craft": 3,
+  "usefulness": 4,
+  "defects": [],
+  "note": "Depressed-looking woman, doctor examining darkened palm/skin; matches Addisonian hyperpigmentation."
+ },
+ {
+  "id": "2014-0291",
+  "arm": "photo-mini-med",
+  "blind": "img_0071.webp",
+  "fidelity": 2,
+  "plausibility": 3,
+  "craft": 3,
+  "usefulness": 2,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Shows distress, not clearly a tonic-clonic seizure; object in hand unclear."
+ },
+ {
+  "id": "2009-0166",
+  "arm": "photo-flux-schnell",
+  "blind": "img_0072.jpg",
+  "fidelity": 3,
+  "plausibility": 3,
+  "craft": 3,
+  "usefulness": 2,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Tense driver, but no clinician or interview context shown."
+ },
+ {
+  "id": "2011-0263",
+  "arm": "raw-mini-med",
+  "blind": "img_0073.webp",
+  "fidelity": 2,
+  "plausibility": 3,
+  "craft": 4,
+  "usefulness": 2,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Generic sleepy-patient interview; no cataplexy, sleep episode, or hypocretin cue shown."
+ },
+ {
+  "id": "2009-0188",
+  "arm": "raw-mini-med",
+  "blind": "img_0074.webp",
+  "fidelity": 2,
+  "plausibility": 4,
+  "craft": 4,
+  "usefulness": 2,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Generic therapy session; no payday/craving/relapse-planning cues shown."
+ },
+ {
+  "id": "2022-0117",
+  "arm": "raw-mini-med",
+  "blind": "img_0075.webp",
+  "fidelity": 4,
+  "plausibility": 3,
+  "craft": 4,
+  "usefulness": 4,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Dix lecturing with easel image of chained mentally ill man; period-plausible."
+ },
+ {
+  "id": "2020-0103",
+  "arm": "photo-mini-med",
+  "blind": "img_0076.webp",
+  "fidelity": 2,
+  "plausibility": 4,
+  "craft": 4,
+  "usefulness": 2,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Generic therapy-session scene; no cue of latency, peers, or skill-building."
+ },
+ {
+  "id": "2018-0199",
+  "arm": "photo-mini-med",
+  "blind": "img_0077.webp",
+  "fidelity": 1,
+  "plausibility": 4,
+  "craft": 4,
+  "usefulness": 1,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Generic doctor-patient chat; nothing evokes efficacy vs effectiveness/STAR*D."
+ },
+ {
+  "id": "2017-0032",
+  "arm": "photo-flux-schnell",
+  "blind": "img_0078.jpg",
+  "fidelity": 1,
+  "plausibility": 3,
+  "craft": 3,
+  "usefulness": 1,
+  "defects": [
+   "generic_stock",
+   "wrong_setting"
+  ],
+  "note": "Just a man lying in bed; no orbitofrontal behavior, no consult scene shown."
+ },
+ {
+  "id": "2025-0034",
+  "arm": "raw-mini-med",
+  "blind": "img_0079.webp",
+  "fidelity": 2,
+  "plausibility": 3,
+  "craft": 4,
+  "usefulness": 2,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Generic discharge chat; no community/ACT team or home setting shown."
+ },
+ {
+  "id": "2018-0199",
+  "arm": "raw-mini-med",
+  "blind": "img_0080.webp",
+  "fidelity": 2,
+  "plausibility": 3,
+  "craft": 3,
+  "usefulness": 2,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Generic counseling scene; no hint of trial design or STAR*D concept."
+ },
+ {
+  "id": "2009-0166",
+  "arm": "photo-flux-krea",
+  "blind": "img_0081.jpg",
+  "fidelity": 4,
+  "plausibility": 5,
+  "craft": 4,
+  "usefulness": 4,
+  "defects": [],
+  "note": "Distressed woman inside car, plausible driving-related fear/avoidance scene."
+ },
+ {
+  "id": "2015-0225",
+  "arm": "raw-mini-med",
+  "blind": "img_0082.webp",
+  "fidelity": 2,
+  "plausibility": 4,
+  "craft": 4,
+  "usefulness": 2,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Generic interview scene; no cue to paraphasia or language error."
+ },
+ {
+  "id": "2015-0225",
+  "arm": "photo-flux-schnell",
+  "blind": "img_0083.jpg",
+  "fidelity": 2,
+  "plausibility": 3,
+  "craft": 3,
+  "usefulness": 2,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Generic talking patient; no cue to paraphasia or neuro workup."
+ },
+ {
+  "id": "2020-0005",
+  "arm": "photo-flux-schnell",
+  "blind": "img_0084.jpg",
+  "fidelity": 1,
+  "plausibility": 1,
+  "craft": 2,
+  "usefulness": 1,
+  "defects": [
+   "wrong_setting",
+   "wrong_patient_age",
+   "generic_stock"
+  ],
+  "note": "Two older women talking, no clinical context, patient far too old."
+ },
+ {
+  "id": "2018-0199",
+  "arm": "photo-flux-schnell",
+  "blind": "img_0085.jpg",
+  "fidelity": 1,
+  "plausibility": 2,
+  "craft": 2,
+  "usefulness": 1,
+  "defects": [
+   "wrong_setting",
+   "generic_stock",
+   "empty_or_abstract"
+  ],
+  "note": "Odd hospice-like scene with hooded elder; no link to efficacy vs effectiveness."
+ },
+ {
+  "id": "2009-0166",
+  "arm": "photo-mini-med",
+  "blind": "img_0086.webp",
+  "fidelity": 2,
+  "plausibility": 4,
+  "craft": 4,
+  "usefulness": 2,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Generic anxious-patient interview scene; no MVA/driving cue link shown."
+ },
+ {
+  "id": "2014-0006",
+  "arm": "photo-flux-schnell",
+  "blind": "img_0087.jpg",
+  "fidelity": 1,
+  "plausibility": 2,
+  "craft": 3,
+  "usefulness": 1,
+  "defects": [
+   "wrong_setting",
+   "generic_stock",
+   "empty_or_abstract"
+  ],
+  "note": "Two clinicians chatting near a clock; no patient exam, no serotonin syndrome signs shown."
+ },
+ {
+  "id": "2016-0121",
+  "arm": "raw-mini-med",
+  "blind": "img_0088.webp",
+  "fidelity": 4,
+  "plausibility": 4,
+  "craft": 3,
+  "usefulness": 4,
+  "defects": [],
+  "note": "Distressed postpartum mother holding infant confronts clinician; captures agitation well."
+ },
+ {
+  "id": "2012-0152",
+  "arm": "photo-mini-med",
+  "blind": "img_0089.webp",
+  "fidelity": 1,
+  "plausibility": 3,
+  "craft": 3,
+  "usefulness": 1,
+  "defects": [
+   "generic_stock",
+   "wrong_setting"
+  ],
+  "note": "Generic two-clinician conversation; no checking behavior, no order/EHR, no supervision cue."
+ },
+ {
+  "id": "2011-0011",
+  "arm": "photo-flux-krea",
+  "blind": "img_0090.jpg",
+  "fidelity": 1,
+  "plausibility": 2,
+  "craft": 4,
+  "usefulness": 1,
+  "defects": [
+   "generic_stock",
+   "empty_or_abstract"
+  ],
+  "note": "Winter portrait only; no clinician, light therapy, or monitoring depicted."
+ },
+ {
+  "id": "2016-0121",
+  "arm": "photo-flux-krea",
+  "blind": "img_0091.jpg",
+  "fidelity": 3,
+  "plausibility": 4,
+  "craft": 4,
+  "usefulness": 3,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Distressed postpartum mother with infant, but no acuity/agitation or clinical staff shown."
+ },
+ {
+  "id": "2019-0039",
+  "arm": "photo-mini-med",
+  "blind": "img_0092.webp",
+  "fidelity": 3,
+  "plausibility": 3,
+  "craft": 3,
+  "usefulness": 2,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Emaciated patient with blood tube shown, but no refeeding/labs context conveyed."
+ },
+ {
+  "id": "2011-0263",
+  "arm": "photo-mini-med",
+  "blind": "img_0093.webp",
+  "fidelity": 1,
+  "plausibility": 3,
+  "craft": 3,
+  "usefulness": 1,
+  "defects": [
+   "generic_stock"
+  ],
+  "note": "Generic sad patient with doctor; no sleep, cataplexy, or narcolepsy cues."
+ }
+]

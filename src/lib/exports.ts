@@ -4,7 +4,9 @@
    deliberately omit the AI explanation. */
 
 import { questionId, supabase } from "./supabase";
+import { htmlExplanation, pdfExplanation, plainExplanation } from "./explanationFormat";
 import type { GroupNote } from "./db";
+import { mnemonicsForQuestion } from "./mnemonics";
 
 type RawQuestion = {
   year: string; q_index: number; stem: string;
@@ -294,7 +296,7 @@ export async function exportPollMissed(rows: { q: PollExplQ; myChoice: string[] 
       doc.text("EXPLANATION", margin, y); y += 15;
       doc.setFont("helvetica", "normal"); doc.setTextColor(35);
       if (q.explanation_text) {
-        const { lines } = textLines(pdfSafe(q.explanation_text), 11, 14.5);
+        const { lines } = textLines(pdfSafe(pdfExplanation(q.explanation_text)), 11, 14.5);
         for (const line of lines) { ensureSpace(14.5); doc.text(line, margin, y); y += 14.5; }
         y += 4;
       }
@@ -362,6 +364,7 @@ export function ankingLecture(q: {
   answer_letter: string | null; answer_text: string;
   explanation_text?: string;
   clinical_application?: string;
+  tags?: { diagnosis?: string[]; medication?: string[]; psychotherapy?: string[]; neuro?: string[] } | unknown[];
   comparison_table?: { title?: string; headers: string[]; rows: string[][] } | null;
   diagram?: { code: string; caption?: string } | null;
 }, extras?: { context?: string | null; diagramSvg?: string | null }) {
@@ -369,7 +372,7 @@ export function ankingLecture(q: {
   const section = (title: string, html: string) => `<br><br><b>${title}</b><br>${html}`;
   const opts = q.options.map((o) => `${esc2(o.letter)}. ${esc2(o.text)}`).join("<br>");
   const expl = q.explanation_text
-    ? `<br><br><b>Explanation</b> <i>(AI-generated — can occasionally be wrong)</i><br>${nl(q.explanation_text)}`
+    ? `<br><br><b>Explanation</b> <i>(AI-generated — can occasionally be wrong)</i><br>${htmlExplanation(q.explanation_text).replace(/\r?\n/g, "<br>")}`
     : "";
   const clin = q.clinical_application ? section("Clinical application", nl(q.clinical_application)) : "";
   const tbl = q.comparison_table && q.comparison_table.rows?.length
@@ -385,7 +388,15 @@ export function ankingLecture(q: {
         (q.diagram?.caption ? `<i>${esc2(q.diagram.caption)}</i>` : ""))
     : "";
   const hist = extras?.context ? section("Historical context", nl(extras.context)) : "";
-  return `<b>PRITE ${q.year} &middot; Q${q.q_index}</b><br><br>${esc2(q.stem)}<br><br>${opts}<br><br><b>Answer: ${esc2(q.answer_letter ?? "")} &mdash; ${esc2(q.answer_text)}</b>${expl}${clin}${tbl}${diag}${hist}`;
+  const mnemonics = mnemonicsForQuestion(q);
+  const mnemonicHtml = mnemonics.length
+    ? section("Mnemonic", mnemonics.map((mnemonic) =>
+        `<b>${esc2(mnemonic.title)}</b> &mdash; ${esc2(mnemonic.memoryAid)}<br>` +
+        mnemonic.breakdown.map((item) => `&bull; ${esc2(item)}`).join("<br>") +
+        (mnemonic.caveat ? `<br><i>${esc2(mnemonic.caveat)}</i>` : "")
+      ).join("<br><br>"))
+    : "";
+  return `<b>PRITE ${q.year} &middot; Q${q.q_index}</b><br><br>${esc2(q.stem)}<br><br>${opts}<br><br><b>Answer: ${esc2(q.answer_letter ?? "")} &mdash; ${esc2(q.answer_text)}</b>${expl}${clin}${mnemonicHtml}${tbl}${diag}${hist}`;
 }
 
 /* Anki import file (.txt) in AnKing Overhaul format. Tab-separated with headers
@@ -464,7 +475,7 @@ export async function exportPptx(questions: PptxQ[], filename = "prite-questions
     let y = 0.6;
     if (q.explanation_text) {
       const textH = images.length ? 2.2 : 4.8;
-      slide.addText(q.explanation_text, { x: 0.4, y, w: 9.2, h: textH, fontSize: 14, valign: "top", color: "23262F" });
+      slide.addText(plainExplanation(q.explanation_text), { x: 0.4, y, w: 9.2, h: textH, fontSize: 14, valign: "top", color: "23262F" });
       y += textH + 0.1;
     }
     if (images.length) {

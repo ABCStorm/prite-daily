@@ -1,0 +1,10 @@
+name = "inpractice-images"
+main = "src/index.js"
+compatibility_date = "2026-08-01"
+
+# PUBLIC bucket contents, served only through this Worker. The bucket itself has
+# no r2.dev domain enabled -- the Worker is still the single entry point, which is
+# what keeps the key pattern (and therefore "no listing") enforceable.
+[[r2_buckets]]
+binding = "ILLUSTRATIONS"
+bucket_name = "inpractice-illustrations"

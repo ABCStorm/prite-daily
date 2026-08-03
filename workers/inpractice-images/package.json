@@ -1,0 +1,8 @@
+{
+  "name": "inpractice-images",
+  "private": true,
+  "scripts": {
+    "deploy": "npx wrangler@3 deploy",
+    "tail": "npx wrangler@3 tail"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "status": "pass",
+  "years": {
+    "2009": {
+      "records": 300,
+      "official_answers": 153,
+      "missing_answers": 147,
+      "multi_select": 4,
+      "figures": 0
+    },
+    "2010": {
+      "records": 300,
+      "official_answers": 153,
+      "missing_answers": 147,
+      "multi_select": 2,
+      "figures": 0
+    },
+    "2011": {
+      "records": 300,
+      "official_answers": 153,
+      "missing_answers": 147,
+      "multi_select": 1,
+      "figures": 0
+    },
+    "2012": {
+      "records": 300,
+      "official_answers": 153,
+      "missing_answers": 147,
+      "multi_select": 4,
+      "figures": 0
+    },
+    "2013": {
+      "records": 300,
+      "official_answers": 300,
+      "missing_answers": 0,
+      "multi_select": 13,
+      "figures": 6
+    }
+  },
+  "diagnostic_counts": {
+    "ocr_disagreement": 244,
+    "key_column_disagreement": 6,
+    "missing_official_answer": 588
+  },
+  "failures": []
+}

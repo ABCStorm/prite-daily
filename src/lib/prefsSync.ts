@@ -1,7 +1,7 @@
 /* Cross-device sync for the handful of things that historically lived only in
    localStorage: streak day-lists, exam-mode/timer prefs, one-time-nag stages,
-   seen-study-guide badges, the web-flashcards note dismissal, and the last
-   self-picked poll team.
+   seen-study-guide badges, the web-flashcards note dismissal, the last
+   self-picked poll team, and which learning-guide sections open by default.
 
    Design: localStorage stays the source the UI reads synchronously (all the
    existing keys and formats are unchanged), and a single jsonb blob on the
@@ -34,7 +34,13 @@ type Blob = {
   timer_secs?: number;
   poll_team?: string;
   reward_shown_day?: string; // local YYYY-MM-DD the daily-completion reward was last shown (so revisits that day don't replay it)
+  learning_open_sections: string[];
 };
+
+const LEARNING_SECTION_IDS = new Set([
+  "explanation", "textbook", "practice", "mnemonic", "context",
+  "diagram", "video", "mine", "group", "flash",
+]);
 
 /* --- localStorage accessors, matching each key's historical format --- */
 
@@ -57,6 +63,9 @@ function readStr(key: string): string {
 function strList(v: unknown): string[] {
   return Array.isArray(v) ? v.filter((s): s is string => typeof s === "string") : [];
 }
+function learningSectionList(v: unknown): string[] {
+  return [...new Set(strList(v).filter((id) => LEARNING_SECTION_IDS.has(id)))];
+}
 
 /** Snapshot the current localStorage state as a sync blob. */
 function snapshot(uid: string): Blob {
@@ -72,6 +81,7 @@ function snapshot(uid: string): Blob {
     timer_secs: Number(readJson("pd_timer_secs", 60)) || 60,
     poll_team: readStr("prite_poll_team"),
     reward_shown_day: readStr("pd_reward_shown_day"),
+    learning_open_sections: learningSectionList(readJson("pd_learning_open_sections", ["explanation"])),
   };
 }
 
@@ -98,6 +108,11 @@ export function syncClientPrefs(uid: string, remoteRaw: Record<string, unknown> 
     poll_team: typeof r.poll_team === "string" && r.poll_team ? r.poll_team : l.poll_team,
     // ISO-style dates compare lexicographically — keep whichever device showed it later
     reward_shown_day: [l.reward_shown_day ?? "", typeof r.reward_shown_day === "string" ? r.reward_shown_day : ""].sort().pop() || "",
+    // Unlike streak lists, this is a deliberate selection (including an empty
+    // one), so the signed-in account copy wins whenever it exists.
+    learning_open_sections: Array.isArray(r.learning_open_sections)
+      ? learningSectionList(r.learning_open_sections)
+      : l.learning_open_sections,
   };
 
   // write the merged state back into the exact keys/formats the UI reads
@@ -114,6 +129,7 @@ export function syncClientPrefs(uid: string, remoteRaw: Record<string, unknown> 
   writeJson("pd_exam_mode", merged.exam_mode);
   writeJson("pd_timer_on", merged.timer_on);
   writeJson("pd_timer_secs", merged.timer_secs);
+  writeJson("pd_learning_open_sections", merged.learning_open_sections);
 
   // one small write per sign-in keeps the server copy honest (and covers the
   // first-ever sync, where the server blob is empty)

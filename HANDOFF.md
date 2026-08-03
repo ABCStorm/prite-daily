@@ -55,6 +55,12 @@ npm run typecheck  # tsc
   (wrangler@4 needs Node 22), and supabase-js's realtime client throws on Node 18
   (no WebSocket) — so the data loader scripts use raw `fetch` against PostgREST,
   not the supabase-js client (see `extraction/context_gen/load_to_supabase.mjs`).
+  - **Update 2026-08-03: `node -v` is now v22.23.1** (`/opt/homebrew/bin/node`), so the
+    local `node_modules/.bin/wrangler` (v4) works — used it for several thousand R2
+    uploads. Deploys are still written against wrangler@3 above; nothing has been
+    re-verified on v4, so don't switch the deploy command on this note alone.
+    ⚠️ wrangler v4 `r2 object` writes to **simulated local storage** unless you pass
+    `--remote`. Without it the command reports success and touches nothing real.
 
 ## Deployment (live on Cloudflare Pages)
 Live at **https://pritedaily.com** and **https://prite-daily.pages.dev**

@@ -27,5 +27,38 @@
       "answer_text": "Primary indicated — high-risk individuals with early/subclinical symptoms",
       "answer_source": "manual"
     }
+  },
+  {
+    "year": "2015",
+    "slide_number": 73,
+    "note": "Image audit: the extracted image contains the answer commentary and must only appear after submission.",
+    "set": {
+      "figure_images": [],
+      "explanation_images": ["images/2015/2015_q060_fig_1.png"]
+    }
+  },
+  {
+    "year": "2024",
+    "slide_number": 267,
+    "note": "Image audit: removed a low-value AI/search-style screenshot; retained the usable dentate-gyrus diagram.",
+    "set": {
+      "explanation_images": ["images/2024/2024_q174_exp269_1.png"]
+    }
+  },
+  {
+    "year": "2025",
+    "slide_number": 38,
+    "note": "Image audit: removed an unrelated commissural-neuroanatomy image from the refeeding-syndrome explanation.",
+    "set": {
+      "explanation_images": ["images/2025/2025_q019_exp40_1.jpg"]
+    }
+  },
+  {
+    "year": "2025",
+    "slide_number": 353,
+    "note": "Image audit: removed two low-value search/slide screenshots; the explanation text retains the relevant Kohut teaching content.",
+    "set": {
+      "explanation_images": []
+    }
   }
 ]

@@ -1,0 +1,15 @@
+name = "textbook-images"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+
+# PRIVATE bucket — no public access, no r2.dev domain enabled.
+# The Worker is the only way in, and it requires a valid Supabase session.
+[[r2_buckets]]
+binding = "TEXTBOOK"
+bucket_name = "textbook-excerpts"
+
+[vars]
+SUPABASE_URL = "https://wehgcawkkqzpfkwkvltq.supabase.co"
+
+# SUPABASE_ANON_KEY is set as a secret, not here:
+#   npx wrangler@3 secret put SUPABASE_ANON_KEY

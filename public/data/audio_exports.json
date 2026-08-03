@@ -1,0 +1,3046 @@
+{
+  "version": "v6-r2-16k-5100-topic-complete",
+  "generated_at": "2026-08-03T01:55:53.749Z",
+  "audio_bitrate_kbps": 16,
+  "audio_sample_rate_hz": 22050,
+  "thinking_pause_seconds": 4,
+  "between_question_seconds": 1,
+  "between_question_options": [
+    1,
+    2
+  ],
+  "exports": [
+    {
+      "scope_key": "all",
+      "topic": "All topics",
+      "question_count": 5100,
+      "path": "exports/v6-16k-5100-topics/prite-daily-all-questions.mp3",
+      "filename": "prite-daily-all-questions.mp3",
+      "bytes": 278870484,
+      "duration_seconds": 139435,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-all-questions.mp3",
+          "filename": "prite-daily-all-questions.mp3",
+          "bytes": 278870484,
+          "duration_seconds": 139435,
+          "sha256": "d09a22377d323b80a5afa97ace9baac9ec66654a0a5513291bbbded96ffd34e6",
+          "parts": [
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions.mp3.part-01",
+              "filename": "prite-daily-all-questions.mp3.part-01",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions.mp3.part-02",
+              "filename": "prite-daily-all-questions.mp3.part-02",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions.mp3.part-03",
+              "filename": "prite-daily-all-questions.mp3.part-03",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions.mp3.part-04",
+              "filename": "prite-daily-all-questions.mp3.part-04",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions.mp3.part-05",
+              "filename": "prite-daily-all-questions.mp3.part-05",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions.mp3.part-06",
+              "filename": "prite-daily-all-questions.mp3.part-06",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions.mp3.part-07",
+              "filename": "prite-daily-all-questions.mp3.part-07",
+              "bytes": 27212244
+            }
+          ]
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-1-25x.mp3",
+          "filename": "prite-daily-all-questions-1-25x.mp3",
+          "bytes": 223096443,
+          "duration_seconds": 111548,
+          "sha256": "f8be1e5afaf1adfcb89dbe943a2b9fe46bf628b36662d943dc98ad8d5bc40e54",
+          "parts": [
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-1-25x.mp3.part-01",
+              "filename": "prite-daily-all-questions-1-25x.mp3.part-01",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-1-25x.mp3.part-02",
+              "filename": "prite-daily-all-questions-1-25x.mp3.part-02",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-1-25x.mp3.part-03",
+              "filename": "prite-daily-all-questions-1-25x.mp3.part-03",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-1-25x.mp3.part-04",
+              "filename": "prite-daily-all-questions-1-25x.mp3.part-04",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-1-25x.mp3.part-05",
+              "filename": "prite-daily-all-questions-1-25x.mp3.part-05",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-1-25x.mp3.part-06",
+              "filename": "prite-daily-all-questions-1-25x.mp3.part-06",
+              "bytes": 13381243
+            }
+          ]
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-1-5x.mp3",
+          "filename": "prite-daily-all-questions-1-5x.mp3",
+          "bytes": 185913749,
+          "duration_seconds": 92957,
+          "sha256": "a5c950b0be25df2d1cac5964e6bad42badc2e81f423f237942cdbd659d92ed1c",
+          "parts": [
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-1-5x.mp3.part-01",
+              "filename": "prite-daily-all-questions-1-5x.mp3.part-01",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-1-5x.mp3.part-02",
+              "filename": "prite-daily-all-questions-1-5x.mp3.part-02",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-1-5x.mp3.part-03",
+              "filename": "prite-daily-all-questions-1-5x.mp3.part-03",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-1-5x.mp3.part-04",
+              "filename": "prite-daily-all-questions-1-5x.mp3.part-04",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-1-5x.mp3.part-05",
+              "filename": "prite-daily-all-questions-1-5x.mp3.part-05",
+              "bytes": 18141589
+            }
+          ]
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-2x.mp3",
+          "filename": "prite-daily-all-questions-2x.mp3",
+          "bytes": 139435382,
+          "duration_seconds": 69718,
+          "sha256": "8db58b76e46d0c8d55ce5bc946c9e2f7140d964c594fb29004e1c46d4167a851",
+          "parts": [
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-2x.mp3.part-01",
+              "filename": "prite-daily-all-questions-2x.mp3.part-01",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-2x.mp3.part-02",
+              "filename": "prite-daily-all-questions-2x.mp3.part-02",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-2x.mp3.part-03",
+              "filename": "prite-daily-all-questions-2x.mp3.part-03",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-2x.mp3.part-04",
+              "filename": "prite-daily-all-questions-2x.mp3.part-04",
+              "bytes": 13606262
+            }
+          ]
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-gap-2s.mp3",
+          "filename": "prite-daily-all-questions-gap-2s.mp3",
+          "bytes": 288995545,
+          "duration_seconds": 144498,
+          "sha256": "da2bab7aaccedf40c87cfb94b60bd1a90df99759c080f62b57b69553cfc959af",
+          "parts": [
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-gap-2s.mp3.part-01",
+              "filename": "prite-daily-all-questions-gap-2s.mp3.part-01",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-gap-2s.mp3.part-02",
+              "filename": "prite-daily-all-questions-gap-2s.mp3.part-02",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-gap-2s.mp3.part-03",
+              "filename": "prite-daily-all-questions-gap-2s.mp3.part-03",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-gap-2s.mp3.part-04",
+              "filename": "prite-daily-all-questions-gap-2s.mp3.part-04",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-gap-2s.mp3.part-05",
+              "filename": "prite-daily-all-questions-gap-2s.mp3.part-05",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-gap-2s.mp3.part-06",
+              "filename": "prite-daily-all-questions-gap-2s.mp3.part-06",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-gap-2s.mp3.part-07",
+              "filename": "prite-daily-all-questions-gap-2s.mp3.part-07",
+              "bytes": 37337305
+            }
+          ]
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-all-questions-gap-2s-1-25x.mp3",
+          "bytes": 231196492,
+          "duration_seconds": 115598,
+          "sha256": "6ccc21f4a6fd4fb4de7ef2bc30a1bd6a6b7977da980df1b903c5221db461e806",
+          "parts": [
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-gap-2s-1-25x.mp3.part-01",
+              "filename": "prite-daily-all-questions-gap-2s-1-25x.mp3.part-01",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-gap-2s-1-25x.mp3.part-02",
+              "filename": "prite-daily-all-questions-gap-2s-1-25x.mp3.part-02",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-gap-2s-1-25x.mp3.part-03",
+              "filename": "prite-daily-all-questions-gap-2s-1-25x.mp3.part-03",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-gap-2s-1-25x.mp3.part-04",
+              "filename": "prite-daily-all-questions-gap-2s-1-25x.mp3.part-04",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-gap-2s-1-25x.mp3.part-05",
+              "filename": "prite-daily-all-questions-gap-2s-1-25x.mp3.part-05",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-gap-2s-1-25x.mp3.part-06",
+              "filename": "prite-daily-all-questions-gap-2s-1-25x.mp3.part-06",
+              "bytes": 21481292
+            }
+          ]
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-all-questions-gap-2s-1-5x.mp3",
+          "bytes": 192663790,
+          "duration_seconds": 96332,
+          "sha256": "9a36453ad53dd073395f0861407e4d8c4b42013ff0db09fe0a617ca8381f38ab",
+          "parts": [
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-gap-2s-1-5x.mp3.part-01",
+              "filename": "prite-daily-all-questions-gap-2s-1-5x.mp3.part-01",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-gap-2s-1-5x.mp3.part-02",
+              "filename": "prite-daily-all-questions-gap-2s-1-5x.mp3.part-02",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-gap-2s-1-5x.mp3.part-03",
+              "filename": "prite-daily-all-questions-gap-2s-1-5x.mp3.part-03",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-gap-2s-1-5x.mp3.part-04",
+              "filename": "prite-daily-all-questions-gap-2s-1-5x.mp3.part-04",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-gap-2s-1-5x.mp3.part-05",
+              "filename": "prite-daily-all-questions-gap-2s-1-5x.mp3.part-05",
+              "bytes": 24891630
+            }
+          ]
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-gap-2s-2x.mp3",
+          "filename": "prite-daily-all-questions-gap-2s-2x.mp3",
+          "bytes": 144497912,
+          "duration_seconds": 72249,
+          "sha256": "ea2841d4a9c16a75e89202e3259bc6492f1a44e45062115c7bd692e5b62852f3",
+          "parts": [
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-gap-2s-2x.mp3.part-01",
+              "filename": "prite-daily-all-questions-gap-2s-2x.mp3.part-01",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-gap-2s-2x.mp3.part-02",
+              "filename": "prite-daily-all-questions-gap-2s-2x.mp3.part-02",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-gap-2s-2x.mp3.part-03",
+              "filename": "prite-daily-all-questions-gap-2s-2x.mp3.part-03",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-all-questions-gap-2s-2x.mp3.part-04",
+              "filename": "prite-daily-all-questions-gap-2s-2x.mp3.part-04",
+              "bytes": 18668792
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scope_key": "Anxiety & Fear Circuitry",
+      "topic": "Anxiety & Fear Circuitry",
+      "question_count": 9,
+      "path": "exports/v6-16k-5100-topics/prite-daily-anxiety-fear-circuitry.mp3",
+      "filename": "prite-daily-anxiety-fear-circuitry.mp3",
+      "bytes": 482657,
+      "duration_seconds": 241,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-anxiety-fear-circuitry.mp3",
+          "filename": "prite-daily-anxiety-fear-circuitry.mp3",
+          "bytes": 482657,
+          "duration_seconds": 241,
+          "sha256": "55c2423b5c3ea0b675a198becc4a7691aac80378da84c8bf66f10245fe23b17f"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-anxiety-fear-circuitry-1-25x.mp3",
+          "filename": "prite-daily-anxiety-fear-circuitry-1-25x.mp3",
+          "bytes": 386160,
+          "duration_seconds": 193,
+          "sha256": "91367820aeeefa35b0622cc815c09e7f6f266e8e5360ac00c2d2c18192bba2d5"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-anxiety-fear-circuitry-1-5x.mp3",
+          "filename": "prite-daily-anxiety-fear-circuitry-1-5x.mp3",
+          "bytes": 321847,
+          "duration_seconds": 161,
+          "sha256": "391332eb3b7a7733014f69fb4d7cad30af808ce1b1deabad5eb93b1c7f3afb62"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-anxiety-fear-circuitry-2x.mp3",
+          "filename": "prite-daily-anxiety-fear-circuitry-2x.mp3",
+          "bytes": 241494,
+          "duration_seconds": 121,
+          "sha256": "2c9d98633e28ca1681bcf65c5a150ea89142ca13d4aa427dba3aa3d60925a11c"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-anxiety-fear-circuitry-gap-2s.mp3",
+          "filename": "prite-daily-anxiety-fear-circuitry-gap-2s.mp3",
+          "bytes": 500681,
+          "duration_seconds": 250,
+          "sha256": "c861960b94bbb7d746f449d61e199c9fae8803a070d3e3796caa12352189c9eb"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-anxiety-fear-circuitry-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-anxiety-fear-circuitry-gap-2s-1-25x.mp3",
+          "bytes": 400580,
+          "duration_seconds": 200,
+          "sha256": "5e5ea310c24ab4e5c6d1b0b508f729153f266bd0a0cbb7c494545cd692222cf0"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-anxiety-fear-circuitry-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-anxiety-fear-circuitry-gap-2s-1-5x.mp3",
+          "bytes": 333863,
+          "duration_seconds": 167,
+          "sha256": "042a1adc20e087d9759971e5215df7ac6a7bb7117ccd5a6f223fbcf2fb746bf6"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-anxiety-fear-circuitry-gap-2s-2x.mp3",
+          "filename": "prite-daily-anxiety-fear-circuitry-gap-2s-2x.mp3",
+          "bytes": 250480,
+          "duration_seconds": 125,
+          "sha256": "09c7f79dd8b0b18cd48038c81077c16fbe03b23040a30acc4b06e52d2f8aa71a"
+        }
+      ]
+    },
+    {
+      "scope_key": "Anxiety, OCD & Trauma/PTSD",
+      "topic": "Anxiety, OCD & Trauma/PTSD",
+      "question_count": 198,
+      "path": "exports/v6-16k-5100-topics/prite-daily-anxiety-ocd-trauma-ptsd.mp3",
+      "filename": "prite-daily-anxiety-ocd-trauma-ptsd.mp3",
+      "bytes": 11327235,
+      "duration_seconds": 5663,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-anxiety-ocd-trauma-ptsd.mp3",
+          "filename": "prite-daily-anxiety-ocd-trauma-ptsd.mp3",
+          "bytes": 11327235,
+          "duration_seconds": 5663,
+          "sha256": "7b05f43f46971f39010508c6e45a1c45c9f373873486a43a25ff95cf370a25e2"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-anxiety-ocd-trauma-ptsd-1-25x.mp3",
+          "filename": "prite-daily-anxiety-ocd-trauma-ptsd-1-25x.mp3",
+          "bytes": 9061844,
+          "duration_seconds": 4531,
+          "sha256": "e7b00d25144109e350a79ec089fc9252ad1fa3baa540f21379490ab6eb50d040"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-anxiety-ocd-trauma-ptsd-1-5x.mp3",
+          "filename": "prite-daily-anxiety-ocd-trauma-ptsd-1-5x.mp3",
+          "bytes": 7551548,
+          "duration_seconds": 3776,
+          "sha256": "9547ed807643a30d0f9a4be1aa897a48f42f076713f7ded253a9f46acb2acced"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-anxiety-ocd-trauma-ptsd-2x.mp3",
+          "filename": "prite-daily-anxiety-ocd-trauma-ptsd-2x.mp3",
+          "bytes": 5663783,
+          "duration_seconds": 2832,
+          "sha256": "756c01f30dca9d20412eac6f63a491f270937873b3d685b978c343a56b213518"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-anxiety-ocd-trauma-ptsd-gap-2s.mp3",
+          "filename": "prite-daily-anxiety-ocd-trauma-ptsd-gap-2s.mp3",
+          "bytes": 11723251,
+          "duration_seconds": 5861,
+          "sha256": "a38321bf88e2984df076be7b134784b8b9ce42b87f76cbf8b2a0b17da10e3e10"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-anxiety-ocd-trauma-ptsd-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-anxiety-ocd-trauma-ptsd-gap-2s-1-25x.mp3",
+          "bytes": 9378604,
+          "duration_seconds": 4689,
+          "sha256": "ed2ea302e26332ddc2be1f38ab20e5be89b763068183fbd0c992b5063444ef51"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-anxiety-ocd-trauma-ptsd-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-anxiety-ocd-trauma-ptsd-gap-2s-1-5x.mp3",
+          "bytes": 7815594,
+          "duration_seconds": 3908,
+          "sha256": "6f810ec1b317fd1dd7ec378a30feced941385a9fad8fb20c833d164156c61d43"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-anxiety-ocd-trauma-ptsd-gap-2s-2x.mp3",
+          "filename": "prite-daily-anxiety-ocd-trauma-ptsd-gap-2s-2x.mp3",
+          "bytes": 5861791,
+          "duration_seconds": 2931,
+          "sha256": "eeb36ad80bccd33029f7293991e666e110a98f7ae1f5d2dd620f49d319e0f3fa"
+        }
+      ]
+    },
+    {
+      "scope_key": "Child & Adolescent Psychiatry",
+      "topic": "Child & Adolescent Psychiatry",
+      "question_count": 515,
+      "path": "exports/v6-16k-5100-topics/prite-daily-child-adolescent-psychiatry.mp3",
+      "filename": "prite-daily-child-adolescent-psychiatry.mp3",
+      "bytes": 28249514,
+      "duration_seconds": 14125,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-child-adolescent-psychiatry.mp3",
+          "filename": "prite-daily-child-adolescent-psychiatry.mp3",
+          "bytes": 28249514,
+          "duration_seconds": 14125,
+          "sha256": "ec2bb485551d0dc6c1caa49f4c5bbb4a026617787f96c2f6dbedfcf615fa9997"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-child-adolescent-psychiatry-1-25x.mp3",
+          "filename": "prite-daily-child-adolescent-psychiatry-1-25x.mp3",
+          "bytes": 22599646,
+          "duration_seconds": 11300,
+          "sha256": "be634dd8e1e87f92c8f2158d4d677a69de37d97238c3841e306fdd97103d9524"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-child-adolescent-psychiatry-1-5x.mp3",
+          "filename": "prite-daily-child-adolescent-psychiatry-1-5x.mp3",
+          "bytes": 18833102,
+          "duration_seconds": 9416,
+          "sha256": "e8bdd784da55b2b8da33687b08922be46f41f68e8b46a5534795d67392aaff81"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-child-adolescent-psychiatry-2x.mp3",
+          "filename": "prite-daily-child-adolescent-psychiatry-2x.mp3",
+          "bytes": 14124897,
+          "duration_seconds": 7062,
+          "sha256": "f830ca607562ba8f9404d45e9183232f3d26de3d3b1f86cce53ddf9cc5c64ec5"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-child-adolescent-psychiatry-gap-2s.mp3",
+          "filename": "prite-daily-child-adolescent-psychiatry-gap-2s.mp3",
+          "bytes": 29279522,
+          "duration_seconds": 14640,
+          "sha256": "c9be9dd8a4d83b6b4b459524bfc1b0418419afc07de6152def6730222f9cbed6"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-child-adolescent-psychiatry-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-child-adolescent-psychiatry-gap-2s-1-25x.mp3",
+          "bytes": 23423653,
+          "duration_seconds": 11712,
+          "sha256": "90c6d89043f08083b4b656363790218b4e1d37882ec72d195105628da2d2c394"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-child-adolescent-psychiatry-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-child-adolescent-psychiatry-gap-2s-1-5x.mp3",
+          "bytes": 19519757,
+          "duration_seconds": 9760,
+          "sha256": "d6594dada3af632c6a37cc1ad439b0d44151eabe4b66fdb2409c9277c1398d1d"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-child-adolescent-psychiatry-gap-2s-2x.mp3",
+          "filename": "prite-daily-child-adolescent-psychiatry-gap-2s-2x.mp3",
+          "bytes": 14639927,
+          "duration_seconds": 7320,
+          "sha256": "5b9324d4a25478412fbe0d40fd1d5f07840dddb7f3dadb111e5d5ecfbafda826"
+        }
+      ]
+    },
+    {
+      "scope_key": "Cognitive Behavioral Therapy",
+      "topic": "Cognitive Behavioral Therapy",
+      "question_count": 56,
+      "path": "exports/v6-16k-5100-topics/prite-daily-cognitive-behavioral-therapy.mp3",
+      "filename": "prite-daily-cognitive-behavioral-therapy.mp3",
+      "bytes": 2967111,
+      "duration_seconds": 1483,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-cognitive-behavioral-therapy.mp3",
+          "filename": "prite-daily-cognitive-behavioral-therapy.mp3",
+          "bytes": 2967111,
+          "duration_seconds": 1483,
+          "sha256": "9e86729e69db3491f60ea4e31e700263b77d6c9e5d802d7fa52c544164ca3f2b"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-cognitive-behavioral-therapy-1-25x.mp3",
+          "filename": "prite-daily-cognitive-behavioral-therapy-1-25x.mp3",
+          "bytes": 2373713,
+          "duration_seconds": 1187,
+          "sha256": "967a6cfc406099c328d2a9bfad5a573cc9bc8e4fec391cdadc4c91b5d8f54e84"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-cognitive-behavioral-therapy-1-5x.mp3",
+          "filename": "prite-daily-cognitive-behavioral-therapy-1-5x.mp3",
+          "bytes": 1978167,
+          "duration_seconds": 989,
+          "sha256": "424a4a815813ad4a6a3db406de628b74124a783ba148649eb17afad745a58e9c"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-cognitive-behavioral-therapy-2x.mp3",
+          "filename": "prite-daily-cognitive-behavioral-therapy-2x.mp3",
+          "bytes": 1483721,
+          "duration_seconds": 742,
+          "sha256": "f26e2047077ced867f0e4c148277e3637d474437cdfeca81fa704f1fb7968bde"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-cognitive-behavioral-therapy-gap-2s.mp3",
+          "filename": "prite-daily-cognitive-behavioral-therapy-gap-2s.mp3",
+          "bytes": 3079124,
+          "duration_seconds": 1539,
+          "sha256": "051208aaf4faa6a2f73529d53543d62f4eeb820b5a6817a6001c36bdef6b5dba"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-cognitive-behavioral-therapy-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-cognitive-behavioral-therapy-gap-2s-1-25x.mp3",
+          "bytes": 2463365,
+          "duration_seconds": 1231,
+          "sha256": "773a290481da82fd14b121b8dc8fa2304c3c35f98ec0ff6abb010b5539aaf76c"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-cognitive-behavioral-therapy-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-cognitive-behavioral-therapy-gap-2s-1-5x.mp3",
+          "bytes": 2052825,
+          "duration_seconds": 1026,
+          "sha256": "edc69f6c2291362fb53f38c10207e6f986e9f4b4ee41fe64d2c50c79db2079d8"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-cognitive-behavioral-therapy-gap-2s-2x.mp3",
+          "filename": "prite-daily-cognitive-behavioral-therapy-gap-2s-2x.mp3",
+          "bytes": 1539728,
+          "duration_seconds": 770,
+          "sha256": "646b10b5dcdf3d1618a816baf7618e6cd937c7fdc476006c4d3b574f8fab1656"
+        }
+      ]
+    },
+    {
+      "scope_key": "Consultation-Liaison / Psychosomatic Medicine",
+      "topic": "Consultation-Liaison / Psychosomatic Medicine",
+      "question_count": 167,
+      "path": "exports/v6-16k-5100-topics/prite-daily-consultation-liaison-psychosomatic-medicine.mp3",
+      "filename": "prite-daily-consultation-liaison-psychosomatic-medicine.mp3",
+      "bytes": 9874356,
+      "duration_seconds": 4937,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-consultation-liaison-psychosomatic-medicine.mp3",
+          "filename": "prite-daily-consultation-liaison-psychosomatic-medicine.mp3",
+          "bytes": 9874356,
+          "duration_seconds": 4937,
+          "sha256": "2d911ce84f87708e7b919d9d3ef750ed9b132e3e17de4194cd349ac80bf1a4e8"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-consultation-liaison-psychosomatic-medicine-1-25x.mp3",
+          "filename": "prite-daily-consultation-liaison-psychosomatic-medicine-1-25x.mp3",
+          "bytes": 7899551,
+          "duration_seconds": 3950,
+          "sha256": "850a1a58d13a6b220a0ba2bad6ac98f5ff267f23eb47d2cc90314651fd396036"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-consultation-liaison-psychosomatic-medicine-1-5x.mp3",
+          "filename": "prite-daily-consultation-liaison-psychosomatic-medicine-1-5x.mp3",
+          "bytes": 6583032,
+          "duration_seconds": 3291,
+          "sha256": "1163abf76ab8d23e706104a41289aaa76d394d01615939c62cf506b5bf4b87a6"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-consultation-liaison-psychosomatic-medicine-2x.mp3",
+          "filename": "prite-daily-consultation-liaison-psychosomatic-medicine-2x.mp3",
+          "bytes": 4937370,
+          "duration_seconds": 2468,
+          "sha256": "1257b6d36e9a91b12127f8b7d7c618e30b8c6c8b59ee2b0da4fc06ef006dcdcb"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-consultation-liaison-psychosomatic-medicine-gap-2s.mp3",
+          "filename": "prite-daily-consultation-liaison-psychosomatic-medicine-gap-2s.mp3",
+          "bytes": 10208358,
+          "duration_seconds": 5104,
+          "sha256": "eedef4c1bb55e39d68649e41d25650e2c5bba041c9a712fbf7ef00d61213612d"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-consultation-liaison-psychosomatic-medicine-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-consultation-liaison-psychosomatic-medicine-gap-2s-1-25x.mp3",
+          "bytes": 8166732,
+          "duration_seconds": 4083,
+          "sha256": "2770aee8f3a5690ed4abdd693ec40bfc858d23d2ddb86d0909f06657f1b18d3f"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-consultation-liaison-psychosomatic-medicine-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-consultation-liaison-psychosomatic-medicine-gap-2s-1-5x.mp3",
+          "bytes": 6805700,
+          "duration_seconds": 3403,
+          "sha256": "f85fe34562957e5008b26119f54fe62f9a0efce89e58c8745b50dabe6ca92c5a"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-consultation-liaison-psychosomatic-medicine-gap-2s-2x.mp3",
+          "filename": "prite-daily-consultation-liaison-psychosomatic-medicine-gap-2s-2x.mp3",
+          "bytes": 5104345,
+          "duration_seconds": 2552,
+          "sha256": "fc376c302dfeab075b6cdc100df7c37d30056f6f3af21df1c3a6049c36404945"
+        }
+      ]
+    },
+    {
+      "scope_key": "Development & Lifespan",
+      "topic": "Development & Lifespan",
+      "question_count": 95,
+      "path": "exports/v6-16k-5100-topics/prite-daily-development-lifespan.mp3",
+      "filename": "prite-daily-development-lifespan.mp3",
+      "bytes": 5140655,
+      "duration_seconds": 2570,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-development-lifespan.mp3",
+          "filename": "prite-daily-development-lifespan.mp3",
+          "bytes": 5140655,
+          "duration_seconds": 2570,
+          "sha256": "d7d0653c112cf8a6d6a3ac510532c737693a698a47310728c93acc95a8da12a9"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-development-lifespan-1-25x.mp3",
+          "filename": "prite-daily-development-lifespan-1-25x.mp3",
+          "bytes": 4112580,
+          "duration_seconds": 2056,
+          "sha256": "472363249aa197eb1103b276447a5388abab797724d1d06945401a070d2dacf9"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-development-lifespan-1-5x.mp3",
+          "filename": "prite-daily-development-lifespan-1-5x.mp3",
+          "bytes": 3427179,
+          "duration_seconds": 1713,
+          "sha256": "d3c92fd7fd60d6b9bde2d336df8d864a226564a8a67ed3d7df1d9b1b282973ff"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-development-lifespan-2x.mp3",
+          "filename": "prite-daily-development-lifespan-2x.mp3",
+          "bytes": 2570467,
+          "duration_seconds": 1285,
+          "sha256": "2abbb12ff97ae75d2cc7c2c3a62e9c44e163152e51bee4b52cf2d0e15bcfbfaf"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-development-lifespan-gap-2s.mp3",
+          "filename": "prite-daily-development-lifespan-gap-2s.mp3",
+          "bytes": 5330670,
+          "duration_seconds": 2665,
+          "sha256": "bb59707b9864666f5240a385b28c5420131d965c514d110efa21d3854a24c75d"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-development-lifespan-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-development-lifespan-gap-2s-1-25x.mp3",
+          "bytes": 4264560,
+          "duration_seconds": 2132,
+          "sha256": "bd4d126ee4b78d3396daf232c4ae59cbe3577c0acad936b73b75488dab0f35fb"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-development-lifespan-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-development-lifespan-gap-2s-1-5x.mp3",
+          "bytes": 3553873,
+          "duration_seconds": 1777,
+          "sha256": "c4cc74b2f731205a2a9bd6ce65e4f35a821a2af42592fd808f990eb3d8148c68"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-development-lifespan-gap-2s-2x.mp3",
+          "filename": "prite-daily-development-lifespan-gap-2s-2x.mp3",
+          "bytes": 2665448,
+          "duration_seconds": 1333,
+          "sha256": "5814af13c8ae1e7f978b019ce7a72c34e35135b1d9440e6df61cc35cb5903bc8"
+        }
+      ]
+    },
+    {
+      "scope_key": "Dissociative, Somatic Symptom & Eating Disorders",
+      "topic": "Dissociative, Somatic Symptom & Eating Disorders",
+      "question_count": 162,
+      "path": "exports/v6-16k-5100-topics/prite-daily-dissociative-somatic-symptom-eating-disorders.mp3",
+      "filename": "prite-daily-dissociative-somatic-symptom-eating-disorders.mp3",
+      "bytes": 9197262,
+      "duration_seconds": 4598,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-dissociative-somatic-symptom-eating-disorders.mp3",
+          "filename": "prite-daily-dissociative-somatic-symptom-eating-disorders.mp3",
+          "bytes": 9197262,
+          "duration_seconds": 4598,
+          "sha256": "5fab88525b70f6e64f1b3160c700791b355e662294384523cab5c238d55728de"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-dissociative-somatic-symptom-eating-disorders-1-25x.mp3",
+          "filename": "prite-daily-dissociative-somatic-symptom-eating-disorders-1-25x.mp3",
+          "bytes": 7357876,
+          "duration_seconds": 3679,
+          "sha256": "780123a94dd1d47ab4756a126a9678593cdbd84c88682bc084ec950f684a8acd"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-dissociative-somatic-symptom-eating-disorders-1-5x.mp3",
+          "filename": "prite-daily-dissociative-somatic-symptom-eating-disorders-1-5x.mp3",
+          "bytes": 6131636,
+          "duration_seconds": 3066,
+          "sha256": "ddee259f4d5bfbaff245baa4b3a563f179c5d44e4c67cfc8ee454f111cf73d2b"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-dissociative-somatic-symptom-eating-disorders-2x.mp3",
+          "filename": "prite-daily-dissociative-somatic-symptom-eating-disorders-2x.mp3",
+          "bytes": 4598823,
+          "duration_seconds": 2299,
+          "sha256": "076b6c61754dc81ad41efa99067f2fe23af3c314e9c5c7cd62fee5f7f69bc19d"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-dissociative-somatic-symptom-eating-disorders-gap-2s.mp3",
+          "filename": "prite-daily-dissociative-somatic-symptom-eating-disorders-gap-2s.mp3",
+          "bytes": 9521285,
+          "duration_seconds": 4760,
+          "sha256": "a232e844dfa865a3d4343847480c03e6eba60d089bc4dc7408a3852323fc5446"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-dissociative-somatic-symptom-eating-disorders-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-dissociative-somatic-symptom-eating-disorders-gap-2s-1-25x.mp3",
+          "bytes": 7617063,
+          "duration_seconds": 3808,
+          "sha256": "cf5c8768e69937effc473678498c1016544624285174d664b75c295c384423da"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-dissociative-somatic-symptom-eating-disorders-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-dissociative-somatic-symptom-eating-disorders-gap-2s-1-5x.mp3",
+          "bytes": 6347617,
+          "duration_seconds": 3174,
+          "sha256": "3b8576d4bcb8acc4765d74c9d9176f5823de038cc15ef78e719fe6d0c3f76eda"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-dissociative-somatic-symptom-eating-disorders-gap-2s-2x.mp3",
+          "filename": "prite-daily-dissociative-somatic-symptom-eating-disorders-gap-2s-2x.mp3",
+          "bytes": 4760835,
+          "duration_seconds": 2380,
+          "sha256": "423d2acf8a2e987025a4fd248de7b403d3061d726cc869173c9cecb64a44bfde"
+        }
+      ]
+    },
+    {
+      "scope_key": "Epidemiology, Biostatistics & Human Development",
+      "topic": "Epidemiology, Biostatistics & Human Development",
+      "question_count": 724,
+      "path": "exports/v6-16k-5100-topics/prite-daily-epidemiology-biostatistics-human-development.mp3",
+      "filename": "prite-daily-epidemiology-biostatistics-human-development.mp3",
+      "bytes": 37661066,
+      "duration_seconds": 18830,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-epidemiology-biostatistics-human-development.mp3",
+          "filename": "prite-daily-epidemiology-biostatistics-human-development.mp3",
+          "bytes": 37661066,
+          "duration_seconds": 18830,
+          "sha256": "9e598a8c7f93dcaa6ad856e8e1a862769957b5387cecb193bee6663f198c17b7"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-epidemiology-biostatistics-human-development-1-25x.mp3",
+          "filename": "prite-daily-epidemiology-biostatistics-human-development-1-25x.mp3",
+          "bytes": 30128867,
+          "duration_seconds": 15064,
+          "sha256": "6e363e8587cc1912b57cac4765abafef6e0a740eda1d5fac4f11f85b9d149e3e"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-epidemiology-biostatistics-human-development-1-5x.mp3",
+          "filename": "prite-daily-epidemiology-biostatistics-human-development-1-5x.mp3",
+          "bytes": 25107453,
+          "duration_seconds": 12554,
+          "sha256": "af62f55ac83b91f22ecabe2e8f141918b580779396252b38ee2ea27eb9186c95"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-epidemiology-biostatistics-human-development-2x.mp3",
+          "filename": "prite-daily-epidemiology-biostatistics-human-development-2x.mp3",
+          "bytes": 18830699,
+          "duration_seconds": 9415,
+          "sha256": "6e90f9d276ae532749c28076be92a44ae819fcef85a83812e02280db3fee2333"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-epidemiology-biostatistics-human-development-gap-2s.mp3",
+          "filename": "prite-daily-epidemiology-biostatistics-human-development-gap-2s.mp3",
+          "bytes": 39109034,
+          "duration_seconds": 19554,
+          "sha256": "4b7a52235bbf1929cca38a3f4a2502ff3387d2dff0fb1cf3425a2e293d685fdb"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-epidemiology-biostatistics-human-development-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-epidemiology-biostatistics-human-development-gap-2s-1-25x.mp3",
+          "bytes": 31287293,
+          "duration_seconds": 15643,
+          "sha256": "0e103d580efa93c4e9c5ca8a10ff151ce49efda6a2d97dbb432d9f68794dad27"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-epidemiology-biostatistics-human-development-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-epidemiology-biostatistics-human-development-gap-2s-1-5x.mp3",
+          "bytes": 26072782,
+          "duration_seconds": 13036,
+          "sha256": "36f53e406b4c2cd1ff6404feffea8b8d6f0975d00c24d70bc92ebed153c9e479"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-epidemiology-biostatistics-human-development-gap-2s-2x.mp3",
+          "filename": "prite-daily-epidemiology-biostatistics-human-development-gap-2s-2x.mp3",
+          "bytes": 19554709,
+          "duration_seconds": 9777,
+          "sha256": "c7524a5ff2555187c45d79ff66a602f8b7638e14eb5a2e2affa7e9013172dd12"
+        }
+      ]
+    },
+    {
+      "scope_key": "Epigenetics",
+      "topic": "Epigenetics",
+      "question_count": 1,
+      "path": "exports/v6-16k-5100-topics/prite-daily-epigenetics.mp3",
+      "filename": "prite-daily-epigenetics.mp3",
+      "bytes": 56495,
+      "duration_seconds": 28,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-epigenetics.mp3",
+          "filename": "prite-daily-epigenetics.mp3",
+          "bytes": 56495,
+          "duration_seconds": 28,
+          "sha256": "f2bb4224ec0ca08d334e7b5019b8628ba691b19ded49545cfb36249a213f4a27"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-epigenetics-1-25x.mp3",
+          "filename": "prite-daily-epigenetics-1-25x.mp3",
+          "bytes": 45210,
+          "duration_seconds": 22,
+          "sha256": "740de2ed35d169fb315c9cdb5469a1887534190528d53441711328e90171ff71"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-epigenetics-1-5x.mp3",
+          "filename": "prite-daily-epigenetics-1-5x.mp3",
+          "bytes": 37739,
+          "duration_seconds": 19,
+          "sha256": "ed4a3bca3765abaf92c8c41edb1c1a5584fd3ce5549082ad1c49c4335c6d94fd"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-epigenetics-2x.mp3",
+          "filename": "prite-daily-epigenetics-2x.mp3",
+          "bytes": 28387,
+          "duration_seconds": 14,
+          "sha256": "cb394d14472cf8677db594697fa01690f00eb1808c814473cc8673d0537e991c"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-epigenetics-gap-2s.mp3",
+          "filename": "prite-daily-epigenetics-gap-2s.mp3",
+          "bytes": 58480,
+          "duration_seconds": 29,
+          "sha256": "7b80b273fbc26802ca44bc6ce2084a16575d796a1d4b45a997b7ed85507d994e"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-epigenetics-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-epigenetics-gap-2s-1-25x.mp3",
+          "bytes": 46830,
+          "duration_seconds": 23,
+          "sha256": "3bb92c3b9f7af3fb39724aa0de54763e355100f0077a9526278571fda035ef95"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-epigenetics-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-epigenetics-gap-2s-1-5x.mp3",
+          "bytes": 39097,
+          "duration_seconds": 19,
+          "sha256": "98be438b8a3140c9fb1078e000a17edacd6c39cc3aa920c67d554f3d367f9843"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-epigenetics-gap-2s-2x.mp3",
+          "filename": "prite-daily-epigenetics-gap-2s-2x.mp3",
+          "bytes": 29432,
+          "duration_seconds": 15,
+          "sha256": "3b2e7ed6e263449fcd7e910bc494ec4772dc424f821ff76f84b90eb1cd929754"
+        }
+      ]
+    },
+    {
+      "scope_key": "Family Structure & Child Development",
+      "topic": "Family Structure & Child Development",
+      "question_count": 13,
+      "path": "exports/v6-16k-5100-topics/prite-daily-family-structure-child-development.mp3",
+      "filename": "prite-daily-family-structure-child-development.mp3",
+      "bytes": 696495,
+      "duration_seconds": 348,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-family-structure-child-development.mp3",
+          "filename": "prite-daily-family-structure-child-development.mp3",
+          "bytes": 696495,
+          "duration_seconds": 348,
+          "sha256": "d735db7b42e5671cefea6fc22fee0c998de9538dfc319188a242bcd80104b153"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-family-structure-child-development-1-25x.mp3",
+          "filename": "prite-daily-family-structure-child-development-1-25x.mp3",
+          "bytes": 557210,
+          "duration_seconds": 278,
+          "sha256": "863bc17f6e19cbeb7894b7cc6da228228161f0993b2f303298f33b8379c61ce9"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-family-structure-child-development-1-5x.mp3",
+          "filename": "prite-daily-family-structure-child-development-1-5x.mp3",
+          "bytes": 464423,
+          "duration_seconds": 232,
+          "sha256": "bd9affea6ab76b930c5f46180e3a5d00692b39fe45c13fa9cc0fb2d55d32c076"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-family-structure-child-development-2x.mp3",
+          "filename": "prite-daily-family-structure-child-development-2x.mp3",
+          "bytes": 348439,
+          "duration_seconds": 174,
+          "sha256": "f01a0e47fbce822d4d0f70ae064841bc024ddd3f5669b251e3d4d11afd813af3"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-family-structure-child-development-gap-2s.mp3",
+          "filename": "prite-daily-family-structure-child-development-gap-2s.mp3",
+          "bytes": 722461,
+          "duration_seconds": 361,
+          "sha256": "b104f014c197538a6bfbb0c61ad92d664efa4df23b6f50775cd6f227dd2bcffd"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-family-structure-child-development-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-family-structure-child-development-gap-2s-1-25x.mp3",
+          "bytes": 578004,
+          "duration_seconds": 289,
+          "sha256": "467270d2d61c2329d09388f023b7213596e9976c2b8e2b3da903f0fa4a80ea9f"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-family-structure-child-development-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-family-structure-child-development-gap-2s-1-5x.mp3",
+          "bytes": 481716,
+          "duration_seconds": 241,
+          "sha256": "b3908d50af5da34ad3cc78129e5d5aaa29dff4012a6e3e823bab5a8c91887c82"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-family-structure-child-development-gap-2s-2x.mp3",
+          "filename": "prite-daily-family-structure-child-development-gap-2s-2x.mp3",
+          "bytes": 361396,
+          "duration_seconds": 181,
+          "sha256": "1cb06d8e36f0f8016651c7b058f1f13ecbf22196e0ef7471d75733cf24e1b77e"
+        }
+      ]
+    },
+    {
+      "scope_key": "Forensic Psychiatry & Ethics",
+      "topic": "Forensic Psychiatry & Ethics",
+      "question_count": 433,
+      "path": "exports/v6-16k-5100-topics/prite-daily-forensic-psychiatry-ethics.mp3",
+      "filename": "prite-daily-forensic-psychiatry-ethics.mp3",
+      "bytes": 23773380,
+      "duration_seconds": 11887,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-forensic-psychiatry-ethics.mp3",
+          "filename": "prite-daily-forensic-psychiatry-ethics.mp3",
+          "bytes": 23773380,
+          "duration_seconds": 11887,
+          "sha256": "13fdd020d6a0cd77fe1d49753ba04e8624872e76541c574cbadc2f369157b981"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-forensic-psychiatry-ethics-1-25x.mp3",
+          "filename": "prite-daily-forensic-psychiatry-ethics-1-25x.mp3",
+          "bytes": 19018781,
+          "duration_seconds": 9509,
+          "sha256": "2d49987d7891a44cb7dd6736a2d9d85932d460b345a84faef68deba440c25396"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-forensic-psychiatry-ethics-1-5x.mp3",
+          "filename": "prite-daily-forensic-psychiatry-ethics-1-5x.mp3",
+          "bytes": 15849031,
+          "duration_seconds": 7924,
+          "sha256": "9c407ec602fa74912b5134fecdfcc3ff62d787df69db5c64b27b1d2ac66087db"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-forensic-psychiatry-ethics-2x.mp3",
+          "filename": "prite-daily-forensic-psychiatry-ethics-2x.mp3",
+          "bytes": 11886882,
+          "duration_seconds": 5943,
+          "sha256": "3195355f090dde44c306b41f3ed2f2cd4d457707aa6b271d499bfecbc24ca814"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-forensic-psychiatry-ethics-gap-2s.mp3",
+          "filename": "prite-daily-forensic-psychiatry-ethics-gap-2s.mp3",
+          "bytes": 24639391,
+          "duration_seconds": 12320,
+          "sha256": "43222e9002396a0e48196cc88bfe21ee0d57a9cc95860121a745bff257c034e0"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-forensic-psychiatry-ethics-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-forensic-psychiatry-ethics-gap-2s-1-25x.mp3",
+          "bytes": 19711548,
+          "duration_seconds": 9856,
+          "sha256": "05b73ed7f6f3bc0f0c541a5e3983a9cf895e01c9f370a91c6bc68d11c1fbdfbf"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-forensic-psychiatry-ethics-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-forensic-psychiatry-ethics-gap-2s-1-5x.mp3",
+          "bytes": 16426389,
+          "duration_seconds": 8213,
+          "sha256": "737e449eb2f61cb1daace83d00314e9b62697c1a88c7bc29280da65ffe70d2d4"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-forensic-psychiatry-ethics-gap-2s-2x.mp3",
+          "filename": "prite-daily-forensic-psychiatry-ethics-gap-2s-2x.mp3",
+          "bytes": 12319888,
+          "duration_seconds": 6160,
+          "sha256": "16ea856d1436896520526b9cb9af8196a3c49058d92fcba4311c371968f4c157"
+        }
+      ]
+    },
+    {
+      "scope_key": "Genetics",
+      "topic": "Genetics",
+      "question_count": 26,
+      "path": "exports/v6-16k-5100-topics/prite-daily-genetics.mp3",
+      "filename": "prite-daily-genetics.mp3",
+      "bytes": 1525622,
+      "duration_seconds": 763,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-genetics.mp3",
+          "filename": "prite-daily-genetics.mp3",
+          "bytes": 1525622,
+          "duration_seconds": 763,
+          "sha256": "71292a22b729c58692a4c3c2b0ea916afc529d3536604311f6ca1e47bdae2f7d"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-genetics-1-25x.mp3",
+          "filename": "prite-daily-genetics-1-25x.mp3",
+          "bytes": 1220564,
+          "duration_seconds": 610,
+          "sha256": "28135796c21b727fafb56313c5d018c607e6accf77fd06fbb4313fcda7afe011"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-genetics-1-5x.mp3",
+          "filename": "prite-daily-genetics-1-5x.mp3",
+          "bytes": 1017174,
+          "duration_seconds": 508,
+          "sha256": "65b5f0548b8af8b1dffe3ca094478d2b46a15e73a3c4e07cfff2465299b88877"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-genetics-2x.mp3",
+          "filename": "prite-daily-genetics-2x.mp3",
+          "bytes": 763003,
+          "duration_seconds": 381,
+          "sha256": "bc49d81bbaa48c7a1cc54302fca4a5c865b3eef054497bd4926919c4392c7177"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-genetics-gap-2s.mp3",
+          "filename": "prite-daily-genetics-gap-2s.mp3",
+          "bytes": 1577605,
+          "duration_seconds": 789,
+          "sha256": "78b5ddd058afd2d09fee90e11389ca070b4f7e23738b5008d442c16e04414f4a"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-genetics-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-genetics-gap-2s-1-25x.mp3",
+          "bytes": 1262151,
+          "duration_seconds": 631,
+          "sha256": "242d0f04112c738bf86be18a2a2004ca7a8d19d62fb71f16b2bc220a92888d77"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-genetics-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-genetics-gap-2s-1-5x.mp3",
+          "bytes": 1051813,
+          "duration_seconds": 526,
+          "sha256": "dc30cd75eb73724d29ec202e3041eabdfb5dec5c357ba45c288701bca4243972"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-genetics-gap-2s-2x.mp3",
+          "filename": "prite-daily-genetics-gap-2s-2x.mp3",
+          "bytes": 788968,
+          "duration_seconds": 394,
+          "sha256": "9ec71bef986f2c4e0043bc5c1b737e6e397591fdd84c99e9c8d3f809d7bcfe82"
+        }
+      ]
+    },
+    {
+      "scope_key": "Impulse-Control & Disruptive Disorders",
+      "topic": "Impulse-Control & Disruptive Disorders",
+      "question_count": 54,
+      "path": "exports/v6-16k-5100-topics/prite-daily-impulse-control-disruptive-disorders.mp3",
+      "filename": "prite-daily-impulse-control-disruptive-disorders.mp3",
+      "bytes": 3113448,
+      "duration_seconds": 1557,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-impulse-control-disruptive-disorders.mp3",
+          "filename": "prite-daily-impulse-control-disruptive-disorders.mp3",
+          "bytes": 3113448,
+          "duration_seconds": 1557,
+          "sha256": "7496472b39f516e3a222e13f21234915bec3b4ea5351c69c1216d7cbca82834f"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-impulse-control-disruptive-disorders-1-25x.mp3",
+          "filename": "prite-daily-impulse-control-disruptive-disorders-1-25x.mp3",
+          "bytes": 2490794,
+          "duration_seconds": 1245,
+          "sha256": "f317ca62dff1897c042619936587ad3488214051692272814b557704f5ab0975"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-impulse-control-disruptive-disorders-1-5x.mp3",
+          "filename": "prite-daily-impulse-control-disruptive-disorders-1-5x.mp3",
+          "bytes": 2075760,
+          "duration_seconds": 1038,
+          "sha256": "16283a8e75fb821cde126837ec080287e7b1951bf23d68ae67346c519a338bbc"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-impulse-control-disruptive-disorders-2x.mp3",
+          "filename": "prite-daily-impulse-control-disruptive-disorders-2x.mp3",
+          "bytes": 1556916,
+          "duration_seconds": 778,
+          "sha256": "894e670b56ed605a3ec7054aac0d7c853904957b955318584b3df41d2500ff40"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-impulse-control-disruptive-disorders-gap-2s.mp3",
+          "filename": "prite-daily-impulse-control-disruptive-disorders-gap-2s.mp3",
+          "bytes": 3221491,
+          "duration_seconds": 1611,
+          "sha256": "5573886ab80bf05ac73a35f9df831ad5607277a4d6fdcc9eda0043980cb22b15"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-impulse-control-disruptive-disorders-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-impulse-control-disruptive-disorders-gap-2s-1-25x.mp3",
+          "bytes": 2577207,
+          "duration_seconds": 1288,
+          "sha256": "c2ef1367b08ef510b34bbd124411480facc74ffa793445cb2b2cfc56294c037b"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-impulse-control-disruptive-disorders-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-impulse-control-disruptive-disorders-gap-2s-1-5x.mp3",
+          "bytes": 2147754,
+          "duration_seconds": 1074,
+          "sha256": "3c52013d6ab5ee1bb9b5dfcfda3eee0f579f23013e7f9c5004ae9bf3abcae8d1"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-impulse-control-disruptive-disorders-gap-2s-2x.mp3",
+          "filename": "prite-daily-impulse-control-disruptive-disorders-gap-2s-2x.mp3",
+          "bytes": 1610885,
+          "duration_seconds": 805,
+          "sha256": "aeb8ab2299dd0231c46ee324068643f91b572dd6582bd788783ee39eeb482ee5"
+        }
+      ]
+    },
+    {
+      "scope_key": "Interviewing & Assessment",
+      "topic": "Interviewing & Assessment",
+      "question_count": 112,
+      "path": "exports/v6-16k-5100-topics/prite-daily-interviewing-assessment.mp3",
+      "filename": "prite-daily-interviewing-assessment.mp3",
+      "bytes": 6143182,
+      "duration_seconds": 3071,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-interviewing-assessment.mp3",
+          "filename": "prite-daily-interviewing-assessment.mp3",
+          "bytes": 6143182,
+          "duration_seconds": 3071,
+          "sha256": "8e0b16ee240f31f1dc64ac8c0a06f0cfa6c3db104100c2a9dbc9a98670431b5b"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-interviewing-assessment-1-25x.mp3",
+          "filename": "prite-daily-interviewing-assessment-1-25x.mp3",
+          "bytes": 4914591,
+          "duration_seconds": 2457,
+          "sha256": "1c3d0c92df482bcd9f409b57cad5c2c671bbda070dcaeb5f4256f38e6af4d341"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-interviewing-assessment-1-5x.mp3",
+          "filename": "prite-daily-interviewing-assessment-1-5x.mp3",
+          "bytes": 4095548,
+          "duration_seconds": 2048,
+          "sha256": "10e1c42108970438d9e0b9ad250e5cfb350e2f3844df9fee7adf38d23753727d"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-interviewing-assessment-2x.mp3",
+          "filename": "prite-daily-interviewing-assessment-2x.mp3",
+          "bytes": 3071757,
+          "duration_seconds": 1536,
+          "sha256": "c1019c94c62940a494ecdae9745276c8b72aa67a5f0b8d314d063c369c433fd3"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-interviewing-assessment-gap-2s.mp3",
+          "filename": "prite-daily-interviewing-assessment-gap-2s.mp3",
+          "bytes": 6367156,
+          "duration_seconds": 3183,
+          "sha256": "a875b1e5bf07cd3518ccca2a4fbcf138e77bc820796dfd08eda174ad49e919a1"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-interviewing-assessment-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-interviewing-assessment-gap-2s-1-25x.mp3",
+          "bytes": 5093791,
+          "duration_seconds": 2547,
+          "sha256": "3424017a1ad25759904702d97e332945424433902882b7b1def669d125579290"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-interviewing-assessment-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-interviewing-assessment-gap-2s-1-5x.mp3",
+          "bytes": 4244864,
+          "duration_seconds": 2122,
+          "sha256": "99637a071d1889e5a1923ab330c981361979389acac31daf73c04beec709eb9e"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-interviewing-assessment-gap-2s-2x.mp3",
+          "filename": "prite-daily-interviewing-assessment-gap-2s-2x.mp3",
+          "bytes": 3183718,
+          "duration_seconds": 1592,
+          "sha256": "10cad329f94d8220bcf91a862ff14d9d82aef12ba2f3ff5c25695e21c87439bd"
+        }
+      ]
+    },
+    {
+      "scope_key": "Molecular Neuroscience & Genetics",
+      "topic": "Molecular Neuroscience & Genetics",
+      "question_count": 9,
+      "path": "exports/v6-16k-5100-topics/prite-daily-molecular-neuroscience-genetics.mp3",
+      "filename": "prite-daily-molecular-neuroscience-genetics.mp3",
+      "bytes": 505070,
+      "duration_seconds": 252,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-molecular-neuroscience-genetics.mp3",
+          "filename": "prite-daily-molecular-neuroscience-genetics.mp3",
+          "bytes": 505070,
+          "duration_seconds": 252,
+          "sha256": "d613d10bb7ee2c64ff63a92a37b598955ef29aa36ab5eddd86a65c225016a3da"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-molecular-neuroscience-genetics-1-25x.mp3",
+          "filename": "prite-daily-molecular-neuroscience-genetics-1-25x.mp3",
+          "bytes": 404080,
+          "duration_seconds": 202,
+          "sha256": "3b965e281ca2f43bc50168bce69176c3916af9a9e338241db949849b469a2dac"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-molecular-neuroscience-genetics-1-5x.mp3",
+          "filename": "prite-daily-molecular-neuroscience-genetics-1-5x.mp3",
+          "bytes": 336789,
+          "duration_seconds": 168,
+          "sha256": "272305aa53efd0787ba52b64b1264433365f2f42fb28e0f12f8ea3d4609a4968"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-molecular-neuroscience-genetics-2x.mp3",
+          "filename": "prite-daily-molecular-neuroscience-genetics-2x.mp3",
+          "bytes": 252675,
+          "duration_seconds": 126,
+          "sha256": "60dcc95283972af4f9f005910a3b1f4d074946b7aa34075796fc4f04296a7c7a"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-molecular-neuroscience-genetics-gap-2s.mp3",
+          "filename": "prite-daily-molecular-neuroscience-genetics-gap-2s.mp3",
+          "bytes": 523094,
+          "duration_seconds": 261,
+          "sha256": "c7adc27f7544ea1b97fb4ad099590d2214c04814ebea8809bf000fa08448ff2f"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-molecular-neuroscience-genetics-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-molecular-neuroscience-genetics-gap-2s-1-25x.mp3",
+          "bytes": 418500,
+          "duration_seconds": 209,
+          "sha256": "8787ffe337cd1f6e6c64d33923648797d2497f0acd52a406063b7713b89b8395"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-molecular-neuroscience-genetics-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-molecular-neuroscience-genetics-gap-2s-1-5x.mp3",
+          "bytes": 348805,
+          "duration_seconds": 174,
+          "sha256": "e4bbe28b23d0b81a1a129111a3cb7aea720fb53c15c2a70f890dabe410f309a3"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-molecular-neuroscience-genetics-gap-2s-2x.mp3",
+          "filename": "prite-daily-molecular-neuroscience-genetics-gap-2s-2x.mp3",
+          "bytes": 261713,
+          "duration_seconds": 131,
+          "sha256": "a6ddbaa972cf915cbd6d5db092c8fb3027e16c09eafe3b61ad7bcff940d49580"
+        }
+      ]
+    },
+    {
+      "scope_key": "Mood Disorders",
+      "topic": "Mood Disorders",
+      "question_count": 418,
+      "path": "exports/v6-16k-5100-topics/prite-daily-mood-disorders.mp3",
+      "filename": "prite-daily-mood-disorders.mp3",
+      "bytes": 22772524,
+      "duration_seconds": 11386,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-mood-disorders.mp3",
+          "filename": "prite-daily-mood-disorders.mp3",
+          "bytes": 22772524,
+          "duration_seconds": 11386,
+          "sha256": "f514033e67d429d917e485f2ae48f36bcb91668d7f727fa905dc136a6781c00e"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-mood-disorders-1-25x.mp3",
+          "filename": "prite-daily-mood-disorders-1-25x.mp3",
+          "bytes": 18218075,
+          "duration_seconds": 9109,
+          "sha256": "f73165ac5be099124f75ad1c3f7342a11e85b225e27cf1f7e08263eb59ebcbb6"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-mood-disorders-1-5x.mp3",
+          "filename": "prite-daily-mood-disorders-1-5x.mp3",
+          "bytes": 15181759,
+          "duration_seconds": 7591,
+          "sha256": "775cfd91df8344b67c1420535eed84a85ca4e0073362fa39fa8db239cf73b4d6"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-mood-disorders-2x.mp3",
+          "filename": "prite-daily-mood-disorders-2x.mp3",
+          "bytes": 11386428,
+          "duration_seconds": 5693,
+          "sha256": "09fba5b327f7e27ede389deb96c81f5485453236a11913839f6ea9d2de3889e7"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-mood-disorders-gap-2s.mp3",
+          "filename": "prite-daily-mood-disorders-gap-2s.mp3",
+          "bytes": 23608547,
+          "duration_seconds": 11804,
+          "sha256": "7107bc37bce32e961f9a74da9bf73a9f17048468a453fa5b959cb05d56aeea8a"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-mood-disorders-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-mood-disorders-gap-2s-1-25x.mp3",
+          "bytes": 18886862,
+          "duration_seconds": 9443,
+          "sha256": "09b506e436b3c94ee234f9abae50261dca97fa683b1e9e2689d46e370fa330ba"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-mood-disorders-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-mood-disorders-gap-2s-1-5x.mp3",
+          "bytes": 15739107,
+          "duration_seconds": 7869,
+          "sha256": "58668b7ed6b27938943084c8edb1f1e1823fe89cdd9f9b56b481ceb60c73496f"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-mood-disorders-gap-2s-2x.mp3",
+          "filename": "prite-daily-mood-disorders-gap-2s-2x.mp3",
+          "bytes": 11804439,
+          "duration_seconds": 5902,
+          "sha256": "6baf305c12b27f705de7679d65efb4b5cce4a6f05e4229036b3858ae84d0ef4e"
+        }
+      ]
+    },
+    {
+      "scope_key": "Neuroanatomy",
+      "topic": "Neuroanatomy",
+      "question_count": 45,
+      "path": "exports/v6-16k-5100-topics/prite-daily-neuroanatomy.mp3",
+      "filename": "prite-daily-neuroanatomy.mp3",
+      "bytes": 2620309,
+      "duration_seconds": 1310,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neuroanatomy.mp3",
+          "filename": "prite-daily-neuroanatomy.mp3",
+          "bytes": 2620309,
+          "duration_seconds": 1310,
+          "sha256": "f36373a4946fd28850a1bf3b3813d4f0b6f6ad55fdf2b2257fc68d0b6797d634"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neuroanatomy-1-25x.mp3",
+          "filename": "prite-daily-neuroanatomy-1-25x.mp3",
+          "bytes": 2096293,
+          "duration_seconds": 1048,
+          "sha256": "781ee02a1a95d2ba0bf91a384e7bd4903709381fe85c9d4668053151df8a9c6b"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neuroanatomy-1-5x.mp3",
+          "filename": "prite-daily-neuroanatomy-1-5x.mp3",
+          "bytes": 1746931,
+          "duration_seconds": 873,
+          "sha256": "f8bcb1f3d72cf39ea30fe684f5a0faf7af2a0b99ae7ab3a9b205ff9a409acfc9"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neuroanatomy-2x.mp3",
+          "filename": "prite-daily-neuroanatomy-2x.mp3",
+          "bytes": 1310320,
+          "duration_seconds": 655,
+          "sha256": "1064c05d25cbedce7108609f4c971740cdea88d50484e31492d33f7f79b59751"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neuroanatomy-gap-2s.mp3",
+          "filename": "prite-daily-neuroanatomy-gap-2s.mp3",
+          "bytes": 2710275,
+          "duration_seconds": 1355,
+          "sha256": "1520aee661b9906a80e873eac4ff9a3d4d3dac3ead0381987a791cea4bc1bab3"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neuroanatomy-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-neuroanatomy-gap-2s-1-25x.mp3",
+          "bytes": 2168286,
+          "duration_seconds": 1084,
+          "sha256": "7f087d82375205f8dfb320e444c58266d582dce224115d3e211b3e4baf40f43d"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neuroanatomy-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-neuroanatomy-gap-2s-1-5x.mp3",
+          "bytes": 1806960,
+          "duration_seconds": 903,
+          "sha256": "67ca717084af2379144671303150e324471c4cf547522c1826ce54baf9117e76"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neuroanatomy-gap-2s-2x.mp3",
+          "filename": "prite-daily-neuroanatomy-gap-2s-2x.mp3",
+          "bytes": 1355303,
+          "duration_seconds": 677,
+          "sha256": "d4e220dbb35ff86caa56554235dbb49cf2c0e72420c81185107e7dedbf98783d"
+        }
+      ]
+    },
+    {
+      "scope_key": "Neuroanatomy & Neuroscience",
+      "topic": "Neuroanatomy & Neuroscience",
+      "question_count": 499,
+      "path": "exports/v6-16k-5100-topics/prite-daily-neuroanatomy-neuroscience.mp3",
+      "filename": "prite-daily-neuroanatomy-neuroscience.mp3",
+      "bytes": 24888756,
+      "duration_seconds": 12444,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neuroanatomy-neuroscience.mp3",
+          "filename": "prite-daily-neuroanatomy-neuroscience.mp3",
+          "bytes": 24888756,
+          "duration_seconds": 12444,
+          "sha256": "250c0aaab35b8c9a3dc4550defce4c9002ca836be43256c06cdefa5e4cf1cbf7"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neuroanatomy-neuroscience-1-25x.mp3",
+          "filename": "prite-daily-neuroanatomy-neuroscience-1-25x.mp3",
+          "bytes": 19911071,
+          "duration_seconds": 9955,
+          "sha256": "966ba8f193e69a40e045f10076c732c7eb81390536da5cd427ea1ba98b2e7d65"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neuroanatomy-neuroscience-1-5x.mp3",
+          "filename": "prite-daily-neuroanatomy-neuroscience-1-5x.mp3",
+          "bytes": 16592580,
+          "duration_seconds": 8296,
+          "sha256": "f114f24fd475e0f7002a0d0565607f4b1e815e48ec00aad0b63e43143bc3c644"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neuroanatomy-neuroscience-2x.mp3",
+          "filename": "prite-daily-neuroanatomy-neuroscience-2x.mp3",
+          "bytes": 12444544,
+          "duration_seconds": 6222,
+          "sha256": "2f13151096f91a1ff539ab00a900aa7b2f1ae0f35d0b1c7fb1439b9396449b32"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neuroanatomy-neuroscience-gap-2s.mp3",
+          "filename": "prite-daily-neuroanatomy-neuroscience-gap-2s.mp3",
+          "bytes": 25886791,
+          "duration_seconds": 12943,
+          "sha256": "0b7cde35240a9bb8a4c3a4b0b203226e6efbe380f4e0a5861c8bf3b57adbb05f"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neuroanatomy-neuroscience-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-neuroanatomy-neuroscience-gap-2s-1-25x.mp3",
+          "bytes": 20709426,
+          "duration_seconds": 10355,
+          "sha256": "9a9a2b00ba923b074da9367b73ec4bcd9bce595f72b27466bc2a20d0e388d805"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neuroanatomy-neuroscience-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-neuroanatomy-neuroscience-gap-2s-1-5x.mp3",
+          "bytes": 17257919,
+          "duration_seconds": 8629,
+          "sha256": "7310f370f3875e62add03afb5d339be2f252428c0793810de8d837ae311dd864"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neuroanatomy-neuroscience-gap-2s-2x.mp3",
+          "filename": "prite-daily-neuroanatomy-neuroscience-gap-2s-2x.mp3",
+          "bytes": 12943535,
+          "duration_seconds": 6472,
+          "sha256": "01c3578dd61be5262f4d9c89516bfa394a74fa863a4a3a8497eb372c32e348f4"
+        }
+      ]
+    },
+    {
+      "scope_key": "Neurocognitive Disorders (Dementia/Delirium)",
+      "topic": "Neurocognitive Disorders (Dementia/Delirium)",
+      "question_count": 295,
+      "path": "exports/v6-16k-5100-topics/prite-daily-neurocognitive-disorders-dementia-delirium.mp3",
+      "filename": "prite-daily-neurocognitive-disorders-dementia-delirium.mp3",
+      "bytes": 17136345,
+      "duration_seconds": 8568,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neurocognitive-disorders-dementia-delirium.mp3",
+          "filename": "prite-daily-neurocognitive-disorders-dementia-delirium.mp3",
+          "bytes": 17136345,
+          "duration_seconds": 8568,
+          "sha256": "d8fed3b50341c23d5a4c8f265a9307fec9834060a9743a00ad5a8af405ee62af"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neurocognitive-disorders-dementia-delirium-1-25x.mp3",
+          "filename": "prite-daily-neurocognitive-disorders-dementia-delirium-1-25x.mp3",
+          "bytes": 13709132,
+          "duration_seconds": 6854,
+          "sha256": "95d247a3f41f2fb8185e0506e4e04b18e90981d553f804ee7fb1b04aa1bce3a5"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neurocognitive-disorders-dementia-delirium-1-5x.mp3",
+          "filename": "prite-daily-neurocognitive-disorders-dementia-delirium-1-5x.mp3",
+          "bytes": 11424306,
+          "duration_seconds": 5712,
+          "sha256": "200729a0a9d4d67a5f6ad0917a0a9c15086a5a0f732ef3224f7187d425c317ea"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neurocognitive-disorders-dementia-delirium-2x.mp3",
+          "filename": "prite-daily-neurocognitive-disorders-dementia-delirium-2x.mp3",
+          "bytes": 8568338,
+          "duration_seconds": 4284,
+          "sha256": "0e2bbd8b1c517a4385f8240f951a1c4302fc9acd1704a246b85163751cddb1d5"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neurocognitive-disorders-dementia-delirium-gap-2s.mp3",
+          "filename": "prite-daily-neurocognitive-disorders-dementia-delirium-gap-2s.mp3",
+          "bytes": 17726346,
+          "duration_seconds": 8863,
+          "sha256": "1d25ed35d7dced8d5df47c8af95143560494dac6a05c000340601f3f3efaf819"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neurocognitive-disorders-dementia-delirium-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-neurocognitive-disorders-dementia-delirium-gap-2s-1-25x.mp3",
+          "bytes": 14181112,
+          "duration_seconds": 7090,
+          "sha256": "6a64988db219e2cba3f7e95cfe4c17921a3b909c47bce84ab1dec06bb506ae1b"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neurocognitive-disorders-dementia-delirium-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-neurocognitive-disorders-dementia-delirium-gap-2s-1-5x.mp3",
+          "bytes": 11817657,
+          "duration_seconds": 5909,
+          "sha256": "c576128f349199497716fb3240f128f1587f36c761a67372d1e2e536608a76b6"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neurocognitive-disorders-dementia-delirium-gap-2s-2x.mp3",
+          "filename": "prite-daily-neurocognitive-disorders-dementia-delirium-gap-2s-2x.mp3",
+          "bytes": 8863365,
+          "duration_seconds": 4431,
+          "sha256": "19b533b450394e5164d357139c3ccff34b50ee2a9f90948076fd574dd7c3122f"
+        }
+      ]
+    },
+    {
+      "scope_key": "Neurology (clinical)",
+      "topic": "Neurology (clinical)",
+      "question_count": 600,
+      "path": "exports/v6-16k-5100-topics/prite-daily-neurology-clinical.mp3",
+      "filename": "prite-daily-neurology-clinical.mp3",
+      "bytes": 35498180,
+      "duration_seconds": 17749,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neurology-clinical.mp3",
+          "filename": "prite-daily-neurology-clinical.mp3",
+          "bytes": 35498180,
+          "duration_seconds": 17749,
+          "sha256": "4fec55c54e05aa2712030ac50d39acbaa2f22c9653e919f3bdcbc3cbdcf883ce"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neurology-clinical-1-25x.mp3",
+          "filename": "prite-daily-neurology-clinical-1-25x.mp3",
+          "bytes": 28398568,
+          "duration_seconds": 14199,
+          "sha256": "dc55705c8a14e10d4f9eaa8736feb26ad5adad36326ad32b6ba6ca404e884e46"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neurology-clinical-1-5x.mp3",
+          "filename": "prite-daily-neurology-clinical-1-5x.mp3",
+          "bytes": 23665546,
+          "duration_seconds": 11833,
+          "sha256": "4219c19c2fa8cc2136060986eab6583a61c637d5dc0cad4e96c74487d497db3b"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neurology-clinical-2x.mp3",
+          "filename": "prite-daily-neurology-clinical-2x.mp3",
+          "bytes": 17749230,
+          "duration_seconds": 8874,
+          "sha256": "d43d82c53f364921df277f7a5a3dd1866c211581fd0560816cee4c612a30bd90"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neurology-clinical-gap-2s.mp3",
+          "filename": "prite-daily-neurology-clinical-gap-2s.mp3",
+          "bytes": 36698193,
+          "duration_seconds": 18349,
+          "sha256": "ee7de8b28b7197e70a90ac6d4340dff64b576f3c5cd1cf2d27a1ac3535376a2f"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neurology-clinical-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-neurology-clinical-gap-2s-1-25x.mp3",
+          "bytes": 29358621,
+          "duration_seconds": 14679,
+          "sha256": "06db15aef5d4240dee69b4bd82ad44356cc35d324c3695e8409ca10f8e30579a"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neurology-clinical-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-neurology-clinical-gap-2s-1-5x.mp3",
+          "bytes": 24465573,
+          "duration_seconds": 12233,
+          "sha256": "bdea7ec7453c629fca1c781d7c66719acf1241f9f3dea549e9b649e01a97c861"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-neurology-clinical-gap-2s-2x.mp3",
+          "filename": "prite-daily-neurology-clinical-gap-2s-2x.mp3",
+          "bytes": 18349262,
+          "duration_seconds": 9174,
+          "sha256": "9254fc2059f25d735219a9ecf17a765a09ead0939468d597001ae8316d46c465"
+        }
+      ]
+    },
+    {
+      "scope_key": "Personality Disorders",
+      "topic": "Personality Disorders",
+      "question_count": 74,
+      "path": "exports/v6-16k-5100-topics/prite-daily-personality-disorders.mp3",
+      "filename": "prite-daily-personality-disorders.mp3",
+      "bytes": 4284309,
+      "duration_seconds": 2142,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-personality-disorders.mp3",
+          "filename": "prite-daily-personality-disorders.mp3",
+          "bytes": 4284309,
+          "duration_seconds": 2142,
+          "sha256": "b43f238b401b4a28de0f3721271effef10b1600749a89fd840bfd62b1338df04"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-personality-disorders-1-25x.mp3",
+          "filename": "prite-daily-personality-disorders-1-25x.mp3",
+          "bytes": 3427493,
+          "duration_seconds": 1714,
+          "sha256": "3c7f010453076e9676564cc3d686ba5739922054d662ab29d53c5820e67bd6f6"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-personality-disorders-1-5x.mp3",
+          "filename": "prite-daily-personality-disorders-1-5x.mp3",
+          "bytes": 2856299,
+          "duration_seconds": 1428,
+          "sha256": "31c5fc20df7fc0d94683e9efe29676a2c7759eea70b2a22d6ca8717c8ab8c30e"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-personality-disorders-2x.mp3",
+          "filename": "prite-daily-personality-disorders-2x.mp3",
+          "bytes": 2142268,
+          "duration_seconds": 1071,
+          "sha256": "353338a7dc2e1f2e2f87ca2c757e113c970b8dca8436761bc79ac103424d44c1"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-personality-disorders-gap-2s.mp3",
+          "filename": "prite-daily-personality-disorders-gap-2s.mp3",
+          "bytes": 4432266,
+          "duration_seconds": 2216,
+          "sha256": "d5e195d4600700625797c4b4fbd4c1c0422964e9466c9e66bbb4dd83afbade77"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-personality-disorders-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-personality-disorders-gap-2s-1-25x.mp3",
+          "bytes": 3545879,
+          "duration_seconds": 1773,
+          "sha256": "e2cc9c2ed1e19439bc511d04d918cefe92bf0c2732f43c15666095c2dfedef75"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-personality-disorders-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-personality-disorders-gap-2s-1-5x.mp3",
+          "bytes": 2954937,
+          "duration_seconds": 1477,
+          "sha256": "c7a8e660ab0c8f5c6a4e31a97cdbfd969192bb10d0b20180dfd2ebcf1fc53c77"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-personality-disorders-gap-2s-2x.mp3",
+          "filename": "prite-daily-personality-disorders-gap-2s-2x.mp3",
+          "bytes": 2216299,
+          "duration_seconds": 1108,
+          "sha256": "290f485932ac5c0396bda5377b351dca224373f8f5c1253edacd12624e568bbf"
+        }
+      ]
+    },
+    {
+      "scope_key": "Pharmacology & Receptors",
+      "topic": "Pharmacology & Receptors",
+      "question_count": 787,
+      "path": "exports/v6-16k-5100-topics/prite-daily-pharmacology-receptors.mp3",
+      "filename": "prite-daily-pharmacology-receptors.mp3",
+      "bytes": 42596590,
+      "duration_seconds": 21298,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-pharmacology-receptors.mp3",
+          "filename": "prite-daily-pharmacology-receptors.mp3",
+          "bytes": 42596590,
+          "duration_seconds": 21298,
+          "sha256": "83ff63eb20666b610efdc77ebc283a6a7ff39a2d3020df46a54c1757db83a96c",
+          "parts": [
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-pharmacology-receptors.mp3.part-01",
+              "filename": "prite-daily-pharmacology-receptors.mp3.part-01",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-pharmacology-receptors.mp3.part-02",
+              "filename": "prite-daily-pharmacology-receptors.mp3.part-02",
+              "bytes": 653550
+            }
+          ]
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-pharmacology-receptors-1-25x.mp3",
+          "filename": "prite-daily-pharmacology-receptors-1-25x.mp3",
+          "bytes": 34077328,
+          "duration_seconds": 17038,
+          "sha256": "c6728d02303a5a298351312412ae63cc7311358b274d32f7ae22a10848e64c90"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-pharmacology-receptors-1-5x.mp3",
+          "filename": "prite-daily-pharmacology-receptors-1-5x.mp3",
+          "bytes": 28397837,
+          "duration_seconds": 14199,
+          "sha256": "0cba4c33ffed4e82ff2aa02e59e180acd080bfd27824bee91cdd7d087711b016"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-pharmacology-receptors-2x.mp3",
+          "filename": "prite-daily-pharmacology-receptors-2x.mp3",
+          "bytes": 21298487,
+          "duration_seconds": 10649,
+          "sha256": "3e157267f66391112418b0cad7b0bd148d9b5d41a3b71a55ffcc15d152a7c594"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-pharmacology-receptors-gap-2s.mp3",
+          "filename": "prite-daily-pharmacology-receptors-gap-2s.mp3",
+          "bytes": 44170624,
+          "duration_seconds": 22085,
+          "sha256": "1bcaf62776d852ea47cff2f6fef1a81550f4cf307c49908bd156da4d0652772c",
+          "parts": [
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-pharmacology-receptors-gap-2s.mp3.part-01",
+              "filename": "prite-daily-pharmacology-receptors-gap-2s.mp3.part-01",
+              "bytes": 41943040
+            },
+            {
+              "path": "exports/v6-16k-5100-topics/prite-daily-pharmacology-receptors-gap-2s.mp3.part-02",
+              "filename": "prite-daily-pharmacology-receptors-gap-2s.mp3.part-02",
+              "bytes": 2227584
+            }
+          ]
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-pharmacology-receptors-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-pharmacology-receptors-gap-2s-1-25x.mp3",
+          "bytes": 35336534,
+          "duration_seconds": 17668,
+          "sha256": "dc7242f9df81dc082d2b9246f9f3f23cddf9ed3845d1a02a89be724bedf94b9e"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-pharmacology-receptors-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-pharmacology-receptors-gap-2s-1-5x.mp3",
+          "bytes": 29447176,
+          "duration_seconds": 14723,
+          "sha256": "3cf9a75dd80ff801c1b66011c157c951c59f867c19b1bb72263eceffa5822f8a"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-pharmacology-receptors-gap-2s-2x.mp3",
+          "filename": "prite-daily-pharmacology-receptors-gap-2s-2x.mp3",
+          "bytes": 22085452,
+          "duration_seconds": 11043,
+          "sha256": "b3b9145a57db017ba257a31dc6ede240561a6c4c9f59f9fae57aebb90d569258"
+        }
+      ]
+    },
+    {
+      "scope_key": "Psychotherapy & Psychodynamics",
+      "topic": "Psychotherapy & Psychodynamics",
+      "question_count": 536,
+      "path": "exports/v6-16k-5100-topics/prite-daily-psychotherapy-psychodynamics.mp3",
+      "filename": "prite-daily-psychotherapy-psychodynamics.mp3",
+      "bytes": 29137364,
+      "duration_seconds": 14569,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-psychotherapy-psychodynamics.mp3",
+          "filename": "prite-daily-psychotherapy-psychodynamics.mp3",
+          "bytes": 29137364,
+          "duration_seconds": 14569,
+          "sha256": "761b6616973a328e0fc25291be4a6f98d04271b5c65c6a809142390dc9e3169b"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-psychotherapy-psychodynamics-1-25x.mp3",
+          "filename": "prite-daily-psychotherapy-psychodynamics-1-25x.mp3",
+          "bytes": 23309915,
+          "duration_seconds": 11655,
+          "sha256": "55be98001fbdf2bc868553402391687edc464149c3ed4c54f74e6fd7118bf5b6"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-psychotherapy-psychodynamics-1-5x.mp3",
+          "filename": "prite-daily-psychotherapy-psychodynamics-1-5x.mp3",
+          "bytes": 19424985,
+          "duration_seconds": 9712,
+          "sha256": "818bd6fa65925f1bc0ae119784abc90bab87b8529272407d4f713ee4dc08a1de"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-psychotherapy-psychodynamics-2x.mp3",
+          "filename": "prite-daily-psychotherapy-psychodynamics-2x.mp3",
+          "bytes": 14568874,
+          "duration_seconds": 7284,
+          "sha256": "523b4dee7b340763c19595e6c075a294b30c3c66730553cee3a99328d32649b4"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-psychotherapy-psychodynamics-gap-2s.mp3",
+          "filename": "prite-daily-psychotherapy-psychodynamics-gap-2s.mp3",
+          "bytes": 30209377,
+          "duration_seconds": 15105,
+          "sha256": "17b52cda8cfe59aeba58139d15ab8d88d90f9ee15228102bf2b3a59622fea7cf"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-psychotherapy-psychodynamics-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-psychotherapy-psychodynamics-gap-2s-1-25x.mp3",
+          "bytes": 24167568,
+          "duration_seconds": 12084,
+          "sha256": "c81fd6aac8f7bda584932f8072e670764db3e00c9ce03859ac66ad3e3c42cb82"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-psychotherapy-psychodynamics-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-psychotherapy-psychodynamics-gap-2s-1-5x.mp3",
+          "bytes": 20139695,
+          "duration_seconds": 10070,
+          "sha256": "b1ed552e75c73b34ddf358713830fa3f7139cb10cef2a064ed3fbce3876505a0"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-psychotherapy-psychodynamics-gap-2s-2x.mp3",
+          "filename": "prite-daily-psychotherapy-psychodynamics-gap-2s-2x.mp3",
+          "bytes": 15104854,
+          "duration_seconds": 7552,
+          "sha256": "43de02be39f4880d9d68a3fdcbde412668d8c482b973d6dbac24d89ce6083f3c"
+        }
+      ]
+    },
+    {
+      "scope_key": "Psychotic Disorders",
+      "topic": "Psychotic Disorders",
+      "question_count": 267,
+      "path": "exports/v6-16k-5100-topics/prite-daily-psychotic-disorders.mp3",
+      "filename": "prite-daily-psychotic-disorders.mp3",
+      "bytes": 14833808,
+      "duration_seconds": 7417,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-psychotic-disorders.mp3",
+          "filename": "prite-daily-psychotic-disorders.mp3",
+          "bytes": 14833808,
+          "duration_seconds": 7417,
+          "sha256": "da89581bf70640788b2be6d01eeb92d5e1a17448b2838b602e3b724eb4dc9c07"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-psychotic-disorders-1-25x.mp3",
+          "filename": "prite-daily-psychotic-disorders-1-25x.mp3",
+          "bytes": 11867081,
+          "duration_seconds": 5933,
+          "sha256": "6855440dbc17ad6882238c44e6160d51f255e29e89a4a9319eb270e9c1570aa3"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-psychotic-disorders-1-5x.mp3",
+          "filename": "prite-daily-psychotic-disorders-1-5x.mp3",
+          "bytes": 9889298,
+          "duration_seconds": 4944,
+          "sha256": "28fc9e24b047be655bd4cc6787291c03e77df440cf9cc0a9d6ee2f64d228988d"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-psychotic-disorders-2x.mp3",
+          "filename": "prite-daily-psychotic-disorders-2x.mp3",
+          "bytes": 7417070,
+          "duration_seconds": 3708,
+          "sha256": "ae524c6cfc9a9215f267fc2101e622c3e857c59266128647db176a0d2a13fdd3"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-psychotic-disorders-gap-2s.mp3",
+          "filename": "prite-daily-psychotic-disorders-gap-2s.mp3",
+          "bytes": 15367803,
+          "duration_seconds": 7684,
+          "sha256": "3b051a4c0eccc45960e5275512c5c9f9d6cddb1f2046e103e30f1aecba78bf0c"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-psychotic-disorders-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-psychotic-disorders-gap-2s-1-25x.mp3",
+          "bytes": 12294288,
+          "duration_seconds": 6147,
+          "sha256": "7c77ba8d0fd67067b4d9f488c36a7d40adf02d1a36cfe0f8dc0c543b12b77b48"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-psychotic-disorders-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-psychotic-disorders-gap-2s-1-5x.mp3",
+          "bytes": 10245295,
+          "duration_seconds": 5122,
+          "sha256": "b5d6f4f19ad4be37bf13eda9339172969ac2ef6220a29e9bd6ab62384cb8194b"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-psychotic-disorders-gap-2s-2x.mp3",
+          "filename": "prite-daily-psychotic-disorders-gap-2s-2x.mp3",
+          "bytes": 7684041,
+          "duration_seconds": 3842,
+          "sha256": "31dca70b6b8db088eb07d3e9059c372661a9146688c534e8dbe4d2f0dd1ee6ca"
+        }
+      ]
+    },
+    {
+      "scope_key": "Reproductive Psychiatry",
+      "topic": "Reproductive Psychiatry",
+      "question_count": 21,
+      "path": "exports/v6-16k-5100-topics/prite-daily-reproductive-psychiatry.mp3",
+      "filename": "prite-daily-reproductive-psychiatry.mp3",
+      "bytes": 1119313,
+      "duration_seconds": 559,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-reproductive-psychiatry.mp3",
+          "filename": "prite-daily-reproductive-psychiatry.mp3",
+          "bytes": 1119313,
+          "duration_seconds": 559,
+          "sha256": "5ee5b206f75c692d92f5831a1d970811ac7f6022ab778f3105763e7e303c861d"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-reproductive-psychiatry-1-25x.mp3",
+          "filename": "prite-daily-reproductive-psychiatry-1-25x.mp3",
+          "bytes": 895496,
+          "duration_seconds": 448,
+          "sha256": "fe0656c5c55a68f1f1c0f563d29250d8c9c957d340233048deb2de8ed9b1784d"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-reproductive-psychiatry-1-5x.mp3",
+          "filename": "prite-daily-reproductive-psychiatry-1-5x.mp3",
+          "bytes": 746284,
+          "duration_seconds": 373,
+          "sha256": "2d5e0f7a134485283c3e82f8a9724a5a1def796fa7821868bdcc5138f506916c"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-reproductive-psychiatry-2x.mp3",
+          "filename": "prite-daily-reproductive-psychiatry-2x.mp3",
+          "bytes": 559822,
+          "duration_seconds": 280,
+          "sha256": "55a988fa94896782ed23b1dc84725adbb20bb67e81289d010d6c05253cf955db"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-reproductive-psychiatry-gap-2s.mp3",
+          "filename": "prite-daily-reproductive-psychiatry-gap-2s.mp3",
+          "bytes": 1161318,
+          "duration_seconds": 580,
+          "sha256": "99dc57a262b32bc7fe49ebe2e3738dde199f1c0222fadf8225b94e267e71fcbe"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-reproductive-psychiatry-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-reproductive-psychiatry-gap-2s-1-25x.mp3",
+          "bytes": 929089,
+          "duration_seconds": 464,
+          "sha256": "ef177c18ffb8af1179c71db07f060c12dd2c53f2d144f1f8c42a66e77dd0bc4d"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-reproductive-psychiatry-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-reproductive-psychiatry-gap-2s-1-5x.mp3",
+          "bytes": 774288,
+          "duration_seconds": 387,
+          "sha256": "46cbebba662f73588ef99b222d0a1750926e94a86f673a849b56154db038a6ff"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-reproductive-psychiatry-gap-2s-2x.mp3",
+          "filename": "prite-daily-reproductive-psychiatry-gap-2s-2x.mp3",
+          "bytes": 580825,
+          "duration_seconds": 290,
+          "sha256": "7c3c45253a288280183861adbc290c813e036d8f680226a77f02909cffcfd310"
+        }
+      ]
+    },
+    {
+      "scope_key": "Research & Statistics",
+      "topic": "Research & Statistics",
+      "question_count": 12,
+      "path": "exports/v6-16k-5100-topics/prite-daily-research-statistics.mp3",
+      "filename": "prite-daily-research-statistics.mp3",
+      "bytes": 623718,
+      "duration_seconds": 312,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-research-statistics.mp3",
+          "filename": "prite-daily-research-statistics.mp3",
+          "bytes": 623718,
+          "duration_seconds": 312,
+          "sha256": "a0b1a914c766b3cb6db9817f974508cdbafcbf091ef60e32bafd61e6a9bdf54b"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-research-statistics-1-25x.mp3",
+          "filename": "prite-daily-research-statistics-1-25x.mp3",
+          "bytes": 499009,
+          "duration_seconds": 249,
+          "sha256": "23f76bfc06fc42cb1c12ab4686132ea5c586eef34f38eb48cf05e648eedce1dd"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-research-statistics-1-5x.mp3",
+          "filename": "prite-daily-research-statistics-1-5x.mp3",
+          "bytes": 415940,
+          "duration_seconds": 208,
+          "sha256": "d6106258772ae71bb2baf7c46e30ab6d832a38a4a15f8c168f65d83f7fc6d74e"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-research-statistics-2x.mp3",
+          "filename": "prite-daily-research-statistics-2x.mp3",
+          "bytes": 312025,
+          "duration_seconds": 156,
+          "sha256": "117fb2c22743df39067601e64180439911e250654932bac3163207f0e0ff2b89"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-research-statistics-gap-2s.mp3",
+          "filename": "prite-daily-research-statistics-gap-2s.mp3",
+          "bytes": 647751,
+          "duration_seconds": 324,
+          "sha256": "fe0b0675c105ba0bf52985b5342ec386444802949722b110481fdc6bda38f936"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-research-statistics-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-research-statistics-gap-2s-1-25x.mp3",
+          "bytes": 518235,
+          "duration_seconds": 259,
+          "sha256": "9ff173e60d1a9331f0b4e6ceeda5f0ac257627ebc1aa462477a86599116d6516"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-research-statistics-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-research-statistics-gap-2s-1-5x.mp3",
+          "bytes": 431927,
+          "duration_seconds": 216,
+          "sha256": "2fa37ed42514fbf0bc0310949fa420a03cf79f82530dda4cf7e1fe5eae48d97b"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-research-statistics-gap-2s-2x.mp3",
+          "filename": "prite-daily-research-statistics-gap-2s-2x.mp3",
+          "bytes": 323989,
+          "duration_seconds": 162,
+          "sha256": "91cfaf3f83bbb031a28d148e1f0d494f46846074f62acf9b20816194b7aad2e9"
+        }
+      ]
+    },
+    {
+      "scope_key": "Sexual Dysfunction & Gender Dysphoria",
+      "topic": "Sexual Dysfunction & Gender Dysphoria",
+      "question_count": 81,
+      "path": "exports/v6-16k-5100-topics/prite-daily-sexual-dysfunction-gender-dysphoria.mp3",
+      "filename": "prite-daily-sexual-dysfunction-gender-dysphoria.mp3",
+      "bytes": 4469778,
+      "duration_seconds": 2235,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-sexual-dysfunction-gender-dysphoria.mp3",
+          "filename": "prite-daily-sexual-dysfunction-gender-dysphoria.mp3",
+          "bytes": 4469778,
+          "duration_seconds": 2235,
+          "sha256": "bf221176b217571b199374fd1cdc1b2735be7cbeb6d88d233f06b91b96bc054f"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-sexual-dysfunction-gender-dysphoria-1-25x.mp3",
+          "filename": "prite-daily-sexual-dysfunction-gender-dysphoria-1-25x.mp3",
+          "bytes": 3575868,
+          "duration_seconds": 1788,
+          "sha256": "fac9fbee11269da409e0b3092cd5bf9aefa35b0e02c44651d98b24a805b9e6c4"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-sexual-dysfunction-gender-dysphoria-1-5x.mp3",
+          "filename": "prite-daily-sexual-dysfunction-gender-dysphoria-1-5x.mp3",
+          "bytes": 2979963,
+          "duration_seconds": 1490,
+          "sha256": "aa98a9c1ab3535a3810ee170edd8a4e57587c2cbcde75329ded7f63fc8c8a955"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-sexual-dysfunction-gender-dysphoria-2x.mp3",
+          "filename": "prite-daily-sexual-dysfunction-gender-dysphoria-2x.mp3",
+          "bytes": 2235055,
+          "duration_seconds": 1117,
+          "sha256": "cb040e53c2847e6abd3944d58cc0b715b8e81f2e156434304d4ee621b5fc1bb8"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-sexual-dysfunction-gender-dysphoria-gap-2s.mp3",
+          "filename": "prite-daily-sexual-dysfunction-gender-dysphoria-gap-2s.mp3",
+          "bytes": 4631790,
+          "duration_seconds": 2316,
+          "sha256": "5434b4d5b34cc1dfd1216ec8977122b6a18522d08b40d9d0b2b05b31fed270b1"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-sexual-dysfunction-gender-dysphoria-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-sexual-dysfunction-gender-dysphoria-gap-2s-1-25x.mp3",
+          "bytes": 3705488,
+          "duration_seconds": 1853,
+          "sha256": "498bcbe1fb0240e80e2d51d4709b981d0a47107120f177bbe4aba757d2f9b871"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-sexual-dysfunction-gender-dysphoria-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-sexual-dysfunction-gender-dysphoria-gap-2s-1-5x.mp3",
+          "bytes": 3087953,
+          "duration_seconds": 1544,
+          "sha256": "d28a0ed97f4e21ed7dab900fdd5e96ba53e18985c57ab20c3d9a8293447011cd"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-sexual-dysfunction-gender-dysphoria-gap-2s-2x.mp3",
+          "filename": "prite-daily-sexual-dysfunction-gender-dysphoria-gap-2s-2x.mp3",
+          "bytes": 2316087,
+          "duration_seconds": 1158,
+          "sha256": "3cd3be45f559d1fb45653056f9b9bd3af4d9eeb854223acb441d0427124a8cbe"
+        }
+      ]
+    },
+    {
+      "scope_key": "Sleep Physiology & Neuroscience",
+      "topic": "Sleep Physiology & Neuroscience",
+      "question_count": 8,
+      "path": "exports/v6-16k-5100-topics/prite-daily-sleep-physiology-neuroscience.mp3",
+      "filename": "prite-daily-sleep-physiology-neuroscience.mp3",
+      "bytes": 373151,
+      "duration_seconds": 186,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-sleep-physiology-neuroscience.mp3",
+          "filename": "prite-daily-sleep-physiology-neuroscience.mp3",
+          "bytes": 373151,
+          "duration_seconds": 186,
+          "sha256": "6a87c41944260163a3da0895c0231992a8eb881f8883def976a91bd4386449fa"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-sleep-physiology-neuroscience-1-25x.mp3",
+          "filename": "prite-daily-sleep-physiology-neuroscience-1-25x.mp3",
+          "bytes": 298546,
+          "duration_seconds": 149,
+          "sha256": "2c4b617258185a751289873a8c7310d2c7274b17b6d403607c63302582b1c60b"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-sleep-physiology-neuroscience-1-5x.mp3",
+          "filename": "prite-daily-sleep-physiology-neuroscience-1-5x.mp3",
+          "bytes": 248861,
+          "duration_seconds": 124,
+          "sha256": "fd0e34b29fbb505a92f83466a4b3106afa1c08dbfb2af0a5818f7892c7c9277a"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-sleep-physiology-neuroscience-2x.mp3",
+          "filename": "prite-daily-sleep-physiology-neuroscience-2x.mp3",
+          "bytes": 186742,
+          "duration_seconds": 93,
+          "sha256": "667eb4735f82b3641a2c9f5499a65c0a153f72dee3f76286b9e2aaff92d4281a"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-sleep-physiology-neuroscience-gap-2s.mp3",
+          "filename": "prite-daily-sleep-physiology-neuroscience-gap-2s.mp3",
+          "bytes": 389138,
+          "duration_seconds": 194,
+          "sha256": "44d5f8eb4401f1e8fc6ded900e3ee10c8deb6a965288b040b52a982320490114"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-sleep-physiology-neuroscience-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-sleep-physiology-neuroscience-gap-2s-1-25x.mp3",
+          "bytes": 311346,
+          "duration_seconds": 155,
+          "sha256": "e4e28a28885286057708a409c0acc0ae42537087104d85bc024a8ed7acef2736"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-sleep-physiology-neuroscience-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-sleep-physiology-neuroscience-gap-2s-1-5x.mp3",
+          "bytes": 259519,
+          "duration_seconds": 130,
+          "sha256": "c8f184b9f7e38e7fd592d18cffc3c1812c456cbb68d43b3f71c06390734f1913"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-sleep-physiology-neuroscience-gap-2s-2x.mp3",
+          "filename": "prite-daily-sleep-physiology-neuroscience-gap-2s-2x.mp3",
+          "bytes": 194735,
+          "duration_seconds": 97,
+          "sha256": "c2375a9ca2ad1d04d9b16167dacfcb817865a3d15be743e8cfaa99840183ff72"
+        }
+      ]
+    },
+    {
+      "scope_key": "Sleep-Wake Disorders",
+      "topic": "Sleep-Wake Disorders",
+      "question_count": 187,
+      "path": "exports/v6-16k-5100-topics/prite-daily-sleep-wake-disorders.mp3",
+      "filename": "prite-daily-sleep-wake-disorders.mp3",
+      "bytes": 9697142,
+      "duration_seconds": 4848,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-sleep-wake-disorders.mp3",
+          "filename": "prite-daily-sleep-wake-disorders.mp3",
+          "bytes": 9697142,
+          "duration_seconds": 4848,
+          "sha256": "562a7440a1c669545983f4f97f88468f4101b3477f3e34be35ec39239dcffdd6"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-sleep-wake-disorders-1-25x.mp3",
+          "filename": "prite-daily-sleep-wake-disorders-1-25x.mp3",
+          "bytes": 7757759,
+          "duration_seconds": 3879,
+          "sha256": "43af506b1c8e3780241df772f4142a7ba9f9f97976f2a9e79287d7731e955298"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-sleep-wake-disorders-1-5x.mp3",
+          "filename": "prite-daily-sleep-wake-disorders-1-5x.mp3",
+          "bytes": 6464854,
+          "duration_seconds": 3232,
+          "sha256": "8d8511d79ff280d8049d19f4a3b9a0537c20a4fd03fd5ca26110fdf165005157"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-sleep-wake-disorders-2x.mp3",
+          "filename": "prite-daily-sleep-wake-disorders-2x.mp3",
+          "bytes": 4848763,
+          "duration_seconds": 2424,
+          "sha256": "31bff437491aaa4ec02ed89a66d1c8a45c430961dd9482b8708494fba3b3788a"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-sleep-wake-disorders-gap-2s.mp3",
+          "filename": "prite-daily-sleep-wake-disorders-gap-2s.mp3",
+          "bytes": 10071163,
+          "duration_seconds": 5035,
+          "sha256": "ba9d52f2ec7aecc5da42800016f8956486972e52e143960eb2d5d0b60fddbaf8"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-sleep-wake-disorders-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-sleep-wake-disorders-gap-2s-1-25x.mp3",
+          "bytes": 8056965,
+          "duration_seconds": 4028,
+          "sha256": "3865f60dd10c2967e7f4f5ce6812e5eb604d913cde92da42dc05c1509d5c1066"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-sleep-wake-disorders-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-sleep-wake-disorders-gap-2s-1-5x.mp3",
+          "bytes": 6714219,
+          "duration_seconds": 3357,
+          "sha256": "cf7dea875120e1be9c5b54277211f420eb76b160a9e51cf66fb0066286e9d65b"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-sleep-wake-disorders-gap-2s-2x.mp3",
+          "filename": "prite-daily-sleep-wake-disorders-gap-2s-2x.mp3",
+          "bytes": 5035747,
+          "duration_seconds": 2518,
+          "sha256": "0f7d572dff2ac49ef357e0da99fa15764a0215d3bafc593b571249ec84d4a4d0"
+        }
+      ]
+    },
+    {
+      "scope_key": "Somatic Tx & Psychopharmacology",
+      "topic": "Somatic Tx & Psychopharmacology",
+      "question_count": 216,
+      "path": "exports/v6-16k-5100-topics/prite-daily-somatic-tx-psychopharmacology.mp3",
+      "filename": "prite-daily-somatic-tx-psychopharmacology.mp3",
+      "bytes": 12383888,
+      "duration_seconds": 6192,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-somatic-tx-psychopharmacology.mp3",
+          "filename": "prite-daily-somatic-tx-psychopharmacology.mp3",
+          "bytes": 12383888,
+          "duration_seconds": 6192,
+          "sha256": "c5d78f900c251f5a6a6560eb1995fa3b29cd2d6a7c3bb4fd8f0fc6cec522a9a5"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-somatic-tx-psychopharmacology-1-25x.mp3",
+          "filename": "prite-daily-somatic-tx-psychopharmacology-1-25x.mp3",
+          "bytes": 9907166,
+          "duration_seconds": 4953,
+          "sha256": "e18eb84c18823fc98bd130654504a6b87f40b51ebcf8be7523ad1d398b65a6de"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-somatic-tx-psychopharmacology-1-5x.mp3",
+          "filename": "prite-daily-somatic-tx-psychopharmacology-1-5x.mp3",
+          "bytes": 8256018,
+          "duration_seconds": 4128,
+          "sha256": "e43f9752968f200857edfe0bb88f5838230eb8547e2fa9c9c4956fb9a88d3e1e"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-somatic-tx-psychopharmacology-2x.mp3",
+          "filename": "prite-daily-somatic-tx-psychopharmacology-2x.mp3",
+          "bytes": 6192136,
+          "duration_seconds": 3096,
+          "sha256": "2cbb827445ee301ffa73b8349731136715d182459b58c1c24fc21f4377285ee6"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-somatic-tx-psychopharmacology-gap-2s.mp3",
+          "filename": "prite-daily-somatic-tx-psychopharmacology-gap-2s.mp3",
+          "bytes": 12815901,
+          "duration_seconds": 6408,
+          "sha256": "92b059af7febad4964823cd1653e9a709d47725178affc30fafc02f8b9c4538d"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-somatic-tx-psychopharmacology-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-somatic-tx-psychopharmacology-gap-2s-1-25x.mp3",
+          "bytes": 10252766,
+          "duration_seconds": 5126,
+          "sha256": "48040036b0c377223e91e6fb2edb724426452746fc61cb2419c35ddb96099013"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-somatic-tx-psychopharmacology-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-somatic-tx-psychopharmacology-gap-2s-1-5x.mp3",
+          "bytes": 8544044,
+          "duration_seconds": 4272,
+          "sha256": "2c8ed82d1a5bb5b85b777a7ccde1032773e78a48517556a150eceb0fef7fa376"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-somatic-tx-psychopharmacology-gap-2s-2x.mp3",
+          "filename": "prite-daily-somatic-tx-psychopharmacology-gap-2s-2x.mp3",
+          "bytes": 6408116,
+          "duration_seconds": 3204,
+          "sha256": "e1b55a847e8b0bbbac68fcc2f1f29c3585d9064585f10f716154f1ab1a5e0efc"
+        }
+      ]
+    },
+    {
+      "scope_key": "Study Design",
+      "topic": "Study Design",
+      "question_count": 11,
+      "path": "exports/v6-16k-5100-topics/prite-daily-study-design.mp3",
+      "filename": "prite-daily-study-design.mp3",
+      "bytes": 573772,
+      "duration_seconds": 287,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-study-design.mp3",
+          "filename": "prite-daily-study-design.mp3",
+          "bytes": 573772,
+          "duration_seconds": 287,
+          "sha256": "62ff9e179126227c292a52cfc518b060e54f9d967ef1515dc5181907c2f75f0f"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-study-design-1-25x.mp3",
+          "filename": "prite-daily-study-design-1-25x.mp3",
+          "bytes": 459042,
+          "duration_seconds": 229,
+          "sha256": "07f1e1a95315cfef3c34200624205b4d7ea6cee9bce7a871ff78c13b6886de87"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-study-design-1-5x.mp3",
+          "filename": "prite-daily-study-design-1-5x.mp3",
+          "bytes": 382608,
+          "duration_seconds": 191,
+          "sha256": "24646a0d61a031028b87804c4ddbb460626cbbc31e8bb1b46fcc4edd52b17dca"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-study-design-2x.mp3",
+          "filename": "prite-daily-study-design-2x.mp3",
+          "bytes": 287052,
+          "duration_seconds": 143,
+          "sha256": "43bb098bb18abc19e78dc86aa841b906833a73a1dff9b33bff57ac8de16718a3"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-study-design-gap-2s.mp3",
+          "filename": "prite-daily-study-design-gap-2s.mp3",
+          "bytes": 595767,
+          "duration_seconds": 298,
+          "sha256": "00d91352f87911905047cc1cc2c53288470ae439556bdcaf7e02b0687d5c1280"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-study-design-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-study-design-gap-2s-1-25x.mp3",
+          "bytes": 476648,
+          "duration_seconds": 238,
+          "sha256": "9bc230411ed321cc5df770afab51fa0c9ff21b0dbeaab719dcccb75204452da9"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-study-design-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-study-design-gap-2s-1-5x.mp3",
+          "bytes": 397288,
+          "duration_seconds": 198,
+          "sha256": "d4280e10ce1c711815a5c5099fc083c2973ced336cf249f8a202e557f36920fd"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-study-design-gap-2s-2x.mp3",
+          "filename": "prite-daily-study-design-gap-2s-2x.mp3",
+          "bytes": 298023,
+          "duration_seconds": 149,
+          "sha256": "66013b331e200fc6dba66f5233908c47f60fda670ebc4084fe20b67ec4703305"
+        }
+      ]
+    },
+    {
+      "scope_key": "Substance Use Disorders",
+      "topic": "Substance Use Disorders",
+      "question_count": 353,
+      "path": "exports/v6-16k-5100-topics/prite-daily-substance-use-disorders.mp3",
+      "filename": "prite-daily-substance-use-disorders.mp3",
+      "bytes": 19688508,
+      "duration_seconds": 9844,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-substance-use-disorders.mp3",
+          "filename": "prite-daily-substance-use-disorders.mp3",
+          "bytes": 19688508,
+          "duration_seconds": 9844,
+          "sha256": "f1b33ac5920b07833a42c1b3e5faae5206d238221a4a0d5f0b8be18651ccdd58"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-substance-use-disorders-1-25x.mp3",
+          "filename": "prite-daily-substance-use-disorders-1-25x.mp3",
+          "bytes": 15750862,
+          "duration_seconds": 7875,
+          "sha256": "e280775663de8aac57b188f77ca7b47141bb7cfa7f67cafe8c1dc0bbcf4199f6"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-substance-use-disorders-1-5x.mp3",
+          "filename": "prite-daily-substance-use-disorders-1-5x.mp3",
+          "bytes": 13125765,
+          "duration_seconds": 6563,
+          "sha256": "90acb8ae87a02d2466591aac5e66763b05dcb4d7ef98931329c00e822e33fd20"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 1,
+          "path": "exports/v6-16k-5100-topics/prite-daily-substance-use-disorders-2x.mp3",
+          "filename": "prite-daily-substance-use-disorders-2x.mp3",
+          "bytes": 9844420,
+          "duration_seconds": 4922,
+          "sha256": "d04bbdd31ba9e4781fb32323a01b3dfd194de09bcfdb7a610fcb20d49ee05cf8"
+        },
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-substance-use-disorders-gap-2s.mp3",
+          "filename": "prite-daily-substance-use-disorders-gap-2s.mp3",
+          "bytes": 20394493,
+          "duration_seconds": 10197,
+          "sha256": "368172bd1393f36705dd196dddc688be70574f2b394678b0ab43af01648d4bf6"
+        },
+        {
+          "playback_rate": 1.25,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-substance-use-disorders-gap-2s-1-25x.mp3",
+          "filename": "prite-daily-substance-use-disorders-gap-2s-1-25x.mp3",
+          "bytes": 16315630,
+          "duration_seconds": 8158,
+          "sha256": "543ebc1cbec6fa2e7ad5aa917d18c21ae2db453ac7b13142965c50c49f4f6732"
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-substance-use-disorders-gap-2s-1-5x.mp3",
+          "filename": "prite-daily-substance-use-disorders-gap-2s-1-5x.mp3",
+          "bytes": 13596439,
+          "duration_seconds": 6798,
+          "sha256": "2b88fe83fde71b1c264db1f9121bf30f1c4f82c6a37b85c964151e7433df58a2"
+        },
+        {
+          "playback_rate": 2,
+          "between_question_seconds": 2,
+          "path": "exports/v6-16k-5100-topics/prite-daily-substance-use-disorders-gap-2s-2x.mp3",
+          "filename": "prite-daily-substance-use-disorders-gap-2s-2x.mp3",
+          "bytes": 10197439,
+          "duration_seconds": 5099,
+          "sha256": "9056cf5c9d7a0520cb8df22fd9ae9401fe20a341d6fc0258bc5b92b7e4b3e232"
+        }
+      ]
+    }
+  ]
+}

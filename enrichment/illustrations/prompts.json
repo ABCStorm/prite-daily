@@ -1,0 +1,782 @@
+{
+ "2017-0032": {
+  "id": "2017-0032",
+  "prompt": "Hospital room, man in 40s in hospital bed with head trauma dressing, psychiatrist seated nearby taking notes, patient grinning and gesturing broadly, making animated conversation despite obvious injuries.",
+  "alt": "Hospital patient with head injury grinning and gesturing animatedly while psychiatrist observes.",
+  "model": "haiku"
+ },
+ "2018-0199": {
+  "id": "2018-0199",
+  "prompt": "Inpatient hallway outside a patient's room, attending physician and resident standing together reviewing a chart, resident pointing at medication section while attending gestures toward the room, discussing treatment options.",
+  "alt": "Attending and resident discussing medication options while reviewing chart in hospital hallway.",
+  "model": "haiku"
+ },
+ "2024-0273": {
+  "id": "2024-0273",
+  "prompt": "Postpartum unit, patient sitting on bed in hospital gown, psychiatrist across from her holding a medication bottle, gesturing while discussing medication plan. Partner stands nearby listening.",
+  "alt": "Psychiatrist discussing medication with postpartum patient while partner listens in hospital room.",
+  "model": "haiku"
+ },
+ "2022-0288": {
+  "id": "2022-0288",
+  "prompt": "Therapy office, couple sitting on a couch facing a therapist in a chair opposite; woman leaning forward, man looking away, therapist leaning slightly forward, listening intently.",
+  "alt": "Couple in therapy session with therapist, one partner leaning forward while other looks away.",
+  "model": "haiku"
+ },
+ "2015-0225": {
+  "id": "2015-0225",
+  "prompt": "Bedside interview, patient in hospital bed in 60s, psychiatrist seated beside him, holding a small card showing an object, patient pointing and speaking, psychiatrist writing on clipboard.",
+  "alt": "Clinician conducting bedside language testing with hospitalized patient, holding object card while taking notes.",
+  "model": "haiku"
+ },
+ "2017-0250": {
+  "id": "2017-0250",
+  "prompt": "Outpatient psychiatric clinic, woman in her 20s seated across from psychiatrist at desk, holding a bottle of folic acid supplement, psychiatrist pointing to a calendar while explaining preconception planning.",
+  "alt": "Young woman in psychiatric clinic reviewing preconception medication planning with psychiatrist.",
+  "model": "haiku"
+ },
+ "2018-0191": {
+  "id": "2018-0191",
+  "prompt": "Emergency department bay, patient in 20s standing near a gurney with a hospital blanket, staff member standing calmly nearby at a respectful distance, gesturing toward a quieter area, patient appears tense but listening.",
+  "alt": "ED staff member calmly offering de-escalation option to tense patient in hospital bay.",
+  "model": "haiku"
+ },
+ "2019-0039": {
+  "id": "2019-0039",
+  "prompt": "Medical floor, severely thin female patient in 20s in hospital bed, staff gathered around checking monitors and reviewing lab results on clipboard, discussing nutrition plan.",
+  "alt": "Medical team reviewing lab results and monitoring plan for malnourished patient on hospital floor.",
+  "model": "haiku"
+ },
+ "2018-0037": {
+  "id": "2018-0037",
+  "prompt": "Media studio or auditorium setting. A middle-aged clinician speaks into a microphone at a table, hands gesturing, facing an audience or camera. Another person sits nearby taking notes.",
+  "alt": "Clinician speaking at a public microphone during a media interview or forum.",
+  "model": "haiku"
+ },
+ "2012-0167": {
+  "id": "2012-0167",
+  "prompt": "Hospital inpatient room. A middle-aged man in bed with tremor in his hands. A resident in white coat stands at bedside with clipboard, checking lab results on the bedside monitor. An IV line is visible.",
+  "alt": "Patient with tremor in hospital bed while clinician reviews lab results on bedside monitor.",
+  "model": "haiku"
+ },
+ "2012-0193": {
+  "id": "2012-0193",
+  "prompt": "Research office or meeting room. Three or four clinicians and researchers of mixed ages sit around a table, reviewing printed consent forms and research documents. One person speaks, gesturing toward the papers.",
+  "alt": "Research team reviewing consent forms and study documents around a table.",
+  "model": "haiku"
+ },
+ "2020-0028": {
+  "id": "2020-0028",
+  "prompt": "Emergency department bay. An elderly person in hospital gown on a stretcher, skin flushed, appears confused. A clinician nearby checks a medication list on a tablet; another holds the patient's wrist checking pulse. Heart monitor visible.",
+  "alt": "Elderly patient in ED showing confusion and flushed skin while clinician reviews medications.",
+  "model": "haiku"
+ },
+ "2015-0288": {
+  "id": "2015-0288",
+  "prompt": "Memory clinic examination room. An elderly man sits while a clinician faces him, asking him to look upward; the patient's gaze is limited vertically. The clinician tests eye movements and balance. A family member sits in the background.",
+  "alt": "Clinician examining elderly patient's eye movements and balance in memory clinic while family member watches.",
+  "model": "haiku"
+ },
+ "2012-0126": {
+  "id": "2012-0126",
+  "prompt": "Outpatient clinic office. A college-aged person sits in a chair, talking to a clinician across a desk. Both are relaxed and engaged. The clinician takes notes, listening attentively. A window shows a campus or urban setting.",
+  "alt": "College-age person discussing substance use with clinician in outpatient office.",
+  "model": "haiku"
+ },
+ "2019-0126": {
+  "id": "2019-0126",
+  "prompt": "Sleep clinic or neurologist's office. A teenager sits across from a clinician in conversation. Behind them, a sleep study setup is visible on a shelf or wall. The clinician holds a clipboard, taking notes on the patient's sleep history.",
+  "alt": "Teenager describing sleep symptoms to clinician in sleep clinic office.",
+  "model": "haiku"
+ },
+ "2016-0229": {
+  "id": "2016-0229",
+  "prompt": "Emergency department bay. An anxious patient on a stretcher is connected to a heart monitor. A clinician stands nearby reviewing the monitor display showing elevated heart rate, while another checks the patient's vital signs.",
+  "alt": "Clinician reviewing QTc interval on cardiac monitor during ED evaluation of anxious patient.",
+  "model": "haiku"
+ },
+ "2015-0035": {
+  "id": "2015-0035",
+  "prompt": "Outpatient clinic office. A middle-aged parent and teenage boy sit together facing a clinician across a desk. The clinician speaks calmly, gesturing open-handedly. All three appear calm and engaged in conversation.",
+  "alt": "Clinician speaking with teenager and parent during outpatient office visit.",
+  "model": "haiku"
+ },
+ "2020-0167": {
+  "id": "2020-0167",
+  "prompt": "Clinic office or family meeting room. A teenager, two parents, and a clinician sit around a table. Papers and resources about treatment options are visible on the table. The clinician speaks, gesturing toward the materials. Everyone appears engaged in serious conversation.",
+  "alt": "Clinician meeting with teenage boy and parents to discuss treatment options.",
+  "model": "haiku"
+ },
+ "2009-0255": {
+  "id": "2009-0255",
+  "prompt": "Clinic or community health office. A clinician sits across from a middle-aged patient, both focused on conversation. Papers or a treatment plan lie on the desk between them. A window shows an urban neighborhood. The clinician leans forward, listening intently.",
+  "alt": "Clinician conducting assessment interview with patient in community health office.",
+  "model": "haiku"
+ },
+ "2009-0214": {
+  "id": "2009-0214",
+  "prompt": "Clinic or mental health office. A young child sits on a chair, looking down or off to the side, posture somewhat withdrawn. A clinician sits nearby with a notebook, speaking gently. A parent or caregiver sits in the background.",
+  "alt": "Clinician conducting mental health evaluation with child while caregiver sits nearby.",
+  "model": "haiku"
+ },
+ "2016-0268": {
+  "id": "2016-0268",
+  "prompt": "Hospital or hearing room. A patient sits with his clinician, and a colleague stands nearby speaking. Legal papers and hearing materials are on the table. The setting looks formal, clinical, and attentive.",
+  "alt": "Colleague intervening during patient-clinician conversation in formal hearing room setting.",
+  "model": "haiku"
+ },
+ "2015-0265": {
+  "id": "2015-0265",
+  "prompt": "Clinic office. A middle-aged woman sits across from a clinician. She appears tense, holding her hands together or clutching a folder of medical information. The clinician speaks calmly, gesturing in an open, reassuring manner.",
+  "alt": "Clinician speaking with anxious woman holding medical information during clinic visit.",
+  "model": "haiku"
+ },
+ "2024-0010": {
+  "id": "2024-0010",
+  "prompt": "Hospital room or exam room. A patient lies in bed appearing somewhat confused. A neurologist stands at bedside, gently examining the patient's eyes and checking arm and leg strength. A family member stands nearby watching. Medical equipment and monitors are visible.",
+  "alt": "Neurologist examining hospitalized patient's eye movements and limb strength during stroke evaluation.",
+  "model": "haiku"
+ },
+ "2013-0100": {
+  "id": "2013-0100",
+  "prompt": "Clinic or office room. A young adolescent sits across from a clinician in a calm, private setting. Both are focused on conversation. The clinician sits attentively, taking notes or listening. The room appears safe and confidential.",
+  "alt": "Clinician conducting private assessment interview with adolescent in confidential office setting.",
+  "model": "haiku"
+ },
+ "2017-0253": {
+  "id": "2017-0253",
+  "prompt": "Hospital office or conference room. Three or four physicians or administrators sit around a table reviewing documents or files. They appear serious and focused. Papers, files, or a computer with information are visible on the table.",
+  "alt": "Medical administrators reviewing colleague case file during confidential professional evaluation meeting.",
+  "model": "haiku"
+ },
+ "2016-0123": {
+  "id": "2016-0123",
+  "prompt": "Hospital hallway, office, or private meeting space. Two clinicians stand talking together, one appearing to confide in the other. Both look serious and focused. One speaks earnestly while the other listens intently. The setting is private and professional.",
+  "alt": "Two clinicians in private conversation during work at hospital or clinic setting.",
+  "model": "haiku"
+ },
+ "2021-0257": {
+  "id": "2021-0257",
+  "prompt": "Neurology clinic or examination room. A young adult sits on an exam table while a neurologist tests reflexes or gait. Medical equipment and diagnostic tools are visible. The clinician takes notes. A family member sits nearby. The room looks clinical but calm.",
+  "alt": "Neurologist examining young adult's gait and reflexes during neurology clinic evaluation.",
+  "model": "haiku"
+ },
+ "2016-0196": {
+  "id": "2016-0196",
+  "prompt": "Hospital room. A young woman in bed looks confused or uncomfortable. A consulting clinician reviews lab results or imaging on a tablet at bedside while checking on the patient. A monitor displays vital signs nearby.",
+  "alt": "Clinician reviewing lab results on tablet during bedside consult with hospitalized patient.",
+  "model": "haiku"
+ },
+ "2015-0136": {
+  "id": "2015-0136",
+  "prompt": "Emergency department bay: a woman in her thirties lying on a stretcher, shoulders shaking with visible tremor, sweat beading on her forehead. A nurse leans in checking reflexes while a physician stands nearby reviewing the monitor.",
+  "alt": "Woman on ED stretcher trembling with diaphoresis while nurse assesses reflexes.",
+  "model": "haiku"
+ },
+ "2016-0217": {
+  "id": "2016-0217",
+  "prompt": "Outpatient psychiatry office: a woman in her forties sits on the exam table while a physician stands at a small desk reviewing a medication list on paper, glancing back at the patient between notes.",
+  "alt": "Psychiatrist reviews medication list at desk while female patient sits on exam table.",
+  "model": "haiku"
+ },
+ "2024-0283": {
+  "id": "2024-0283",
+  "prompt": "Hospital room: a man in his sixties lies in bed, his wife in a chair beside him. A physician stands near the door, speaking gently to the wife while the patient watches from the bed.",
+  "alt": "Physician speaks with wife in hospital room while husband in bed observes.",
+  "model": "haiku"
+ },
+ "2012-0218": {
+  "id": "2012-0218",
+  "prompt": "Hospital hallway: an internist and psychiatrist stand with a patient chart open between them, speaking quietly, while behind them a window shows a patient in the hospital room pacing near the bed.",
+  "alt": "Two physicians review chart in hallway while pacing patient visible in hospital bed behind them.",
+  "model": "haiku"
+ },
+ "2010-0264": {
+  "id": "2010-0264",
+  "prompt": "Outpatient office: a woman in her forties sits across from a psychiatrist, her hands folded in her lap, speaking quietly. The clinician leans forward slightly, notebook in hand, listening intently.",
+  "alt": "Woman speaks with psychiatrist in office, clinician listening with notebook.",
+  "model": "haiku"
+ },
+ "2009-0230": {
+  "id": "2009-0230",
+  "prompt": "Pediatric clinic playroom: a girl about six sits at a low table with two clear containers of water before her. A psychologist sits across, pointing to one container, asking a question while jotting notes.",
+  "alt": "Child at table with water containers while psychologist seated across takes notes.",
+  "model": "haiku"
+ },
+ "2024-0153": {
+  "id": "2024-0153",
+  "prompt": "Developmental clinic: a toddler in a diaper sits on the floor beside a clinician who holds a measuring tape to the child's head. A parent stands nearby, watching and listening to the clinician's explanation.",
+  "alt": "Clinician measures toddler's head circumference while parent observes in developmental clinic.",
+  "model": "haiku"
+ },
+ "2013-0129": {
+  "id": "2013-0129",
+  "prompt": "Neurology clinic examination room: an older man sits in a chair, his posture stooped forward. A resident physician stands beside him, demonstrating a slow tremor in the patient's hand while a senior physician observes from across the room.",
+  "alt": "Resident examines older man's tremor in chair while senior physician observes.",
+  "model": "haiku"
+ },
+ "2017-0172": {
+  "id": "2017-0172",
+  "prompt": "Genetic counseling office: a family sits on a couch across from a genetic counselor who holds a printed document, explaining study evidence. Papers with charts are visible on the desk between them.",
+  "alt": "Genetic counselor explains test accuracy evidence to family seated across from her.",
+  "model": "haiku"
+ },
+ "2023-0091": {
+  "id": "2023-0091",
+  "prompt": "Intake room: a young adult sits on a chair facing a psychiatrist who holds a screening form. The clinician leans forward slightly, asking a question while making notes on the assessment.",
+  "alt": "Psychiatrist conducts intake screening with young adult, making notes on form.",
+  "model": "haiku"
+ },
+ "2023-0139": {
+  "id": "2023-0139",
+  "prompt": "Office: a man in his thirties sits across from a therapist, gesturing as if describing a route. The therapist nods, taking notes, then sketches a simple line drawing on paper to represent his exposure hierarchy.",
+  "alt": "Therapist sketches exposure hierarchy while man describes bridge phobia.",
+  "model": "haiku"
+ },
+ "2022-0044": {
+  "id": "2022-0044",
+  "prompt": "Genetics clinic: a man in his thirties sits with a clinician who draws a family tree on paper, placing annotations on the father's and son's branches, then explains the pattern of earlier onset.",
+  "alt": "Clinician draws family tree showing earlier Huntington's onset in son versus father.",
+  "model": "haiku"
+ },
+ "2013-0084": {
+  "id": "2013-0084",
+  "prompt": "Hospital room: an older woman sits on the edge of the bed, slightly unsteady. A psychiatry resident stands with a medication list in hand, checking with the patient while also noting her gait and tremor.",
+  "alt": "Psychiatrist reviews medication list while observing older woman's tremor and gait.",
+  "model": "haiku"
+ },
+ "2013-0229": {
+  "id": "2013-0229",
+  "prompt": "Clinic room: a couple sits on chairs; the woman glances toward the man before speaking. A clinician notes this interaction, then asks to speak with each person privately, standing and gesturing toward the door.",
+  "alt": "Clinician observes couple's dynamic before arranging private assessment time with each partner.",
+  "model": "haiku"
+ },
+ "2017-0106": {
+  "id": "2017-0106",
+  "prompt": "Pediatric psychiatry office: parents sit across from a child psychiatrist who holds a page showing behavioral and social domains. The clinician points to different sections while explaining which respond to medication versus therapy.",
+  "alt": "Pediatrician explains autism symptom domains to parents, comparing medication targets with therapy.",
+  "model": "haiku"
+ },
+ "2018-0055": {
+  "id": "2018-0055",
+  "prompt": "Conference room: a researcher sits at a table reviewing a manuscript printout. Another researcher leans over, pointing to Table 1, shaking their head and discussing the statistical reasoning behind baseline comparisons.",
+  "alt": "Two researchers review manuscript Table 1, discussing baseline comparison statistics.",
+  "model": "haiku"
+ },
+ "2015-0268": {
+  "id": "2015-0268",
+  "prompt": "Pediatric psychiatry office: a child psychiatrist sits with parents across the desk, explaining a treatment plan. A referral form and therapy resource card are visible on the desk between them.",
+  "alt": "Psychiatrist discusses trauma-focused CBT plan with parents over desk during consultation.",
+  "model": "haiku"
+ },
+ "2011-0023": {
+  "id": "2011-0023",
+  "prompt": "Emergency department bay: a patient lies on a stretcher while a resident reviews lab results on a mobile tablet, then gestures to a nurse to prepare an IV line for medication administration.",
+  "alt": "ED resident reviews lab results then directs nurse to prepare IV for antidote.",
+  "model": "haiku"
+ },
+ "2018-0298": {
+  "id": "2018-0298",
+  "prompt": "Teaching conference: an attending psychiatrist stands before residents seated at a table, gesturing toward a projected diagram showing drug mechanisms. A resident takes notes while the attending discusses valproate's multiple cellular effects.",
+  "alt": "Psychiatrist teaches residents about valproate's mechanism using projected diagram.",
+  "model": "haiku"
+ },
+ "2020-0279": {
+  "id": "2020-0279",
+  "prompt": "Clinic examination room: a patient sits in a chair while a neurologist holds their head and demonstrates eye tracking, first with fixation on a target, then released. The neurologist watches the eye movements carefully.",
+  "alt": "Neurologist performs nystagmus exam, observing eye movements during and after fixation task.",
+  "model": "haiku"
+ },
+ "2020-0050": {
+  "id": "2020-0050",
+  "prompt": "Outpatient psychiatry office. A clinician in her forties sits across from a middle-aged woman, holding a brochure, gesturing while explaining treatment options. The patient looks attentive, taking notes.",
+  "alt": "Clinician and patient in office discussing treatment options with printed materials.",
+  "model": "haiku"
+ },
+ "2013-0025": {
+  "id": "2013-0025",
+  "prompt": "Exam room. A clinician in his fifties stands next to a patient in a hospital gown, striking the patient's biceps tendon with a reflex hammer to test the reflex response.",
+  "alt": "Clinician testing biceps reflex on a patient's arm with a reflex hammer.",
+  "model": "haiku"
+ },
+ "2016-0274": {
+  "id": "2016-0274",
+  "prompt": "Student health office. A young woman in her early twenties sits in a chair, hands clasped in her lap, looking conflicted. Her counselor sits across, listening intently.",
+  "alt": "Young college student in counselor's office discussing family and career concerns.",
+  "model": "haiku"
+ },
+ "2015-0185": {
+  "id": "2015-0185",
+  "prompt": "Psychiatry office. A clinician in her forties sits with a 55-year-old man who looks somewhat uncertain. Both are leaning slightly forward, engaged in serious conversation.",
+  "alt": "Clinician and middle-aged man in office discussing sexual identity and life experience.",
+  "model": "haiku"
+ },
+ "2022-0267": {
+  "id": "2022-0267",
+  "prompt": "Bedroom in early morning light. A 25-year-old man sits upright on his bed, groggy and focused, facing a bright light panel positioned at eye level.",
+  "alt": "Young man sitting with bright light therapy device in morning bedroom.",
+  "model": "haiku"
+ },
+ "2012-0062": {
+  "id": "2012-0062",
+  "prompt": "Emergency department bay. A patient in distress sits upright, flushed and sweating heavily. A clinician checks blood pressure urgently while another records vitals and history.",
+  "alt": "Clinician taking blood pressure on distressed patient in emergency department setting.",
+  "model": "haiku"
+ },
+ "2022-0283": {
+  "id": "2022-0283",
+  "prompt": "Research clinic conference room. A clinician stands by a wall-mounted screen showing a brain scan with highlighted network regions. Seated residents and an attending follow the presentation.",
+  "alt": "Clinician presenting brain fMRI data to colleagues in research clinic conference room.",
+  "model": "haiku"
+ },
+ "2018-0167": {
+  "id": "2018-0167",
+  "prompt": "Emergency department bay. A stroke neurologist and attending stand at a computer monitor displaying a CT scan of the brain, both studying it intently while others stand by.",
+  "alt": "Clinicians reviewing brain CT scan on monitor during emergency stroke evaluation.",
+  "model": "haiku"
+ },
+ "2024-0241": {
+  "id": "2024-0241",
+  "prompt": "Addiction clinic office. A patient in his forties sits back in his chair, speaking with intensity. His counselor leans forward, listening intently without interrupting, hands open.",
+  "alt": "Patient and counselor in motivational interviewing session about behavior change.",
+  "model": "haiku"
+ },
+ "2015-0205": {
+  "id": "2015-0205",
+  "prompt": "Addiction clinic office. A clinician hands a small naloxone kit to a patient while explaining harm reduction. Both are seated, the patient's body language suggesting initial openness.",
+  "alt": "Clinician providing naloxone kit to patient in harm reduction counseling session.",
+  "model": "haiku"
+ },
+ "2019-0044": {
+  "id": "2019-0044",
+  "prompt": "Psychiatry office. A clinician in her fifties sits with a middle-aged man who looks somewhat embarrassed. She hands him information about medication options while speaking reassuringly.",
+  "alt": "Clinician and patient discussing medication side effects and treatment adjustments in office.",
+  "model": "haiku"
+ },
+ "2011-0117": {
+  "id": "2011-0117",
+  "prompt": "Teaching conference room. An attending stands near a whiteboard showing personality trait scales. A resident and another trainee sit facing forward, listening and taking notes.",
+  "alt": "Attending teaching residents about personality traits on spectrum during teaching rounds.",
+  "model": "haiku"
+ },
+ "2012-0059": {
+  "id": "2012-0059",
+  "prompt": "Hospital room. A clinician sits beside a patient's bed, holding a notepad, asking questions while the patient explains their understanding of the medical condition and treatment.",
+  "alt": "Clinician assessing patient's understanding of medical condition and treatment options at bedside.",
+  "model": "haiku"
+ },
+ "2023-0112": {
+  "id": "2023-0112",
+  "prompt": "Office. A middle-aged woman sits across from a clinician, hands open and relaxed, speaking about her clinic work with visible warmth and engagement.",
+  "alt": "Patient describing how clinical work provides meaning during discussion of recent setback.",
+  "model": "haiku"
+ },
+ "2014-0217": {
+  "id": "2014-0217",
+  "prompt": "Family therapy room. A therapist sits with parents and a teenage daughter who looks conflicted and frozen. The therapist leans forward, speaking to the family about their communication.",
+  "alt": "Therapist addressing conflicting family messages during family therapy session with parents and teen.",
+  "model": "haiku"
+ },
+ "2015-0191": {
+  "id": "2015-0191",
+  "prompt": "Exam room. An elderly patient sits at a small desk, concentrating as she draws a clock on a blank sheet of paper. A clinician sits nearby, observing.",
+  "alt": "Elderly patient drawing a clock during cognitive screening while clinician observes.",
+  "model": "haiku"
+ },
+ "2014-0015": {
+  "id": "2014-0015",
+  "prompt": "Exam room. A 40-year-old woman sits on the exam table looking distressed, writing notes. The clinician stands nearby after having just elicited a strong cough.",
+  "alt": "Patient writing to communicate voicelessness during neurologic examination in clinic room.",
+  "model": "haiku"
+ },
+ "2019-0155": {
+  "id": "2019-0155",
+  "prompt": "Journal club conference room. A resident stands presenting a slide with statistical results. Seated colleagues follow, one raising a hand to question the clinical significance.",
+  "alt": "Resident presenting research statistics during journal club discussion with colleagues.",
+  "model": "haiku"
+ },
+ "2023-0256": {
+  "id": "2023-0256",
+  "prompt": "Hospital room on medical floor. A post-op patient sits upright looking agitated, tremulous and perspiring heavily. A clinician checks vitals while another prepares an IV line.",
+  "alt": "Clinician assessing post-operative patient showing signs of delirium tremens in hospital room.",
+  "model": "haiku"
+ },
+ "2019-0065": {
+  "id": "2019-0065",
+  "prompt": "Hospital conference room. An addiction specialist, surgeon, and anesthesiologist sit with a patient's chart, discussing perioperative pain management and medication transition for the upcoming surgery.",
+  "alt": "Multidisciplinary team discussing perioperative pain management for patient on buprenorphine.",
+  "model": "haiku"
+ },
+ "2019-0083": {
+  "id": "2019-0083",
+  "prompt": "Genetics counseling office, a clinician in scrubs and a couple in their thirties listening across a table as the clinician gestures to explain inheritance with a diagram.",
+  "alt": "Genetic counselor explains inheritance to a couple listening at a desk.",
+  "model": "haiku"
+ },
+ "2013-0277": {
+  "id": "2013-0277",
+  "prompt": "Community health event room, a psychiatrist in business casual stands at a podium addressing a seated audience of community members, with educational slides projected on a screen behind.",
+  "alt": "Psychiatrist speaking at a public health education event to an audience.",
+  "model": "haiku"
+ },
+ "2017-0114": {
+  "id": "2017-0114",
+  "prompt": "Outpatient clinic, a clinician seated across from a teenage girl (16) and her mother, the teen looking away while the clinician speaks to both, a growth chart on the wall.",
+  "alt": "Clinician speaking with a teenage girl and her concerned mother in clinic.",
+  "model": "haiku"
+ },
+ "2010-0091": {
+  "id": "2010-0091",
+  "prompt": "Rehabilitation clinic, a physical therapist and a middle-aged man seated in the treatment room, the man slumped slightly in his chair with arms crossed, the therapist leaning forward with an open expression.",
+  "alt": "Physical therapist leans forward to speak with a discouraged patient in clinic.",
+  "model": "haiku"
+ },
+ "2024-0174": {
+  "id": "2024-0174",
+  "prompt": "Hospital library or conference room, a psychiatry resident seated alone at a table with a laptop and journal articles, notes and a brain atlas visible, reviewing material for journal club.",
+  "alt": "Psychiatry resident reviews articles and brain atlas at a study table.",
+  "model": "haiku"
+ },
+ "2021-0042": {
+  "id": "2021-0042",
+  "prompt": "Clinic office, a psychiatrist seated across from a man in his forties, the patient sitting forward with hands on knees, the clinician with an open expression explaining something, a tissue box on the table between them.",
+  "alt": "Psychiatrist reassures a middle-aged patient about the neurobiology of panic attacks.",
+  "model": "haiku"
+ },
+ "2011-0003": {
+  "id": "2011-0003",
+  "prompt": "Clinic examination room, a female resident stands facing a male patient in his sixties, the resident pointing in the patient's visual field while the patient focuses forward, testing visual perception.",
+  "alt": "Resident performs visual-field confrontation testing on a patient during neurological exam.",
+  "model": "haiku"
+ },
+ "2023-0177": {
+  "id": "2023-0177",
+  "prompt": "Therapist's office, a woman in her thirties sits on a sofa, hands folded, describing her experience while a therapist in a chair across from her takes notes, listening intently.",
+  "alt": "Patient describes OCD symptoms to a therapist who listens and takes notes.",
+  "model": "haiku"
+ },
+ "2018-0292": {
+  "id": "2018-0292",
+  "prompt": "Adolescent clinic room, a clinician seated across from a thirteen-year-old girl and her mother, the mother leaning forward with a concerned expression, the clinician speaking reassuringly, growth chart visible on the wall.",
+  "alt": "Clinician reassures a concerned mother and adolescent about normal pubertal development.",
+  "model": "haiku"
+ },
+ "2016-0037": {
+  "id": "2016-0037",
+  "prompt": "Hospital inpatient room, a psychiatrist stands beside the bed of a woman in her forties, composed, the psychiatrist with a notepad, expression neutral and open, medical monitors nearby but not foregrounded.",
+  "alt": "Psychiatrist conducts a consultation with a hospitalized patient in her room.",
+  "model": "haiku"
+ },
+ "2012-0005": {
+  "id": "2012-0005",
+  "prompt": "Outpatient office, a woman in her fifties sits on a chair, looking tired, while a clinician across from her speaks in a calm, steady tone, a box of tissues and resources folder on the table between them.",
+  "alt": "Clinician offers practical support to a bereaved patient in clinic.",
+  "model": "haiku"
+ },
+ "2022-0148": {
+  "id": "2022-0148",
+  "prompt": "Hospital consult room, a psychiatrist seated with a male veteran in his forties, the clinician with a tablet documenting, listening intently as the veteran speaks, a quiet clinical setting with minimal equipment visible.",
+  "alt": "Psychiatrist documents PTSD symptoms during a consult with a veteran patient.",
+  "model": "haiku"
+ },
+ "2025-0034": {
+  "id": "2025-0034",
+  "prompt": "Outpatient office. Male patient in his forties sits across from a clinician reviewing a referral form on the desk, both leaning slightly forward. Late afternoon light.",
+  "alt": "Clinician and patient discussing referral form in outpatient office.",
+  "model": "haiku"
+ },
+ "2017-0111": {
+  "id": "2017-0111",
+  "prompt": "Outpatient clinic exam room. Middle-aged woman seated on the exam table, clinician in white coat leaning forward to examine her hands, palms turned upward. Morning light streams in.",
+  "alt": "Clinician examining patient's hands during medical exam in clinic room.",
+  "model": "haiku"
+ },
+ "2019-0012": {
+  "id": "2019-0012",
+  "prompt": "Hospital ED bay. A man in his fifties lies on a bed, visibly tremulous and diaphoretic, hand shaking, while a clinician stands at the bedside adjusting an IV. Monitors in background.",
+  "alt": "Patient in ED bed tremulous and sweating while clinician adjusts IV line.",
+  "model": "haiku"
+ },
+ "2014-0291": {
+  "id": "2014-0291",
+  "prompt": "ED bay. Man in fifties sits up groggily on stretcher, nurse at his side checking an IV line, another clinician drawing up medication. Curtain partitions the space.",
+  "alt": "Post-seizure patient on ED stretcher with staff preparing IV medication.",
+  "model": "haiku"
+ },
+ "2016-0121": {
+  "id": "2016-0121",
+  "prompt": "Inpatient psychiatry unit. A woman in her late twenties sits on a hospital bed, arms crossed, while a clinician in a chair beside her speaks to her. Serious demeanor.",
+  "alt": "Woman on inpatient hospital bed speaking with clinician about treatment plan.",
+  "model": "haiku"
+ },
+ "2020-0103": {
+  "id": "2020-0103",
+  "prompt": "School classroom. A group of school-age children sit at a table working on a craft project together, focused and collaborative, while the teacher watches nearby from her desk.",
+  "alt": "Group of school-age children working together on classroom craft project.",
+  "model": "haiku"
+ },
+ "2011-0263": {
+  "id": "2011-0263",
+  "prompt": "Therapy office. A woman in her forties sits in a chair, laughing, but her posture suddenly slumps, head dropping forward momentarily, while the therapist leans forward with a concerned expression.",
+  "alt": "Woman in therapy office head droops forward while clinician observes.",
+  "model": "haiku"
+ },
+ "2012-0152": {
+  "id": "2012-0152",
+  "prompt": "Hospital nursing station. A clinician, woman in her thirties, stands at the computer terminal, leaning in to recheck a medication order on the screen, clicking through to verify.",
+  "alt": "Clinician at nursing station computer screen rechecking medication order.",
+  "model": "haiku"
+ },
+ "2021-0065": {
+  "id": "2021-0065",
+  "prompt": "Outpatient office. A young woman, mid-twenties, sits across from a clinician, her hands resting on her lap, visible tremor in her fingers, serious expression as she describes her symptoms.",
+  "alt": "Young woman in office describing tremor and anxiety symptoms to clinician.",
+  "model": "haiku"
+ },
+ "2014-0069": {
+  "id": "2014-0069",
+  "prompt": "Clinic exam room. An adolescent, boy age 13, sits on exam table while a clinician examines his face closely, looking at the area around his mouth and nose. Natural light.",
+  "alt": "Clinician examining adolescent's face and mouth area during medical evaluation.",
+  "model": "haiku"
+ },
+ "2022-0117": {
+  "id": "2022-0117",
+  "prompt": "Jail intake area. A clinician sits across a table from an inmate, man in his fifties, paperwork spread on the desk, having a clinical intake conversation.",
+  "alt": "Clinician conducting intake interview with inmate in jail interview room.",
+  "model": "haiku"
+ },
+ "2014-0006": {
+  "id": "2014-0006",
+  "prompt": "ED bay. A man in his forties lies on a stretcher, visibly agitated and sweating, nurse holding his arm steady while checking for clonus, clinician at bedside preparing medication.",
+  "alt": "Agitated patient on ED stretcher with nurse and clinician providing acute care.",
+  "model": "haiku"
+ },
+ "2009-0166": {
+  "id": "2009-0166",
+  "prompt": "Outpatient office. A woman in her forties sits in a chair across from a clinician, hands clasped in her lap, describing an incident, serious expression.",
+  "alt": "Woman in office describing incident to clinician, hands clasped in lap.",
+  "model": "haiku"
+ },
+ "2020-0005": {
+  "id": "2020-0005",
+  "prompt": "Outpatient clinic exam room. A woman in her early thirties stands on a scale, clinician standing beside checking the digital readout, both looking at the number.",
+  "alt": "Patient standing on scale during clinic visit while clinician checks weight.",
+  "model": "haiku"
+ },
+ "2011-0011": {
+  "id": "2011-0011",
+  "prompt": "Patient's bedroom, early morning. A woman in her forties sits at a desk facing a bright light box at arm's length, cup of coffee nearby, still in pajamas.",
+  "alt": "Woman at home in early morning seated before bright light therapy box.",
+  "model": "haiku"
+ },
+ "2009-0188": {
+  "id": "2009-0188",
+  "prompt": "Outpatient office. A man in his forties sits across from a clinician at a desk, both leaning forward intently, reviewing a written relapse-prevention plan on paper.",
+  "alt": "Patient and clinician reviewing relapse-prevention plan together in office.",
+  "model": "haiku"
+ },
+ "2024-0290": {
+  "id": "2024-0290",
+  "prompt": "Neurology clinic, EMG room. A clinician sits at equipment, needle electrode in patient's arm, reading the digital display on the EMG machine while patient sits nearby.",
+  "alt": "Clinician performing EMG test on patient's arm in neurology clinic.",
+  "model": "haiku"
+ },
+ "2018-0039": {
+  "id": "2018-0039",
+  "prompt": "Neurology clinic exam room. A woman in her late twenties sits in the exam chair facing the clinician, eyes tracking the light and target during the eye examination.",
+  "alt": "Young woman undergoing eye movement examination in neurology clinic.",
+  "model": "haiku"
+ },
+ "2023-0184": {
+  "id": "2023-0184",
+  "prompt": "Outpatient office. A woman in her thirties, in scrubs, sits across from a clinician who is writing on a prescription pad, mid-conversation about medication side effects.",
+  "alt": "Nurse in scrubs discussing medication side effects with clinician in office.",
+  "model": "haiku"
+ },
+ "2010-0007": {
+  "id": "2010-0007",
+  "prompt": "Conference room. A group of medical residents sit around a table, one speaking, others listening intently, with clinical materials and a presentation screen in the background.",
+  "alt": "Medical residents in conference room engaged in discussion around table.",
+  "model": "haiku"
+ },
+ "2009-0273": {
+  "id": "2009-0273",
+  "prompt": "Emergency department bay with an intoxicated patient sitting on stretcher, slumped and disoriented, while a clinician in scrubs sits nearby with a clipboard, speaking and observing carefully.",
+  "alt": "Clinician assessing an intoxicated patient on an ED stretcher.",
+  "model": "haiku"
+ },
+ "2010-0064": {
+  "id": "2010-0064",
+  "prompt": "Pediatric clinic examination room with a parent sitting across from a clinician at a desk, leaning forward slightly while speaking, the clinician listening and taking notes.",
+  "alt": "Parent speaking with clinician in pediatric clinic office.",
+  "model": "haiku"
+ },
+ "2012-0176": {
+  "id": "2012-0176",
+  "prompt": "Adult psychiatry office with a middle-aged man sitting in a chair, speaking with a clinician across from him who is listening intently and taking notes on a pad.",
+  "alt": "Patient discussing health concerns with clinician in psychiatry office.",
+  "model": "haiku"
+ },
+ "2014-0208": {
+  "id": "2014-0208",
+  "prompt": "Pediatric clinic office with a parent seated across from a clinician, the parent's face showing initial worry while the clinician leans forward with a calm, reassuring expression, listening.",
+  "alt": "Parent discussing child development with clinician in pediatric office.",
+  "model": "haiku"
+ },
+ "2015-0017": {
+  "id": "2015-0017",
+  "prompt": "Therapist's office with a couple sitting together while a therapist across from them gestures while explaining, the couple listening attentively to the discussion and instruction.",
+  "alt": "Therapist instructing a couple during a therapy session.",
+  "model": "haiku"
+ },
+ "2015-0109": {
+  "id": "2015-0109",
+  "prompt": "Pediatric examination room with a parent seated while a clinician stands nearby with a notepad, listening carefully and writing, discussing the child's development and behaviors.",
+  "alt": "Clinician taking careful history from parent in pediatric exam room.",
+  "model": "haiku"
+ },
+ "2015-0211": {
+  "id": "2015-0211",
+  "prompt": "Pediatric clinic with a young mother seated across from a clinician who sits forward with a warm, reassuring expression, explaining and responding to her concerns about normal development.",
+  "alt": "Clinician reassuring mother about toddler's normal sexual development.",
+  "model": "haiku"
+ },
+ "2016-0182": {
+  "id": "2016-0182",
+  "prompt": "PICU room with a small infant in a crib and a team of clinicians around the bedside reviewing a chart together, examining the infant carefully and conferring.",
+  "alt": "Medical team at PICU bedside reviewing infant's examination.",
+  "model": "haiku"
+ },
+ "2016-0288": {
+  "id": "2016-0288",
+  "prompt": "Adolescent clinic office with a parent seated across from a clinician who is explaining developmental milestones and reproductive health with a patient, educational demeanor.",
+  "alt": "Clinician educating parent about adolescent development and reproductive health.",
+  "model": "haiku"
+ },
+ "2017-0101": {
+  "id": "2017-0101",
+  "prompt": "Adolescent clinic with a teenager sitting on a chair facing a clinician, speaking quietly while the clinician sits with an open, attentive, non-judgmental expression.",
+  "alt": "Teenager disclosing concerns to clinician in supportive clinic setting.",
+  "model": "haiku"
+ },
+ "2017-0227": {
+  "id": "2017-0227",
+  "prompt": "Adolescent clinic office with a teenager sitting across from a clinician, speaking hesitantly while the clinician leans forward with a calm, accepting expression, listening.",
+  "alt": "Teen discussing sexual orientation concerns with supportive clinician.",
+  "model": "haiku"
+ },
+ "2017-0232": {
+  "id": "2017-0232",
+  "prompt": "Pediatric clinic office with a father seated across from a clinician, the father looking somewhat worried, the clinician leaning forward with a calm, normalizing expression.",
+  "alt": "Father receiving reassurance from clinician about child's normal curiosity.",
+  "model": "haiku"
+ },
+ "2018-0112": {
+  "id": "2018-0112",
+  "prompt": "Pediatric clinic with a mother seated across from a clinician, the mother appearing concerned, the clinician sitting forward with an open, reassuring expression while discussing child development.",
+  "alt": "Clinician reassuring mother about child's developmentally normal behavior.",
+  "model": "haiku"
+ },
+ "2019-0150": {
+  "id": "2019-0150",
+  "prompt": "Pediatric clinic with a teenager standing or sitting while parents sit nearby, and a clinician gestures while explaining growth and pubertal development, possibly with a growth chart nearby.",
+  "alt": "Clinician explaining puberty and growth to teenager and parents.",
+  "model": "haiku"
+ },
+ "2019-0292": {
+  "id": "2019-0292",
+  "prompt": "Pediatric clinic with a child seated across from a clinician who is speaking gently and listening attentively, notepad nearby, in a careful, supportive assessment interview.",
+  "alt": "Clinician conducting careful assessment interview with child in clinic.",
+  "model": "haiku"
+ },
+ "2020-0134": {
+  "id": "2020-0134",
+  "prompt": "Therapist's office with a couple seated together while a therapist sits across from them, gesturing and explaining the sensate focus technique and assignment during a therapy session.",
+  "alt": "Therapist instructing couple about sensate focus therapy technique.",
+  "model": "haiku"
+ },
+ "2021-0003": {
+  "id": "2021-0003",
+  "prompt": "Clinic room, a woman in her early thirties holding her infant, seated across from a clinician who takes notes. The woman's gaze is attentive but tired.",
+  "alt": "Woman holding an infant in a clinic room, listening to her psychiatrist.",
+  "model": "haiku"
+ },
+ "2021-0123": {
+  "id": "2021-0123",
+  "prompt": "Pediatric exam room, a clinician points to a growth chart while a concerned mother and her 10-year-old daughter listen attentively. The girl looks somewhat anxious.",
+  "alt": "Clinician showing a growth chart to a mother and young girl in a pediatric exam room.",
+  "model": "haiku"
+ },
+ "2021-0186": {
+  "id": "2021-0186",
+  "prompt": "Sports medicine exam room, a 14-year-old boy sits on the exam table while his clinician stands nearby, clipboard in hand, appearing to explain pubertal development.",
+  "alt": "Adolescent boy on an exam table with a clinician holding a clipboard in a sports medicine clinic.",
+  "model": "haiku"
+ },
+ "2021-0205": {
+  "id": "2021-0205",
+  "prompt": "NICU, parents stand beside an isolette while a neonatologist and endocrinologist speak with them, gesturing toward the infant. The parents look worried and attentive.",
+  "alt": "Parents and clinicians in a NICU consulting about a newborn's care.",
+  "model": "haiku"
+ },
+ "2021-0289": {
+  "id": "2021-0289",
+  "prompt": "Adolescent inpatient unit, a 12-year-old girl sits on her hospital bed listening to her psychiatrist explain her medication plan. A care coordinator takes notes nearby.",
+  "alt": "Twelve-year-old patient listening to her psychiatrist in a hospital room.",
+  "model": "haiku"
+ },
+ "2022-0084": {
+  "id": "2022-0084",
+  "prompt": "Adolescent clinic office. A teenage boy sits beside his mother, both listening to a clinician seated opposite who is talking with them warmly. The mother looks reassured; the boy is relaxed in his chair.",
+  "alt": "A teenager and his mother listen to a clinician during a reassuring adolescent clinic visit.",
+  "model": "hand-written (moderation false positive on the authored prompt)"
+ },
+ "2022-0095": {
+  "id": "2022-0095",
+  "prompt": "Adolescent outpatient clinic, a 16-year-old girl sits across from her therapist, speaking hesitantly about her worries. The therapist leans forward with an open, reassuring posture.",
+  "alt": "Therapist listening supportively to a teenage girl in a clinic consultation room.",
+  "model": "haiku"
+ },
+ "2022-0116": {
+  "id": "2022-0116",
+  "prompt": "Forensic evaluation room, a 17-year-old boy sits across from a clinician who documents the assessment on a form. The room is sparse and neutral.",
+  "alt": "Clinician conducting a forensic assessment with a teenage boy in a neutral room.",
+  "model": "haiku"
+ },
+ "2022-0234": {
+  "id": "2022-0234",
+  "prompt": "Psychiatrist's office, a man in his thirties sits across from a psychiatrist, looking down with visible distress. The psychiatrist sits back, notepad in hand, listening.",
+  "alt": "Distressed man in a psychiatric office speaking with a clinician taking notes.",
+  "model": "haiku"
+ },
+ "2022-0277": {
+  "id": "2022-0277",
+  "prompt": "Pediatric endocrinology clinic, a clinician reviews a growth chart with a mother and her young daughter. The clinician points to the chart as she explains.",
+  "alt": "Clinician explaining growth and development findings to a mother and daughter in a clinic room.",
+  "model": "haiku"
+ },
+ "2023-0032": {
+  "id": "2023-0032",
+  "prompt": "Pediatric clinic, an 11-year-old girl and her mother sit across from a clinician who nods reassuringly while explaining normal pubertal changes. The girl looks less worried.",
+  "alt": "Clinician reassuring a mother and young girl about normal pubertal development in a pediatric clinic.",
+  "model": "haiku"
+ },
+ "2023-0285": {
+  "id": "2023-0285",
+  "prompt": "Forensic evaluation room, a man in his forties sits across from a psychiatrist who reviews his chart and makes notes. The man appears guarded.",
+  "alt": "Psychiatrist conducting a forensic assessment with an adult male in an evaluation room.",
+  "model": "haiku"
+ },
+ "2024-0191": {
+  "id": "2024-0191",
+  "prompt": "Pediatric clinic, two worried parents sit across from their clinician, who leans forward with an open, reassuring expression. The clinician speaks softly but clearly.",
+  "alt": "Clinician having a reassuring conversation with parents in a pediatric clinic.",
+  "model": "haiku"
+ },
+ "2024-0286": {
+  "id": "2024-0286",
+  "prompt": "Pediatric assessment room, a clinician sits at a child's level with an 8-year-old boy, speaking gently. Toys and a comfortable chair are nearby. The clinician appears attentive.",
+  "alt": "Clinician conducting a supportive assessment interview with an 8-year-old child in a pediatric room.",
+  "model": "haiku"
+ }
+}

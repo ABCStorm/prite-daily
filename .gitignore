@@ -17,5 +17,30 @@ extraction/context_gen/sql_parts/
 # Supabase CLI local link/cache state (machine-specific)
 supabase/.temp/
 
+# Explanation-reformatting scratch: per-batch in/out files for the cheap-model
+# formatting pass. The canonical result lands in extraction/output/questions_all.json.
+extraction/output/_fmt/batches/
+
+# Rebuildable local cache and large joined MP3s for offline audio exports.
+extraction/output/audio_clips_v3/
+extraction/output/audio_clips_v4_open_ended/
+extraction/output/audio_exports/
+extraction/output/audio_exports.state.json
+extraction/output/audio_exports.v2.state.json
+extraction/output/audio_r2_migration.state.json
+extraction/output/audio_exports/v3-48k/
+extraction/output/audio_exports.v3-48k.state.json
+extraction/output/audio_exports.v3-48k.manifest.json
+extraction/output/audio_r2_v3_48k_upload.state.json
+extraction/output/audio_r2_v3_48k_staging/
+extraction/output/audio_r2_v2_delete.state.json
+
 # Local research/reference cache for content generation (large, not needed at runtime)
 reference/
+
+# "In practice" illustration pipeline: generated images and blinded copies are
+# working files (hundreds of MB at full scale). prompts.json IS committed.
+enrichment/illustrations/images/
+enrichment/illustrations/blind/
+enrichment/illustrations/compare*.html
+enrichment/illustrations/*.jsonl

@@ -11,12 +11,29 @@ import { sm2Next, SRS_DEFAULT, type SrsGrade, type SrsState } from "./srs";
     so the bank is never exposed to anonymous visitors. The object is gzipped to
     keep egress down; we inflate it in the browser. Falls back to the bundled
     static file only in local-only mode (no backend keys). */
+/** Inflate a gzip Blob to text. Prefer the native DecompressionStream (fast);
+    fall back to fflate when it's missing (older Safari) or throws. */
+async function gunzipToText(blob: Blob): Promise<string> {
+  if (typeof DecompressionStream !== "undefined" && typeof blob.stream === "function") {
+    try {
+      const inflated = blob.stream().pipeThrough(new DecompressionStream("gzip"));
+      return await new Response(inflated).text();
+    } catch {
+      /* fall through to fflate */
+    }
+  }
+  const { gunzipSync, strFromU8 } = await import("fflate");
+  const buf = new Uint8Array(await blob.arrayBuffer());
+  return strFromU8(gunzipSync(buf));
+}
+
 export async function loadQuestionBank(): Promise<unknown[]> {
   if (supabase) {
-    const { data, error } = await supabase.storage.from("bank").download("questions.json.gz");
+    // Version the bank object name so a newly published corpus cannot be hidden
+    // behind a browser/CDN cache entry for the previous release.
+    const { data, error } = await supabase.storage.from("bank").download("questions.full-parity-20260803-r5.json.gz");
     if (error || !data) throw new Error(error?.message ?? "Couldn’t load the question bank");
-    const inflated = data.stream().pipeThrough(new DecompressionStream("gzip"));
-    const text = await new Response(inflated).text();
+    const text = await gunzipToText(data);
     return JSON.parse(text);
   }
   const r = await fetch("/data/questions.json");
@@ -543,6 +560,24 @@ export async function updateProfile(
   if (!supabase) return;
   const { error } = await supabase.from("profiles").update(patch).eq("id", id);
   if (error) console.warn("updateProfile", error.message);
+}
+
+/** Decline a pending access request: block the account and email a polite
+ *  copyright / residency-only notice (edge function `decline-access`).
+ *  Returns null on success, or an error / warning string for the admin UI. */
+export async function declineAccess(profileId: string): Promise<string | null> {
+  if (!supabase) return "Supabase is not configured.";
+  const { data, error } = await supabase.functions.invoke("decline-access", {
+    body: { profile_id: profileId },
+  });
+  if (error) {
+    console.warn("declineAccess", error.message);
+    return error.message || "Failed to decline access.";
+  }
+  const payload = data as { error?: string; warning?: string; ok?: boolean } | null;
+  if (payload?.error) return payload.error;
+  if (payload?.warning) return payload.warning;
+  return null;
 }
 
 /* --- auto-approval roster (admin-editable; RLS limits it to admins) ---
