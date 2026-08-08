@@ -1,0 +1,14 @@
+name = "resource-images"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+
+# PRIVATE bucket — no public access. Worker requires a Supabase session.
+[[r2_buckets]]
+binding = "RESOURCES"
+bucket_name = "anking-sketchy-images"
+
+[vars]
+SUPABASE_URL = "https://wehgcawkkqzpfkwkvltq.supabase.co"
+
+# SUPABASE_ANON_KEY is set as a secret:
+#   npx wrangler@3 secret put SUPABASE_ANON_KEY --config ./wrangler.toml

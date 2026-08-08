@@ -8,6 +8,11 @@
 
 export const POLL_PARAM = "poll";
 
+// How long the "revealing the answer" countdown holds on phones before the
+// correct answer actually locks in, so a question that just advanced doesn't
+// cut someone off mid-tap.
+export const REVEAL_DELAY_MS = 3000;
+
 // Unambiguous alphabet (no 0/O/1/I) for a code that's easy to read off a screen.
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 export function makePollCode(len = 4): string {
@@ -63,11 +68,23 @@ export type PollState = {
   qIndex: number;
   nOptions: number;
   options: { letter: string; text: string }[]; // full choice text, so phones can show it even when the host hides choices on the big screen
+  // The question text, broadcast for the same reason as `options`. Participants
+  // who aren't signed in can't download the (private) question bank at all, so
+  // without this they see answer choices with nothing to answer. Optional so an
+  // older host that doesn't send it still works — the phone just falls back to
+  // its local copy of the bank when it has one.
+  stem?: string;
   index: number;   // 0-based position in the host's set
   total: number;   // size of the host's set
   multiSelect: boolean; // this question wants "select all that apply" — phones show a Submit step instead of tap-to-vote
   requiredSelections?: number; // exact number of choices expected; optional so participants remain compatible with an older host
   revealed: boolean;
+  // Set the moment the host starts revealing (button click or the per-question
+  // timer running out), to the epoch ms when the answer will actually lock in
+  // — a few seconds out, not immediately. Phones use it to show a countdown so
+  // nobody gets cut off mid-tap; voting stays open the whole time (`revealed`
+  // itself doesn't flip until it elapses). Cleared once revealed is true.
+  revealAt?: number;
   correct: string[]; // populated only once revealed
   standings: TeamStanding[]; // cumulative team leaderboard (highest first)
   rankBy?: "pct" | "total"; // how standings are ranked: team accuracy % (default) or raw total correct — phones show the matching metric

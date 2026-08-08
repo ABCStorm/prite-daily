@@ -27,8 +27,9 @@ scrollable pages. Pull the deployed bundle down first if the snapshot is stale:
     npx wrangler@3 r2 object get textbook-excerpts/refs.json \\
         --file reference/kaplan_refs_bundle.LIVE.json
 
-The cited page is parsed out of the per-question image filename
-(`2014-2_11.3_p3321.png`), which is the only place the deployed bundle records it.
+The cited page is taken from `cite.page` when present (the current shipped
+shape), or else parsed out of a legacy per-question image filename
+(`2014-2_11.3_p3321.png`).
 
 Inputs :  reference/kaplan_refs_bundle.LIVE.json  (snapshot of what's deployed)
           reference/section_index_full.json       (283 sections + pdf page spans)
@@ -66,12 +67,16 @@ for qid, rec in live.items():
     span = sections.get(rec.get("section") or "")
     per_cite = []
     for c in rec["cites"]:
-        m = PAGE_RE.search(c.get("image") or "")
-        if not m:
+        p = c.get("page")
+        if p is None:
+            m = PAGE_RE.search(c.get("image") or "")
+            if m:
+                p = int(m.group(1))
+        if p is None:
             n_nopage += 1
             per_cite.append(None)
             continue
-        p = int(m.group(1))
+        p = int(p)
         n_cit += 1
         lo, hi = p - WINDOW, p + WINDOW
         at_start = at_end = False

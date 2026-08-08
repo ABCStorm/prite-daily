@@ -81,8 +81,10 @@ node --env-file=supabase/.temp/audio-batch.env scripts/audio/render-fish-audio.m
 The three-item command is the required phone/browser pilot. The full command
 resumes from `extraction/output/audio_render.state.json`; the Edge Function
 also returns already-cached rows without making another Fish request.
-Verification downloads use two-minute signed URLs and are only enabled for a
-sample run; signed URLs are never written into the state file.
+Clips are written to the Cloudflare R2 bucket through `/api/audio-admin`, which
+is the only store `/api/audio` reads from. Verification downloads go through the
+same batch-secret-guarded endpoint and are only enabled for a sample run; the
+URLs are never written into the state file.
 Use `--ids 2015-116,2020-4` for targeted verification or repair runs.
 
 Each prompt clip contains the open-ended question without multiple-choice
@@ -99,8 +101,8 @@ valid current-version clips.
 
 The export builder downloads the cached clips through short-lived signed URLs,
 joins them with real four-second thinking pauses and one-second transitions,
-uploads each finished MP3 through a short-lived signed Storage URL, and writes the web manifest at
-`public/data/audio_exports.json`.
+uploads each finished MP3 to R2 through `/api/audio-admin`, and writes the web
+manifest at `public/data/audio_exports.json`.
 Each topic and the complete library are produced at 1x, 1.25x, 1.5x, and 2x;
 the faster files are real retimed MP3s, so their speed works in any offline
 player rather than depending on player-specific metadata.

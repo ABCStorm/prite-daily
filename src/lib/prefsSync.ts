@@ -38,7 +38,7 @@ type Blob = {
 };
 
 const LEARNING_SECTION_IDS = new Set([
-  "explanation", "textbook", "practice", "mnemonic", "context",
+  "explanation", "textbook", "anking", "sketchy", "practice", "mnemonic", "context",
   "diagram", "video", "mine", "group", "flash",
 ]);
 

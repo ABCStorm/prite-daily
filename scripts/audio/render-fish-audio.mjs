@@ -233,9 +233,7 @@ async function renderOne(context, question) {
         const promptUrl = row.signed_urls?.prompt;
         const answerUrl = row.signed_urls?.answer;
         if (!promptUrl || !answerUrl) throw new Error("Verification download URLs were not returned");
-        const downloadOptions = row.storage === "r2"
-          ? { headers: { "x-audio-batch-secret": context.batchSecret } }
-          : undefined;
+        const downloadOptions = { headers: { "x-audio-batch-secret": context.batchSecret } };
         const [promptResponse, answerResponse] = await Promise.all([
           fetch(promptUrl, downloadOptions),
           fetch(answerUrl, downloadOptions),

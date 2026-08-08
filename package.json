@@ -15,7 +15,12 @@
     "audio:archive:retire-v2": "node scripts/audio/retire-r2-v2-exports.mjs",
     "audio:archive:audit-r2": "node --env-file=supabase/.temp/audio-batch.env scripts/audio/audit-r2-audio-inventory.mjs",
     "typecheck": "tsc -b",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "podcasts:index": "node scripts/podcasts/build-index.mjs",
+    "podcasts:match": "node scripts/podcasts/match.mjs",
+    "podcasts:verify": "node scripts/podcasts/verify.mjs",
+    "podcasts:related": "node scripts/podcasts/related.mjs",
+    "podcasts:refresh": "node scripts/podcasts/build-index.mjs --incremental && node scripts/podcasts/match.mjs && node scripts/podcasts/verify.mjs && node scripts/podcasts/related.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",

@@ -44,3 +44,14 @@ enrichment/illustrations/images/
 enrichment/illustrations/blind/
 enrichment/illustrations/compare*.html
 enrichment/illustrations/*.jsonl
+
+# AnKing/Sketchy image pipeline: the extracted media (400 MB, 1,881 files) and
+# its scratch dir are derived from the Anki decks and live in the private R2
+# bucket `anking-sketchy-images` at runtime. The match manifests ARE committed.
+enrichment/anking-images/media/
+enrichment/anking-images/_work/
+enrichment/anking-images/_upload_logs/
+
+# Podcast matching pipeline: raw feed/transcript cache (~443 MB), rebuildable
+# with `npm run podcasts:index`. public/data/podcasts.json IS committed.
+scripts/podcasts/.cache/

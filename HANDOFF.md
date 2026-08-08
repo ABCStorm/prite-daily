@@ -1,7 +1,7 @@
 # PRITE Daily — handoff notes
 
 Quick orientation for picking this project up in a new session / account / machine.
-Last updated: 2026-06-24.
+Last updated: 2026-08-08.
 
 ## What this is
 A daily PRITE (psychiatry in-training exam) practice web app for the Wright State
@@ -20,8 +20,14 @@ accepted tradeoff for now).
   `Cache-Control: no-store` on `/data/*`. Don't "fix" this by deleting the stub.
 - The real data still lives in `extraction/output/questions_all.json` (in git) —
   re-upload to the bucket if it changes
-  (`gzip -c extraction/output/questions_all.json > questions.json.gz`, upload to
-  the `bank` bucket as `questions.json.gz`).
+  (`gzip -c extraction/output/questions_all.json > questions.<new-version>.json.gz`).
+- ⚠️ **Publish every new corpus under a NEW object name, and update `BANK_OBJECT`
+  in `src/lib/db.ts` to match.** Since 2026-08-08 the browser caches the gzipped
+  bank in IndexedDB (`src/lib/bankCache.ts`) keyed on that exact object name, so
+  the name IS the cache key. Overwriting the existing object in place would leave
+  every returning user pinned to their stale copy indefinitely — they would never
+  see the new questions. Current live object:
+  `questions.anking-sketchy-20260805-r6.json.gz`.
 - Images (`/images/...`, ~205 MB) are still publicly fetchable.
 
 ## Auth + API keys — IMPORTANT (changed 2026-06-24)
@@ -72,11 +78,43 @@ npx wrangler@3 pages deploy dist --project-name=prite-daily --branch main --comm
 The dashboard direct-upload caps at 1,000 files (~1,273 here), so use the CLI.
 `wrangler login` is a one-time interactive browser auth.
 
+## Where big media lives — Cloudflare R2, NOT Supabase Storage (2026-08-08)
+Supabase is on the **Free plan: 1 GB storage, 5 GB egress/month**, and the org
+blew through both in Aug 2026. Keep bulk media out of Supabase Storage.
+- **Audio** (drill clips + the long program exports) lives in R2 bucket
+  `prite-daily-audio`, served by `functions/api/audio/[[path]].ts` off the
+  `AUDIO` binding, gated on an approved Supabase session. This is the ONLY
+  audio read path — nothing plays from Supabase Storage. Writes go through
+  `functions/api/audio-admin/` with the `AUDIO_BATCH_SECRET` header.
+- Other R2 buckets: `anking-sketchy-images`, `inpractice-illustrations`,
+  `textbook-excerpts`.
+- The legacy Supabase `audio-drills` bucket (11,047 files / 4.46 GB, superseded
+  by the 2026-08-01 R2 migration) was **emptied 2026-08-08** — that alone was
+  96% of all Supabase storage. The empty bucket is kept as a valid target.
+  Don't repopulate it.
+- Supabase Storage still holds only: `bank` (the question corpus), `study-audio`,
+  `study-slides`, `requirement-documents`. Total ~200 MB. Watch it.
+- Egress note: `bank` is ~4.6 MB and used to be re-downloaded on every app load,
+  which was essentially the entire 6.4 GB egress overage. The IndexedDB cache in
+  `src/lib/bankCache.ts` fixed that — see the ⚠️ under "Question access control"
+  before republishing the bank.
+
 ## Features (current)
 Daily / Custom / Browse study modes; answer + reveal; class stats; leaderboard;
 Residency Insights; personal Statistics; flashcards (AI cloze + Anki export);
 group/individual notes; YouTube "Video" tab; PowerPoint/Anki export. Plus the
 2026-06-24 additions below.
+
+### AnKing + Sketchy resource images (2026-08-05)
+Matched Step-deck AnKing/AnkiHub Extra diagrams and Sketchy panels onto ~2,000
+PRITE questions (precision-gated BM25 + entity/jaccard).
+- Question fields: `anking_images`, `sketchy_images`, `anking_match`
+- Pipeline: `scripts/anking-images/extract_and_match.py` (see that README)
+- Private R2 bucket `anking-sketchy-images` served by Worker
+  `https://resource-images.correllsoftware.workers.dev/{anking|sketchy}/<file>`
+  (Supabase session required — same model as textbook pages)
+- UI: Learning sections **AnKing** and **Sketchy** after answer reveal
+- After re-matching, re-upload `bank/questions.json.gz` and any new media files
 
 ### Added 2026-06-24
 - **Highlights** — select text in a question stem to highlight it; click a

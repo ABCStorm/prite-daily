@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { readCachedBank, writeCachedBank } from "./bankCache";
 import type { TeamStanding } from "./poll";
 import { sm2Next, SRS_DEFAULT, type SrsGrade, type SrsState } from "./srs";
 
@@ -27,14 +28,32 @@ async function gunzipToText(blob: Blob): Promise<string> {
   return strFromU8(gunzipSync(buf));
 }
 
+// Version the bank object name so a newly published corpus cannot be hidden
+// behind a browser/CDN cache entry for the previous release.
+// Bump the object name whenever the corpus changes so browsers/CDNs cannot
+// keep serving a prior release (the r5 object had a year-long cacheControl).
+// This same string is the IndexedDB cache key (see bankCache), so publishing
+// under a new name is all it takes to invalidate every user's cached copy.
+const BANK_OBJECT = "questions.anking-sketchy-20260805-r6.json.gz";
+
 export async function loadQuestionBank(): Promise<unknown[]> {
   if (supabase) {
-    // Version the bank object name so a newly published corpus cannot be hidden
-    // behind a browser/CDN cache entry for the previous release.
-    const { data, error } = await supabase.storage.from("bank").download("questions.full-parity-20260803-r5.json.gz");
+    // Serve from the local IndexedDB copy when we already have this exact
+    // version. Re-downloading 4.6 MB on every single app load was the entire
+    // Supabase egress budget; the cache takes that to one download per release.
+    const cached = await readCachedBank(BANK_OBJECT);
+    if (cached) {
+      try { return JSON.parse(await gunzipToText(cached)); }
+      catch { /* corrupt/partial cache entry — fall through and re-download */ }
+    }
+    const { data, error } = await supabase.storage.from("bank").download(BANK_OBJECT);
     if (error || !data) throw new Error(error?.message ?? "Couldn’t load the question bank");
     const text = await gunzipToText(data);
-    return JSON.parse(text);
+    const parsed = JSON.parse(text);
+    // Only cache once it has parsed — never persist a truncated download.
+    // Not awaited: the bank is ready, the write can settle in the background.
+    void writeCachedBank(BANK_OBJECT, data);
+    return parsed;
   }
   const r = await fetch("/data/questions.json");
   if (!r.ok) throw new Error("HTTP " + r.status);

@@ -8,7 +8,7 @@ import {
   ChevronDown, ChevronUp, ChevronRight, Share2, Archive, Baby, Mail, Minus, Plus, Repeat,
   Eye, EyeOff, PanelRight, PanelBottom,
   BookOpen, Volume2, Play, Pause, Square, Copy, Shuffle, GripVertical,
-  Brain, Pill, HeartPulse, GraduationCap, LayoutDashboard, Pin,
+  Brain, Pill, HeartPulse, GraduationCap, LayoutDashboard, Pin, Headphones,
 } from "lucide-react";
 import mermaid from "mermaid";
 import { nextRewardPost, RewardKind } from "./lib/motivation";
@@ -17,10 +17,64 @@ import { KaplanPanel } from "./lib/kaplanPanel";
 import { loadKaplanRefs, type KaplanRef } from "./lib/kaplanRefs";
 import { ZoomLightbox } from "./lib/ZoomLightbox";
 import { ScenarioIllustration } from "./lib/ScenarioIllustration";
+import { ResourceImagePanel, type AnkingMatchMeta } from "./lib/ResourceImagePanel";
 import { mnemonicsForQuestion, type Mnemonic } from "./lib/mnemonics";
+import { getPodcastRefs, podcastUrl, formatTimestamp, type PodcastRef } from "./lib/podcasts";
 import QRCode from "qrcode";
 
 mermaid.initialize({ startOnLoad: false, theme: "neutral", securityLevel: "loose", fontFamily: "inherit" });
+
+/* Team scores are fractional now (a team that splits a question earns 0.5), so
+   show one decimal only when there is one: "29.5" but still "30", never
+   "29.500000000001". Module scope because both the host screen and the
+   participant's phone render standings. */
+const fmtScore = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+
+/* When you open/advance a question you are often scrolled deep into the prior
+   explanation. This pins the white question card just under the sticky chrome
+   so the stem is readable without a manual scroll — desktop and mobile.
+   Instant (not smooth): animating hundreds of pixels of scroll feels like the
+   page lurching. Lives in its own component because App's hooks run above
+   several early returns; the parent <div key={qid}> remounts this on every
+   question so the effect re-runs for free. */
+function QuestionCardAnchor() {
+  const ref = useRef<HTMLSpanElement | null>(null);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    // Prefer the white card (section[data-qcard]); fall back to the remounting
+    // stem host if the marker is ever moved.
+    const card =
+      (ref.current?.closest("[data-qcard]") as HTMLElement | null)
+      ?? ref.current?.parentElement;
+    if (!card) return;
+    // Layout position via offsetParent — NOT getBoundingClientRect(), which
+    // includes .qIn's entrance transform and any scroll already in flight and
+    // was measuring hundreds of pixels off.
+    const layoutTop = (el: HTMLElement) => {
+      let y = 0;
+      let n: HTMLElement | null = el;
+      while (n) { y += n.offsetTop; n = n.offsetParent as HTMLElement | null; }
+      return y;
+    };
+    const place = () => {
+      const bar = document.querySelector("[data-topbar]") as HTMLElement | null;
+      // A few px of air under the sticky bar so the card edge isn't flush against chrome.
+      const offset = Math.round(bar?.getBoundingClientRect().height ?? 0) + 8;
+      window.scrollTo({ top: Math.max(0, layoutTop(card) - offset), behavior: "auto" });
+    };
+    // Two frames so the remount settles (previous question's layout is gone).
+    let raf2 = 0;
+    const raf1 = window.requestAnimationFrame(() => { raf2 = window.requestAnimationFrame(place); });
+    // Figures above the stem can decode late and reflow; re-pin once more.
+    const late = window.setTimeout(place, 320);
+    return () => {
+      window.cancelAnimationFrame(raf1);
+      window.cancelAnimationFrame(raf2);
+      window.clearTimeout(late);
+    };
+  }, []);
+  return <span ref={ref} aria-hidden style={{ display: "none" }} />;
+}
 
 // Renders a Mermaid diagram from source; falls back to the raw code if it can't parse.
 function MermaidDiagram({ code }: { code: string }) {
@@ -59,7 +113,7 @@ import { dueAiDisclaimerStage, markAiDisclaimerShown } from "./lib/aiDisclaimerP
 import { isAutoReminderActive, guessedExamDate } from "./lib/reminderWindow";
 import {
   makePollCode, channelName, pollJoinUrl, pollCodeFromUrl, clearPollParam, assignBalancedTeams, stableTeamLevel, pickIsCorrect,
-  POLL_EVENTS, type PollState, type PollVote, type PollHello, type PollAssign, type TeamStanding, type IndividualStanding, type TeamMode,
+  POLL_EVENTS, REVEAL_DELAY_MS, type PollState, type PollVote, type PollHello, type PollAssign, type TeamStanding, type IndividualStanding, type TeamMode,
 } from "./lib/poll";
 import { ImmersiveScene, ImmersiveFlash } from "./ImmersiveScene";
 import { nextPollDrumrollGif, prefetchPollDrumrollGifs } from "./lib/pollGifs";
@@ -173,6 +227,12 @@ type RawQuestion = {
   comparison_table?: { title?: string; headers: string[]; rows: string[][] } | null;
   flags: string[];
   prite_category?: string; prite_label?: string; tags?: QTags;
+  /** AnKing / AnkiHub Extra (+ First Aid) diagrams matched from Step decks. */
+  anking_images?: string[];
+  /** Sketchy / Sketchy 2 / Sketchy Extra panels matched from the same notes. */
+  sketchy_images?: string[];
+  /** Match metadata for the AnKing/Sketchy resource panels. */
+  anking_match?: AnkingMatchMeta | null;
   /** Set only when this stem recurs (verbatim or near-verbatim) in another
       year's exam — see extraction/detect_repeats.mjs. count includes this
       occurrence; years lists every year the group appeared in. */
@@ -513,7 +573,7 @@ function writePref(key: string, value: unknown) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* best-effort */ }
 }
 const LEARNING_SECTION_IDS = new Set([
-  "explanation", "textbook", "practice", "mnemonic", "context",
+  "explanation", "textbook", "anking", "sketchy", "practice", "mnemonic", "context",
   "diagram", "video", "mine", "group", "flash",
 ]);
 function readLearningOpenPref(): Set<string> {
@@ -1381,12 +1441,20 @@ export default function App() {
   // Scroll edge effect: the translucent top bar only casts a shadow once
   // content is actually scrolled underneath it (no hard divider at rest).
   const [scrolled, setScrolled] = useState(false);
+  // Far enough down that the top nav's Next button is off screen — that's when
+  // the floating one earns its place (see s.fabNext).
+  const [deepScrolled, setDeepScrolled] = useState(false);
   useEffect(() => {
-    const on = () => setScrolled(window.scrollY > 6);
+    const on = () => {
+      const y = window.scrollY;
+      setScrolled(y > 6);
+      setDeepScrolled(y > 420);
+    };
     on();
     window.addEventListener("scroll", on, { passive: true });
     return () => window.removeEventListener("scroll", on);
   }, []);
+
 
   // --- auth gate (only when Supabase is configured) ---
   if (isConfigured && authLoading) return <Center>Signing you in…</Center>;
@@ -1482,6 +1550,8 @@ export default function App() {
   const hasExpl = q ? (q.explanation_text || q.explanation_images.length > 0) : false;
   const hasDiagram = q ? !!(q.diagram?.code || (q.comparison_table && q.comparison_table.rows?.length)) : false;
   const mnemonics = q ? mnemonicsForQuestion(q) : [];
+  const ankingImgs = q?.anking_images?.filter(Boolean) ?? [];
+  const sketchyImgs = q?.sketchy_images?.filter(Boolean) ?? [];
   // Roughly 45% of questions have a verified textbook passage; the card is hidden
   // entirely for the rest rather than showing an empty state on every other question.
   const kaplan = q ? kaplanRefs[questionId(q.year, q.q_index)] : undefined;
@@ -1489,6 +1559,12 @@ export default function App() {
     ["explanation", "Explanation", "Why this answer is correct", <Layers size={17} strokeWidth={2.1} />],
     ...(kaplan
       ? ([["textbook", "Textbook", "Verified Kaplan & Sadock support", <BookOpen size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
+      : []),
+    ...(ankingImgs.length
+      ? ([["anking", "AnKing", "AnKing / AnkiHub diagrams", <ImageIcon size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
+      : []),
+    ...(sketchyImgs.length
+      ? ([["sketchy", "Sketchy", "Matched Sketchy panels", <ImageIcon size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
       : []),
     ["practice", "In practice", "See it in a clinical scenario", <Stethoscope size={17} strokeWidth={2.1} />],
     ...(mnemonics.length
@@ -1498,7 +1574,7 @@ export default function App() {
     ...(hasDiagram
       ? ([["diagram", "Diagram", "Visual map and comparison", <Network size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
       : []),
-    ["video", "Video", "Continue with a focused search", <Youtube size={17} strokeWidth={2.1} />],
+    ["video", "Video and podcasts", "Curated episodes and a focused YouTube search", <Youtube size={17} strokeWidth={2.1} />],
     ["mine", "My notes", "Your private study space", <NotebookPen size={17} strokeWidth={2.1} />],
     ["group", "Group notes", "Learn with your class", <Users size={17} strokeWidth={2.1} />],
     ["flash", "Flashcard", "Turn this into an Anki card", <Sparkles size={17} strokeWidth={2.1} />],
@@ -1706,7 +1782,7 @@ export default function App() {
       <style>{CSS}</style>
 
       {/* Top bar */}
-      <header style={{ ...s.top, ...(scrolled ? s.topScrolled : {}) }}>
+      <header data-topbar style={{ ...s.top, ...(scrolled ? s.topScrolled : {}) }}>
         <div style={s.topInner} className="topInner">
           {/* Wordmark = home button. Mark AND name ride an endlessly drifting
               AI-painted cloud horizon: the strip is tiled mirror-image pairs
@@ -1822,6 +1898,21 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {/* Explanations run long, and the only Next button lived up in the top
+          nav — so finishing one meant scrolling all the way back up. This
+          floats in once you're past the fold on a question you've already
+          answered, and gets out of the way otherwise. */}
+      {set.length > 0 && q && showAnswer && deepScrolled && (
+        <button
+          style={s.fabNext}
+          onClick={() => go(1)}
+          title="Next question"
+          aria-label="Next question"
+        >
+          Next <ArrowRight size={15} strokeWidth={2.5} />
+        </button>
+      )}
 
       <main style={
         examActive ? { ...s.well, maxWidth: 880 }
@@ -2055,7 +2146,7 @@ export default function App() {
         </div>
 
         {/* Question card */}
-        <section style={examActive ? { ...s.qcard, marginTop: 30, padding: "36px 38px 30px" } : s.qcard}>
+        <section data-qcard style={examActive ? { ...s.qcard, marginTop: 30, padding: "36px 38px 30px" } : s.qcard}>
           {q.figure_images.filter((p) => imgSrc(p)).length > 0 && (
             <>
               <div style={s.figRow}>
@@ -2079,6 +2170,7 @@ export default function App() {
               cascade on every navigation (figures stay outside — remounting
               them would re-trigger image loads) */}
           <div key={qid} className="qIn">
+          <QuestionCardAnchor />
           <HighlightableText
             text={q.stem}
             ranges={highlights.filter((h) => h.field === "stem")}
@@ -2372,6 +2464,32 @@ export default function App() {
                 </div>
               )}
 
+              {id === "anking" && ankingImgs.length > 0 && (
+                <div className="fade">
+                  <label style={s.lbl}><ImageIcon size={13} strokeWidth={2.2} /> AnKing / AnkiHub diagrams</label>
+                  <ResourceImagePanel
+                    kind="anking"
+                    images={ankingImgs}
+                    match={q.anking_match}
+                    theme={T}
+                    onZoom={setZoomImg}
+                  />
+                </div>
+              )}
+
+              {id === "sketchy" && sketchyImgs.length > 0 && (
+                <div className="fade">
+                  <label style={s.lbl}><ImageIcon size={13} strokeWidth={2.2} /> Sketchy panels</label>
+                  <ResourceImagePanel
+                    kind="sketchy"
+                    images={sketchyImgs}
+                    match={q.anking_match}
+                    theme={T}
+                    onZoom={setZoomImg}
+                  />
+                </div>
+              )}
+
               {id === "practice" && (
                 <div className="fade">
                   {q.clinical_application ? (
@@ -2419,6 +2537,7 @@ export default function App() {
 
               {id === "video" && (
                 <div className="fade">
+                  <PodcastPicks q={q} />
                   <label style={s.lbl}>Related videos · opens a YouTube search in a new tab</label>
                   <a
                     style={s.videoLink}
@@ -3570,6 +3689,12 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
 }) {
   const [index, setIndex] = useState(Math.max(0, Math.min(startIndex, set.length - 1)));
   const [revealed, setRevealed] = useState(false);
+  // Epoch ms when a pending reveal actually locks in — set by startReveal(),
+  // cleared once it fires (see the effect below) or when the question changes.
+  // Phones show a countdown for this window; voting stays open the whole
+  // time since `revealed` itself doesn't flip until it elapses.
+  const [revealAt, setRevealAt] = useState<number | null>(null);
+  const startReveal = () => { if (revealed || revealAt) return; setRevealAt(Date.now() + REVEAL_DELAY_MS); };
   const [finished, setFinished] = useState(false);   // session over — final-standings screen
   const [started, setStarted] = useState(false);     // host hasn't hit "Start" yet — phones sit in a lobby, no voting
   // Standings view: individual leaderboard vs team. Individual standings are
@@ -3689,15 +3814,28 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
       if (!members.has(team)) { members.set(team, new Set()); answerers.set(team, new Set()); correctCount.set(team, 0); answeredCount.set(team, 0); }
       members.get(team)!.add(vId);
     }
+    // Score per QUESTION, not per vote. Counting each member's vote separately
+    // made a 2-person team on a 30-question poll read "59/60", which looks like
+    // a 60-question poll and makes teams of different sizes incomparable. Each
+    // question is worth exactly 1 to a team however many members answered it;
+    // when they disagree the team gets the fraction that were right, so the
+    // same poll reads "29.5/30".
     for (const [qId, correct] of correctRef.current) {
       const m = votesRef.current.get(qId);
       if (!m) continue;
+      const perTeam = new Map<string, { right: number; voted: number }>();
       for (const [vId, choice] of m) {
         const team = teamRef.current.get(vId);
         if (!team) continue;
         answerers.get(team)?.add(vId);
+        const agg = perTeam.get(team) ?? { right: 0, voted: 0 };
+        agg.voted += 1;
+        if (pickIsCorrect(choice, correct)) agg.right += 1;
+        perTeam.set(team, agg);
+      }
+      for (const [team, agg] of perTeam) {
         answeredCount.set(team, (answeredCount.get(team) ?? 0) + 1);
-        if (pickIsCorrect(choice, correct)) correctCount.set(team, (correctCount.get(team) ?? 0) + 1);
+        correctCount.set(team, (correctCount.get(team) ?? 0) + agg.right / agg.voted);
       }
     }
     const pct = (t: TeamStanding) => (t.answered > 0 ? t.correct / t.answered : 0);
@@ -3765,9 +3903,11 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
       qid, year: q?.year ?? "", qIndex: q?.q_index ?? 0,
       nOptions: q?.options.length ?? 0,
       options: q?.options.map((o) => ({ letter: o.letter, text: o.text })) ?? [],
+      stem: q?.stem ?? "",
       index, total, multiSelect: q?.multi_select ?? false,
       requiredSelections: q?.multi_select ? correctSet.length : 1,
       revealed,
+      revealAt: revealed ? undefined : revealAt ?? undefined,
       correct: revealed ? correctSet : [],
       standings: computeStandings(),
       rankBy: rankByTotal ? "total" : "pct",
@@ -3815,16 +3955,31 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
 
   // re-broadcast the live question whenever it changes (incl. the lobby→started
   // flip), and whenever the standings ranking metric flips so phones re-order too
-  useEffect(() => { broadcastRef.current(); }, [index, revealed, finished, started, rankByTotal]); // eslint-disable-line
+  useEffect(() => { broadcastRef.current(); }, [index, revealed, revealAt, finished, started, rankByTotal]); // eslint-disable-line
 
-  // per-question countdown; auto-reveal when it hits zero (never runs in the lobby)
+  // per-question countdown; starts the reveal countdown when it hits zero (never runs in the lobby)
   useEffect(() => {
     if (revealed || finished || !q || !started) { setTimeLeft(null); return; }
     setTimeLeft(timerSecs);
     const id = setInterval(() => setTimeLeft((t) => (t == null ? t : t <= 1 ? 0 : t - 1)), 1000);
     return () => clearInterval(id);
   }, [index, revealed, finished, started, timerSecs, q?.year, q?.q_index]); // eslint-disable-line
-  useEffect(() => { if (timeLeft === 0 && !revealed) setRevealed(true); }, [timeLeft, revealed]);
+  useEffect(() => { if (timeLeft === 0 && !revealed) startReveal(); }, [timeLeft, revealed]); // eslint-disable-line
+
+  // Fires the actual reveal REVEAL_DELAY_MS after startReveal() sets revealAt —
+  // gives everyone's phone a countdown instead of an instant lock.
+  useEffect(() => {
+    if (!revealAt) return;
+    const ms = Math.max(0, revealAt - Date.now());
+    const t = setTimeout(() => { setRevealed(true); setRevealAt(null); }, ms);
+    return () => clearTimeout(t);
+  }, [revealAt]);
+  // Ticks the host's "Revealing in N…" button text while the countdown runs.
+  useEffect(() => {
+    if (!revealAt) return;
+    const id = setInterval(() => force((n) => n + 1), 250);
+    return () => clearInterval(id);
+  }, [revealAt]);
 
   if (!q) return null;
   const tally = votesRef.current.get(qid) ?? new Map<string, string[]>();
@@ -3836,7 +3991,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
   const standings = computeStandings();
   const individuals = computeIndividualStandings();
   const isIndividualMode = teamMode === "individual";
-  const goTo = (i: number) => { setRevealed(false); setShowExpl(false); setPeekStandings(false); setIndex(Math.max(0, Math.min(i, total - 1))); };
+  const goTo = (i: number) => { setRevealed(false); setRevealAt(null); setShowExpl(false); setPeekStandings(false); setIndex(Math.max(0, Math.min(i, total - 1))); };
   // Nudge the running countdown (and the baseline used for every question
   // after this one) up or down — the default one-minute timer isn't right
   // for every question, and there was previously no way to change it mid-poll.
@@ -4079,8 +4234,8 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
                   <div key={t.team} style={{ ...s.teamRow, ...(i === 0 ? s.teamRowLead : {}) }}>
                     <span style={s.teamRank}>{i === 0 ? <Crown size={20} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
                     <span style={s.teamName}>{t.team}</span>
-                    <span style={s.teamMembers}>{t.members} {t.members === 1 ? "player" : "players"} · {t.correct}/{t.answered} answers correct</span>
-                    <span style={s.teamScore}>{rankByTotal ? `${t.score} pts` : `${t.answered > 0 ? Math.round((t.correct / t.answered) * 100) : 0}%`}</span>
+                    <span style={s.teamMembers}>{t.members} {t.members === 1 ? "player" : "players"} · {fmtScore(t.correct)}/{t.answered} correct</span>
+                    <span style={s.teamScore}>{rankByTotal ? `${fmtScore(t.score)} pts` : `${t.answered > 0 ? Math.round((t.correct / t.answered) * 100) : 0}%`}</span>
                   </div>
                 ))}
               </div>
@@ -4278,8 +4433,8 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
                     <div key={t.team} style={{ ...s.teamRow, ...(i === 0 ? s.teamRowLead : {}) }}>
                       <span style={s.teamRank}>{i === 0 ? <Crown size={20} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
                       <span style={s.teamName}>{t.team}</span>
-                      <span style={s.teamMembers}>{t.members} {t.members === 1 ? "player" : "players"} · {t.correct}/{t.answered} answers correct</span>
-                      <span style={s.teamScore}>{rankByTotal ? `${t.score} pts` : `${t.answered > 0 ? Math.round((t.correct / t.answered) * 100) : 0}%`}</span>
+                      <span style={s.teamMembers}>{t.members} {t.members === 1 ? "player" : "players"} · {fmtScore(t.correct)}/{t.answered} correct</span>
+                      <span style={s.teamScore}>{rankByTotal ? `${fmtScore(t.score)} pts` : `${t.answered > 0 ? Math.round((t.correct / t.answered) * 100) : 0}%`}</span>
                     </div>
                   ))}
             </div>
@@ -4388,7 +4543,9 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
           <>
         <button style={s.pollBtn} disabled={index === 0} onClick={() => goTo(index - 1)}><ArrowLeft size={16} strokeWidth={2.4} /> Prev</button>
         {!revealed ? (
-          <button style={{ ...s.pollBtn, ...s.pollBtnPrimary }} onClick={() => setRevealed(true)}><Check size={16} strokeWidth={2.6} /> Reveal answer</button>
+          <button style={{ ...s.pollBtn, ...s.pollBtnPrimary }} disabled={!!revealAt} onClick={startReveal}>
+            <Check size={16} strokeWidth={2.6} /> {revealAt ? `Revealing in ${Math.max(1, Math.ceil((revealAt - Date.now()) / 1000))}…` : "Reveal answer"}
+          </button>
         ) : (
           <span style={s.pollAnswerLine}>Answer: <b style={{ color: "#48c78e" }}>{correctSet.join(", ")}</b>{q.answer_text ? ` — ${q.answer_text}` : ""}</span>
         )}
@@ -4503,7 +4660,67 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
   );
 }
 
+// Curated podcast episodes for this question's concept, matched offline (see
+// scripts/podcasts/). Renders nothing when nothing matched confidently, which
+// is the common case — most of the bank has no episode worth sending someone
+// to, and a near-miss recommendation costs more time than none at all.
+// Tier "related" is looser background teaching on the same topic (not a direct
+// concept hit) and is labeled accordingly in the UI.
+function PodcastPicks({ q, dark = false }: { q: RawQuestion; dark?: boolean }) {
+  const [refs, setRefs] = useState<PodcastRef[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    getPodcastRefs(q.year, q.q_index).then((r) => { if (live) setRefs(r); });
+    return () => { live = false; };
+  }, [q.year, q.q_index]);
+
+  if (!refs?.length) return null;
+  const allRelated = refs.every((r) => r.tier === "related");
+  const hasLecture = refs.some((r) => r.kind === "lecture");
+  const allLecture = refs.every((r) => r.kind === "lecture");
+  const heading = allRelated
+    ? (allLecture ? "Related lecture on this topic" : hasLecture ? "Related teaching on this topic" : "Related podcast on this topic")
+    : allLecture ? "Lectures on this topic"
+      : hasLecture ? "Podcasts & lectures on this topic"
+        : "Podcast episodes on this topic";
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <label style={dark ? s.podcastLblDark : s.lbl}>
+        <Headphones size={12} strokeWidth={2.2} style={{ verticalAlign: -2, marginRight: 5 }} />
+        {heading}
+      </label>
+      {refs.map((r) => (
+        <a
+          key={r.videoId}
+          style={dark ? s.podcastItemDark : s.podcastItem}
+          href={podcastUrl(r)}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={dark ? s.podcastMetaDark : s.podcastMeta}>
+              {r.tier === "related" ? "Related · " : ""}
+              {r.channel} · {Math.round(r.durationSec / 60)} min
+            </div>
+            <div style={dark ? s.podcastTitleDark : s.podcastTitle}>{r.title}</div>
+            {r.why && <div style={dark ? s.podcastWhyDark : s.podcastWhy}>{r.why}</div>}
+            {r.startSec != null && (
+              <div style={s.podcastChapter}>
+                <Play size={10} strokeWidth={2.6} style={{ verticalAlign: -1, marginRight: 4 }} />
+                Starts at {formatTimestamp(r.startSec)}
+                {r.chapterTitle ? ` · ${r.chapterTitle}` : ""}
+              </div>
+            )}
+          </div>
+          <ExternalLink size={14} strokeWidth={2} style={{ flexShrink: 0, marginTop: 2 }} />
+        </a>
+      ))}
+    </div>
+  );
+}
+
 const TEAM_KEY = "prite_poll_team";
+const STEM_OPEN_KEY = "prite.poll.stemOpen"; // participant's "show question text" preference, kept for the whole poll
 
 // Extra study material for a revealed poll question, as tap-to-open chips
 // inside the answer box: the "in practice" scenario, historical context
@@ -4531,7 +4748,7 @@ function PollExtras({ q }: { q: RawQuestion }) {
       <div style={s.pollExtraChips}>
         {chip("practice", "In practice", <Stethoscope size={12} strokeWidth={2.3} />, !!q.clinical_application)}
         {chip("context", "Context", <Lightbulb size={12} strokeWidth={2.3} />)}
-        {chip("video", "Video", <Youtube size={12} strokeWidth={2.3} />)}
+        {chip("video", "Video and podcasts", <Youtube size={12} strokeWidth={2.3} />)}
         {chip("ai", "Ask AI", <Sparkles size={12} strokeWidth={2.3} />)}
       </div>
       {open === "practice" && (
@@ -4544,9 +4761,12 @@ function PollExtras({ q }: { q: RawQuestion }) {
         <p style={s.pollExtraBody}>{!ctxLoaded || ctx === null ? "Loading…" : ctx || "No extra context has been written for this question yet."}</p>
       )}
       {open === "video" && (
+        <>
+        <PodcastPicks q={q} dark />
         <a style={s.pollExtraVideo} href={`https://www.youtube.com/results?search_query=${encodeURIComponent(videoQuery)}`} target="_blank" rel="noopener noreferrer">
           <Youtube size={16} strokeWidth={2} /> <span style={{ flex: 1 }}>Search YouTube for <b style={{ color: "#fff" }}>{videoQuery}</b></span> <ExternalLink size={13} strokeWidth={2} />
         </a>
+        </>
       )}
       {open === "ai" && (
         <div style={s.pollExtraBody}>
@@ -4583,8 +4803,16 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
   const [reviewAddState, setReviewAddState] = useState<"idle" | "saving" | "done">("idle"); // adding missed questions to the personal Review queue
   // Question text is hidden by default (residents read it off the big screen)
   // — this is the pull-down "shade" that peeks it on the phone instead, for
-  // whoever can't see the screen well. Collapses again on every new question.
-  const [stemOpen, setStemOpen] = useState(false);
+  // whoever can't see the screen well. It used to collapse on every new
+  // question, which meant re-opening it 20+ times in one session; someone who
+  // can't see the big screen wants it open for the whole poll, so the choice
+  // now sticks (and survives a page reload / rejoin).
+  const [stemOpen, setStemOpen] = useState(() => {
+    try { return localStorage.getItem(STEM_OPEN_KEY) === "1"; } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(STEM_OPEN_KEY, stemOpen ? "1" : "0"); } catch { /* private mode */ }
+  }, [stemOpen]);
   const chanRef = useRef<ReturnType<NonNullable<typeof supabase>["channel"]> | null>(null);
   const lastQid = useRef<string>("");
   const teamRef = useRef(team);
@@ -4600,6 +4828,17 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
   const historyRef = useRef<Map<string, { correct: string[]; myChoice: string[] | null; index: number }>>(new Map());
   const [reviewQid, setReviewQid] = useState<string | null>(null); // set while browsing a past question instead of the live one
   const recordedRef = useRef<Set<string>>(new Set()); // qids already persisted to poll_answers, so a re-broadcast doesn't double-insert
+  // Seconds left in the "revealing the answer" countdown (see remote.revealAt),
+  // ticked locally off the wall clock so the phone doesn't need a broadcast
+  // every second. Null when no countdown is running.
+  const [revealCountdown, setRevealCountdown] = useState<number | null>(null);
+  useEffect(() => {
+    if (!remote?.revealAt || remote.revealed) { setRevealCountdown(null); return; }
+    const tick = () => setRevealCountdown(Math.max(0, Math.ceil((remote.revealAt! - Date.now()) / 1000)));
+    tick();
+    const id = setInterval(tick, 200);
+    return () => clearInterval(id);
+  }, [remote?.revealAt, remote?.revealed]);
 
   // Set/clear my team and tell the host right away so it can roster me even
   // before I vote.
@@ -4643,7 +4882,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
         }
       }
       setRemote(payload);
-      if (payload.qid !== lastQid.current) { lastQid.current = payload.qid; setMyVote(null); myVoteRef.current = null; setPendingPicks([]); setReviewQid(null); setStemOpen(false); }
+      if (payload.qid !== lastQid.current) { lastQid.current = payload.qid; setMyVote(null); myVoteRef.current = null; setPendingPicks([]); setReviewQid(null); }
     });
     // Host ran the auto-assign shuffle — take the team it picked for me, unless
     // I've already got one (either from a prior shuffle or my own rename).
@@ -4797,7 +5036,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
           </div>
         )}
         {status !== "error" && !isIndividualMode && !team && (
-          <p style={s.teamScoreHint}>Teams are ranked by total correct answers — everyone's votes count toward the team score.</p>
+          <p style={s.teamScoreHint}>Teams are ranked by accuracy. Each question counts once per team however many members answer; if they split, the team gets partial credit.</p>
         )}
 
         {status === "error" ? (
@@ -4852,7 +5091,11 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
               );
             })() : (
               <>
-                {!remote.finished && byId.size > 0 && (
+                {/* Prefer the stem the host broadcasts: a participant who isn't
+                    signed in can't download the private question bank, so byId
+                    is empty for them and gating on it hid the question entirely,
+                    leaving them staring at bare answer choices. */}
+                {!remote.finished && (remote.stem || byId.size > 0) && (
                   <button
                     type="button"
                     style={s.stemPull}
@@ -4866,7 +5109,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                   </button>
                 )}
                 {!remote.finished && stemOpen && (
-                  <p style={s.stemPeek}>{byId.get(remote.qid)?.stem}</p>
+                  <p style={s.stemPeek}>{remote.stem || byId.get(remote.qid)?.stem}</p>
                 )}
                 <p style={s.joinMsg}>
                   {remote.finished
@@ -4875,6 +5118,15 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                     ? <>Question {remote.index + 1} of {remote.total} — <strong>{remote.requiredSelections ? `select exactly ${remote.requiredSelections} answers` : "select all that apply"}.</strong></>
                     : <>Question {remote.index + 1} of {remote.total} — read it on the big screen, then tap your answer.</>}
                 </p>
+                {!remote.finished && revealCountdown != null && revealCountdown > 0 && (
+                  <p style={{
+                    margin: "0 0 10px", padding: "10px 14px", borderRadius: 10, textAlign: "center",
+                    background: "rgba(241,163,143,.16)", border: "1px solid rgba(241,163,143,.4)",
+                    color: "#f1a38f", fontWeight: 700, fontSize: 15,
+                  }}>
+                    Answer revealing in {revealCountdown}… last chance to lock in!
+                  </p>
+                )}
                 {!remote.finished && !remote.revealed && (remote.joined ?? 0) > 0 && (
                   <p style={{ ...s.joinState, marginTop: 0 }}>{remote.voted ?? 0} of {remote.joined} voted</p>
                 )}
@@ -4983,7 +5235,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                     <span style={s.teamMiniName}>{t.team}{t.team === team ? " (you)" : ""}</span>
                     {/* Match the host's ranking metric; fall back to points when an
                         older host build broadcasts without rankBy/answered. */}
-                    <span style={s.teamMiniScore}>{remote.rankBy !== "total" && t.answered > 0 ? `${Math.round((t.correct / t.answered) * 100)}%` : `${t.score} pts`}</span>
+                    <span style={s.teamMiniScore}>{remote.rankBy !== "total" && t.answered > 0 ? `${Math.round((t.correct / t.answered) * 100)}%` : `${fmtScore(t.score)} pts`}</span>
                   </div>
                 ))}
               </div>
@@ -7892,6 +8144,20 @@ function StudyGuideView({ id, onClose }: { id: string; onClose: () => void }) {
   // page (e.g. when a run died mid-generation and left a text-only guide)
   const [canGen, setCanGen] = useState(false);
   const [kickingAudio, setKickingAudio] = useState(false);
+  /* A run older than this has been killed server-side, not merely slowed: the
+     background task records any real failure as status='error', so a row stuck
+     at 'generating' means the isolate died. 12 minutes matches
+     sweep-stuck-guides, so the page and the sweeper never disagree. Re-checked
+     on a timer because the component may be mounted across the threshold. */
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const t = window.setInterval(() => setNowTick(Date.now()), 30_000);
+    return () => window.clearInterval(t);
+  }, []);
+  const audioStalled =
+    guide?.status === "generating" &&
+    !!guide?.generation_started_at &&
+    nowTick - new Date(guide.generation_started_at).getTime() > 12 * 60_000;
   const [kickErr, setKickErr] = useState<string | null>(null);
   useEffect(() => { canGenerateStudyGuides().then(setCanGen); }, []);
   const addAudio = async () => {
@@ -8002,8 +8268,23 @@ function StudyGuideView({ id, onClose }: { id: string; onClose: () => void }) {
                     </>
                   ) : guide.audio_path && !audioError ? (
                     <span style={{ fontSize: 12.5, color: T.tealDeep }}>Loading audio…</span>
-                  ) : guide.status === "generating" ? (
+                  ) : guide.status === "generating" && !audioStalled ? (
                     <span style={{ fontSize: 12.5, color: T.tealDeep }}>Recording… appears here when ready</span>
+                  ) : guide.status === "generating" && audioStalled ? (
+                    /* The server run was cut short without recording an error, so
+                       the row would otherwise say "appears here when ready"
+                       forever — which is how a guide went out to the residents
+                       with dead audio. Say what actually happened and offer the
+                       retry (narrate-only: reuses the written script). */
+                    <>
+                      <span style={{ fontSize: 12.5, color: T.wrongLine }}>Narration stalled</span>
+                      {canGen && (
+                        <button style={s.primarySm} onClick={addAudio} disabled={kickingAudio}
+                                title="Retry the narration using the script that's already written">
+                          <Volume2 size={13} strokeWidth={2.3} /> {kickingAudio ? "Retrying…" : "Retry audio"}
+                        </button>
+                      )}
+                    </>
                   ) : canGen ? (
                     <button style={s.primarySm} onClick={addAudio} disabled={kickingAudio} title="Narrate this guide to a ~10-min audio overview (uses the already-written script — doesn't rewrite anything)">
                       <Volume2 size={13} strokeWidth={2.3} /> {kickingAudio ? "Starting…" : "Add audio"}
@@ -8713,6 +8994,7 @@ button { font-family: inherit; -webkit-appearance: none; appearance: none; }
 @keyframes birdFlap { from { transform: rotate(-34deg); } to { transform: rotate(16deg); } }
 .fade { animation: fade .28s ease both; }
 @keyframes fade { from { opacity: 0; transform: translateY(4px); } }
+@keyframes fabIn { from { opacity: 0; transform: translateY(10px) scale(.94); } }
 .dist { animation: grow .6s cubic-bezier(.22,.61,.36,1) both; }
 @keyframes grow { from { width: 0 !important; } }
 .toast { animation: tin .3s ease both; }
@@ -9224,6 +9506,17 @@ const s: Record<string, React.CSSProperties> = {
   emptyExpl: { display: "flex", alignItems: "center", gap: 10, color: T.muted, fontSize: 14, background: "#fff", border: `1px dashed ${T.paperEdge}`, borderRadius: 11, padding: "14px 16px" },
   videoLink: { display: "flex", alignItems: "center", gap: 10, color: T.text, textDecoration: "none", fontSize: 14.5, background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 11, padding: "13px 15px" },
   videoNote: { fontSize: 12.5, color: T.muted, marginTop: 10, lineHeight: 1.5 },
+
+  podcastItem: { display: "flex", alignItems: "flex-start", gap: 10, color: T.text, textDecoration: "none", background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 11, padding: "12px 14px", marginBottom: 8 },
+  podcastMeta: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 11, letterSpacing: "0.04em", textTransform: "uppercase", color: T.faint, marginBottom: 4 },
+  podcastTitle: { fontSize: 14, fontWeight: 600, lineHeight: 1.35, color: T.text },
+  podcastWhy: { fontSize: 12.5, color: T.muted, marginTop: 4, lineHeight: 1.45 },
+  podcastChapter: { fontSize: 12, color: T.tealDeep, marginTop: 6 },
+  podcastLblDark: { display: "block", fontSize: 12, color: "#9aa0ab", marginBottom: 9, marginTop: 10, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
+  podcastItemDark: { display: "flex", alignItems: "flex-start", gap: 10, color: "#c7ccd6", textDecoration: "none", background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 10, padding: "11px 13px", marginBottom: 8 },
+  podcastMetaDark: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 10.5, letterSpacing: "0.04em", textTransform: "uppercase", color: "#7c828d", marginBottom: 4 },
+  podcastTitleDark: { fontSize: 13.5, fontWeight: 600, lineHeight: 1.35, color: "#fff" },
+  podcastWhyDark: { fontSize: 12, color: "#9aa0ab", marginTop: 4, lineHeight: 1.45 },
   diagramBox: { background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 11, padding: "16px 14px", display: "flex", justifyContent: "center" },
   diagramCaption: { fontSize: 13, color: T.muted, marginTop: 9, lineHeight: 1.5, fontStyle: "italic" },
   cmpTable: { borderCollapse: "collapse", width: "100%", fontSize: 13.5, background: "#fff", border: `1px solid ${T.paperEdge}`, borderRadius: 11, overflow: "hidden" },
@@ -9282,6 +9575,12 @@ const s: Record<string, React.CSSProperties> = {
   addInput: { flex: 1, border: `1px solid ${T.paperEdge}`, borderRadius: 9, padding: "10px 13px", fontSize: 14, background: "#fff", color: T.text },
   primarySm: { display: "inline-flex", alignItems: "center", gap: 7, background: T.teal, color: "#fff", border: "none", padding: "9px 16px", borderRadius: 9, fontSize: 13.5, fontWeight: 600, cursor: "pointer" },
 
+  /* Sits above the mobile bottom bar and clear of the right edge; safe-area
+     inset keeps it off the iPhone home indicator. */
+  fabNext: { position: "fixed", right: 16, bottom: "calc(20px + env(safe-area-inset-bottom, 0px))", zIndex: 50,
+             display: "inline-flex", alignItems: "center", gap: 7, background: T.teal, color: "#fff",
+             border: "none", padding: "12px 18px", borderRadius: 999, fontSize: 14.5, fontWeight: 700,
+             cursor: "pointer", boxShadow: "0 8px 22px rgba(0,0,0,.34)", animation: "fabIn .18s ease both" },
   nextRow: { display: "flex", justifyContent: "flex-end", marginTop: 20 },
   next: { display: "inline-flex", alignItems: "center", gap: 9, background: T.inkSoft, color: "#fff", border: `1px solid ${T.inkLine}`, padding: "11px 20px", borderRadius: 10, fontSize: 14.5, fontWeight: 600, cursor: "pointer" },
 

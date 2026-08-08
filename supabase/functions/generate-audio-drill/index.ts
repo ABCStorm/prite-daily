@@ -3,7 +3,11 @@
 // failures do not strand an entire topic playlist. Interactive callers must
 // be approved admins; the batch runner uses a separate high-entropy secret.
 //
-// Secrets: FISH_API_KEY, AUDIO_BATCH_SECRET, optionally FISH_VOICE_ID.
+// Clips are written to R2 through the batch-secret-guarded /api/audio-admin
+// endpoint, which is the only store /api/audio serves from.
+//
+// Secrets: FISH_API_KEY, AUDIO_BATCH_SECRET, optionally FISH_VOICE_ID and
+// R2_AUDIO_ADMIN_URL.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const cors = {
@@ -34,60 +38,46 @@ function isMp3(audio: Uint8Array) {
   return hasId3 || hasFrameSync;
 }
 
-async function signClipPaths(promptPath: string, answerPath: string) {
-  const [promptSigned, answerSigned] = await Promise.all([
-    admin.storage.from("audio-drills").createSignedUrl(promptPath, 120),
-    admin.storage.from("audio-drills").createSignedUrl(answerPath, 120),
-  ]);
-  if (promptSigned.error || answerSigned.error) {
-    throw new Error(promptSigned.error?.message ?? answerSigned.error?.message);
-  }
-  return {
-    prompt: promptSigned.data.signedUrl,
-    answer: answerSigned.data.signedUrl,
-  };
-}
-
 const encodedPath = (path: string) => path.split("/").map(encodeURIComponent).join("/");
 
+// R2 is the only clip store. The Supabase `audio-drills` bucket was emptied on
+// 2026-08-08 after the 2026-08-01 migration, and nothing reads from it, so a
+// fallback would silently write clips that later 404 on playback. The default
+// matches scripts/audio/build-audio-exports.mjs.
 function r2AdminBase() {
-  return Deno.env.get("R2_AUDIO_ADMIN_URL")?.replace(/\/$/, "") ?? null;
+  return (Deno.env.get("R2_AUDIO_ADMIN_URL") || "https://pritedaily.com/api/audio-admin").replace(/\/$/, "");
+}
+
+function batchSecret() {
+  const secret = Deno.env.get("AUDIO_BATCH_SECRET");
+  if (!secret) throw new Error("AUDIO_BATCH_SECRET must be configured to write audio to R2");
+  return secret;
 }
 
 async function uploadAudio(path: string, bytes: Uint8Array) {
-  const base = r2AdminBase();
-  const batchSecret = Deno.env.get("AUDIO_BATCH_SECRET");
-  if (base && batchSecret) {
-    const response = await fetch(`${base}/${encodedPath(path)}`, {
-      method: "PUT",
-      headers: {
-        "content-type": "audio/mpeg",
-        "content-length": String(bytes.byteLength),
-        "x-audio-batch-secret": batchSecret,
-      },
-      body: bytes,
-    });
-    if (!response.ok) throw new Error(`R2 upload failed (${response.status}): ${await response.text()}`);
-    return "r2";
-  }
-  const upload = await admin.storage.from("audio-drills").upload(path, bytes, { contentType: "audio/mpeg", upsert: true });
-  if (upload.error) throw new Error(upload.error.message);
-  return "supabase";
+  const response = await fetch(`${r2AdminBase()}/${encodedPath(path)}`, {
+    method: "PUT",
+    headers: {
+      "content-type": "audio/mpeg",
+      "content-length": String(bytes.byteLength),
+      "x-audio-batch-secret": batchSecret(),
+    },
+    body: bytes,
+  });
+  if (!response.ok) throw new Error(`R2 upload failed (${response.status}): ${await response.text()}`);
+  return "r2";
 }
 
-async function verificationAccess(promptPath: string, answerPath: string, enabled: boolean) {
+function verificationAccess(promptPath: string, answerPath: string, enabled: boolean) {
   if (!enabled) return {};
   const base = r2AdminBase();
-  if (base) {
-    return {
-      signed_urls: {
-        prompt: `${base}/${encodedPath(promptPath)}`,
-        answer: `${base}/${encodedPath(answerPath)}`,
-      },
-      storage: "r2",
-    };
-  }
-  return { signed_urls: await signClipPaths(promptPath, answerPath), storage: "supabase" };
+  return {
+    signed_urls: {
+      prompt: `${base}/${encodedPath(promptPath)}`,
+      answer: `${base}/${encodedPath(answerPath)}`,
+    },
+    storage: "r2",
+  };
 }
 
 Deno.serve(async (req) => {
@@ -103,17 +93,6 @@ Deno.serve(async (req) => {
       expectedBatchSecret.length >= 32 &&
       suppliedBatchSecret === expectedBatchSecret
     );
-    // Large offline programs are assembled by the trusted local batch runner,
-    // then streamed directly to Storage. Return only a short-lived
-    // signed upload token—never the service-role credential itself.
-    if (input.action === "create_export_upload") {
-      if (!isBatchRunner) return json({ error: "Batch authorization required." }, 403);
-      const path = String(input.path ?? "");
-      if (!/^exports\/v2\/[a-z0-9-]+\.mp3$/.test(path)) return json({ error: "Invalid export path." }, 400);
-      const { data, error } = await admin.storage.from("audio-drills").createSignedUploadUrl(path, { upsert: true });
-      if (error || !data) throw new Error(error?.message ?? "Could not create export upload token");
-      return json({ path, token: data.token });
-    }
     const {
       question_id,
       stem,
@@ -146,7 +125,7 @@ Deno.serve(async (req) => {
       cached.prompt_audio_path === prompt_audio_path &&
       cached.answer_audio_path === answer_audio_path
     ) {
-      const access = await verificationAccess(prompt_audio_path, answer_audio_path, include_signed_urls && isBatchRunner);
+      const access = verificationAccess(prompt_audio_path, answer_audio_path, include_signed_urls && isBatchRunner);
       return json({ ...cached, render_version: renderVersion, ...access, cached: true });
     }
     const script = cleanSpeech(rawScript ?? cached?.script ?? "");
@@ -187,7 +166,7 @@ Deno.serve(async (req) => {
     ]);
     const row = { question_id, script, prompt_audio_path, answer_audio_path, status: "ready", error_message: null, generated_at: new Date().toISOString(), updated_at: new Date().toISOString() };
     await admin.from("audio_drills").upsert(row);
-    const access = await verificationAccess(prompt_audio_path, answer_audio_path, include_signed_urls && isBatchRunner);
+    const access = verificationAccess(prompt_audio_path, answer_audio_path, include_signed_urls && isBatchRunner);
     return json({
       ...row,
       render_version: renderVersion,

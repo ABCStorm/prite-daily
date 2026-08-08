@@ -4,7 +4,7 @@
 // class to read/listen to before the session, generate-once-and-cache:
 //   - if a guide already exists for the saved_test_id, return it (no AI call)
 //   - else call Anthropic (Opus) to write a background/context study guide +
-//     narration script, render the narration to speech via OpenAI TTS, store
+//     narration script, render the narration to speech via Fish Audio, store
 //     the audio in the `study-audio` bucket and the text in `study_guides`,
 //     and return it.
 //
@@ -12,10 +12,11 @@
 // explanation — only stem + topic tags are sent to the model — so it is
 // structurally unable to spoil the quiz, only to teach around it.
 //
-// Secrets needed (Project Settings -> Edge Functions): ANTHROPIC_API_KEY,
-// OPENAI_API_KEY (and optionally OPENAI_TTS_VOICE to override the default
-// narration voice). SUPABASE_URL, SUPABASE_ANON_KEY, and
-// SUPABASE_SERVICE_ROLE_KEY are injected automatically.
+// Secrets needed (Project Settings -> Edge Functions): ANTHROPIC_API_KEY for
+// the written guide, FISH_API_KEY for the narration (optionally FISH_VOICE_ID
+// and FISH_TTS_MODEL), and OPENAI_API_KEY only for the slide illustrations.
+// SUPABASE_URL, SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY are injected
+// automatically.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -32,11 +33,12 @@ const admin = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY
 
 const MODEL = "claude-opus-4-8";
 
-// OpenAI's cheapest TTS tier (vs. tts-1-hd) — plenty good for a study aid.
-// Override the voice with the OPENAI_TTS_VOICE secret (one of alloy, echo,
-// fable, onyx, nova, shimmer, ash, coral, sage).
-const TTS_MODEL = "tts-1";
-const DEFAULT_VOICE = "alloy";
+// Narration runs on Fish Audio, matching generate-audio-drill so both spoken
+// features share one voice and one vendor. FISH_VOICE_ID picks the cloned/preset
+// voice; FISH_TTS_MODEL overrides the engine (header, not body — Fish reads the
+// model from a request header).
+const FISH_TTS_URL = "https://api.fish.audio/v1/tts";
+const FISH_DEFAULT_MODEL = "s2.1-pro-free";
 
 type TopicInput = { stem: string; prite_category?: string; prite_label?: string; topics?: string[] };
 
@@ -58,14 +60,23 @@ async function fetchWithTimeout(url: string, opts: RequestInit, ms: number): Pro
   }
 }
 
-// OpenAI's TTS endpoint caps input at 4096 characters, well under a
-// ~10-minute script, so split on sentence boundaries into request-sized
-// chunks, synthesize them CONCURRENTLY (Promise.all preserves order), and
-// stitch the resulting MP3s together (simple byte concatenation — MP3 frames
-// decode fine back-to-back; a few ms of imperfect join is a non-issue here).
-// Concurrency keeps total wall-clock ≈ one chunk's time rather than the sum,
-// which matters against the edge function's runtime budget.
-async function synthesizeSpeech(text: string, apiKey: string, voice: string): Promise<Uint8Array> {
+// An MP3 stream starts with an ID3 tag or a frame sync (0xFF 0xEx). Checking
+// this catches the case where the API returns 200 with a JSON error body or an
+// Ogg stream — without it we'd upload a non-playable file and mark the guide
+// "ready", which is exactly the silent failure this feature must not have.
+function isMp3(bytes: Uint8Array): boolean {
+  if (bytes.length < 3) return false;
+  if (bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33) return true;   // "ID3"
+  return bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0;                          // frame sync
+}
+
+// Split the ~10-minute script on sentence boundaries, narrate the chunks
+// CONCURRENTLY (Promise.all preserves order), and stitch the MP3s together —
+// MP3 frames decode fine back-to-back, and a few ms of imperfect join is a
+// non-issue for a study aid. Concurrency keeps wall-clock ≈ one chunk rather
+// than the sum, which is what keeps this inside the edge function's budget.
+// Chunking also bounds each request: one hung call can't strand the whole run.
+async function synthesizeSpeech(text: string, apiKey: string): Promise<Uint8Array> {
   const sentences = text.split(/(?<=[.!?])\s+/).filter(Boolean);
   const chunks: string[] = [];
   let cur = "";
@@ -75,14 +86,27 @@ async function synthesizeSpeech(text: string, apiKey: string, voice: string): Pr
   }
   if (cur) chunks.push(cur);
 
+  const model = Deno.env.get("FISH_TTS_MODEL") || FISH_DEFAULT_MODEL;
+  const voiceId = Deno.env.get("FISH_VOICE_ID") || undefined;
+
   const buffers = await Promise.all(chunks.map(async (chunk) => {
-    const res = await fetchWithTimeout("https://api.openai.com/v1/audio/speech", {
+    const res = await fetchWithTimeout(FISH_TTS_URL, {
       method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
-      body: JSON.stringify({ model: TTS_MODEL, voice, input: chunk, response_format: "mp3" }),
+      // Fish takes the engine in a header, not the JSON body.
+      headers: { Authorization: `Bearer ${apiKey}`, "content-type": "application/json", model },
+      // 64 kbps MP3: Fish's free S2.1 tier otherwise returns ~270 kbps Ogg Opus,
+      // which is heavier and less compatible with phone browsers.
+      body: JSON.stringify({
+        text: chunk,
+        reference_id: voiceId,
+        prosody: { speed: 1, volume: 0, normalize_loudness: true },
+        format: "mp3", sample_rate: 44100, mp3_bitrate: 64, normalize: true,
+      }),
     }, 90_000);
-    if (!res.ok) throw new Error(`openai tts ${res.status}: ${await res.text()}`);
-    return new Uint8Array(await res.arrayBuffer());
+    if (!res.ok) throw new Error(`fish tts ${res.status}: ${await res.text()}`);
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (!isMp3(bytes)) throw new Error("Fish Audio did not return a valid MP3 stream");
+    return bytes;
   }));
 
   const total = buffers.reduce((n, b) => n + b.length, 0);
@@ -114,6 +138,47 @@ async function generateSlideImage(prompt: string, apiKey: string): Promise<Uint8
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
+    // action:"narrate_only" — repair path for a guide whose text finished but
+    // whose narration died mid-run, leaving status='generating' forever with no
+    // error recorded (the UI then shows "recording appears here when ready"
+    // indefinitely). Authenticated by the same x-audio-batch-secret used by
+    // generate-audio-drill rather than a user JWT, so it can be driven from a
+    // maintenance script. Deliberately narrow: it only narrates an ALREADY
+    // written script, so it cannot be used to run up Claude or image-gen spend.
+    if (req.headers.get("x-study-guide-action") === "narrate_only") {
+      const expected = Deno.env.get("AUDIO_BATCH_SECRET");
+      const supplied = req.headers.get("x-audio-batch-secret");
+      if (!(expected && supplied && expected.length >= 32 && supplied === expected)) {
+        return json({ error: "Batch authorization required." }, 403);
+      }
+      const { saved_test_id: repairId } = await req.json() as { saved_test_id?: string };
+      if (!repairId) return json({ error: "saved_test_id required" }, 400);
+
+      const { data: row } = await admin.from("study_guides").select("*").eq("saved_test_id", repairId).maybeSingle();
+      if (!row) return json({ error: "no guide for that saved_test_id" }, 404);
+      if (row.audio_path) return json({ ok: true, already: true, audio_path: row.audio_path });
+      if (!row.audio_script) return json({ error: "guide has no audio_script to narrate" }, 409);
+
+      const key = Deno.env.get("FISH_API_KEY");
+      if (!key) return json({ error: "FISH_API_KEY is not configured" }, 500);
+      await admin.from("study_guides").update({ stage: "narrating", status: "generating", error_message: null }).eq("saved_test_id", repairId);
+      try {
+        const bytes = await synthesizeSpeech(row.audio_script, key);
+        const path = `${repairId}.mp3`;
+        const { error: upErr } = await admin.storage.from("study-audio")
+          .upload(path, bytes, { contentType: "audio/mpeg", upsert: true });
+        if (upErr) throw new Error("storage upload failed: " + upErr.message);
+        await admin.from("study_guides").update({
+          audio_path: path, status: "ready", stage: null, error_message: null,
+        }).eq("saved_test_id", repairId);
+        return json({ ok: true, audio_path: path, bytes: bytes.length });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        await admin.from("study_guides").update({ status: "error", stage: null, error_message: msg }).eq("saved_test_id", repairId);
+        return json({ error: msg }, 502);
+      }
+    }
+
     // slides_only: the standalone "Prep slides" button — write the guide text
     // + slide deck but skip TTS entirely (fast + no OpenAI cost). A later
     // full request on the same test backfills just the audio from the stored
@@ -351,15 +416,14 @@ Respond with ONLY a JSON object, no markdown fencing: {"slides": [ ... ]}`;
         script = guide.audio_script ?? "";
         } // end !ttsOnly
 
-        // 7. render the narration to speech (OpenAI TTS) and store the MP3.
+        // 7. render the narration to speech (Fish Audio) and store the MP3.
         //    A failure here leaves status='error' but text_ready stays true,
         //    so the written guide remains readable — only the audio is missing.
-        const openaiKey = ownOpenaiKey || Deno.env.get("OPENAI_API_KEY");
-        if (!openaiKey) { await fail("No OpenAI API key — add your own under Settings → Your own AI keys, or set the OPENAI_API_KEY secret"); return; }
-        const voice = Deno.env.get("OPENAI_TTS_VOICE") || DEFAULT_VOICE;
+        const fishKey = Deno.env.get("FISH_API_KEY");
+        if (!fishKey) { await fail("No Fish Audio API key — set the FISH_API_KEY secret on the project"); return; }
         const audioPath = `${saved_test_id}.mp3`;
 
-        const audioBytes = await synthesizeSpeech(script, openaiKey, voice);
+        const audioBytes = await synthesizeSpeech(script, fishKey);
         const { error: upErr } = await admin.storage.from("study-audio")
           .upload(audioPath, audioBytes, { contentType: "audio/mpeg", upsert: true });
         if (upErr) { await fail("storage upload failed: " + upErr.message); return; }

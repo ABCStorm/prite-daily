@@ -266,37 +266,17 @@ async function buildMultipartVariant(variant) {
   return { ...variant, parts };
 }
 
-async function uploadToken(path, env) {
-  const response = await fetch(`${env.url}/functions/v1/generate-audio-drill`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.anonKey}`, apikey: env.anonKey,
-      "content-type": "application/json", "x-audio-batch-secret": env.batchSecret,
-    },
-    body: JSON.stringify({ action: "create_export_upload", path }),
-  });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok || !body.token) throw new Error(body.error || `Could not create upload token (${response.status})`);
-  return body.token;
-}
-
 async function signedStreamUpload(entry, env) {
-  // R2 is the primary target. The Supabase signed-upload path remains as a
-  // fallback for installations that have not configured R2 yet.
+  // R2 is the only target: /api/audio serves from it exclusively.
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
-      const token = env.r2AdminUrl ? null : await uploadToken(entry.path, env);
       const encoded = entry.path.split("/").map(encodeURIComponent).join("/");
-      const url = env.r2AdminUrl
-        ? `${env.r2AdminUrl}/${encoded}`
-        : `${env.url}/storage/v1/object/upload/sign/audio-drills/${entry.path}?token=${encodeURIComponent(token)}`;
+      const url = `${env.r2AdminUrl}/${encoded}`;
       console.log(`[upload] ${entry.filename}: ${(entry.bytes / 1024 ** 2).toFixed(1)} MB`);
       await new Promise((resolveUpload, rejectUpload) => {
         // Native curl is more dependable than Node/undici for long request
         // bodies on connections that occasionally close after accepting a PUT.
-        const authHeaders = env.r2AdminUrl
-          ? ["--header", `x-audio-batch-secret: ${env.batchSecret}`]
-          : ["--header", `Authorization: Bearer ${env.anonKey}`, "--header", `apikey: ${env.anonKey}`, "--header", "x-upsert: true"];
+        const authHeaders = ["--header", `x-audio-batch-secret: ${env.batchSecret}`];
         const child = spawn("curl", [
           "--http1.1", "--fail-with-body", "--silent", "--show-error", "--retry", "2", "--retry-all-errors", "--retry-delay", "2",
           "--connect-timeout", "20", "--speed-limit", "1024", "--speed-time", "120", "--max-time", "1200",
