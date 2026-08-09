@@ -380,9 +380,13 @@ const AI_STYLE_TEXT: Record<AiStyle, string> = {
   connections: "Explain this and make lots of connections to related psychiatry, pharmacology, and neuroscience concepts so it sticks.",
   historical: "Explain this in its historical context — how the diagnosis, the treatment, or the guideline was discovered and how the understanding evolved over time.",
 };
-const AI_TARGETS: { key: string; label: string; url: (p: string) => string }[] = [
+type AiTarget = { key: string; label: string; url: (p: string) => string; copiesPrompt?: boolean };
+const AI_TARGETS: AiTarget[] = [
   { key: "google", label: "Google AI", url: (p) => `https://www.google.com/search?udm=50&q=${encodeURIComponent(p)}` },
-  { key: "openevidence", label: "OpenEvidence", url: (p) => `https://www.openevidence.com/ask?q=${encodeURIComponent(p)}` },
+  // OpenEvidence does not support pre-filling its composer from a public URL.
+  // Copy the prompt before opening it so the complete question is still one
+  // paste away instead of being silently discarded by its /ask redirect.
+  { key: "openevidence", label: "OpenEvidence", url: () => "https://www.openevidence.com/", copiesPrompt: true },
   { key: "chatgpt", label: "ChatGPT", url: (p) => `https://chatgpt.com/?q=${encodeURIComponent(p)}` },
   { key: "claude", label: "Claude", url: (p) => `https://claude.ai/new?q=${encodeURIComponent(p)}` },
   { key: "grok", label: "Grok", url: (p) => `https://grok.com/?q=${encodeURIComponent(p)}` },
@@ -405,6 +409,41 @@ function askAiCustom(q: RawQuestion, text: string, revealed: boolean): string {
 // "I have no clue" — ask the AI to teach the underlying topic from scratch.
 function askAiNoClue(q: RawQuestion, revealed: boolean): string {
   return `I'm a psychiatry resident studying for the PRITE exam and I honestly have no idea how to approach this question. Please teach me the core concept it's testing from scratch, in plain language — the key facts and the way to reason about it — and then walk me to the answer so I actually understand it.\n\n${questionRef(q, revealed)}`;
+}
+// Clipboard API first, with a fallback for browsers that expose the API but
+// deny it. Keeping this global lets the main quiz and live-poll Ask AI menus
+// give OpenEvidence the same complete prompt.
+async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch { /* fall through to the selection-based copy */ }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const copied = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return copied;
+  } catch {
+    return false;
+  }
+}
+// Start the clipboard write before opening the tab so the click still carries
+// browser user-activation. Other providers continue to receive the prompt in
+// their URL and resolve false because no copy was needed.
+function launchAiTarget(target: AiTarget, prompt: string, open: (url: string) => void = (url) => {
+  window.open(url, "_blank", "noopener,noreferrer");
+}): Promise<boolean> {
+  const copied = target.copiesPrompt ? copyToClipboard(prompt) : Promise.resolve(false);
+  open(target.url(prompt));
+  return copied;
 }
 // Open a URL in a *background* tab (keep the user on the quiz). Synthesises a
 // ⌘/Ctrl-click on a throwaway anchor — the browser gesture that opens a background
@@ -757,6 +796,9 @@ export default function App() {
   const [preferredOpenSections, setPreferredOpenSections] = useState<Set<string>>(readLearningOpenPref);
   const preferredOpenSectionsRef = useRef(preferredOpenSections);
   const [openSections, setOpenSections] = useState<Set<string>>(() => new Set(preferredOpenSections));
+  // Last learning card visited with H. Track the id (rather than a numeric
+  // index) because optional cards such as Textbook can appear asynchronously.
+  const helpSectionCursorRef = useRef<{ qid: string | null; lastId: string | null }>({ qid: null, lastId: null });
   useEffect(() => { preferredOpenSectionsRef.current = preferredOpenSections; }, [preferredOpenSections]);
   // "Ask AI" panel: open/closed, chosen explanation style, and free-text question
   const [askOpen, setAskOpen] = useState(false);
@@ -1348,6 +1390,7 @@ export default function App() {
   // control changes this set for future questions and future sign-ins.
   useEffect(() => {
     setOpenSections(new Set(preferredOpenSectionsRef.current)); setDraft(""); setStats(null); setCard(null); setEditCard(null); setContext(null); setCrossed([]);
+    helpSectionCursorRef.current = { qid: navQid, lastId: null };
     setAskOpen(false); setAskText("");
     if (navQid && persist) {
       getMyNote(navQid).then(setMyNote);
@@ -1954,24 +1997,23 @@ export default function App() {
     window.scrollTo({ top: card.getBoundingClientRect().top + window.scrollY - headerH - 12, behavior: "smooth" });
   };
 
-  // "h" walks down the learning stack: open the first card that's still closed
-  // and scroll to it. With everything already open it just steps to the next
-  // card below where you are, so holding h reads the stack top to bottom.
-  const openNextSection = () => {
-    const closed = sections.find(([id]) => !openSections.has(id));
-    if (closed) {
-      setOpenSections((current) => new Set(current).add(closed[0]));
-      // Wait a frame for the card to start expanding, or the scroll target is
-      // measured against its collapsed height.
-      requestAnimationFrame(() => scrollToSection(closed[0]));
-      return;
-    }
-    const headerH = (document.querySelector("[data-topbar]") as HTMLElement | null)?.offsetHeight ?? 0;
-    const next = sections.find(([id]) => {
-      const card = document.getElementById(`learning-${q?.year}-${q?.q_index}-${id}`)?.closest("article");
-      return card ? card.getBoundingClientRect().top > headerH + 20 : false;
-    });
-    scrollToSection((next ?? sections[0])[0]);
+  // "h" walks the learning stack in its rendered order, independent of which
+  // cards were already open (including cards kept open by preference). The
+  // first press visits Explanation, each later press visits the next card, and
+  // the sequence wraps after the last card. Closed targets open as we reach
+  // them; open targets are left open but are never skipped.
+  const advanceHelpSection = () => {
+    if (!sections.length) return;
+    const cursor = helpSectionCursorRef.current;
+    const previousIndex = cursor.qid === navQid && cursor.lastId
+      ? sections.findIndex(([id]) => id === cursor.lastId)
+      : -1;
+    const nextIndex = previousIndex >= 0 ? (previousIndex + 1) % sections.length : 0;
+    const id = sections[nextIndex][0];
+    helpSectionCursorRef.current = { qid: navQid, lastId: id };
+    if (!openSections.has(id)) setOpenSections((current) => new Set(current).add(id));
+    // Wait a frame for a closed card to start expanding before measuring it.
+    requestAnimationFrame(() => scrollToSection(id));
   };
 
   // A–E (or 1–5) picks an option, Enter submits it and then advances, arrows
@@ -1998,7 +2040,7 @@ export default function App() {
     if (e.key === "h" || e.key === "H") {
       if (!showAnswer) return;
       e.preventDefault();
-      openNextSection();
+      advanceHelpSection();
       return;
     }
 
@@ -2824,9 +2866,14 @@ export default function App() {
                   <span style={s.askLabel}>Open in</span>
                   {AI_TARGETS.map((t) => (
                     <button key={t.key} style={s.askGo}
-                      onClick={() => window.open(
-                        t.url(askText.trim() ? askAiCustom(q, askText, showAnswer) : askAiPrompt(q, askStyle, showAnswer)),
-                        "_blank", "noopener,noreferrer")}>
+                      onClick={() => {
+                        const prompt = askText.trim() ? askAiCustom(q, askText, showAnswer) : askAiPrompt(q, askStyle, showAnswer);
+                        void launchAiTarget(t, prompt).then((copied) => {
+                          if (t.copiesPrompt) fire(copied
+                            ? "Full question copied — paste it into OpenEvidence."
+                            : "OpenEvidence opened — copy and paste the question to ask it.");
+                        });
+                      }}>
                       {t.label} <ExternalLink size={12} strokeWidth={2.2} />
                     </button>
                   ))}
@@ -2834,6 +2881,7 @@ export default function App() {
                 <p style={s.askNote}>
                   {askText.trim() ? "Opens the AI with your question and this question attached as reference." : "Opens the AI in a new tab with this question pre-filled"}
                   {!askText.trim() && (showAnswer ? "." : " (answer hidden until you reveal it).")}
+                  {" "}OpenEvidence copies that complete prompt to your clipboard for pasting because its site does not accept pre-filled links.
                 </p>
               </div>
             )}
@@ -3248,6 +3296,9 @@ export default function App() {
         <footer style={s.disclaimer}>
           AI-assisted explanations, flashcards, context, and diagrams can be wrong.
           Always verify against primary sources and your own clinical judgment.
+          <div style={s.shortcutHint}>
+            Shortcuts: A–E / 1–5 answer · Enter submit / next · ← → questions · H next explanation
+          </div>
           {persist && (
             <div style={s.hlHint}>
               <Highlighter size={12} strokeWidth={2.2} /> Select text to highlight · tap a highlight to remove · right-click a choice to cross it out
@@ -5341,6 +5392,7 @@ function PollExtras({ q }: { q: RawQuestion }) {
   const [open, setOpen] = useState<null | "practice" | "context" | "video" | "ai">(null);
   const [ctx, setCtx] = useState<string | null>(null);
   const [ctxLoaded, setCtxLoaded] = useState(false);
+  const [aiNote, setAiNote] = useState("");
   const toggle = (k: NonNullable<typeof open>) => setOpen((cur) => (cur === k ? null : k));
   useEffect(() => {
     if (open === "context" && !ctxLoaded) {
@@ -5382,11 +5434,18 @@ function PollExtras({ q }: { q: RawQuestion }) {
           <div style={{ fontSize: 12, color: "#9aa0ab", marginBottom: 8 }}>Opens in a new tab — the poll stays right here.</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {AI_TARGETS.map((t) => (
-              <button key={t.key} style={s.pollAiTarget} onClick={() => openBgTab(t.url(askAiPrompt(q, "explain", true)))}>
+              <button key={t.key} style={s.pollAiTarget} onClick={() => {
+                void launchAiTarget(t, askAiPrompt(q, "explain", true), openBgTab).then((copied) => {
+                  if (t.copiesPrompt) setAiNote(copied
+                    ? "Full question copied — paste it into OpenEvidence."
+                    : "OpenEvidence opened — copy and paste the question to ask it.");
+                });
+              }}>
                 {t.label} <ExternalLink size={11} strokeWidth={2.2} />
               </button>
             ))}
           </div>
+          {aiNote && <div style={{ marginTop: 8, fontSize: 12, color: "#b9c4cf" }}>{aiNote}</div>}
         </div>
       )}
     </div>
@@ -10560,13 +10619,15 @@ const s: Record<string, React.CSSProperties> = {
   askToggle: { display: "inline-flex", alignItems: "center", gap: 7, background: T.tealSoft, border: `1px solid ${T.tealSoft}`, color: T.tealDeep, padding: "9px 15px", borderRadius: 10, fontSize: 13.5, fontWeight: 700, cursor: "pointer" },
   askToggleOn: { background: T.teal, border: `1px solid ${T.teal}`, color: "#fff" },
   askPanel: { flexBasis: "100%", marginTop: 1, padding: "13px 15px", background: T.card, border: `1px solid ${T.paperEdge}`, borderRadius: 12 },
-  // Floating Next button — liquid glass over the plasma backdrop, pinned to the
-  // bottom-right so it's one tap away at any scroll depth. Everything decorative
+  // Floating Next button — liquid glass over the plasma backdrop. On desktop,
+  // align its right edge with the centered question card instead of the far
+  // viewport edge; max() retains a comfortable 16px inset on narrow screens.
+  // Everything decorative
   // (sheen, specular lens, rim) is a child or pseudo-element, so overflow must
   // stay hidden; the tinted-teal wash keeps it legible when the plasma drifts
   // pale. The safe-area inset keeps it off the iPhone home indicator.
   nextUpFab: {
-    position: "fixed", right: 16, bottom: "calc(20px + env(safe-area-inset-bottom, 0px))", zIndex: 50,
+    position: "fixed", right: "max(16px, calc(50vw - 348px))", bottom: "calc(20px + env(safe-area-inset-bottom, 0px))", zIndex: 50,
     overflow: "hidden", isolation: "isolate",
     display: "inline-flex", alignItems: "center", gap: 9,
     // Opaque teal base under the glass gradient: floating, it now passes over
@@ -10712,6 +10773,7 @@ const s: Record<string, React.CSSProperties> = {
   replyToastX: { display: "grid", placeItems: "center", width: 40, background: "transparent", border: "none", borderLeft: "1px solid rgba(255,255,255,.14)", color: "rgba(255,255,255,.72)", cursor: "pointer", flexShrink: 0 },
 
   disclaimer: { maxWidth: 620, margin: "44px auto 0", paddingTop: 16, borderTop: `1px solid ${T.inkLine}`, color: T.faint, fontSize: 11.5, lineHeight: 1.5, textAlign: "center" },
+  shortcutHint: { marginTop: 7, color: "#8f98a7", fontSize: 10.5 },
   siteReportBtn: { display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: `1px solid ${T.paperEdge}`, color: T.muted, fontSize: 12, padding: "6px 12px", borderRadius: 8, cursor: "pointer" },
   // Footer backdrop switch — quiet by default, brightens on hover (.bgToggle).
   bgToggle: { display: "inline-flex", alignItems: "center", gap: 9, background: "none", border: "none", color: T.faint, fontSize: 12, padding: "4px 6px", cursor: "pointer", transition: "color .18s ease" },
