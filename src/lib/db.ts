@@ -581,13 +581,18 @@ export async function updateProfile(
   if (error) console.warn("updateProfile", error.message);
 }
 
+/** Which decline email the applicant gets: the plain "accounts are limited to
+ *  the program" notice, or the warmer medical-student version that invites
+ *  them to the board-question sections at Tuesday didactics. */
+export type DeclineVariant = "generic" | "student";
+
 /** Decline a pending access request: block the account and email a polite
- *  copyright / residency-only notice (edge function `decline-access`).
+ *  notice (edge function `decline-access`).
  *  Returns null on success, or an error / warning string for the admin UI. */
-export async function declineAccess(profileId: string): Promise<string | null> {
+export async function declineAccess(profileId: string, variant: DeclineVariant = "generic"): Promise<string | null> {
   if (!supabase) return "Supabase is not configured.";
   const { data, error } = await supabase.functions.invoke("decline-access", {
-    body: { profile_id: profileId },
+    body: { profile_id: profileId, variant },
   });
   if (error) {
     console.warn("declineAccess", error.message);

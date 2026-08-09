@@ -107,6 +107,8 @@ export function ZoomLightbox({
       role="dialog"
       aria-modal="true"
       aria-label={alt}
+      // Marks this as an open overlay so App's keyboard shortcuts stand down.
+      data-scrim
       style={{
         position: "fixed",
         inset: 0,

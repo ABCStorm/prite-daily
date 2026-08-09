@@ -55,3 +55,7 @@ enrichment/anking-images/_upload_logs/
 # Podcast matching pipeline: raw feed/transcript cache (~443 MB), rebuildable
 # with `npm run podcasts:index`. public/data/podcasts.json IS committed.
 scripts/podcasts/.cache/
+
+# Python bytecode from the research-articles scripts
+__pycache__/
+*.pyc

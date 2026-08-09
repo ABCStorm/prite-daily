@@ -1,6 +1,12 @@
 // Admin-only: decline a pending access request.
-// Sets the profile to blocked and emails the applicant a polite copyright /
-// residency-only notice via Resend (same secrets as send-daily-reminders).
+// Sets the profile to blocked and emails the applicant a polite notice via
+// Resend (same secrets as send-daily-reminders). Two flavors, chosen by the
+// admin in the Approvals panel via the `variant` field:
+//   "generic" — unknown requester: plain "accounts are limited to the program"
+//               notice. Deliberately does NOT lead with the copyright angle.
+//   "student" — likely M4 or visiting medical student: same restriction, but
+//               framed as a warm invitation to the Tuesday didactics board-
+//               question sessions, which they're welcome to join in person.
 //
 // Secrets (Project Settings → Edge Functions):
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY  (auto-injected)
@@ -33,50 +39,72 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function buildEmail(fullName: string | null): { subject: string; html: string; text: string } {
-  const first = (fullName || "").trim().split(/\s+/)[0] || "there";
-  const subject = "Regarding your PRITE Daily access request";
-  const text =
-    `Hi ${first},\n\n` +
-    `Thank you for your interest in PRITE Daily.\n\n` +
-    `We're not able to approve a full account for this request. The PRITE practice questions ` +
-    `on this site are copyrighted material and are intended for internal use within ` +
-    `our residency program only.\n\n` +
-    `If you're a medical student: due to restrictions from the ABPN, we can't grant a full ` +
-    `account that would let you download questions. That said, we would love to have you join ` +
-    `in the polls during class — you're very welcome there!\n\n` +
-    `If you believe this was a mistake — for example, if you are a current resident, ` +
-    `faculty member, or otherwise affiliated with the program — please email ` +
-    `${CONTACT} and we'll be happy to sort it out.\n\n` +
-    `Thank you for understanding.\n\n` +
-    `— PRITE Daily`;
+export type DeclineVariant = "generic" | "student";
 
-  const html = `<div style="font-family:-apple-system,Segoe UI,system-ui,sans-serif;max-width:520px;margin:0 auto;color:#23262f">
+const shell = (inner: string) => `<div style="font-family:-apple-system,Segoe UI,system-ui,sans-serif;max-width:520px;margin:0 auto;color:#23262f">
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px"><tr>
       <td style="width:32px;height:32px;background:#0e7a6b;border-radius:9px;text-align:center;vertical-align:middle;font-size:15px;font-weight:800;color:#fff;font-family:-apple-system,Segoe UI,system-ui,sans-serif">P</td>
       <td style="padding-left:9px;font-size:18px;font-weight:800;color:#0e7a6b;font-family:-apple-system,Segoe UI,system-ui,sans-serif;vertical-align:middle">PRITE Daily</td>
     </tr></table>
-
-    <p style="font-size:15px;line-height:1.55;margin:0 0 14px">Hi ${escapeHtml(first)},</p>
-    <p style="font-size:15px;line-height:1.55;margin:0 0 14px">Thank you for your interest in PRITE Daily.</p>
-    <p style="font-size:15px;line-height:1.55;margin:0 0 14px">
-      We're not able to approve a full account for this request. The PRITE practice questions on this site
-      are <b>copyrighted material</b> and are intended for <b>internal use within our residency program only</b>.
-    </p>
-    <p style="font-size:15px;line-height:1.55;margin:0 0 14px;padding:12px 14px;background:#f7f4ee;border-left:3px solid #0e7a6b;border-radius:0 8px 8px 0">
-      <b>If you're a medical student:</b> due to restrictions from the ABPN, we can't grant a full account
-      that would let you download questions. That said, we would love to have you join in the polls
-      during class — you're very welcome there!
-    </p>
-    <p style="font-size:15px;line-height:1.55;margin:0 0 14px">
-      If you believe this was a mistake — for example, if you are a current resident, faculty member,
-      or otherwise affiliated with the program — please email
-      <a href="mailto:${CONTACT}" style="color:#0e7a6b;font-weight:600">${CONTACT}</a>
-      and we'll be happy to sort it out.
-    </p>
-    <p style="font-size:15px;line-height:1.55;margin:0 0 22px">Thank you for understanding.</p>
+${inner}
     <p style="font-size:14px;line-height:1.5;color:#5c6d6a;margin:0">— PRITE Daily</p>
   </div>`;
+
+const P = 'style="font-size:15px;line-height:1.55;margin:0 0 14px"';
+const CALLOUT = 'style="font-size:15px;line-height:1.55;margin:0 0 14px;padding:12px 14px;background:#f7f4ee;border-left:3px solid #0e7a6b;border-radius:0 8px 8px 0"';
+
+function buildEmail(fullName: string | null, variant: DeclineVariant): { subject: string; html: string; text: string } {
+  const first = (fullName || "").trim().split(/\s+/)[0] || "there";
+
+  if (variant === "student") {
+    const subject = "About PRITE Daily — and an invitation to our board-question sessions";
+    const text =
+      `Hi ${first},\n\n` +
+      `Thanks for checking out PRITE Daily—and welcome, if you're rotating with us!\n\n` +
+      `A little board-related bureaucracy means we can't give medical students access to the ` +
+      `full question bank. (It's not you. It's psychiatry's version of airport security.)\n\n` +
+      `But you're absolutely welcome at our board-question sessions during Tuesday didactics. ` +
+      `You can answer the live polls from your phone—no account, password, or secret handshake ` +
+      `required—and join the discussion with everyone else.\n\n` +
+      `Hope to see you Tuesday!\n\n` +
+      `— PRITE Daily`;
+
+    const html = shell(`
+    <p ${P}>Hi ${escapeHtml(first)},</p>
+    <p ${P}>Thanks for checking out PRITE Daily—and welcome, if you're rotating with us!</p>
+    <p ${P}>
+      A little board-related bureaucracy means we can't give medical students access to the full question
+      bank. (It's not you. It's psychiatry's version of airport security.)
+    </p>
+    <p ${CALLOUT}>
+      But you're absolutely welcome at our <b>board-question sessions during Tuesday didactics</b>. You can
+      answer the live polls from your phone—no account, password, or secret handshake required—and join the
+      discussion with everyone else.
+    </p>
+    <p style="font-size:15px;line-height:1.55;margin:0 0 22px">Hope to see you Tuesday!</p>`);
+
+    return { subject, html, text };
+  }
+
+  const subject = "About your PRITE Daily access request";
+  const text =
+    `Hi ${first},\n\n` +
+    `Thanks for checking out PRITE Daily!\n\n` +
+    `A little board-related bureaucracy means we have to keep full question-bank accounts ` +
+    `limited to residents and faculty within our program, so we aren't able to set you up ` +
+    `with one. (Nothing personal—it's psychiatry's version of airport security.)\n\n` +
+    `Thanks for understanding, and sorry we couldn't be more help!\n\n` +
+    `— PRITE Daily`;
+
+  const html = shell(`
+    <p ${P}>Hi ${escapeHtml(first)},</p>
+    <p ${P}>Thanks for checking out PRITE Daily!</p>
+    <p ${P}>
+      A little board-related bureaucracy means we have to keep full question-bank accounts limited to
+      residents and faculty within our program, so we aren't able to set you up with one. (Nothing
+      personal—it's psychiatry's version of airport security.)
+    </p>
+    <p style="font-size:15px;line-height:1.55;margin:0 0 22px">Thanks for understanding, and sorry we couldn't be more help!</p>`);
 
   return { subject, html, text };
 }
@@ -111,6 +139,8 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const profileId = typeof body?.profile_id === "string" ? body.profile_id.trim() : "";
+    // Older clients don't send a variant — fall back to the plain notice.
+    const variant: DeclineVariant = body?.variant === "student" ? "student" : "generic";
     if (!profileId) return json({ error: "profile_id required" }, 400);
     if (profileId === uid) return json({ error: "You can't decline your own account." }, 400);
 
@@ -143,7 +173,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { subject, html, text } = buildEmail(target.full_name);
+    const { subject, html, text } = buildEmail(target.full_name, variant);
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -173,7 +203,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    return json({ ok: true, blocked: true, emailed: true, email: target.email });
+    return json({ ok: true, blocked: true, emailed: true, email: target.email, variant });
   } catch (e) {
     return json({ error: String(e) }, 500);
   }

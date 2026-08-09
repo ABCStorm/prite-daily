@@ -87,6 +87,12 @@ export type PollState = {
   revealAt?: number;
   correct: string[]; // populated only once revealed
   standings: TeamStanding[]; // cumulative team leaderboard (highest first)
+  // The teams this session actually has, broadcast so a guest can PICK one
+  // instead of typing it. Standings alone aren't enough: a team with nobody
+  // signed in yet has no row, so a guest arriving early would see a short or
+  // empty list. Optional — an older host just doesn't send it, and the
+  // participant falls back to the team names present in `standings`.
+  teams?: string[];
   rankBy?: "pct" | "total"; // how standings are ranked: team accuracy % (default) or raw total correct — phones show the matching metric
   individuals?: IndividualStanding[]; // cumulative individual leaderboard (highest first)
   teamMode: TeamMode;

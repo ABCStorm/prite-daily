@@ -35,6 +35,10 @@ type Blob = {
   poll_team?: string;
   reward_shown_day?: string; // local YYYY-MM-DD the daily-completion reward was last shown (so revisits that day don't replay it)
   learning_open_sections: string[];
+  /** "What comes first": the daily-set rule ranking and any pinned exam
+      years. Deliberate selections, so the account copy wins outright. */
+  daily_order?: string[];
+  year_focus?: string[];
 };
 
 const LEARNING_SECTION_IDS = new Set([
@@ -82,6 +86,8 @@ function snapshot(uid: string): Blob {
     poll_team: readStr("prite_poll_team"),
     reward_shown_day: readStr("pd_reward_shown_day"),
     learning_open_sections: learningSectionList(readJson("pd_learning_open_sections", ["explanation"])),
+    daily_order: strList(readJson("pd_daily_order", [])),
+    year_focus: strList(readJson("pd_year_focus", [])),
   };
 }
 
@@ -113,6 +119,10 @@ export function syncClientPrefs(uid: string, remoteRaw: Record<string, unknown> 
     learning_open_sections: Array.isArray(r.learning_open_sections)
       ? learningSectionList(r.learning_open_sections)
       : l.learning_open_sections,
+    // Same reasoning: an arrangement (or a cleared one) is a choice, not an
+    // accumulation, so it must not be unioned across devices.
+    daily_order: Array.isArray(r.daily_order) ? strList(r.daily_order) : l.daily_order,
+    year_focus: Array.isArray(r.year_focus) ? strList(r.year_focus) : l.year_focus,
   };
 
   // write the merged state back into the exact keys/formats the UI reads
@@ -130,6 +140,8 @@ export function syncClientPrefs(uid: string, remoteRaw: Record<string, unknown> 
   writeJson("pd_timer_on", merged.timer_on);
   writeJson("pd_timer_secs", merged.timer_secs);
   writeJson("pd_learning_open_sections", merged.learning_open_sections);
+  writeJson("pd_daily_order", merged.daily_order ?? []);
+  writeJson("pd_year_focus", merged.year_focus ?? []);
 
   // one small write per sign-in keeps the server copy honest (and covers the
   // first-ever sync, where the server blob is empty)

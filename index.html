@@ -3,7 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Same ink as T.ink in App.tsx. Tints the iOS Safari toolbars so the bar
+         that slides away while you scroll doesn't strobe white against the app. -->
+    <meta name="theme-color" content="#1b1e2b" />
     <title>PRITE Daily</title>
+    <style>
+      /* Nothing else in the app paints <html>/<body> — every screen sets its
+         background on a div inside #root. That leaves the browser canvas at its
+         UA default (white on a light-appearance phone), which shows through
+         anywhere the app's own boxes don't cover: the rubber-band overscroll
+         strip at the top and bottom, and the sliver revealed while a mobile URL
+         bar collapses. Painting it here is what stops the white edge flicker
+         behind the fixed plasma canvas. */
+      html, body { background: #1b1e2b; }
+      /* The UA's 8px body margin was leaving a gutter around the whole app that
+         the viewport-anchored fixed backdrop and sticky top bar didn't share. */
+      body { margin: 0; }
+    </style>
   </head>
   <body>
     <div id="root"></div>

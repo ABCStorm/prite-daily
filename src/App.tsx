@@ -30,6 +30,24 @@ mermaid.initialize({ startOnLoad: false, theme: "neutral", securityLevel: "loose
    participant's phone render standings. */
 const fmtScore = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
+/** The per-team detail line in every standings view. Shows who ANSWERED against
+    who was assigned — "3 of 4 players answered" — because a team carrying a
+    silent member is really competing a person short, and the bare roster count
+    hid that. Collapses to "4 players answered" when everyone took part. */
+const teamDetail = (t: { members: number; answerers: number; correct: number; answered: number }) =>
+  `${t.answerers === t.members ? t.members : `${t.answerers} of ${t.members}`} ${t.members === 1 ? "player" : "players"} answered · ${fmtScore(t.correct)}/${t.answered} correct`;
+
+/* Two-sentence plain-English note on how team scoring works, under every
+   standings list — it's the first thing anyone asks when the board goes up.
+   The host's copy mentions the ranking switch; the participant's doesn't,
+   since only the host can flip it. */
+const SCORING_RULE =
+  "Each question counts once per team, however many members answer it — if they split, the team gets the fraction that were right.";
+const SCORING_NOTE =
+  `${SCORING_RULE} Teams are ranked by accuracy (correct ÷ answered) so a short-handed team isn't punished for it — use the button above to rank by raw points instead.`;
+const SCORING_NOTE_PARTICIPANT =
+  `${SCORING_RULE} Teams are ranked by accuracy (correct ÷ answered), so a smaller team can still win.`;
+
 /* When you open/advance a question you are often scrolled deep into the prior
    explanation. This pins the white question card just under the sticky chrome
    so the stem is readable without a manual scroll — desktop and mobile.
@@ -118,11 +136,15 @@ import {
 import { ImmersiveScene, ImmersiveFlash } from "./ImmersiveScene";
 import { nextPollDrumrollGif, prefetchPollDrumrollGifs } from "./lib/pollGifs";
 import { AdminUsageDashboard } from "./AdminUsageDashboard";
+import ClosingPlasmaBackground from "./ClosingPlasmaBackground";
+
+// Per-device backdrop preference — "plasma" (default) or "plain".
+const BG_PREF_KEY = "prite.background";
 import {
   loadQuestionBank,
   getMyAnswers, saveAnswer, clearMissedAnswers, getMyNote, saveMyNote,
   getGroupNotes, addGroupNote, deleteGroupNote,
-  listProfiles, updateProfile, declineAccess, setTrainingLevel, getStableTeams, regenerateStableTeams, setStableTeam, removeStableTeam,
+  listProfiles, updateProfile, declineAccess, type DeclineVariant, setTrainingLevel, getStableTeams, regenerateStableTeams, setStableTeam, removeStableTeam,
   listRosterNames, addRosterName, removeRosterName, type RosterName,
   listStudyGuideCreators, setStudyGuideCreator,
   getWeeklyTeams, regenerateWeeklyTeams,
@@ -322,6 +344,26 @@ function ago(iso: string) {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
+/* "My notes" and "Group notes" are the same gesture twice, so they share one
+   row of the learning stack instead of costing two full-width cards. Both stay
+   independently expandable; the pair collapses back to a single column on
+   narrow screens (see .learningPair). Keyed off the cards' own keys so the
+   section list stays the single source of order. */
+function pairNoteCards(cards: React.ReactElement[]): React.ReactNode[] {
+  const out: React.ReactNode[] = [];
+  for (let i = 0; i < cards.length; i++) {
+    if (cards[i].key === "mine" && cards[i + 1]?.key === "group") {
+      out.push(
+        <div key="notesPair" className="learningPair">{cards[i]}{cards[i + 1]}</div>
+      );
+      i++;
+    } else {
+      out.push(cards[i]);
+    }
+  }
+  return out;
+}
+
 // ---- "Ask AI": open an external AI with a pre-filled prompt about this question ----
 type AiStyle = "explain" | "eli10" | "analogies" | "connections" | "historical";
 const AI_STYLES: [AiStyle, string][] = [
@@ -419,6 +461,104 @@ const PRIORITY_YEARS = ["2022", "2023", "2024", "2025"];
 function yearRank(year: string): number {
   const i = PRIORITY_YEARS.indexOf(year);
   return i !== -1 ? i : 4 + (2025 - (Number(year) || 0));
+}
+
+/* ---- What comes first: the daily-set ordering model ----------------------
+   Residents want different things out of a daily set at different points in
+   the year — early on, sweep the newest exams; a month out, drill the sections
+   you keep missing. Rather than guess, the order is a ranked list the user
+   arranges themselves.
+
+   Each rule scores a question (LOWER sorts earlier). The set is sorted by the
+   rules in the user's chosen order, lexicographically: the first rule that
+   distinguishes two questions decides, the rest break ties. That composition
+   is what makes an arbitrary arrangement produce a sensible result instead of
+   needing a special case per combination. */
+type OrderRuleId = "missed" | "weak" | "highyield" | "unseen" | "year";
+
+const ORDER_RULES: { id: OrderRuleId; label: string; hint: string }[] = [
+  { id: "missed",    label: "Questions I got wrong",  hint: "Ones you've missed before come back around first" },
+  { id: "weak",      label: "My weakest sections",    hint: "Sections you score below your own average in" },
+  { id: "highyield", label: "High-yield repeats",     hint: "Questions the PRITE has asked in more than one year" },
+  { id: "unseen",    label: "Questions I've never seen", hint: "Fresh material ahead of anything you've attempted" },
+  { id: "year",      label: "Exam year",              hint: "Newest exams first, unless you pin years below" },
+];
+
+// Matches the behaviour that shipped before this setting existed: missed
+// questions first, then newest exams. Existing users see no change until they
+// rearrange something.
+const DEFAULT_ORDER: OrderRuleId[] = ["missed", "year", "weak", "highyield", "unseen"];
+
+function normalizeOrder(raw: unknown): OrderRuleId[] {
+  const ids = ORDER_RULES.map((r) => r.id);
+  const seen = Array.isArray(raw)
+    ? raw.filter((v): v is OrderRuleId => typeof v === "string" && (ids as string[]).includes(v))
+    : [];
+  const deduped = [...new Set(seen)];
+  // Anything the stored list is missing (a rule added in a later release)
+  // falls in at its default position rather than silently disappearing.
+  return [...deduped, ...DEFAULT_ORDER.filter((id) => !deduped.includes(id))];
+}
+
+/** Categories this resident is weakest in, worst first. Accuracy only means
+    something once there's history, so a category needs MIN_TRIED attempts to
+    rank at all — otherwise one unlucky question brands a whole section a weak
+    spot. Kept to those below the resident's own overall accuracy, capped at 5
+    so "weakest" stays focused instead of becoming most of the bank. */
+function weakCategories(all: RawQuestion[], answers: Record<string, AnswerRow>) {
+  const MIN_TRIED = 4;
+  const tally = new Map<string, { tried: number; right: number }>();
+  for (const q of all) {
+    const row = answers[questionId(q.year, q.q_index)];
+    if (!row || !q.prite_category) continue;
+    const t = tally.get(q.prite_category) ?? { tried: 0, right: 0 };
+    t.tried += 1;
+    if (row.correct) t.right += 1;
+    tally.set(q.prite_category, t);
+  }
+  const totalTried = [...tally.values()].reduce((n, t) => n + t.tried, 0);
+  const totalRight = [...tally.values()].reduce((n, t) => n + t.right, 0);
+  if (!totalTried) return [] as { cat: string; acc: number; tried: number }[];
+  const overall = totalRight / totalTried;
+  return [...tally.entries()]
+    .filter(([, t]) => t.tried >= MIN_TRIED)
+    .map(([c, t]) => ({ cat: c, acc: t.right / t.tried, tried: t.tried }))
+    .filter((r) => r.acc < overall)
+    .sort((a, b) => a.acc - b.acc)
+    .slice(0, 5);
+}
+
+/** Build the comparator for a given arrangement. `missedIds` is the set the
+    caller already identified as due-for-another-attempt, so "wrong" means the
+    same thing here as it does everywhere else in the app. */
+function orderComparator(opts: {
+  order: OrderRuleId[];
+  yearFocus: string[];
+  weakCats: Set<string>;
+  missedIds: Set<string>;
+  answers: Record<string, AnswerRow>;
+}) {
+  const { order, yearFocus, weakCats, missedIds, answers } = opts;
+  const score = (q: RawQuestion, rule: OrderRuleId): number => {
+    switch (rule) {
+      case "missed": return missedIds.has(questionId(q.year, q.q_index)) ? 0 : 1;
+      case "weak": return weakCats.has(q.prite_category ?? "") ? 0 : 1;
+      // Negated so the most-repeated question sorts earliest.
+      case "highyield": return -(q.repeat_count ?? 1);
+      case "unseen": return answers[questionId(q.year, q.q_index)] ? 1 : 0;
+      case "year": {
+        const pinned = yearFocus.indexOf(q.year);
+        return pinned !== -1 ? pinned : yearFocus.length + yearRank(q.year);
+      }
+    }
+  };
+  return (a: RawQuestion, b: RawQuestion) => {
+    for (const rule of order) {
+      const d = score(a, rule) - score(b, rule);
+      if (d) return d;
+    }
+    return 0;
+  };
 }
 
 type Span = { start: number; end: number };
@@ -622,6 +762,27 @@ export default function App() {
   const [askOpen, setAskOpen] = useState(false);
   const [askStyle, setAskStyle] = useState<AiStyle>("explain");
   const [askText, setAskText] = useState("");
+  // Animated backdrop on/off. Deliberately localStorage rather than the
+  // account-scoped settings table: this is a per-device call (the shader is
+  // real GPU work, and the laptop you read on at 2am isn't the workstation),
+  // and reading it synchronously here means no flash of plasma before a
+  // fetched preference could turn it off.
+  const [plasmaBg, setPlasmaBg] = useState<boolean>(() => {
+    try { return localStorage.getItem(BG_PREF_KEY) !== "plain"; } catch { return true; }
+  });
+  const togglePlasmaBg = () => setPlasmaBg((on) => {
+    const next = !on;
+    try { localStorage.setItem(BG_PREF_KEY, next ? "plasma" : "plain"); } catch { /* private mode — session-only is fine */ }
+    return next;
+  });
+  // Brief "launch" state for the inline Next button — the arrow flies off before
+  // we actually advance, so the click gets a beat of feedback instead of the
+  // question swapping out from under the cursor.
+  const [nextLaunching, setNextLaunching] = useState(false);
+  // Drag-to-peel: true while a finger/cursor is driving the fold by hand.
+  const [peeling, setPeeling] = useState(false);
+  const peelRef = useRef<{ id: number; startX: number; w: number; p: number; anims: Animation[] } | null>(null);
+  const stackRef = useRef<HTMLDivElement | null>(null);
   const [myNote, setMyNote] = useState("");
   const [draft, setDraft] = useState("");
   const [toast, setToast] = useState<string | null>(null);
@@ -832,6 +993,19 @@ export default function App() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [mode, setMode] = useState<"today" | "browse" | "custom">("today");
+  // What comes first in the daily set. Local-first like the other UI prefs, so
+  // it works signed-out; mirrored to the account by prefsSync.
+  const [showOrder, setShowOrder] = useState(false);
+  const [dailyOrder, setDailyOrder] = useState<OrderRuleId[]>(() => {
+    try { return normalizeOrder(JSON.parse(localStorage.getItem("pd_daily_order") || "null")); }
+    catch { return DEFAULT_ORDER; }
+  });
+  const [yearFocus, setYearFocus] = useState<string[]>(() => {
+    try {
+      const v = JSON.parse(localStorage.getItem("pd_year_focus") || "[]");
+      return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+    } catch { return []; }
+  });
   const [todayQueue, setTodayQueue] = useState<RawQuestion[]>([]);
   const [customQueue, setCustomQueue] = useState<RawQuestion[]>([]);
   const [customLabel, setCustomLabel] = useState<string>("");
@@ -902,6 +1076,9 @@ export default function App() {
           setTimerSecs(clampSecs(merged.timer_secs ?? 60));
           setSecsDraft(String(clampSecs(merged.timer_secs ?? 60)));
           setSeenGuideIds(new Set(merged.seen_study_guides));
+          // normalizeOrder fills in any rule the stored copy predates.
+          setDailyOrder(normalizeOrder(merged.daily_order));
+          setYearFocus(merged.year_focus ?? []);
           const learningDefaults = new Set(merged.learning_open_sections ?? ["explanation"]);
           preferredOpenSectionsRef.current = learningDefaults;
           setPreferredOpenSections(learningDefaults);
@@ -914,6 +1091,55 @@ export default function App() {
       getPollAnsweredQuestionIds().then(setPollAnsweredIds);
     } else { setAnswers({}); setAnswersLoaded(false); setSettings(null); setSrsDue([]); setSavedTests([]); setPrefsSynced(false); setPollAnsweredIds([]); }
   }, [persist]); // eslint-disable-line
+
+  const orderCustomized =
+    dailyOrder.join() !== DEFAULT_ORDER.join() || yearFocus.length > 0;
+  const weakAreasForOrder = useMemo(() => weakCategories(all ?? [], answers), [all, answers]);
+  /* The panel's live preview. Runs the same comparator over the same candidate
+     pool buildToday draws from — everything unanswered, plus anything missed —
+     so the list updates the instant a rule is dragged, including before a set
+     has been built. It shows ordering only; the daily cap and the review quota
+     are applied later by buildToday. */
+  const orderPreview = useMemo(() => {
+    if (!all) return [];
+    const pool = all.filter((q) => {
+      const row = answers[questionId(q.year, q.q_index)];
+      return !row || (!row.correct && !row.cleared);
+    });
+    const missed = new Set(
+      pool.filter((q) => answers[questionId(q.year, q.q_index)]).map((q) => questionId(q.year, q.q_index)),
+    );
+    return pool
+      .slice()
+      .sort(orderComparator({
+        order: dailyOrder,
+        yearFocus,
+        weakCats: new Set(weakAreasForOrder.map((w) => w.cat)),
+        missedIds: missed,
+        answers,
+      }))
+      .slice(0, 8);
+  }, [all, answers, dailyOrder, yearFocus, weakAreasForOrder]);
+  /* Every year in the bank, built from the data so a newly published exam
+     appears without a code change. Sorted plain newest-first, NOT by yearRank:
+     that ranking is the app's internal serving preference, and showing a picker
+     as 2023, 2024, 2025, 2021 just looks broken to the person reading it. */
+  const bankYears = useMemo(
+    () => [...new Set((all ?? []).map((q) => q.year))].sort((a, b) => (Number(b) || 0) - (Number(a) || 0)),
+    [all],
+  );
+  const applyOrder = (patch: { order?: OrderRuleId[]; yearFocus?: string[] }) => {
+    if (patch.order) {
+      setDailyOrder(patch.order);
+      try { localStorage.setItem("pd_daily_order", JSON.stringify(patch.order)); } catch { /* private mode */ }
+    }
+    if (patch.yearFocus) {
+      setYearFocus(patch.yearFocus);
+      try { localStorage.setItem("pd_year_focus", JSON.stringify(patch.yearFocus)); } catch { /* private mode */ }
+    }
+    schedulePrefsPush();
+  };
+  const resetOrder = () => applyOrder({ order: DEFAULT_ORDER, yearFocus: [] });
 
   // build today's set: due-review (missed, past the recycle interval) first,
   // then new unanswered, capped at the regimen. Built from an answers snapshot
@@ -941,15 +1167,31 @@ export default function App() {
       // window, at the front of Today) even after it was re-answered right.
       else if (recycle && !row.correct && !row.cleared && now - Date.parse(row.updated_at) >= afterMs) due.push(qq);
     }
-    // serve recent exams first (2022 → 2025, then older); stable sort keeps
-    // each year's questions in their natural order
-    fresh.sort((x, y) => yearRank(x.year) - yearRank(y.year));
-    // include up to `reviewCap` due-review questions, fill the rest with new
+    // Order by whatever the resident arranged in "What comes first". The sort
+    // is stable, so questions the rules can't tell apart keep their natural
+    // order within a year.
+    const missedIds = new Set(due.map((qq) => questionId(qq.year, qq.q_index)));
+    const cmp = orderComparator({
+      order: dailyOrder,
+      yearFocus,
+      weakCats: new Set(weakCategories(all, a).map((w) => w.cat)),
+      missedIds,
+      answers: a,
+    });
+    fresh.sort(cmp);
+    due.sort(cmp);
+    // include up to `reviewCap` due-review questions, fill the rest with new.
+    // The cap still applies however the rules are arranged — a resident with a
+    // long miss list shouldn't get a set that is nothing but repeats.
     const reviewCount = Math.min(reviewCap, due.length, remaining);
     const fresher = fresh.slice(0, Math.max(0, remaining - reviewCount));
     setReviewMode(false);
-    setTodayQueue([...due.slice(0, reviewCount), ...fresher]);
-  }, [all, settings]);
+    // "Questions I got wrong" ranked first keeps the historical behaviour of
+    // leading with them; ranked lower, they fall in among the fresh ones.
+    const picked = [...due.slice(0, reviewCount), ...fresher];
+    if (dailyOrder.indexOf("missed") > 0) picked.sort(cmp);
+    setTodayQueue(picked);
+  }, [all, settings, dailyOrder, yearFocus]);
 
   // build a review-only set from every currently-missed question, presented
   // fresh (answer hidden) for a second attempt
@@ -1441,20 +1683,26 @@ export default function App() {
   // Scroll edge effect: the translucent top bar only casts a shadow once
   // content is actually scrolled underneath it (no hard divider at rest).
   const [scrolled, setScrolled] = useState(false);
-  // Far enough down that the top nav's Next button is off screen — that's when
-  // the floating one earns its place (see s.fabNext).
-  const [deepScrolled, setDeepScrolled] = useState(false);
   useEffect(() => {
     const on = () => {
-      const y = window.scrollY;
-      setScrolled(y > 6);
-      setDeepScrolled(y > 420);
+      setScrolled(window.scrollY > 6);
     };
     on();
     window.addEventListener("scroll", on, { passive: true });
     return () => window.removeEventListener("scroll", on);
   }, []);
 
+  // ---- Keyboard shortcuts -------------------------------------------------
+  // The listener is registered once; the handler itself is rebuilt on every
+  // render into a ref (same pattern as finalizeRef), because everything it
+  // needs — picked, canSubmit, the section list — is computed below the early
+  // returns, where a hook can't go.
+  const hotkeyRef = useRef<(e: KeyboardEvent) => void>(() => {});
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => hotkeyRef.current(e);
+    window.addEventListener("keydown", on);
+    return () => window.removeEventListener("keydown", on);
+  }, []);
 
   // --- auth gate (only when Supabase is configured) ---
   if (isConfigured && authLoading) return <Center>Signing you in…</Center>;
@@ -1478,7 +1726,9 @@ export default function App() {
         onClose={() => setJoinCode(null)}
       />
     );
-  if (isConfigured && !session) return <SignIn />;
+  // Unlisted demo of the standings board + scoring rules (see DemoStandings).
+  if (new URLSearchParams(location.search).get("demoStandings") === "1") return <DemoStandings />;
+  if (isConfigured && !session) return <SignIn onJoinPoll={setGuestPollCode} />;
   if (isConfigured && session && (!profile || profile.status !== "approved"))
     return <Pending email={session.user.email ?? ""} status={profile?.status ?? "pending"} />;
   if (isConfigured && session && profile && profile.status === "approved" && !profile.training_level)
@@ -1541,6 +1791,105 @@ export default function App() {
   const submit = () => finalize(false);
 
   const go = (delta: number) => setQi((i) => (i + delta + set.length) % set.length);
+  // Inline "Next question" button: let the arrow fly, then advance. The guard
+  // keeps an impatient double-click from skipping two questions, and the timer
+  // only fires if we're still on the question that was clicked — otherwise
+  // reaching for the header arrows mid-animation would skip an extra one.
+  // Liquid-glass reactivity: the specular highlight and the parallax tilt both
+  // read --gx/--gy, written straight to the node so a mousemove never costs a
+  // React render. Percentages, so they survive any resize.
+  const trackGlass = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const el = e.currentTarget;
+    const r = el.getBoundingClientRect();
+    el.style.setProperty("--gx", `${(((e.clientX - r.left) / r.width) * 100).toFixed(1)}%`);
+    el.style.setProperty("--gy", `${(((e.clientY - r.top) / r.height) * 100).toFixed(1)}%`);
+  };
+  const resetGlass = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.currentTarget.style.setProperty("--gx", "50%");
+    e.currentTarget.style.setProperty("--gy", "50%");
+  };
+
+  // The sheet folds away over the next one (nextLaunching); by the time the
+  // fold clears the spine the plate underneath is already showing, so the new
+  // question just needs its content to land — .qIn handles that.
+  const launchNext = () => {
+    if (nextLaunching) return;
+    const from = qi;
+    setNextLaunching(true);
+    window.setTimeout(() => {
+      setNextLaunching(false);
+      setQi((i) => (i === from ? (i + 1) % set.length : i));
+    }, 300);
+  };
+
+  // ---- Drag-to-peel ----------------------------------------------------
+  // StPageFlip's one feature worth chasing: the fold follows your hand. The
+  // grip is a narrow strip pinned to the card's right edge, sized to sit
+  // inside the card's own padding so it never covers an option row — a wider
+  // hit area would swallow clicks on the right end of the answers.
+  const FOLD_MS = 300;
+  const foldAnims = () =>
+    stackRef.current
+      ? stackRef.current
+          .getAnimations({ subtree: true })
+          .filter((a) => String((a as unknown as { animationName?: string }).animationName ?? "").startsWith("fold"))
+      : [];
+
+  const peelDown = (e: React.PointerEvent<HTMLSpanElement>) => {
+    if (nextLaunching || set.length < 2) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const box = stackRef.current?.getBoundingClientRect();
+    if (!box) return;
+    // Capture keeps the fold tracking once the pointer leaves the strip, which
+    // it does immediately. Not fatal if the browser refuses the id.
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* keep peeling */ }
+    peelRef.current = { id: e.pointerId, startX: e.clientX, w: box.width, p: 0, anims: [] };
+    // Both flags in one render: the layers mount, and .peeling swaps the
+    // easing to linear so the fold line tracks the pointer 1:1 instead of
+    // arriving somewhere else through the ease curve.
+    setPeeling(true);
+    setNextLaunching(true);
+  };
+
+  const peelMove = (e: React.PointerEvent<HTMLSpanElement>) => {
+    const d = peelRef.current;
+    if (!d || e.pointerId !== d.id) return;
+    // Collected on first move, not on pointerdown — React hasn't mounted the
+    // fold layers yet at press time, so there'd be nothing to find.
+    if (!d.anims.length) {
+      d.anims = foldAnims();
+      d.anims.forEach((a) => a.pause());
+    }
+    d.p = Math.max(0, Math.min(1, (d.startX - e.clientX) / d.w));
+    d.anims.forEach((a) => { a.currentTime = d.p * FOLD_MS; });
+  };
+
+  const peelUp = () => {
+    const d = peelRef.current;
+    if (!d) return;
+    peelRef.current = null;
+    // A press with no movement is a stray tap on the strip, not a peel.
+    if (!d.anims.length) { setPeeling(false); setNextLaunching(false); return; }
+    // Past the midpoint of the visible fold it wants to fall open; short of
+    // that it springs back and the question is unchanged.
+    const commit = d.p > 0.38;
+    d.anims.forEach((a) => { a.playbackRate = commit ? 1 : -1; a.play(); });
+    let settled = false;
+    const settle = () => {
+      if (settled) return;
+      settled = true;
+      setPeeling(false);
+      setNextLaunching(false);
+      if (commit) setQi((i) => (i + 1) % set.length);
+    };
+    // Reversing finishes at time 0; either direction resolves the same way.
+    d.anims[0].finished.then(settle, settle);
+    // Backstop: a tab switched to the background mid-peel throttles its
+    // animations, so `finished` may never fire and the card would sit frozen
+    // half-folded. Whichever lands first wins; settle() only runs once.
+    window.setTimeout(settle, FOLD_MS + 150);
+  };
+
   const doJump = () => {
     const n = parseInt(jump, 10);
     if (!isNaN(n) && n >= 1 && n <= set.length) setQi(n - 1);
@@ -1595,6 +1944,78 @@ export default function App() {
     // Choosing "Keep open" should be immediately visible; removing the saved
     // default intentionally leaves this one card's current state untouched.
     if (willKeepOpen) setOpenSections((current) => new Set(current).add(id));
+  };
+
+  /** Scroll a learning card under the sticky header rather than behind it. */
+  const scrollToSection = (id: string) => {
+    const card = document.getElementById(`learning-${q?.year}-${q?.q_index}-${id}`)?.closest("article");
+    if (!card) return;
+    const headerH = (document.querySelector("[data-topbar]") as HTMLElement | null)?.offsetHeight ?? 0;
+    window.scrollTo({ top: card.getBoundingClientRect().top + window.scrollY - headerH - 12, behavior: "smooth" });
+  };
+
+  // "h" walks down the learning stack: open the first card that's still closed
+  // and scroll to it. With everything already open it just steps to the next
+  // card below where you are, so holding h reads the stack top to bottom.
+  const openNextSection = () => {
+    const closed = sections.find(([id]) => !openSections.has(id));
+    if (closed) {
+      setOpenSections((current) => new Set(current).add(closed[0]));
+      // Wait a frame for the card to start expanding, or the scroll target is
+      // measured against its collapsed height.
+      requestAnimationFrame(() => scrollToSection(closed[0]));
+      return;
+    }
+    const headerH = (document.querySelector("[data-topbar]") as HTMLElement | null)?.offsetHeight ?? 0;
+    const next = sections.find(([id]) => {
+      const card = document.getElementById(`learning-${q?.year}-${q?.q_index}-${id}`)?.closest("article");
+      return card ? card.getBoundingClientRect().top > headerH + 20 : false;
+    });
+    scrollToSection((next ?? sections[0])[0]);
+  };
+
+  // A–E (or 1–5) picks an option, Enter submits it and then advances, arrows
+  // move between questions, h walks the learning stack. Assigned every render
+  // so the handler always closes over the current question and selection.
+  hotkeyRef.current = (e: KeyboardEvent) => {
+    if (e.metaKey || e.ctrlKey || e.altKey || !q) return;
+    const el = e.target as HTMLElement | null;
+    // Never steal a keystroke that's being typed into something.
+    if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+    // A modal is its own keyboard context; don't drive the question underneath.
+    if (document.querySelector("[data-scrim]")) return;
+
+    // Letter/number keys select, right up until the answer is in.
+    if (!revealed && e.key.length === 1) {
+      const letter = /[a-z]/i.test(e.key)
+        ? q.options.find((o) => o.letter.toLowerCase() === e.key.toLowerCase())?.letter
+        : /[1-9]/.test(e.key)
+          ? q.options[Number(e.key) - 1]?.letter
+          : undefined;
+      if (letter) { e.preventDefault(); togglePick(letter); return; }
+    }
+
+    if (e.key === "h" || e.key === "H") {
+      if (!showAnswer) return;
+      e.preventDefault();
+      openNextSection();
+      return;
+    }
+
+    // Held keys would race the peel animation and skip questions.
+    if (e.repeat) return;
+    if (e.key === "Enter") {
+      if (!revealed && canSubmit) { e.preventDefault(); submit(); }
+      // Exam mode advances itself once an answer is in — don't double-step it.
+      else if (revealed && !examActive) { e.preventDefault(); launchNext(); }
+      return;
+    }
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      if (revealed && !examActive) launchNext(); else go(1);
+      return;
+    }
+    if (e.key === "ArrowLeft") { e.preventDefault(); go(-1); }
   };
 
   const qid = q ? questionId(q.year, q.q_index) : "";
@@ -1780,6 +2201,11 @@ export default function App() {
   return (
     <div style={s.root} className={mobMenuOpen ? "mobMenuOpen" : undefined}>
       <style>{CSS}</style>
+      {/* Ambient plasma backdrop, shared with Quizapine but run slower here —
+          0.12 is roughly half Quizapine's 0.25 and an eighth of Componentry's
+          default, slow enough that it never pulls your eye off a stem.
+          Unmounted (not hidden) when switched off, so the shader stops. */}
+      {plasmaBg && <ClosingPlasmaBackground speed={0.12} />}
 
       {/* Top bar */}
       <header data-topbar style={{ ...s.top, ...(scrolled ? s.topScrolled : {}) }}>
@@ -1899,18 +2325,28 @@ export default function App() {
         </div>
       </header>
 
-      {/* Explanations run long, and the only Next button lived up in the top
-          nav — so finishing one meant scrolling all the way back up. This
-          floats in once you're past the fold on a question you've already
-          answered, and gets out of the way otherwise. */}
-      {set.length > 0 && q && showAnswer && deepScrolled && (
+      {/* Explanations run long, so "Next question" floats instead of living in
+          the Ask AI row: once an answer is showing it stays pinned bottom-right
+          at every scroll position, rather than appearing only past the fold. */}
+      {set.length > 0 && q && showAnswer && (
         <button
-          style={s.fabNext}
-          onClick={() => go(1)}
-          title="Next question"
+          className={`nextUp nextUpFab${nextLaunching ? " nextUpGo" : ""}`}
+          style={s.nextUpFab}
+          onClick={launchNext}
+          onMouseMove={trackGlass}
+          onMouseLeave={resetGlass}
+          title="Go to the next question (Enter or →)"
           aria-label="Next question"
         >
-          Next <ArrowRight size={15} strokeWidth={2.5} />
+          {/* Two glass layers under the label: a specular blob that chases the
+              cursor, and a fixed top-edge highlight for the "thick pane" read.
+              Both are aria-hidden decoration. */}
+          <span className="nextUpLens" aria-hidden />
+          <span className="nextUpRim" aria-hidden />
+          <span style={{ position: "relative" }}>Next question</span>
+          <span className="nextUpArrow" aria-hidden>
+            <ArrowRight size={16} strokeWidth={2.6} />
+          </span>
         </button>
       )}
 
@@ -1934,6 +2370,18 @@ export default function App() {
                 <Layers size={13} strokeWidth={2.2} /> Browse
               </button>
             </div>
+          )}
+          {/* Sits right beside the Today tab, because that is the set it
+              reorders — buried in Settings nobody would find it. */}
+          {persist && mode === "today" && (
+            <button
+              style={{ ...s.deckBtn, ...(orderCustomized ? s.deckBtnOn : {}) }}
+              onClick={() => setShowOrder(true)}
+              title="Choose what shows up first in your daily questions"
+            >
+              <GripVertical size={13} strokeWidth={2.3} /> What comes first
+              {orderCustomized && <span style={s.deckDot} />}
+            </button>
           )}
           {/* Not behind the mobile Menu: this is the one control that answers
               "give me my wrong ones" / "give me ones I haven't done", and a
@@ -2023,7 +2471,7 @@ export default function App() {
             <div style={s.navMid}>
               <button style={s.navBtn} onClick={() => go(-1)} title="Previous"><ArrowLeft size={16} strokeWidth={2.4} /></button>
               <span style={s.navInfo}>{qi + 1} <span style={{ color: T.faint }}>/ {set.length}</span></span>
-              <button style={s.navBtn} onClick={() => go(1)} title="Next"><ArrowRight size={16} strokeWidth={2.4} /></button>
+              <button style={s.navBtn} onClick={launchNext} title="Next"><ArrowRight size={16} strokeWidth={2.4} /></button>
             </div>
           )}
           {!inToday && (
@@ -2145,8 +2593,16 @@ export default function App() {
           )}
         </div>
 
-        {/* Question card */}
-        <section data-qcard style={examActive ? { ...s.qcard, marginTop: 30, padding: "36px 38px 30px" } : s.qcard}>
+        {/* Question card. During a turn it sits in a three-deck stack: the next
+            sheet underneath, the card itself being clipped away by the fold,
+            and the fold's paper + lighting layers on top. The layers have to be
+            siblings, not children — the card is what gets clipped, so anything
+            inside it would be clipped along with the text. */}
+        <div className={peeling ? "pageStack peeling" : "pageStack"} ref={stackRef}>
+          {nextLaunching && (
+            <span aria-hidden style={{ ...s.qcard, position: "absolute", inset: 0, padding: 0 }} />
+          )}
+        <section data-qcard className={nextLaunching ? "pageFold" : undefined} style={examActive ? { ...s.qcard, marginTop: 30, padding: "36px 38px 30px" } : s.qcard}>
           {q.figure_images.filter((p) => imgSrc(p)).length > 0 && (
             <>
               <div style={s.figRow}>
@@ -2253,6 +2709,7 @@ export default function App() {
                 style={{ ...s.primary, opacity: canSubmit ? 1 : 0.45, cursor: canSubmit ? "pointer" : "not-allowed" }}
                 onClick={submit}
                 disabled={!canSubmit}
+                title="Submit (Enter) · pick with A–E"
               >
                 {examActive ? "Lock in" : "Submit"}{q.multi_select && picked.length ? ` (${picked.length})` : ""}
               </button>
@@ -2265,7 +2722,7 @@ export default function App() {
               </span>
               <span style={s.lockedHint}>Explanations are held until you finish the set.</span>
               {qi < set.length - 1 && (
-                <button style={s.doneBtn} onClick={() => go(1)}>Next <ArrowRight size={13} strokeWidth={2.3} /></button>
+                <button style={s.doneBtn} onClick={launchNext}>Next <ArrowRight size={13} strokeWidth={2.3} /></button>
               )}
             </div>
           ) : (
@@ -2303,6 +2760,29 @@ export default function App() {
             </div>
           )}
         </section>
+          {nextLaunching && (
+            <>
+              <span className="foldEdge" aria-hidden />
+              <span className="foldFlap" aria-hidden />
+              <span className="foldCrease" aria-hidden />
+              <span className="foldSheen" aria-hidden />
+            </>
+          )}
+          {/* Not in exam mode: there the Next button is deliberately withheld on
+              the last question so the set can't wrap, and a stray drag during a
+              timed test shouldn't be able to skip an item. */}
+          {set.length > 1 && !examActive && (
+            <span
+              className="peelGrip"
+              aria-hidden
+              title="Drag left to turn the page"
+              onPointerDown={peelDown}
+              onPointerMove={peelMove}
+              onPointerUp={peelUp}
+              onPointerCancel={peelUp}
+            />
+          )}
+        </div>
 
         {/* Ask AI — hidden in exam mode, where answers are held until review */}
         {!examActive && (
@@ -2319,6 +2799,9 @@ export default function App() {
                 🤷 I have no clue <ExternalLink size={12} strokeWidth={2.2} />
               </button>
             )}
+            {/* "Next question" used to sit here at the right of the row; it now
+                floats bottom-right (see s.nextUpFab) so it stays reachable from
+                anywhere in a long explanation. */}
             {askOpen && (
               <div style={s.askPanel} className="fade">
                 <div style={s.askRow}>
@@ -2361,12 +2844,10 @@ export default function App() {
             stays visible as a table of contents instead of disappearing behind tabs. */}
         {showAnswer && (
           <section style={s.below}>
+            {/* No "Learning guide / Build out the answer" heading: the cards
+                below say what they are, and the title + hint pushed the
+                explanation an extra ~70px down the page. Just the controls. */}
             <div style={s.learningHead} className="learningHead">
-              <div>
-                <span style={s.learningEyebrow}>Learning guide</span>
-                <h3 style={s.learningTitle}>Build out the answer</h3>
-                <p style={s.learningHint}>Choose <b>Keep open</b> on any card to save your defaults across devices.</p>
-              </div>
               <div style={s.learningActions} className="learningActions">
                 <button
                   style={s.learningAction}
@@ -2379,10 +2860,14 @@ export default function App() {
             </div>
 
             <div style={s.learningStack}>
-              {sections.map(([id, label, summary, icon], sectionIndex) => {
+              {pairNoteCards(sections.map(([id, label, summary, icon], sectionIndex) => {
                 const isOpen = openSections.has(id);
                 const isKeptOpen = preferredOpenSections.has(id);
                 const bodyId = `learning-${q.year}-${q.q_index}-${id}`;
+                // The two notes cards show no number (see .learningIndexCell),
+                // so they don't consume one either — otherwise the visible
+                // sequence would read 04 then 07.
+                const stepNumber = sections.slice(0, sectionIndex).filter(([sid]) => sid !== "mine" && sid !== "group").length + 1;
                 return (
                   <article
                     key={id}
@@ -2398,8 +2883,8 @@ export default function App() {
                         aria-expanded={isOpen}
                         aria-controls={bodyId}
                       >
-                        <span style={{ ...s.learningIndex, ...(isOpen ? s.learningIndexOpen : {}) }}>
-                          {String(sectionIndex + 1).padStart(2, "0")}
+                        <span className="learningIndexCell" style={{ ...s.learningIndex, ...(isOpen ? s.learningIndexOpen : {}) }}>
+                          {String(stepNumber).padStart(2, "0")}
                         </span>
                         <span style={{ ...s.learningIcon, ...(isOpen ? s.learningIconOpen : {}) }}>{icon}</span>
                         <span style={s.learningCardText}>
@@ -2722,14 +3207,11 @@ export default function App() {
                     </div>
                   </article>
                 );
-              })}
+              }))}
             </div>
 
-            <div style={s.nextRow}>
-              <button style={s.next} onClick={() => go(1)}>
-                Next question <ArrowRight size={16} strokeWidth={2.4} />
-              </button>
-            </div>
+            {/* The end-of-stack Next button is gone: the floating one sits in
+                the same corner and always shows, so the two overlapped. */}
           </section>
         )}
         </>
@@ -2789,6 +3271,26 @@ export default function App() {
               </a>
             </div>
           )}
+          {/* Backdrop switch — down here on purpose. It's a preference you set
+              once, so it shouldn't take up room next to the question. Not gated
+              on sign-in: the backdrop renders for everyone, so the way out of it
+              has to as well. */}
+          <div style={{ marginTop: 14 }}>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={plasmaBg}
+              style={s.bgToggle}
+              onClick={togglePlasmaBg}
+              title={plasmaBg ? "Switch to the plain background" : "Switch to the animated background"}
+            >
+              <span style={{ ...s.bgTrack, ...(plasmaBg ? s.bgTrackOn : {}) }}>
+                <span style={{ ...s.bgKnob, ...(plasmaBg ? s.bgKnobOn : {}) }} />
+              </span>
+              Animated background
+            </button>
+          </div>
+
           <div style={{ marginTop: 14 }}>
             <a href="https://quizapine.com" target="_blank" rel="noopener noreferrer" style={s.quizapineAd} title="More practice questions at Quizapine">
               <span style={s.quizapineBadge}><Share2 size={10} strokeWidth={2.6} color="#fff" /></span>
@@ -2799,7 +3301,7 @@ export default function App() {
       </main>
 
       {reminderPromptStage && (
-        <div style={s.scrim} onClick={dismissReminderPrompt}>
+        <div data-scrim style={s.scrim} onClick={dismissReminderPrompt}>
           <div style={{ ...s.apPanel, maxWidth: 380 }} onClick={(e) => e.stopPropagation()} className="rise">
             <div style={{ padding: "28px 26px 24px", textAlign: "center" }}>
               <div style={{ fontSize: 32, marginBottom: 10 }}>📬</div>
@@ -2819,7 +3321,7 @@ export default function App() {
       )}
 
       {aiDisclaimerStage && (
-        <div style={s.scrim} onClick={dismissAiDisclaimer}>
+        <div data-scrim style={s.scrim} onClick={dismissAiDisclaimer}>
           <div style={{ ...s.apPanel, maxWidth: 420 }} onClick={(e) => e.stopPropagation()} className="rise">
             <div style={{ padding: "28px 26px 24px", textAlign: "center" }}>
               <div style={{ fontSize: 32, marginBottom: 10 }}>🤖</div>
@@ -3051,6 +3553,19 @@ export default function App() {
         />
       )}
 
+      {showOrder && (
+        <DailyOrderPanel
+          order={dailyOrder}
+          yearFocus={yearFocus}
+          years={bankYears}
+          preview={orderPreview}
+          weakAreas={weakAreasForOrder}
+          onChange={applyOrder}
+          onReset={resetOrder}
+          onClose={() => setShowOrder(false)}
+        />
+      )}
+
       {showMissed && (
         <MissedPanel
           missedIds={missedIds}
@@ -3115,7 +3630,22 @@ export default function App() {
           closing={hostClosing}
           onExited={() => { setHostCode(null); setHostSet(null); setHostClosing(false); if (hostFromTests) { setShowTests(true); setHostFromTests(false); } }}
         >
-          <PollPresenter code={hostCode} set={hostSet ?? set} startIndex={hostSet ? 0 : qi} timerSecs={timerSecs} onTimerSecsChange={setTimerSecs} teamMode={teamMode} onClose={() => setHostClosing(true)} />
+          <PollPresenter
+            code={hostCode}
+            set={hostSet ?? set}
+            startIndex={hostSet ? 0 : qi}
+            timerSecs={timerSecs}
+            onTimerSecsChange={setTimerSecs}
+            teamMode={teamMode}
+            // Only stable/weekly have a roster to read; "self"/"auto"/"individual"
+            // build their team list from whoever actually shows up.
+            rosterTeams={
+              teamMode === "stable" ? [...new Set(Object.values(stableTeams))]
+              : teamMode === "weekly" ? [...new Set(Object.values(weeklyTeams))]
+              : []
+            }
+            onClose={() => setHostClosing(true)}
+          />
         </ImmersiveScene>
       )}
       <canvas ref={confettiRef} style={s.confetti} />
@@ -3292,7 +3822,7 @@ function TeamModeModal({ onChoose, onClose, isAdmin, stableCount, onGenerate, on
   };
 
   return (
-    <div style={s.scrim} onClick={onClose}>
+    <div data-scrim style={s.scrim} onClick={onClose}>
       <div style={{ ...s.apPanel, maxWidth: 460 }} onClick={(e) => e.stopPropagation()} className="rise">
         <div style={s.apHead}>
           <div>
@@ -3559,7 +4089,7 @@ function TeamRosterEditor({ onClose }: { onClose: () => void }) {
   const tag = (p: Profile) => p.training_level ?? p.role;
 
   return (
-    <div style={s.scrim} onClick={onClose}>
+    <div data-scrim style={s.scrim} onClick={onClose}>
       <div style={{ ...s.apPanel, maxWidth: 560 }} onClick={(e) => e.stopPropagation()} className="rise">
         <div style={s.apHead}>
           <div>
@@ -3684,8 +4214,79 @@ function TeamRosterEditor({ onClose }: { onClose: () => void }) {
 /* Live crowd poll. Host = big screen (owns the question + tallies votes);  */
 /* participants = phones (tap A–E). All over an ephemeral Realtime channel. */
 
-function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, teamMode, onClose }: {
-  code: string; set: RawQuestion[]; startIndex: number; timerSecs: number; onTimerSecsChange: (n: number) => void; teamMode: TeamMode; onClose: () => void;
+/* Fabricated final standings for a 30-question session with UNEVEN teams —
+   4s, 3s and 2s mixed, which is what a real didactics room looks like once
+   people no-show. Reached at ?demoStandings=1. Unlisted but shipped, so the
+   scoring rules can be shown to a room without hosting a live session; all
+   data here is invented, nothing touches the bank or the database.
+
+   Numbers follow the real scoring rule: a question counts once per team
+   however many members answer it, so a split team earns the fraction that were
+   right — hence the .25/.5/.75s. Smaller teams also carry a lower `answered`
+   count, because with 2 people there are more questions nobody on the team
+   got to. This data is chosen so the two ranking metrics genuinely disagree:
+   the 2-player Team 4 tops the accuracy board but sits 3rd on raw points. */
+const DEMO_STANDINGS: TeamStanding[] = [
+  { team: "Team 1", members: 4, answerers: 4, answered: 30, correct: 21.5, score: 21.5 },
+  { team: "Team 2", members: 4, answerers: 4, answered: 30, correct: 20, score: 20 },
+  { team: "Team 3", members: 3, answerers: 3, answered: 30, correct: 22.5, score: 22.5 },
+  { team: "Team 4", members: 2, answerers: 2, answered: 27, correct: 22, score: 22 },
+  { team: "Team 5", members: 4, answerers: 3, answered: 30, correct: 17.25, score: 17.25 },
+  { team: "Team 6", members: 3, answerers: 2, answered: 29, correct: 19.75, score: 19.75 },
+  { team: "Team 7", members: 2, answerers: 2, answered: 26, correct: 15.5, score: 15.5 },
+  { team: "Team 8", members: 4, answerers: 4, answered: 30, correct: 23.75, score: 23.75 },
+];
+
+function DemoStandings() {
+  const [rankByTotal, setRankByTotal] = useState(false);
+  const pct = (t: TeamStanding) => (t.answered > 0 ? t.correct / t.answered : 0);
+  const players = DEMO_STANDINGS.reduce((n, t) => n + t.members, 0);
+  const standings = [...DEMO_STANDINGS].sort((a, b) =>
+    rankByTotal
+      ? b.correct - a.correct || pct(b) - pct(a) || a.team.localeCompare(b.team)
+      : pct(b) - pct(a) || b.correct - a.correct || a.team.localeCompare(b.team));
+  return (
+    <div style={{ ...s.pollRoot, position: "static", minHeight: "100vh" }}>
+      <style>{CSS}</style>
+      <div style={s.pollBody}>
+        <div style={s.pollMeta}>Session complete · 30 questions · {players} participants</div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 14, flexWrap: "wrap" }}>
+          <p style={s.pollStem}>Final standings</p>
+          <button style={s.pollBtn} onClick={() => setRankByTotal((v) => !v)}>
+            <Trophy size={14} strokeWidth={2.3} /> {rankByTotal ? "Ranked by points → switch to % correct" : "Ranked by % correct → switch to points"}
+          </button>
+        </div>
+        <div style={s.pollStats}>
+          {standings.map((t, i) => (
+            <div key={t.team} style={{ ...s.teamRow, ...(i === 0 ? s.teamRowLead : {}) }}>
+              <span style={s.teamRank}>{i === 0 ? <Crown size={20} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
+              <span style={s.teamName}>{t.team}</span>
+              <span style={s.teamMembers}>{teamDetail(t)}</span>
+              <span style={s.teamScore}>{rankByTotal ? `${fmtScore(t.score)} pts` : `${Math.round((t.correct / t.answered) * 100)}%`}</span>
+            </div>
+          ))}
+        </div>
+        <p style={s.scoringNote}>{SCORING_NOTE}</p>
+      </div>
+    </div>
+  );
+}
+
+/** Sort team names naturally, so "Team 10" follows "Team 9" rather than "Team 1". */
+function compareTeamNames(a: string, b: string): number {
+  const na = /^team\s*(\d+)$/i.exec(a), nb = /^team\s*(\d+)$/i.exec(b);
+  if (na && nb) return Number(na[1]) - Number(nb[1]);
+  if (na) return -1;
+  if (nb) return 1;
+  return a.localeCompare(b);
+}
+
+function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, teamMode, rosterTeams = [], onClose }: {
+  code: string; set: RawQuestion[]; startIndex: number; timerSecs: number; onTimerSecsChange: (n: number) => void; teamMode: TeamMode;
+  /** Team names this session's roster defines (stable/weekly modes), so guests
+      can pick from the real list instead of typing a name from the screen. */
+  rosterTeams?: string[];
+  onClose: () => void;
 }) {
   const [index, setIndex] = useState(Math.max(0, Math.min(startIndex, set.length - 1)));
   const [revealed, setRevealed] = useState(false);
@@ -3910,6 +4511,10 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
       revealAt: revealed ? undefined : revealAt ?? undefined,
       correct: revealed ? correctSet : [],
       standings: computeStandings(),
+      // Union of the roster's teams and any team a participant has actually
+      // announced — covers self-named teams and auto-assign, where there is no
+      // roster to read from.
+      teams: [...new Set([...rosterTeams, ...teamRef.current.values()].filter(Boolean))].sort(compareTeamNames),
       rankBy: rankByTotal ? "total" : "pct",
       individuals: computeIndividualStandings(),
       teamMode,
@@ -4206,8 +4811,8 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
                 <Users size={14} strokeWidth={2.3} /> {showIndividual ? (isIndividualMode ? "Hide standings" : "Show teams") : (isIndividualMode ? "Reveal standings" : "Show individuals")}
               </button>
               {!isIndividualMode && !showIndividual && (
-                <button style={s.pollBtn} onClick={() => setRankByTotal((v) => !v)} title={rankByTotal ? "Rank teams by accuracy — % of the team's answers that were correct (size-fair)" : "Rank teams by raw total correct answers (favors bigger teams)"}>
-                  <Trophy size={14} strokeWidth={2.3} /> {rankByTotal ? "Ranked by total · switch to %" : "Ranked by % correct"}
+                <button style={s.pollBtn} onClick={() => setRankByTotal((v) => !v)} title={rankByTotal ? "Switch to accuracy — % of the team's answers that were correct (fair to smaller teams)" : "Switch to points — raw total correct, which favors bigger teams"}>
+                  <Trophy size={14} strokeWidth={2.3} /> {rankByTotal ? "Ranked by points → switch to % correct" : "Ranked by % correct → switch to points"}
                 </button>
               )}
             </div>
@@ -4229,16 +4834,19 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
             ) : isIndividualMode ? (
               <p style={{ color: "#aeb4c0", fontSize: 15 }}>Hidden until revealed — tap "Reveal standings" when you're ready for the drumroll.</p>
             ) : standings.length > 0 ? (
-              <div style={s.pollStats}>
-                {standings.map((t, i) => (
-                  <div key={t.team} style={{ ...s.teamRow, ...(i === 0 ? s.teamRowLead : {}) }}>
-                    <span style={s.teamRank}>{i === 0 ? <Crown size={20} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
-                    <span style={s.teamName}>{t.team}</span>
-                    <span style={s.teamMembers}>{t.members} {t.members === 1 ? "player" : "players"} · {fmtScore(t.correct)}/{t.answered} correct</span>
-                    <span style={s.teamScore}>{rankByTotal ? `${fmtScore(t.score)} pts` : `${t.answered > 0 ? Math.round((t.correct / t.answered) * 100) : 0}%`}</span>
-                  </div>
-                ))}
-              </div>
+              <>
+                <div style={s.pollStats}>
+                  {standings.map((t, i) => (
+                    <div key={t.team} style={{ ...s.teamRow, ...(i === 0 ? s.teamRowLead : {}) }}>
+                      <span style={s.teamRank}>{i === 0 ? <Crown size={20} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
+                      <span style={s.teamName}>{t.team}</span>
+                      <span style={s.teamMembers}>{teamDetail(t)}</span>
+                      <span style={s.teamScore}>{rankByTotal ? `${fmtScore(t.score)} pts` : `${t.answered > 0 ? Math.round((t.correct / t.answered) * 100) : 0}%`}</span>
+                    </div>
+                  ))}
+                </div>
+                <p style={s.scoringNote}>{SCORING_NOTE}</p>
+              </>
             ) : (
               <p style={{ color: "#aeb4c0", fontSize: 15 }}>No teams joined this session.</p>
             )}
@@ -4406,8 +5014,8 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
                 <span style={s.teamBoardHead}><Trophy size={16} strokeWidth={2.4} /> Current standings</span>
                 <span style={{ display: "inline-flex", gap: 8 }}>
                   {!isIndividualMode && (
-                    <button style={s.pollStatsExport} onClick={() => setRankByTotal((v) => !v)} title={rankByTotal ? "Rank teams by accuracy — % of the team's answers that were correct (size-fair)" : "Rank teams by raw total correct answers (favors bigger teams)"}>
-                      <Trophy size={14} strokeWidth={2.3} /> {rankByTotal ? "By total" : "By %"}
+                    <button style={s.pollStatsExport} onClick={() => setRankByTotal((v) => !v)} title={rankByTotal ? "Switch to accuracy — % of the team's answers that were correct (fair to smaller teams)" : "Switch to points — raw total correct, which favors bigger teams"}>
+                      <Trophy size={14} strokeWidth={2.3} /> {rankByTotal ? "Switch to % correct" : "Switch to points"}
                     </button>
                   )}
                   {!isIndividualMode && (
@@ -4433,10 +5041,11 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
                     <div key={t.team} style={{ ...s.teamRow, ...(i === 0 ? s.teamRowLead : {}) }}>
                       <span style={s.teamRank}>{i === 0 ? <Crown size={20} strokeWidth={2.4} color="#f2c14e" /> : i + 1}</span>
                       <span style={s.teamName}>{t.team}</span>
-                      <span style={s.teamMembers}>{t.members} {t.members === 1 ? "player" : "players"} · {fmtScore(t.correct)}/{t.answered} correct</span>
+                      <span style={s.teamMembers}>{teamDetail(t)}</span>
                       <span style={s.teamScore}>{rankByTotal ? `${fmtScore(t.score)} pts` : `${t.answered > 0 ? Math.round((t.correct / t.answered) * 100) : 0}%`}</span>
                     </div>
                   ))}
+              {!isIndividualMode && standings.length > 0 && <p style={s.scoringNote}>{SCORING_NOTE}</p>}
             </div>
           ) : (
             <button style={{ ...s.pollBtn, marginBottom: 14 }} onClick={() => setPeekStandings(true)} title="Peek at the leaderboard — hides again on the next question">
@@ -4974,9 +5583,16 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
   const isStableMode = remote?.teamMode === "stable" || remote?.teamMode === "weekly"; // both use a fixed saved roster
   const awaitingAutoAssign = remote?.teamMode === "auto" && !team;
   const awaitingStableTeam = isStableMode && !team && !guest;
-  // Guests can always type a team — even in stable/weekly mode, where members
+  // Guests can always set a team — even in stable/weekly mode, where members
   // are locked to their saved roster seat (they have none).
   const showTeamEditor = !isIndividualMode && (!isStableMode || guest) && (editing || (!team && !awaitingAutoAssign));
+  // Teams a guest can pick from: what the host broadcasts, falling back to the
+  // teams visible in standings when hosting from an older build. Sorted so
+  // "Team 10" doesn't sit between 1 and 2.
+  const pickableTeams = useMemo(() => {
+    const fromHost = remote?.teams ?? remote?.standings?.map((t) => t.team) ?? [];
+    return [...new Set(fromHost.filter(Boolean))].sort(compareTeamNames);
+  }, [remote?.teams, remote?.standings]);
   const inLobby = !!remote && !remote.started && !remote.finished;
 
   return (
@@ -5006,23 +5622,50 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
         {status !== "error" && !isIndividualMode && (
           <div style={s.teamBar}>
             {showTeamEditor ? (
-              <form
-                style={s.teamForm}
-                onSubmit={(e) => { e.preventDefault(); saveTeam(draft); }}
-              >
-                <Users size={15} strokeWidth={2.3} color="#aeb4c0" />
-                <input
-                  style={s.teamInput}
-                  value={draft}
-                  autoFocus={editing}
-                  maxLength={24}
-                  placeholder={guest && isStableMode ? "Team from the screen (e.g. Team 3)" : "Your team name"}
-                  onChange={(e) => setDraft(e.target.value)}
-                />
-                <button type="submit" style={{ ...s.teamSet, ...(draft.trim() ? {} : s.teamSetOff) }} disabled={!draft.trim()}>
-                  {team ? "Save" : "Join"}
-                </button>
-              </form>
+              <div style={{ width: "100%" }}>
+                {/* Guests pick from the session's real teams rather than typing
+                    a name off the screen — a typo used to strand them in a team
+                    of one that scored separately all session. Typing stays as
+                    the fallback for a team not on the list yet. */}
+                {guest && pickableTeams.length > 0 && (
+                  <div style={s.teamPickWrap}>
+                    <span style={s.teamPickLbl}><Users size={14} strokeWidth={2.3} /> Pick your team</span>
+                    <div style={s.teamPickRow}>
+                      {pickableTeams.map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          style={{ ...s.teamPick, ...(team === t ? s.teamPickOn : {}) }}
+                          onClick={() => saveTeam(t)}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <form
+                  style={s.teamForm}
+                  onSubmit={(e) => { e.preventDefault(); saveTeam(draft); }}
+                >
+                  <Users size={15} strokeWidth={2.3} color="#aeb4c0" />
+                  <input
+                    style={s.teamInput}
+                    value={draft}
+                    autoFocus={editing}
+                    maxLength={24}
+                    placeholder={
+                      guest && pickableTeams.length > 0 ? "…or type another team"
+                      : guest && isStableMode ? "Team from the screen (e.g. Team 3)"
+                      : "Your team name"
+                    }
+                    onChange={(e) => setDraft(e.target.value)}
+                  />
+                  <button type="submit" style={{ ...s.teamSet, ...(draft.trim() ? {} : s.teamSetOff) }} disabled={!draft.trim()}>
+                    {team ? "Save" : "Join"}
+                  </button>
+                </form>
+              </div>
             ) : awaitingAutoAssign ? (
               <span style={s.teamTag}><Users size={15} strokeWidth={2.3} /> Waiting for the host to assign teams…</span>
             ) : awaitingStableTeam ? (
@@ -5036,7 +5679,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
           </div>
         )}
         {status !== "error" && !isIndividualMode && !team && (
-          <p style={s.teamScoreHint}>Teams are ranked by accuracy. Each question counts once per team however many members answer; if they split, the team gets partial credit.</p>
+          <p style={s.teamScoreHint}>{SCORING_NOTE_PARTICIPANT}</p>
         )}
 
         {status === "error" ? (
@@ -5238,6 +5881,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                     <span style={s.teamMiniScore}>{remote.rankBy !== "total" && t.answered > 0 ? `${Math.round((t.correct / t.answered) * 100)}%` : `${fmtScore(t.score)} pts`}</span>
                   </div>
                 ))}
+                <p style={s.scoringNote}>{SCORING_NOTE_PARTICIPANT}</p>
               </div>
             )}
             {!isIndividualMode && remote.standings && remote.standings.length > 0 && (
@@ -5505,7 +6149,17 @@ function RibbonBurst({ variant }: { variant: RibbonVariant }) {
   );
 }
 
-function SignIn() {
+function SignIn({ onJoinPoll }: { onJoinPoll: (code: string) => void }) {
+  // Typed poll code, for the students who are in the room but didn't get the QR
+  // code scanned (or scanned it on the wrong device). Same guest path the
+  // ?poll=CODE link takes — no account, no sign-in.
+  const [codeDraft, setCodeDraft] = useState("");
+  const submitCode = (e: React.FormEvent) => {
+    e.preventDefault();
+    const c = codeDraft.trim().toUpperCase();
+    if (c) onJoinPoll(c);
+  };
+
   // Mouse-tracking 3D tilt + glare: moving anywhere on the screen leans the
   // card toward the cursor and slides a soft highlight across it. Written as
   // CSS-var updates on the ring element (no React re-render per mousemove).
@@ -5560,6 +6214,39 @@ function SignIn() {
             <GoogleG /> Sign in with Google
           </button>
           <p style={s.gateFine} className="gs4">Residents and known faculty are approved automatically. Some faculty or alumni may still need admin approval.</p>
+          {/* Med students hit the pending queue and get declined — say so up front,
+              warmly, so the didactics invitation lands before the rejection does.
+              The code box below turns that invitation into something they can act
+              on right here, without an account. */}
+          <div style={s.gateStudentNote} className="gs4">
+            <p style={{ margin: 0 }}>
+              <b style={{ color: T.tealDeep }}>M4 or visiting medical student?</b> No need to make a full account —
+              our board of psychiatry makes us restrict somewhat who has access to the full question bank.
+              But it’s no problem at all, because you can still see all the questions in the class polls and
+              participate fully without signing in — just use the QR code to get to the poll, or enter the
+              code from the screen here:
+            </p>
+            <form style={s.gateCodeRow} onSubmit={submitCode}>
+              <input
+                style={s.gateCodeInput}
+                value={codeDraft}
+                onChange={(e) => setCodeDraft(e.target.value)}
+                placeholder="Poll code"
+                aria-label="Poll code from the screen"
+                maxLength={12}
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
+              />
+              <button
+                type="submit"
+                style={{ ...s.gateCodeGo, ...(codeDraft.trim() ? {} : s.gateCodeGoOff) }}
+                disabled={!codeDraft.trim()}
+              >
+                <Radio size={14} strokeWidth={2.4} /> Join
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </div>
@@ -5573,14 +6260,23 @@ function Pending({ email, status }: { email: string; status: string }) {
       <GateBackdrop />
       <div style={s.gateCard}>
         <span style={{ ...s.gateMark, background: T.gold }}><Clock size={22} strokeWidth={2.3} color="#fff" /></span>
-        <h1 style={s.gateTitle}>{status === "blocked" ? "Access not available" : "Awaiting approval"}</h1>
+        <h1 style={s.gateTitle}>{status === "blocked" ? "Full accounts are limited" : "Awaiting approval"}</h1>
         <p style={s.gateSub}>
-          You’re signed in as <b style={{ color: "#fff" }}>{email}</b>.{" "}
+          You’re signed in as <b style={{ color: T.text }}>{email}</b>.{" "}
           {status === "blocked"
-            ? "This site is for internal residency use only (PRITE questions are copyrighted). If you believe this is a mistake, email correllsoftware@gmail.com."
+            ? "Our board of psychiatry makes us restrict somewhat who has access to the full question bank, so we can’t set up an account here — but there’s no problem at all. If you believe this is a mistake, email correllsoftware@gmail.com and we’ll sort it out."
             : "An admin needs to approve you before you can start. You’ll get in as soon as they do."}
         </p>
-        <button style={s.googleBtn} onClick={() => signOut()}><LogOut size={15} strokeWidth={2.2} /> Sign out</button>
+        {/* The most common blocked case is a medical student rotating with us —
+            lead with the invitation rather than leaving them at a dead end. */}
+        {status === "blocked" && (
+          <p style={s.gateStudentNote}>
+            <b style={{ color: T.tealDeep }}>Rotating with us as a medical student?</b> You don’t need an
+            account at all — we would love for you to be a part of our board-question sections at Tuesday
+            didactics. You can join the live polls right from your phone.
+          </p>
+        )}
+        <button style={{ ...s.googleBtn, marginTop: status === "blocked" ? 14 : 0 }} onClick={() => signOut()}><LogOut size={15} strokeWidth={2.2} /> Sign out</button>
       </div>
     </div>
   );
@@ -5614,7 +6310,7 @@ function ReportModal({ qid, label, kinds = BUG_KINDS, onClose, onDone }: {
     onDone(ok);
   };
   return (
-    <div style={s.scrim} onClick={onClose}>
+    <div data-scrim style={s.scrim} onClick={onClose}>
       <div style={{ ...s.apPanel, maxWidth: 460 }} onClick={(e) => e.stopPropagation()} className="rise">
         <div style={s.apHead}>
           <div>
@@ -5726,7 +6422,7 @@ function BugReportsPanel({ reports, byId, isAdmin, onAct, onReply, onClose }: {
     );
   };
   return (
-    <div style={s.scrim} onClick={onClose}>
+    <div data-scrim style={s.scrim} onClick={onClose}>
       <div style={{ ...s.apPanel, maxWidth: 620 }} onClick={(e) => e.stopPropagation()} className="rise">
         <div style={s.apHead}>
           <div>
@@ -5763,7 +6459,7 @@ function OfficialResultsPanel({ results, onClose, onCleared, onEditTeams }: {
     onCleared();
   };
   return (
-    <div style={s.scrim} onClick={onClose}>
+    <div data-scrim style={s.scrim} onClick={onClose}>
       <div style={{ ...s.apPanel, maxWidth: 620 }} onClick={(e) => e.stopPropagation()} className="rise">
         <div style={s.apHead}>
           <div>
@@ -5831,7 +6527,7 @@ function OfficialResultsPanel({ results, onClose, onCleared, onEditTeams }: {
 // is a friendly placeholder pointing volunteers at who's driving the effort.
 function CapiteComingSoon({ onClose }: { onClose: () => void }) {
   return (
-    <div style={s.scrim} onClick={onClose}>
+    <div data-scrim style={s.scrim} onClick={onClose}>
       <div style={{ ...s.apPanel, maxWidth: 420 }} onClick={(e) => e.stopPropagation()} className="rise">
         <div style={{ padding: "34px 28px 28px", textAlign: "center" }}>
           <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 18 }}>
@@ -5887,20 +6583,28 @@ function Approvals({
     listStudyGuideCreators().then(setCreators);
   }, []);
 
-  // Block the account and email a polite copyright / residency-only notice.
-  const decline = async (p: Profile) => {
+  // Block the account and email a polite notice. Two flavors: the plain
+  // "accounts are limited to the program" notice, and a warmer one for someone
+  // who looks like an M4 or visiting medical student, which invites them to the
+  // board-question sections at Tuesday didactics instead.
+  const decline = async (p: Profile, variant: DeclineVariant) => {
     const who = p.full_name || p.email;
+    const blurb = variant === "student"
+      ? `They'll be blocked from the question bank and emailed a friendly note: our board of psychiatry restricts full accounts, but they're warmly invited to the board-question sections at Tuesday didactics.`
+      : `They'll be blocked and emailed that our board of psychiatry limits full question-bank accounts to residents and faculty in the program.`;
     if (!window.confirm(
-      `Decline ${who}?\n\nThey'll be blocked and emailed that PRITE questions are copyrighted and for internal residency use only. Contact listed: correllsoftware@gmail.com.`
+      `Decline ${who}${variant === "student" ? " as a medical student" : ""}?\n\n${blurb}\n\nContact listed: correllsoftware@gmail.com.`
     )) return;
     setDecliningId(p.id);
     setDeclineMsg(null);
-    const err = await declineAccess(p.id);
+    const err = await declineAccess(p.id, variant);
     setDecliningId(null);
     onRefresh();
     setDeclineMsg(err
       ? `Declined, but: ${err}`
-      : `Declined ${who} and sent the copyright notice email.`);
+      : variant === "student"
+        ? `Declined ${who} and sent the medical-student invitation email.`
+        : `Declined ${who} and sent the standard decline email.`);
   };
 
   const rosterEntries = (roster ?? []).map((r) => ({ first: r.first_name, last: r.last_name, year: r.class_year ?? "" }));
@@ -5975,14 +6679,24 @@ function Approvals({
             <button style={s.apApprove} onClick={() => onAct(p.id, { status: "approved" })}>Approve</button>
           )}
           {p.status === "pending" && !isSelf && (
-            <button
-              style={s.apDecline}
-              disabled={decliningId === p.id}
-              title="Block this request and email a polite notice that PRITE questions are copyrighted and for internal residency use only"
-              onClick={() => decline(p)}
-            >
-              {decliningId === p.id ? "Declining…" : "Decline"}
-            </button>
+            <>
+              <button
+                style={s.apDecline}
+                disabled={decliningId === p.id}
+                title="Block this request and email a polite notice that full question-bank accounts are limited to residents and faculty in the program"
+                onClick={() => decline(p, "generic")}
+              >
+                {decliningId === p.id ? "Declining…" : "Decline"}
+              </button>
+              <button
+                style={s.apDeclineStudent}
+                disabled={decliningId === p.id}
+                title="Decline as a medical student — sends a warm note explaining the board-of-psychiatry restriction and inviting them to the board-question sections at Tuesday didactics"
+                onClick={() => decline(p, "student")}
+              >
+                {decliningId === p.id ? "Declining…" : "Decline · med student"}
+              </button>
+            </>
           )}
           {p.status === "blocked" && (
             <button style={s.apApprove} onClick={() => onAct(p.id, { status: "approved" })}>Unblock</button>
@@ -6073,7 +6787,7 @@ function Approvals({
     );
   };
   return (
-    <div style={s.scrim} onClick={onClose}>
+    <div data-scrim style={s.scrim} onClick={onClose}>
       <div style={s.apPanel} onClick={(e) => e.stopPropagation()} className="rise">
         <div style={s.apHead}>
           <div>
@@ -6092,7 +6806,9 @@ function Approvals({
             {pending.length ? pending.map(row) : <p style={s.apEmpty}>No one waiting. Residents whose Google name matches the roster are approved automatically.</p>}
             {pending.length > 0 && (
               <p style={{ ...s.apEmpty, marginTop: 8, fontStyle: "normal" }}>
-                <b>Decline</b> blocks the request and emails a polite notice that PRITE questions are copyrighted and for internal residency use only (contact: correllsoftware@gmail.com).
+                Both decline buttons block the request and send a polite email (contact listed: correllsoftware@gmail.com).{" "}
+                <b>Decline</b> sends the plain notice that full question-bank accounts are limited to residents and faculty in the program.{" "}
+                <b>Decline · med student</b> sends a warmer note for an M4 or visiting student — same restriction, but it invites them to join the board-question sections at Tuesday didactics.
               </p>
             )}
             {declineMsg && <p style={{ ...s.apEmpty, marginTop: 10, fontStyle: "normal", color: T.text }}>{declineMsg}</p>}
@@ -6180,6 +6896,171 @@ function Approvals({
   );
 }
 
+/* ---- "What comes first" ------------------------------------------------
+   A ranked list the resident drags into the order they want, with a live
+   preview of the resulting set underneath. The preview is the part that makes
+   it teachable: an abstract ranking of five rules means little until you can
+   see that it puts 2023 Neurology at the top of tomorrow's questions.
+
+   Drag is the headline interaction, but it is not the only one — every row
+   also moves with the keyboard (and on touch, where HTML5 drag is unreliable)
+   via its own up/down buttons. */
+function DailyOrderPanel({
+  order, yearFocus, years, preview, weakAreas, onChange, onReset, onClose,
+}: {
+  order: OrderRuleId[];
+  yearFocus: string[];
+  years: string[];
+  preview: RawQuestion[];
+  weakAreas: { cat: string; acc: number; tried: number }[];
+  onChange: (next: { order?: OrderRuleId[]; yearFocus?: string[] }) => void;
+  onReset: () => void;
+  onClose: () => void;
+}) {
+  const [dragId, setDragId] = useState<OrderRuleId | null>(null);
+  const [overId, setOverId] = useState<OrderRuleId | null>(null);
+
+  const move = (id: OrderRuleId, delta: number) => {
+    const from = order.indexOf(id);
+    const to = Math.max(0, Math.min(order.length - 1, from + delta));
+    if (from === to) return;
+    const next = order.slice();
+    next.splice(to, 0, ...next.splice(from, 1));
+    onChange({ order: next });
+  };
+  const dropOn = (target: OrderRuleId) => {
+    if (!dragId || dragId === target) return;
+    const next = order.filter((id) => id !== dragId);
+    next.splice(order.indexOf(target), 0, dragId);
+    onChange({ order: next });
+  };
+  const toggleYear = (y: string) => {
+    onChange({ yearFocus: yearFocus.includes(y) ? yearFocus.filter((v) => v !== y) : [...yearFocus, y] });
+  };
+
+  const isDefault =
+    order.join() === DEFAULT_ORDER.join() && yearFocus.length === 0;
+
+  return (
+    <div data-scrim style={s.scrim} onClick={onClose}>
+      <div style={{ ...s.apPanel, maxWidth: 560 }} onClick={(e) => e.stopPropagation()} className="rise">
+        <div style={s.apHead}>
+          <div>
+            <div style={s.apEyebrow}>Daily questions</div>
+            <div style={s.apTitle}>What comes first</div>
+          </div>
+          <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
+        </div>
+        <div style={{ ...s.apBody, padding: "4px 22px 22px" }}>
+          <p style={s.orderIntro}>
+            Drag to rank these. Your daily set is sorted by the first one that tells two
+            questions apart, then the next, and so on.
+          </p>
+
+          <ol style={s.orderList}>
+            {order.map((id, i) => {
+              const rule = ORDER_RULES.find((r) => r.id === id)!;
+              const dim = id === "weak" && weakAreas.length === 0;
+              return (
+                <li
+                  key={id}
+                  draggable
+                  onDragStart={() => setDragId(id)}
+                  onDragEnd={() => { setDragId(null); setOverId(null); }}
+                  onDragOver={(e) => { e.preventDefault(); setOverId(id); }}
+                  onDrop={(e) => { e.preventDefault(); dropOn(id); setDragId(null); setOverId(null); }}
+                  style={{
+                    ...s.orderRow,
+                    ...(dragId === id ? s.orderRowDrag : {}),
+                    ...(overId === id && dragId && dragId !== id ? s.orderRowOver : {}),
+                  }}
+                >
+                  <span style={s.orderGrip} aria-hidden><GripVertical size={15} strokeWidth={2.2} /></span>
+                  <span style={s.orderRank}>{i + 1}</span>
+                  <span style={{ minWidth: 0, flex: 1 }}>
+                    <span style={s.orderLabel}>{rule.label}</span>
+                    <span style={s.orderHint}>
+                      {dim ? "Needs a bit more history before this can rank anything" : rule.hint}
+                    </span>
+                  </span>
+                  <span style={s.orderMoves}>
+                    <button
+                      style={s.orderMoveBtn}
+                      onClick={() => move(id, -1)}
+                      disabled={i === 0}
+                      aria-label={`Move ${rule.label} up`}
+                      title="Move up"
+                    ><ChevronUp size={14} strokeWidth={2.6} /></button>
+                    <button
+                      style={s.orderMoveBtn}
+                      onClick={() => move(id, 1)}
+                      disabled={i === order.length - 1}
+                      aria-label={`Move ${rule.label} down`}
+                      title="Move down"
+                    ><ChevronDown size={14} strokeWidth={2.6} /></button>
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+
+          <div style={s.setBlock}>
+            <div style={s.setLbl}>Pin exam years to the front</div>
+            <div style={s.orderYearRow}>
+              {years.map((y) => {
+                const at = yearFocus.indexOf(y);
+                return (
+                  <button
+                    key={y}
+                    style={{ ...s.orderYear, ...(at !== -1 ? s.orderYearOn : {}) }}
+                    onClick={() => toggleYear(y)}
+                    aria-pressed={at !== -1}
+                  >
+                    {at !== -1 && <span style={s.orderYearNum}>{at + 1}</span>}
+                    {y}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={s.setHint}>
+              {yearFocus.length
+                ? `Serving ${yearFocus.join(", then ")} ahead of everything else, as far as the rules above allow.`
+                : "Nothing pinned — Exam year falls back to newest first. Tap years in the order you want them."}
+            </div>
+          </div>
+
+          <div style={s.setBlock}>
+            <div style={s.setLbl}>Your next questions, in this order</div>
+            {preview.length === 0 ? (
+              <div style={s.setHint}>Nothing queued right now — finish today's set or add more questions.</div>
+            ) : (
+              <ol style={s.orderPreview}>
+                {preview.map((q, i) => (
+                  <li key={questionId(q.year, q.q_index)} style={s.orderPreviewRow}>
+                    <span style={s.orderPreviewNum}>{i + 1}</span>
+                    <span style={s.orderPreviewYear}>{q.year}</span>
+                    <span style={s.orderPreviewCat}>{q.prite_label || q.prite_category || "Uncategorized"}</span>
+                    {(q.repeat_count ?? 1) > 1 && (
+                      <span style={s.orderPreviewTag}><Repeat size={9} strokeWidth={2.6} /> {q.repeat_count}×</span>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+
+          <div style={s.orderFoot}>
+            <button style={s.ghost} onClick={onReset} disabled={isDefault}>
+              <RotateCcw size={13} strokeWidth={2.2} /> Reset to default
+            </button>
+            <button style={s.primarySm} onClick={onClose}><Check size={14} strokeWidth={2.4} /> Done</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SettingsPanel({
   settings, onChange, onRebuild, onClose,
 }: {
@@ -6197,7 +7078,7 @@ function SettingsPanel({
     setOwnAiKeys(next);
   };
   return (
-    <div style={s.scrim} onClick={onClose}>
+    <div data-scrim style={s.scrim} onClick={onClose}>
       <div style={{ ...s.apPanel, maxWidth: 440 }} onClick={(e) => e.stopPropagation()} className="rise">
         <div style={s.apHead}>
           <div>
@@ -6550,7 +7431,7 @@ function Stats({
   );
 
   return (
-    <div style={s.scrim} onClick={onClose}>
+    <div data-scrim style={s.scrim} onClick={onClose}>
       <div style={{ ...s.apPanel, maxWidth: 600 }} onClick={(e) => e.stopPropagation()} className="rise">
         <div style={s.apHead}>
           <div>
@@ -6680,7 +7561,7 @@ function Insights({ onClose }: { onClose: () => void }) {
   }, [dim, cohort]);
   const maxMiss = rows && rows.length ? Math.max(...rows.map((r) => r.miss_pct), 1) : 1;
   return (
-    <div style={s.scrim} onClick={onClose}>
+    <div data-scrim style={s.scrim} onClick={onClose}>
       <div style={{ ...s.apPanel, maxWidth: 600 }} onClick={(e) => e.stopPropagation()} className="rise">
         <div style={s.apHead}>
           <div>
@@ -7024,7 +7905,7 @@ function AudioDrillsPanel({ all, onClose, fire }: { all: RawQuestion[]; onClose:
       : `${(currentExportVariant.bytes / (1024 ** 2)).toFixed(1)} MB`
     : "";
   const exportHours = currentExportVariant ? `${Math.round(currentExportVariant.duration_seconds / 360) / 10} hr` : "";
-  return <div style={s.scrim} className="scrimIn" onMouseDown={onClose} role="presentation"><section style={{ position: "relative", width: "min(700px, calc(100vw - 28px))", maxHeight: "min(760px, calc(100vh - 28px))", overflowY: "auto", background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 20, boxShadow: "0 30px 90px -28px rgba(0,0,0,.72)" }} className="materialize audioModal" onMouseDown={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="audio-title">
+  return <div data-scrim style={s.scrim} className="scrimIn" onMouseDown={onClose} role="presentation"><section style={{ position: "relative", width: "min(700px, calc(100vw - 28px))", maxHeight: "min(760px, calc(100vh - 28px))", overflowY: "auto", background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 20, boxShadow: "0 30px 90px -28px rgba(0,0,0,.72)" }} className="materialize audioModal" onMouseDown={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="audio-title">
     <header style={{ display: "flex", alignItems: "flex-start", gap: 13, padding: "24px 62px 20px 24px", borderBottom: `1px solid ${T.paperEdge}`, background: "linear-gradient(135deg, #f7fbf9 0%, #faf7f1 62%)" }}>
       <span style={{ display: "grid", placeItems: "center", width: 44, height: 44, flexShrink: 0, borderRadius: 13, color: "#fff", background: T.teal, boxShadow: "0 8px 20px -10px rgba(14,122,107,.8)" }}><Volume2 size={22} /></span>
       <div><h2 id="audio-title" style={{ margin: 0, color: T.text, fontSize: 22, letterSpacing: "-.02em" }}>Open-ended audio review</h2><p style={{ color: T.muted, margin: "4px 0 0", fontSize: 14, lineHeight: 1.45 }}>Hear a concise question—without answer choices—think through the pause, then hear the answer.</p></div>
@@ -7120,34 +8001,9 @@ function DeckBuilder({
     return c;
   }, [all, answers]); // eslint-disable-line
 
-  /* The categories this resident is weakest in, worst first.
-     Accuracy only means something once there's a bit of history, so a category
-     needs MIN_TRIED attempts to be ranked at all — otherwise one unlucky
-     question would brand a whole section as a weak spot. We keep those scoring
-     below their own overall accuracy, capped at 5 so the resulting set stays
-     focused rather than becoming "most of the bank". */
-  const weakAreas = useMemo(() => {
-    const MIN_TRIED = 4;
-    const tally = new Map<string, { tried: number; right: number }>();
-    for (const q of all) {
-      const row = answers[questionId(q.year, q.q_index)];
-      if (!row || !q.prite_category) continue;
-      const t = tally.get(q.prite_category) ?? { tried: 0, right: 0 };
-      t.tried += 1;
-      if (row.correct) t.right += 1;
-      tally.set(q.prite_category, t);
-    }
-    const totalTried = [...tally.values()].reduce((n, t) => n + t.tried, 0);
-    const totalRight = [...tally.values()].reduce((n, t) => n + t.right, 0);
-    if (!totalTried) return [];
-    const overall = totalRight / totalTried;
-    return [...tally.entries()]
-      .filter(([, t]) => t.tried >= MIN_TRIED)
-      .map(([c, t]) => ({ cat: c, acc: t.right / t.tried, tried: t.tried }))
-      .filter((r) => r.acc < overall)
-      .sort((a, b) => a.acc - b.acc)
-      .slice(0, 5);
-  }, [all, answers]); // eslint-disable-line
+  /* Shared with the daily-set ordering so "my weakest sections" means exactly
+     the same thing in the filter panel and in What comes first. */
+  const weakAreas = useMemo(() => weakCategories(all, answers), [all, answers]);
   const weakCatSet = useMemo(() => new Set(weakAreas.map((w) => w.cat)), [weakAreas]);
   /* How many of the folded-away filters are actually doing something. Drives the
      badge on "More filters" so a narrowed result never looks unexplained. */
@@ -7334,7 +8190,7 @@ function DeckBuilder({
 
   const shown = matches.slice(0, 250);
   return (
-    <div style={s.scrim} onClick={onClose}>
+    <div data-scrim style={s.scrim} onClick={onClose}>
       <div style={{ ...s.apPanel, maxWidth: 640 }} onClick={(e) => e.stopPropagation()} className="rise deckPanel">
         <div style={s.apHead}>
           <div>
@@ -7710,7 +8566,7 @@ function StudyGuideCreateModal({
 }) {
   const [date, setDate] = useState<string>(existingDate || nextTuesdayYmd());
   return (
-    <div style={s.scrim} onClick={onClose}>
+    <div data-scrim style={s.scrim} onClick={onClose}>
       <div style={{ ...s.apPanel, maxWidth: 420 }} onClick={(e) => e.stopPropagation()} className="rise">
         <div style={s.apHead}>
           <div>
@@ -7764,7 +8620,7 @@ function TestsPanel({
   canGenerate: boolean; // admins + education-chief allowlist — generation costs money
 }) {
   return (
-    <div style={s.scrim} onClick={onClose}>
+    <div data-scrim style={s.scrim} onClick={onClose}>
       <div style={{ ...s.apPanel, maxWidth: 560 }} onClick={(e) => e.stopPropagation()} className="rise">
         <div style={s.apHead}>
           <div>
@@ -7988,7 +8844,7 @@ function TestEditor({
   };
 
   return (
-    <div style={s.scrim} onClick={onClose}>
+    <div data-scrim style={s.scrim} onClick={onClose}>
       <div style={{ ...s.apPanel, maxWidth: 640 }} onClick={(e) => e.stopPropagation()} className="rise">
         <div style={s.apHead}>
           <div>
@@ -8083,7 +8939,7 @@ function StudyGuideShareModal({
     catch { window.prompt("Copy this link:", link); }
   };
   return (
-    <div style={s.scrim} onClick={onClose}>
+    <div data-scrim style={s.scrim} onClick={onClose}>
       <div style={{ ...s.apPanel, maxWidth: 480 }} onClick={(e) => e.stopPropagation()} className="rise">
         <div style={s.apHead}>
           <div>
@@ -8403,7 +9259,7 @@ function StudyGuideLibraryPanel({
     catch { window.prompt("Copy this link:", link); }
   };
   return (
-    <div style={s.scrim} onClick={onClose}>
+    <div data-scrim style={s.scrim} onClick={onClose}>
       <div style={{ ...s.apPanel, maxWidth: 600 }} onClick={(e) => e.stopPropagation()} className="rise">
         <div style={s.apHead}>
           <div>
@@ -8471,7 +9327,7 @@ function MissedPanel({
 }) {
   const rows = missedIds.map((id) => ({ id, q: byId.get(id) })).filter((x) => x.q) as { id: string; q: RawQuestion }[];
   return (
-    <div style={s.scrim} onClick={onClose}>
+    <div data-scrim style={s.scrim} onClick={onClose}>
       <div style={{ ...s.apPanel, maxWidth: 620 }} onClick={(e) => e.stopPropagation()} className="rise">
         <div style={s.apHead}>
           <div>
@@ -8892,7 +9748,7 @@ function RewardSheet({ onClose, onBird }: { onClose: () => void; onBird: () => v
   const onPointerCancel = () => { if (d.current.active) { d.current.active = false; reduced ? setY(0) : springBack(0); } };
 
   return (
-    <div ref={scrimRef} style={s.scrim} onClick={() => dismiss()}>
+    <div ref={scrimRef} data-scrim style={s.scrim} onClick={() => dismiss()}>
       <div
         ref={cardRef}
         style={{ background: T.ink, border: "1px solid rgba(255,255,255,.12)", borderRadius: 18, padding: 14, width: "min(420px, 94vw)", boxShadow: "0 30px 80px -20px rgba(0,0,0,.8)", touchAction: "none", cursor: "grab", willChange: "transform" }}
@@ -8981,6 +9837,23 @@ button { font-family: inherit; -webkit-appearance: none; appearance: none; }
 .learningBodyOpen .learningBodyInner { padding-top: 20px !important; padding-bottom: 22px !important; border-top-width: 1px !important; border-top-color: ${T.paperEdge} !important; }
 .learningCardIn { animation: learningCardIn .36s cubic-bezier(.22,.75,.28,1) both; }
 @keyframes learningCardIn { from { opacity: 0; transform: translateY(9px); } }
+/* My notes + Group notes share a row. align-items:start so opening one doesn't
+   stretch the closed one to match; below 760px there isn't room for two note
+   cards side by side, so they stack as before. */
+.learningPair { display: grid; grid-template-columns: 1fr 1fr; align-items: start; gap: 10px; }
+/* Half-width headers wrap, which would give back the height the pairing saves,
+   so while they're side by side these two borrow the phone layout's compaction:
+   no index number or one-line summary, and the Keep-open pill drops to its icon.
+   Below 760px the pair stacks full width again and looks like every other card. */
+/* The paired cards carry no step number at any width — the stack numbers the
+   sections you work through, and these two are a side note to that. */
+.learningPair .learningIndexCell { display: none; }
+@media (min-width: 761px) {
+  .learningPair .learningCardButton { grid-template-columns: 42px minmax(0,1fr) auto auto !important; padding: 14px !important; }
+  .learningPair .learningKeep { margin: 0 10px 0 2px !important; width: 34px; height: 34px; padding: 0 !important; justify-content: center; }
+  .learningPair .learningKeepLabel { display: none; }
+}
+@media (max-width: 760px) { .learningPair { grid-template-columns: 1fr; } }
 /* Exam focus mode: fade the surrounding chrome down to a whisper, bring it
    back on hover so the question is the only thing competing for attention. */
 .examDim { opacity: .1; transition: opacity .4s ease; }
@@ -8994,7 +9867,6 @@ button { font-family: inherit; -webkit-appearance: none; appearance: none; }
 @keyframes birdFlap { from { transform: rotate(-34deg); } to { transform: rotate(16deg); } }
 .fade { animation: fade .28s ease both; }
 @keyframes fade { from { opacity: 0; transform: translateY(4px); } }
-@keyframes fabIn { from { opacity: 0; transform: translateY(10px) scale(.94); } }
 .dist { animation: grow .6s cubic-bezier(.22,.61,.36,1) both; }
 @keyframes grow { from { width: 0 !important; } }
 .toast { animation: tin .3s ease both; }
@@ -9135,8 +10007,11 @@ button:focus-visible { outline: 2px solid ${T.teal}; outline-offset: 2px; }
 .gateBtn::after { content: ""; position: absolute; top: 0; bottom: 0; left: -55%; width: 34%; background: linear-gradient(105deg, rgba(14,122,107,0), rgba(14,122,107,.13), rgba(14,122,107,0)); transform: skewX(-18deg); animation: gateBtnSheen 3.6s ease-in-out 1.8s infinite; }
 @keyframes gateBtnSheen { 0%, 55% { left: -55%; } 90%, 100% { left: 130%; } }
 /* --- main-page micro-animations --- */
-.qIn { animation: qIn .32s cubic-bezier(.22,.7,.3,1) both; }
-@keyframes qIn { from { opacity: 0; transform: translateY(7px); } }
+/* The incoming half of the page turn. In a book the page underneath doesn't
+   swing in — it was always there — so this is just a fast settle, and the
+   sense of motion comes from the fold's crease sweeping across it. */
+.qIn { animation: qIn .22s cubic-bezier(.2,.75,.3,1) both; transform-origin: left center; }
+@keyframes qIn { from { opacity: 0; transform: translateY(5px) scale(.995); } }
 .qIn .opt:not(.pop) { animation: optIn .38s cubic-bezier(.22,.7,.3,1) backwards; }
 .qIn .opt:not(.pop):nth-child(1) { animation-delay: .05s; }
 .qIn .opt:not(.pop):nth-child(2) { animation-delay: .1s; }
@@ -9175,6 +10050,156 @@ button:focus-visible { outline: 2px solid ${T.teal}; outline-offset: 2px; }
 @keyframes timerPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
 .progFillDone { animation: progGlowPop .6s cubic-bezier(.3,1.3,.5,1) both; }
 @keyframes progGlowPop { 0% { transform: scaleY(1); } 45% { transform: scaleY(1.6); } 100% { transform: scaleY(1); } }
+
+/* ---- Floating "Next question" button (pinned bottom-right) ----
+   A liquid-glass pill over the plasma backdrop. Layers, back to front:
+     .nextUpLens  a specular blob that chases the cursor (--gx/--gy, set in JS)
+     .nextUpRim   a fixed top-edge highlight, the "thick pane" cue
+     ::after      a sheen that sweeps on a loop so it keeps inviting the click
+   Motion: springs in on reveal, tilts and brightens under the cursor, and on
+   click the arrow flies off while the pill recoils — then we advance. */
+.nextUp { animation: nextUpIn .42s cubic-bezier(.22,1.4,.42,1) both; transition: transform .18s cubic-bezier(.3,1.2,.5,1), box-shadow .18s ease, border-color .18s ease; --gx: 50%; --gy: 50%; }
+@keyframes nextUpIn { 0% { opacity: 0; transform: translateY(12px) scale(.92); } 100% { opacity: 1; transform: none; } }
+.nextUp .nextUpArrow { position: relative; display: inline-flex; transition: transform .22s cubic-bezier(.3,1.4,.5,1); }
+
+/* Specular highlight — follows the pointer, invisible until you're on it. */
+.nextUp .nextUpLens {
+  position: absolute; inset: -40%; pointer-events: none; opacity: 0;
+  background: radial-gradient(circle at var(--gx) var(--gy), rgba(255,255,255,.75), rgba(255,255,255,.22) 26%, transparent 58%);
+  transition: opacity .22s ease;
+}
+.nextUp:hover .nextUpLens { opacity: .85; }
+/* Glass is thickest at the top edge, where it catches the most light. */
+.nextUp .nextUpRim {
+  position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255,255,255,.36), rgba(255,255,255,.04) 46%, rgba(255,255,255,.14));
+}
+.nextUp::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: -60%; width: 45%;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.5), transparent);
+  transform: skewX(-18deg); pointer-events: none;
+  animation: nextUpSheen 4.4s ease-in-out 1.2s infinite;
+}
+@keyframes nextUpSheen { 0% { left: -60%; } 22%, 100% { left: 130%; } }
+
+.nextUp:hover {
+  transform: translateY(-2px) scale(1.035);
+  border-color: rgba(255,255,255,.58);
+  box-shadow: 0 12px 30px rgba(6,20,26,.46), inset 0 1px 0 rgba(255,255,255,.7), inset 0 -8px 18px rgba(255,255,255,.16);
+}
+.nextUp:hover .nextUpArrow { transform: translateX(4px); }
+.nextUp:active { transform: translateY(0) scale(.97); }
+/* Click: the arrow leaves, the pill squeezes after it, then we advance. */
+.nextUp.nextUpGo { animation: nextUpRecoil .2s ease-out both; }
+.nextUp.nextUpGo .nextUpArrow { animation: nextUpFly .2s cubic-bezier(.4,0,.9,.4) both; }
+@keyframes nextUpRecoil { 0% { transform: none; } 40% { transform: translateX(-3px) scale(.97); } 100% { transform: translateX(8px) scale(.99); opacity: .75; } }
+@keyframes nextUpFly { 0% { transform: none; opacity: 1; } 100% { transform: translateX(22px); opacity: 0; } }
+
+.bgToggle:hover { color: #cfd6e2; }
+
+/* ---- Page turn ----
+   StPageFlip's technique, without StPageFlip. Its soft page is not 3D at all:
+   drawSoft() sets a clip-path polygon plus a flat 2D transform, and lets
+   shadow layers do the rest. Borrowing that buys the paper read AND drops the
+   3D version's problems — a clip in percentages works at any card height, and
+   nothing magnifies past its box, so the sheet can never spill over the header.
+
+   The fold line sweeps right to left at f. Three regions, all keyed off it:
+     the page still flat    [0, f]              — the card, clipped
+     the folded-over flap   [max(0, 2f-100), f] — mirrored across the fold
+     the next sheet         [f, 100]            — the plate underneath
+
+   EVERY layer below must share the 0/50/100 keyframe offsets and the same
+   easing. CSS applies a timing function between each PAIR of keyframes, not
+   across the whole animation, so a 2-stop layer and a 3-stop layer drift apart
+   mid-flight and the flap visibly detaches from the crease. The 50% stop is
+   also where 2f-100 crosses zero, so the clamp at the spine comes free. */
+.pageStack { position: relative; --foldEase: cubic-bezier(.36,.02,.6,.5); }
+/* Under the hand, the fold must track the pointer 1:1 — an ease curve would
+   put the crease somewhere other than where the finger is. */
+.pageStack.peeling { --foldEase: linear; }
+/* The grab strip. 20px wide against the card's 26px padding, so it lives over
+   dead space and never intercepts a click meant for an answer. */
+.peelGrip {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 20px; z-index: 7;
+  border-radius: 0 16px 16px 0; cursor: grab; touch-action: none;
+}
+.peelGrip:active { cursor: grabbing; }
+.peelGrip::after {
+  content: ""; position: absolute; right: 4px; top: 50%; width: 3px; height: 44px;
+  transform: translateY(-50%); border-radius: 3px; opacity: 0;
+  background: linear-gradient(180deg, transparent, rgba(35,38,47,.28), transparent);
+  transition: opacity .18s ease;
+}
+.peelGrip:hover::after { opacity: 1; }
+
+.pageFold { animation: foldAway .3s var(--foldEase) both; will-change: clip-path; }
+@keyframes foldAway {
+  0%   { clip-path: inset(0 0 0 0); }
+  50%  { clip-path: inset(0 50% 0 0); }
+  100% { clip-path: inset(0 100% 0 0); }
+}
+/* The back of the sheet. Deliberately darker than the page — it is angled away
+   from the light, and if it matches the paper the fold reads as one flat panel. */
+.foldFlap {
+  position: absolute; inset: 0; z-index: 4; pointer-events: none; border-radius: 16px;
+  background: linear-gradient(100deg, #e7e0d0, #efe9dc 62%, #f2ece0);
+  animation: foldFlap .3s var(--foldEase) both;
+}
+@keyframes foldFlap {
+  0%   { clip-path: inset(0 0 0 100%); }
+  50%  { clip-path: inset(0 50% 0 0); }
+  100% { clip-path: inset(0 100% 0 0); }
+}
+/* Crease: hard right edge riding exactly on the fold line, with a broad soft
+   ramp left of it for the bulge. A composited transform, so it tracks the clip
+   for free. Tight on purpose — spread it out and the fold becomes a grey smear. */
+.foldCrease {
+  position: absolute; inset: 0; z-index: 5; pointer-events: none;
+  background: linear-gradient(90deg,
+    rgba(10,14,26,0) 62%, rgba(10,14,26,.05) 78%, rgba(10,14,26,.13) 90%,
+    rgba(10,14,26,.28) 97.5%, rgba(10,14,26,.46));
+  animation: foldCrease .3s var(--foldEase) both;
+}
+@keyframes foldCrease {
+  0%   { transform: translateX(0); }
+  50%  { transform: translateX(-50%); }
+  100% { transform: translateX(-100%); }
+}
+/* Contact shadow thrown left from the flap's free edge. This is the layer that
+   separates the folded sheet from the page under it; without it there is no
+   visible boundary between them. Holds at the spine through the second half. */
+.foldEdge {
+  position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background: linear-gradient(90deg,
+    rgba(10,14,26,0) 87%, rgba(10,14,26,.09) 95%, rgba(10,14,26,.30));
+  animation: foldEdge .3s var(--foldEase) both;
+}
+@keyframes foldEdge {
+  0%   { transform: translateX(0); }
+  50%  { transform: translateX(-100%); }
+  100% { transform: translateX(-100%); }
+}
+/* The folded edge catches the light. Carries the flap's own clip so the
+   highlight never paints onto the flat page beside it. */
+.foldSheen {
+  position: absolute; inset: 0; z-index: 6; pointer-events: none;
+  background: linear-gradient(90deg,
+    rgba(255,255,255,.85), rgba(255,255,255,.3) 3%, rgba(255,255,255,0) 13%);
+  animation: foldFlap .3s var(--foldEase) both, foldSheen .3s var(--foldEase) both;
+}
+@keyframes foldSheen {
+  0%   { transform: translateX(100%); opacity: 0; }
+  50%  { transform: translateX(0%);   opacity: .85; }
+  100% { transform: translateX(0%);   opacity: .25; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nextUp, .nextUp.nextUpGo, .nextUp::after, .nextUp .nextUpArrow, .nextUp.nextUpGo .nextUpArrow { animation: none !important; }
+  .nextUp::after, .nextUp .nextUpLens { display: none; }
+  .nextUp, .nextUp .nextUpArrow { transition: none !important; }
+  .pageFold { animation: none !important; clip-path: none !important; }
+  .foldFlap, .foldCrease, .foldEdge, .foldSheen, .peelGrip { display: none !important; }
+}
 @media (prefers-reduced-motion: reduce) {
   /* Global backstop: also neutralizes inline animations (scrim/panel materialize). */
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
@@ -9195,9 +10220,11 @@ button:focus-visible { outline: 2px solid ${T.teal}; outline-offset: 2px; }
 }
 /* The mobile "Menu" toggle lives in the header; desktop never sees it. */
 .mobMenuBtn { display: none !important; align-items: center; gap: 5px; }
-@media (max-width: 680px) {
-  .topInner { flex-wrap: wrap !important; padding: 10px 14px !important; gap: 8px 10px !important; }
-  .topMeta { width: 100% !important; justify-content: space-between !important; gap: 8px !important; flex-wrap: wrap !important; }
+/* Phone treatment. A landscape phone is *wide* (844px) but very short, so
+   width alone can't detect it — keyed off max-height too, otherwise landscape
+   fell through to the desktop path: every pill kept its text label, the header
+   wrapped to three rows, and the Menu button stayed hidden. */
+@media (max-width: 680px), (max-height: 520px) {
   .topActions { gap: 6px !important; flex-wrap: wrap !important; justify-content: flex-end !important; }
   .topActBtn { padding: 7px 9px !important; }
   .btnTxt { display: none !important; }
@@ -9207,14 +10234,31 @@ button:focus-visible { outline: 2px solid ${T.teal}; outline-offset: 2px; }
   .mobExtra { display: none !important; }
   .mobMenuOpen .mobExtra { display: inline-flex !important; }
   .mobMenuOpen .topActions { display: flex !important; }
+  /* The study-set builder's filters are taller than a phone screen, and the
+     inner-scroll layout pushed the "Study these" footer off the bottom where
+     nobody could reach it. On phones the whole panel scrolls instead. */
+  .deckPanel { overflow-y: auto !important; }
+  .deckPanel .deckBody { overflow: visible !important; }
+}
+@media (max-width: 680px) {
+  .topInner { flex-wrap: wrap !important; padding: 10px 14px !important; gap: 8px 10px !important; }
+  .topMeta { width: 100% !important; justify-content: space-between !important; gap: 8px !important; flex-wrap: wrap !important; }
   /* On a phone the quick-start presets stack, so the eyebrow gets its own line
      instead of stealing width from the first (widest) button. */
   .quickLabel { flex-basis: 100%; margin-bottom: 2px; }
-  /* The study-set builder's filters are taller than a phone screen, and the
-     inner-scroll layout pushed the "Study these" footer off the bottom where
-     nobody could reach it. Below 680px the whole panel scrolls instead. */
-  .deckPanel { overflow-y: auto !important; }
-  .deckPanel .deckBody { overflow: visible !important; }
+}
+/* Landscape phone: vertical space is the scarce resource. Keep the whole bar
+   on one line (no second row for topMeta) and trim its padding, so the sticky
+   header costs ~40px of a 390px viewport instead of a third of the screen. */
+@media (max-height: 520px) {
+  .topInner { flex-wrap: nowrap !important; padding: 6px 14px !important; gap: 8px !important; }
+  /* width:auto cancels the ≤680px rule above — a narrow landscape phone (568px)
+     matches both blocks, and a 100%-wide meta on a nowrap row overflows. */
+  .topMeta { flex-wrap: nowrap !important; gap: 8px !important; width: auto !important; min-width: 0; }
+  .brandHome { flex-shrink: 0; }
+  /* Opened, the menu could otherwise run past the bottom of the screen. */
+  .mobMenuOpen [data-topbar] { max-height: 78vh; overflow-y: auto; }
+  .mobMenuOpen .topMeta { flex-wrap: wrap !important; }
 }
 /* Slow ambient drift for the participant poll's arena backdrop (same motion
    ImmersiveScene uses for its settled-room backdrop). */
@@ -9272,6 +10316,8 @@ const s: Record<string, React.CSSProperties> = {
   apActions: { display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" as const, justifyContent: "flex-end", marginLeft: "auto" },
   apApprove: { background: T.teal, color: "#fff", border: "none", padding: "7px 13px", borderRadius: 8, fontSize: 12.5, fontWeight: 600, cursor: "pointer" },
   apDecline: { background: "#fff", color: T.wrongLine, border: `1px solid ${T.wrongLine}88`, padding: "7px 13px", borderRadius: 8, fontSize: 12.5, fontWeight: 600, cursor: "pointer" },
+  // Softer than the plain decline — this one is an invitation, not a rejection.
+  apDeclineStudent: { background: "#fff", color: T.gold, border: `1px solid ${T.gold}88`, padding: "7px 13px", borderRadius: 8, fontSize: 12.5, fontWeight: 600, cursor: "pointer" },
   apSelect: { background: "#fff", color: T.text, border: `1px solid ${T.paperEdge}`, borderRadius: 8, padding: "6px 8px", fontSize: 12.5, cursor: "pointer" },
   apBlock: { display: "grid", placeItems: "center", width: 30, height: 30, borderRadius: 8, background: "#fff", color: T.wrongLine, border: `1px solid ${T.paperEdge}`, cursor: "pointer" },
   apToggle: { background: "#fff", color: T.muted, border: `1px solid ${T.paperEdge}`, borderRadius: 999, padding: "6px 12px", fontSize: 12.5, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" as const },
@@ -9337,11 +10383,19 @@ const s: Record<string, React.CSSProperties> = {
   gateSub: { fontSize: 14.5, lineHeight: 1.55, color: T.muted, margin: "0 0 22px" },
   googleBtn: { display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", background: "#fff", color: "#1f2330", border: `1px solid ${T.paperEdge}`, padding: "12px 18px", borderRadius: 11, fontSize: 15, fontWeight: 600, cursor: "pointer" },
   gateFine: { fontSize: 12, color: T.faint, lineHeight: 1.5, margin: "18px 0 0" },
+  gateStudentNote: { fontSize: 12, color: T.muted, lineHeight: 1.55, margin: "12px 0 0", padding: "11px 13px", textAlign: "left", background: T.tealSoft, border: `1px solid ${T.teal}2e`, borderRadius: 10 },
+  gateCodeRow: { display: "flex", gap: 7, marginTop: 10 },
+  // Poll codes are short and upper-case — mono + wide tracking makes an O/0 mix-up obvious.
+  gateCodeInput: { flex: 1, minWidth: 0, background: "#fff", border: `1px solid ${T.teal}3d`, borderRadius: 8, padding: "9px 11px", fontSize: 14, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: T.text, fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace", outline: "none" },
+  gateCodeGo: { display: "inline-flex", alignItems: "center", gap: 6, background: T.teal, color: "#fff", border: "none", borderRadius: 8, padding: "9px 15px", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" },
+  gateCodeGoOff: { background: "#b9cfc9", cursor: "not-allowed" },
   tlHeading: { fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", color: T.faint, marginBottom: 7 },
   tlRow: { display: "flex", flexWrap: "wrap", gap: 7 },
   tlBtn: { flex: "1 1 auto", background: "#fff", color: T.text, border: `1px solid ${T.paperEdge}`, borderRadius: 9, padding: "10px 12px", fontSize: 13.5, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" },
 
-  well: { maxWidth: 740, margin: "0 auto", padding: "20px 22px 90px" },
+  // position/zIndex lift the question column above the fixed
+  // ClosingPlasmaBackground canvas, which paints at z-index 0.
+  well: { position: "relative", zIndex: 1, maxWidth: 740, margin: "0 auto", padding: "20px 22px 90px" },
 
   nav: { display: "flex", alignItems: "center", gap: 12, marginBottom: 16, flexWrap: "wrap" },
   sel: { background: T.inkSoft, color: "#e7eaf0", border: `1px solid ${T.inkLine}`, borderRadius: 9, padding: "8px 11px", fontSize: 13, cursor: "pointer" },
@@ -9374,6 +10428,57 @@ const s: Record<string, React.CSSProperties> = {
   setBlock: { padding: "16px 0", borderBottom: `1px solid ${T.paperEdge}` },
   setLbl: { fontSize: 13.5, fontWeight: 600, color: T.text, marginBottom: 10 },
   setHint: { fontSize: 12, color: T.muted, marginTop: 5, lineHeight: 1.45 },
+
+  /* ---- "What comes first" ordering panel ---- */
+  orderIntro: { fontSize: 13, color: T.muted, lineHeight: 1.5, margin: "10px 0 14px" },
+  orderList: { listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 7 },
+  orderRow: {
+    display: "flex", alignItems: "center", gap: 11, padding: "11px 12px",
+    background: T.card, border: `1px solid ${T.paperEdge}`, borderRadius: 11,
+    cursor: "grab", userSelect: "none",
+  },
+  orderRowDrag: { opacity: 0.45, cursor: "grabbing" },
+  // A solid top edge is the drop indicator — the row will land above this one.
+  orderRowOver: { borderColor: T.teal, boxShadow: `inset 0 3px 0 -1px ${T.teal}` },
+  orderGrip: { color: T.faint, display: "flex", flex: "none" },
+  orderRank: {
+    flex: "none", width: 21, height: 21, display: "grid", placeItems: "center",
+    borderRadius: 6, background: T.tealSoft, color: T.tealDeep,
+    fontSize: 11.5, fontWeight: 700, fontVariantNumeric: "tabular-nums",
+  },
+  orderLabel: { display: "block", fontSize: 13.5, fontWeight: 600, color: T.text },
+  orderHint: { display: "block", fontSize: 11.5, color: T.muted, lineHeight: 1.4, marginTop: 1 },
+  orderMoves: { display: "flex", flexDirection: "column", gap: 2, flex: "none" },
+  orderMoveBtn: {
+    display: "grid", placeItems: "center", width: 22, height: 17, padding: 0,
+    background: "transparent", border: `1px solid ${T.paperEdge}`, borderRadius: 5,
+    color: T.muted, cursor: "pointer",
+  },
+  orderYearRow: { display: "flex", flexWrap: "wrap", gap: 7 },
+  orderYear: {
+    display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px",
+    background: T.card, border: `1px solid ${T.paperEdge}`, borderRadius: 999,
+    fontSize: 13, fontWeight: 600, color: T.muted, cursor: "pointer",
+    fontVariantNumeric: "tabular-nums",
+  },
+  orderYearOn: { background: T.tealSoft, borderColor: T.teal, color: T.tealDeep },
+  orderYearNum: {
+    display: "grid", placeItems: "center", width: 16, height: 16, borderRadius: 5,
+    background: T.teal, color: "#fff", fontSize: 10.5, fontWeight: 700,
+  },
+  orderPreview: { listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 4 },
+  orderPreviewRow: {
+    display: "flex", alignItems: "center", gap: 9, padding: "6px 9px",
+    background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 8, fontSize: 12.5,
+  },
+  orderPreviewNum: { color: T.faint, fontSize: 11, width: 14, fontVariantNumeric: "tabular-nums", flex: "none" },
+  orderPreviewYear: { color: T.tealDeep, fontWeight: 700, flex: "none", fontVariantNumeric: "tabular-nums" },
+  orderPreviewCat: { color: T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 },
+  orderPreviewTag: {
+    display: "inline-flex", alignItems: "center", gap: 3, flex: "none",
+    color: T.gold, fontSize: 10.5, fontWeight: 700,
+  },
+  orderFoot: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, paddingTop: 16 },
   segRow: { display: "inline-flex", background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 10, padding: 3, gap: 3 },
   segBtn: { background: "transparent", color: T.muted, border: "none", padding: "8px 20px", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
   segOn: { background: T.teal, color: "#fff" },
@@ -9388,6 +10493,10 @@ const s: Record<string, React.CSSProperties> = {
   jump: { width: 78, background: T.inkSoft, color: "#e7eaf0", border: `1px solid ${T.inkLine}`, borderRadius: 9, padding: "8px 10px", fontSize: 13 },
   jumpBtn: { background: T.teal, color: "#fff", border: "none", borderRadius: 9, padding: "8px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer" },
   deckBtn: { display: "inline-flex", alignItems: "center", gap: 6, background: T.inkSoft, color: "#e7d9b4", border: `1px solid ${T.inkLine}`, padding: "8px 12px", borderRadius: 9, fontSize: 12.5, fontWeight: 500, cursor: "pointer" },
+  // Marks a control whose setting is no longer the default, so a customised
+  // order is visible from the nav without opening the panel.
+  deckBtnOn: { borderColor: T.teal, color: "#eaf6f2" },
+  deckDot: { width: 6, height: 6, borderRadius: "50%", background: T.teal, marginLeft: 1 },
   deckFilters: { padding: "2px 20px 12px", borderBottom: `1px solid ${T.paperEdge}` },
   // Quick-start presets — deliberately the biggest, plainest-English control in
   // the panel, since "my wrong ones" / "ones I haven't done" is what people ask.
@@ -9435,7 +10544,8 @@ const s: Record<string, React.CSSProperties> = {
   multiTag: { display: "inline-flex", alignItems: "center", gap: 5, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 11, color: T.gold, background: T.goldSoft, borderRadius: 6, padding: "3px 9px" },
   multiBanner: { display: "flex", alignItems: "center", gap: 9, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", fontSize: 14, lineHeight: 1.4, color: T.gold, background: T.goldSoft, border: `1px solid ${T.gold}`, borderRadius: 10, padding: "11px 14px", margin: "0 0 14px" },
 
-  qcard: { background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 16, padding: "26px 26px 22px", boxShadow: "0 1px 0 rgba(0,0,0,.04), 0 18px 40px -28px rgba(20,24,40,.5)" },
+  // position: relative anchors the page-turn shading overlays to the card.
+  qcard: { position: "relative", background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 16, padding: "26px 26px 22px", boxShadow: "0 1px 0 rgba(0,0,0,.04), 0 18px 40px -28px rgba(20,24,40,.5)" },
   caughtCard: { width: "100%", maxWidth: 440, background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 18, padding: "32px 28px", textAlign: "center", boxShadow: "0 30px 80px -30px rgba(0,0,0,.5)" },
   figRow: { display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 18, justifyContent: "center" },
   figImg: { maxWidth: "100%", maxHeight: 320, borderRadius: 10, border: `1px solid ${T.paperEdge}`, background: "#fff" },
@@ -9450,6 +10560,25 @@ const s: Record<string, React.CSSProperties> = {
   askToggle: { display: "inline-flex", alignItems: "center", gap: 7, background: T.tealSoft, border: `1px solid ${T.tealSoft}`, color: T.tealDeep, padding: "9px 15px", borderRadius: 10, fontSize: 13.5, fontWeight: 700, cursor: "pointer" },
   askToggleOn: { background: T.teal, border: `1px solid ${T.teal}`, color: "#fff" },
   askPanel: { flexBasis: "100%", marginTop: 1, padding: "13px 15px", background: T.card, border: `1px solid ${T.paperEdge}`, borderRadius: 12 },
+  // Floating Next button — liquid glass over the plasma backdrop, pinned to the
+  // bottom-right so it's one tap away at any scroll depth. Everything decorative
+  // (sheen, specular lens, rim) is a child or pseudo-element, so overflow must
+  // stay hidden; the tinted-teal wash keeps it legible when the plasma drifts
+  // pale. The safe-area inset keeps it off the iPhone home indicator.
+  nextUpFab: {
+    position: "fixed", right: 16, bottom: "calc(20px + env(safe-area-inset-bottom, 0px))", zIndex: 50,
+    overflow: "hidden", isolation: "isolate",
+    display: "inline-flex", alignItems: "center", gap: 9,
+    // Opaque teal base under the glass gradient: floating, it now passes over
+    // the white question card, where a purely translucent fill lost its white
+    // label. The gradient still supplies the glass read.
+    background: `linear-gradient(145deg, rgba(255,255,255,.22), rgba(14,122,107,.30) 52%, rgba(255,255,255,.10)), ${T.teal}`,
+    backdropFilter: "blur(13px) saturate(1.9)", WebkitBackdropFilter: "blur(13px) saturate(1.9)",
+    border: "1px solid rgba(255,255,255,.34)", color: "#fff",
+    padding: "11px 19px", borderRadius: 999, fontSize: 14, fontWeight: 700, cursor: "pointer",
+    textShadow: "0 1px 2px rgba(0,0,0,.34)",
+    boxShadow: "0 10px 28px rgba(6,20,26,.5), inset 0 1px 0 rgba(255,255,255,.5), inset 0 -6px 14px rgba(255,255,255,.10)",
+  },
   askRow: { display: "flex", flexWrap: "wrap", gap: 7, alignItems: "center", marginBottom: 9 },
   askLabel: { fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: T.faint, minWidth: 50 },
   askChip: { display: "inline-flex", alignItems: "center", background: "#fff", border: `1px solid ${T.paperEdge}`, color: T.text, padding: "6px 11px", borderRadius: 999, fontSize: 12.5, fontWeight: 600, cursor: "pointer" },
@@ -9477,11 +10606,8 @@ const s: Record<string, React.CSSProperties> = {
   verdictIcon: { width: 22, height: 22, borderRadius: 6, display: "grid", placeItems: "center", flexShrink: 0 },
   verdictMeta: { marginLeft: "auto", fontSize: 12.5, color: T.muted, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", maxWidth: "100%" },
 
-  below: { marginTop: 18 },
-  learningHead: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 18, marginBottom: 12, flexWrap: "wrap" },
-  learningEyebrow: { display: "block", color: "#63d6bf", fontSize: 10.5, fontWeight: 800, letterSpacing: "0.13em", textTransform: "uppercase", marginBottom: 3 },
-  learningTitle: { color: "#f4f6f9", fontSize: 19, lineHeight: 1.2, letterSpacing: "-0.02em", margin: 0, fontWeight: 700 },
-  learningHint: { color: "#9199a8", fontSize: 11.5, lineHeight: 1.4, margin: "5px 0 0", maxWidth: 470 },
+  below: { marginTop: 12 },
+  learningHead: { display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 18, marginBottom: 8, flexWrap: "wrap" },
   learningActions: { display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" },
   learningAction: { background: T.inkSoft, color: "#b9c0cc", border: `1px solid ${T.inkLine}`, borderRadius: 999, padding: "6px 10px", fontSize: 11.5, fontWeight: 650, cursor: "pointer" },
   learningStack: { display: "grid", gap: 10 },
@@ -9575,14 +10701,6 @@ const s: Record<string, React.CSSProperties> = {
   addInput: { flex: 1, border: `1px solid ${T.paperEdge}`, borderRadius: 9, padding: "10px 13px", fontSize: 14, background: "#fff", color: T.text },
   primarySm: { display: "inline-flex", alignItems: "center", gap: 7, background: T.teal, color: "#fff", border: "none", padding: "9px 16px", borderRadius: 9, fontSize: 13.5, fontWeight: 600, cursor: "pointer" },
 
-  /* Sits above the mobile bottom bar and clear of the right edge; safe-area
-     inset keeps it off the iPhone home indicator. */
-  fabNext: { position: "fixed", right: 16, bottom: "calc(20px + env(safe-area-inset-bottom, 0px))", zIndex: 50,
-             display: "inline-flex", alignItems: "center", gap: 7, background: T.teal, color: "#fff",
-             border: "none", padding: "12px 18px", borderRadius: 999, fontSize: 14.5, fontWeight: 700,
-             cursor: "pointer", boxShadow: "0 8px 22px rgba(0,0,0,.34)", animation: "fabIn .18s ease both" },
-  nextRow: { display: "flex", justifyContent: "flex-end", marginTop: 20 },
-  next: { display: "inline-flex", alignItems: "center", gap: 9, background: T.inkSoft, color: "#fff", border: `1px solid ${T.inkLine}`, padding: "11px 20px", borderRadius: 10, fontSize: 14.5, fontWeight: 600, cursor: "pointer" },
 
   confetti: { position: "fixed", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 70 },
   balloonField: { position: "fixed", inset: 0, overflow: "hidden", pointerEvents: "none", zIndex: 75 },
@@ -9595,6 +10713,12 @@ const s: Record<string, React.CSSProperties> = {
 
   disclaimer: { maxWidth: 620, margin: "44px auto 0", paddingTop: 16, borderTop: `1px solid ${T.inkLine}`, color: T.faint, fontSize: 11.5, lineHeight: 1.5, textAlign: "center" },
   siteReportBtn: { display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: `1px solid ${T.paperEdge}`, color: T.muted, fontSize: 12, padding: "6px 12px", borderRadius: 8, cursor: "pointer" },
+  // Footer backdrop switch — quiet by default, brightens on hover (.bgToggle).
+  bgToggle: { display: "inline-flex", alignItems: "center", gap: 9, background: "none", border: "none", color: T.faint, fontSize: 12, padding: "4px 6px", cursor: "pointer", transition: "color .18s ease" },
+  bgTrack: { position: "relative", width: 30, height: 17, borderRadius: 999, background: "rgba(255,255,255,.13)", border: "1px solid rgba(255,255,255,.16)", transition: "background .22s ease, border-color .22s ease", flexShrink: 0 },
+  bgTrackOn: { background: T.teal, borderColor: T.teal },
+  bgKnob: { position: "absolute", top: 2, left: 2, width: 11, height: 11, borderRadius: "50%", background: "#fff", opacity: .75, transition: "transform .22s cubic-bezier(.3,1.3,.5,1), opacity .22s ease" },
+  bgKnobOn: { transform: "translateX(13px)", opacity: 1 },
   quizapineAd: { display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, color: T.faint, textDecoration: "none", opacity: 0.85 },
   quizapineBadge: { display: "grid", placeItems: "center", width: 15, height: 15, borderRadius: 4.5, background: "linear-gradient(135deg, #a855f7, #ec4899)", flexShrink: 0 },
   quizapineWordmark: { background: "linear-gradient(90deg, #8b6cf0, #d15fd6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", fontWeight: 700 },
@@ -9695,12 +10819,20 @@ const s: Record<string, React.CSSProperties> = {
   // team picker + standings — participant (phone)
   teamBar: { display: "flex", alignItems: "center", gap: 10, marginBottom: 16, minHeight: 38 },
   teamForm: { display: "flex", alignItems: "center", gap: 8, width: "100%" },
+  // Guest team picker — chips wrap so a 10-team session still fits a phone.
+  teamPickWrap: { width: "100%", marginBottom: 10 },
+  teamPickLbl: { display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "#aeb4c0", marginBottom: 7 },
+  teamPickRow: { display: "flex", flexWrap: "wrap", gap: 7 },
+  teamPick: { background: T.ink, color: "#e7eaf0", border: `1.5px solid ${T.inkLine}`, borderRadius: 999, padding: "8px 15px", fontSize: 14, fontWeight: 600, cursor: "pointer", minHeight: 38 },
+  teamPickOn: { background: T.teal, borderColor: T.teal, color: "#fff" },
   teamInput: { flex: 1, minWidth: 0, background: T.ink, color: "#fff", border: `1.5px solid ${T.inkLine}`, borderRadius: 10, padding: "9px 12px", fontSize: 15, fontFamily: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif" },
   teamSet: { flexShrink: 0, background: T.teal, color: "#fff", border: "none", borderRadius: 10, padding: "9px 16px", fontSize: 14.5, fontWeight: 700, cursor: "pointer" },
   teamSetOff: { opacity: 0.4, cursor: "default" },
   teamTag: { display: "inline-flex", alignItems: "center", gap: 7, color: "#c7ccd6", fontSize: 14.5 },
   teamChange: { marginLeft: "auto", background: "none", border: `1px solid ${T.inkLine}`, color: "#aeb4c0", borderRadius: 8, padding: "5px 11px", fontSize: 13, cursor: "pointer" },
   teamScoreHint: { margin: "-8px 0 16px", color: T.faint, fontSize: 12.5, lineHeight: 1.4 },
+  // The "how scoring works" footnote under each standings list.
+  scoringNote: { margin: "14px 2px 0", color: T.faint, fontSize: 12.5, lineHeight: 1.5, maxWidth: 720 },
   teamDownload: { marginTop: 14, width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, background: T.ink, color: "#c7ccd6", border: `1px solid ${T.inkLine}`, borderRadius: 10, padding: "10px 12px", fontSize: 13.5, fontWeight: 600, cursor: "pointer" },
   teamBoardMini: { marginTop: 16, display: "flex", flexDirection: "column", gap: 6 },
   teamMiniRow: { display: "flex", alignItems: "center", gap: 12, background: T.ink, border: `1px solid ${T.inkLine}`, borderRadius: 10, padding: "9px 13px", fontSize: 14.5 },
