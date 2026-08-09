@@ -55,7 +55,7 @@ const SCORING_NOTE_PARTICIPANT =
    page lurching. Lives in its own component because App's hooks run above
    several early returns; the parent <div key={qid}> remounts this on every
    question so the effect re-runs for free. */
-function QuestionCardAnchor() {
+function QuestionCardAnchor({ revealed }: { revealed: boolean }) {
   const ref = useRef<HTMLSpanElement | null>(null);
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -76,8 +76,9 @@ function QuestionCardAnchor() {
     };
     const place = () => {
       const bar = document.querySelector("[data-topbar]") as HTMLElement | null;
-      // A few px of air under the sticky bar so the card edge isn't flush against chrome.
-      const offset = Math.round(bar?.getBoundingClientRect().height ?? 0) + 8;
+      // Leave enough air that the first line of the stem stays clear even if
+      // the sticky header gains a little height as the answer state updates.
+      const offset = Math.round(bar?.getBoundingClientRect().height ?? 0) + 16;
       window.scrollTo({ top: Math.max(0, layoutTop(card) - offset), behavior: "auto" });
     };
     // Two frames so the remount settles (previous question's layout is gone).
@@ -90,7 +91,7 @@ function QuestionCardAnchor() {
       window.cancelAnimationFrame(raf2);
       window.clearTimeout(late);
     };
-  }, []);
+  }, [revealed]);
   return <span ref={ref} aria-hidden style={{ display: "none" }} />;
 }
 
@@ -1695,13 +1696,28 @@ export default function App() {
     !!new URLSearchParams(window.location.search).get("reward"));
   const [birdOn, setBirdOn] = useState(false); // the hand-drawn bird is flying around
   const rewardArmed = useRef(true);
+  // A reward should mark a completion that happens while this session is
+  // running, never a completed set discovered while answers are loading at
+  // sign-in. The key also re-baselines cleanly when the day or user changes.
+  const rewardBaselineRef = useRef<string | null>(null);
   const rewardTarget = settings?.regimen ?? 10;
   const rewardDoneToday = Object.values(answers).filter((a) => isSameDay(a.updated_at)).length;
   const rewardSetAnswered = inPractice ? set.filter((qq) => answers[questionId(qq.year, qq.q_index)]).length : 0;
-  const rewardDailyDone = inToday && rewardDoneToday >= rewardTarget;
+  const rewardDailyDone = rewardDoneToday >= rewardTarget;
   const rewardExamDone = examMode && inPractice && set.length > 0 && rewardSetAnswered >= set.length;
   const rewardSetDone = rewardDailyDone || rewardExamDone;
   useEffect(() => {
+    // The saved answer history and account-synced "already shown" preference
+    // arrive after the first render. Prime the state from the settled data so
+    // an old completed set cannot look like a new completion just by logging in.
+    if (persist && (!answersLoaded || !prefsSynced)) return;
+    const uid = profile?.id ?? session?.user?.id ?? "local";
+    const baselineKey = `${uid}:${ymd()}`;
+    if (rewardBaselineRef.current !== baselineKey) {
+      rewardBaselineRef.current = baselineKey;
+      rewardArmed.current = !rewardSetDone;
+      return;
+    }
     if (rewardSetDone && rewardArmed.current) {
       rewardArmed.current = false;
       // The daily set is "done" again on every revisit that day (the answers
@@ -1721,7 +1737,7 @@ export default function App() {
       setReward(true);
     }
     if (!rewardSetDone) rewardArmed.current = true;
-  }, [rewardSetDone, rewardDailyDone, rewardExamDone]);
+  }, [persist, answersLoaded, prefsSynced, profile?.id, session?.user?.id, rewardSetDone, rewardDailyDone, rewardExamDone]);
 
   // Scroll edge effect: the translucent top bar only casts a shadow once
   // content is actually scrolled underneath it (no hard divider at rest).
@@ -2668,7 +2684,7 @@ export default function App() {
               cascade on every navigation (figures stay outside — remounting
               them would re-trigger image loads) */}
           <div key={qid} className="qIn">
-          <QuestionCardAnchor />
+          <QuestionCardAnchor revealed={showAnswer} />
           <HighlightableText
             text={q.stem}
             ranges={highlights.filter((h) => h.field === "stem")}
