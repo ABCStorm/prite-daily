@@ -65,21 +65,15 @@ function QuestionCardAnchor({ revealed }: { revealed: boolean }) {
       (ref.current?.closest("[data-qcard]") as HTMLElement | null)
       ?? ref.current?.parentElement;
     if (!card) return;
-    // Layout position via offsetParent — NOT getBoundingClientRect(), which
-    // includes .qIn's entrance transform and any scroll already in flight and
-    // was measuring hundreds of pixels off.
-    const layoutTop = (el: HTMLElement) => {
-      let y = 0;
-      let n: HTMLElement | null = el;
-      while (n) { y += n.offsetTop; n = n.offsetParent as HTMLElement | null; }
-      return y;
-    };
     const place = () => {
       const bar = document.querySelector("[data-topbar]") as HTMLElement | null;
-      // Leave enough air that the first line of the stem stays clear even if
-      // the sticky header gains a little height as the answer state updates.
-      const offset = Math.round(bar?.getBoundingClientRect().height ?? 0) + 16;
-      window.scrollTo({ top: Math.max(0, layoutTop(card) - offset), behavior: "auto" });
+      // Work in viewport coordinates: the sticky header can change height as
+      // the answer appears, and document-space math can leave the card behind
+      // it. Moving by the measured delta always puts the visible card below
+      // the header, including the post-submit correction.
+      const targetTop = (bar?.getBoundingClientRect().bottom ?? 0) + 16;
+      const delta = card.getBoundingClientRect().top - targetTop;
+      if (Math.abs(delta) > 1) window.scrollBy({ top: delta, behavior: "auto" });
     };
     // Two frames so the remount settles (previous question's layout is gone).
     let raf2 = 0;
