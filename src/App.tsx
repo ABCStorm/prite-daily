@@ -7212,8 +7212,16 @@ function Approvals({
     setRosterMsg(`Updated ${changes.length} member${changes.length === 1 ? "" : "s"}.`);
   };
 
-  const pending = profiles.filter((p) => p.status === "pending");
-  const others = profiles.filter((p) => p.status !== "pending");
+  const byDisplayName = (a: Profile, b: Profile) => {
+    const nameOrder = (a.full_name || a.email).localeCompare(
+      b.full_name || b.email,
+      undefined,
+      { sensitivity: "base" },
+    );
+    return nameOrder || a.email.localeCompare(b.email, undefined, { sensitivity: "base" });
+  };
+  const pending = profiles.filter((p) => p.status === "pending").sort(byDisplayName);
+  const others = profiles.filter((p) => p.status !== "pending").sort(byDisplayName);
   const row = (p: Profile) => {
     const year = matchYear(p.full_name);
     const isSelf = p.id === currentUserId;
