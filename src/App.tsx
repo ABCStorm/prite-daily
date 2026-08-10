@@ -1587,6 +1587,16 @@ export default function App() {
           return;
         }
         setTodayQueue(restored);
+        // The queue snapshot deliberately keeps the full daily set so its
+        // order and question count stay stable across sessions. Resume at the
+        // first item that has not been answered today instead of showing the
+        // already-revealed questions from the beginning again. An older
+        // due-review answer still counts as pending for today's set.
+        const nextUnanswered = restored.findIndex((qq) => {
+          const row = answersRef.current[questionId(qq.year, qq.q_index)];
+          return !row || !isSameDay(row.updated_at);
+        });
+        setQi(nextUnanswered >= 0 ? nextUnanswered : 0);
         setBonusRound(snap.bonusRound || 0);
         setReviewMode(!!snap.reviewMode);
         return;
