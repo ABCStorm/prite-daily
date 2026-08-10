@@ -520,8 +520,16 @@ function shuffled<T>(arr: T[]): T[] {
 // near-identical stem — so a normalized stem collapses them into one group.
 // Used to keep a generated test from including a question twice (once as its
 // 2019 copy, again as its 2023 copy) or reusing one already in a saved test.
-function questionGroupKey(q: { stem: string }): string {
-  return (q.stem ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().slice(0, 160);
+function questionGroupKey(q: Pick<RawQuestion, "year" | "q_index" | "stem" | "repeat_count" | "repeat_years">): string {
+  // Only collapse items the repeat detector actually marked. Distinct questions
+  // in a multi-question vignette can share a very long stem prefix, so applying
+  // the prefix heuristic to every bank item would incorrectly merge them.
+  if ((q.repeat_count ?? 1) <= 1 || !q.repeat_years?.length) {
+    return `question:${q.year}:${q.q_index}`;
+  }
+  const years = q.repeat_years.slice().sort().join(",");
+  const stemPrefix = (q.stem ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().slice(0, 160);
+  return `repeat:${years}:${stemPrefix}`;
 }
 
 /** Keep at most one cross-year copy of the same PRITE item in a queue. The
@@ -2423,9 +2431,12 @@ export default function App() {
   };
 
   const qid = q ? questionId(q.year, q.q_index) : "";
-  const recentRepeatCutoff = Date.now() - 7 * 86400000;
-  const recentHighYieldRepeat = q && (q.repeat_count ?? 1) > 1
-    ? all
+  const recentHighYieldRepeat = useMemo(() => {
+    if (!q || !all || (q.repeat_count ?? 1) <= 1) return null;
+    const now = Date.now();
+    const recentRepeatCutoff = now - 7 * 86400000;
+    const targetGroup = questionGroupKey(q);
+    return all
         .map((other) => ({
           question: other,
           id: questionId(other.year, other.q_index),
@@ -2434,13 +2445,13 @@ export default function App() {
         .filter(({ question, id, row }) =>
           id !== qid &&
           !!row &&
-          questionGroupKey(question) === questionGroupKey(q) &&
+          questionGroupKey(question) === targetGroup &&
           Date.parse(row.updated_at) >= recentRepeatCutoff &&
-          Date.parse(row.updated_at) <= Date.now()
+          Date.parse(row.updated_at) <= now
         )
         .sort((a, b) => Date.parse(b.row!.updated_at) - Date.parse(a.row!.updated_at))[0]
-      ?? null
-    : null;
+      ?? null;
+  }, [q, all, answers, qid]);
   const isAdmin = !!profile?.is_admin;
   const pendingCount = profiles.filter((p) => p.status === "pending").length;
   const answeredCount = Object.keys(answers).length;
