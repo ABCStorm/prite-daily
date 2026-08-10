@@ -9,12 +9,15 @@ import {
   Eye, EyeOff, PanelRight, PanelBottom,
   BookOpen, Volume2, Play, Pause, Square, Copy, Shuffle, GripVertical,
   Brain, Pill, HeartPulse, GraduationCap, LayoutDashboard, Pin, Headphones,
+  Library,
 } from "lucide-react";
 import mermaid from "mermaid";
 import { nextRewardPost, RewardKind } from "./lib/motivation";
 import { ExplanationText } from "./lib/explanationFormat";
 import { KaplanPanel } from "./lib/kaplanPanel";
 import { loadKaplanRefs, type KaplanRef } from "./lib/kaplanRefs";
+import { ResearchPanel } from "./lib/researchPanel";
+import { loadResearchRefs, type ResearchRef } from "./lib/researchRefs";
 import { ZoomLightbox } from "./lib/ZoomLightbox";
 import { ScenarioIllustration } from "./lib/ScenarioIllustration";
 import { ResourceImagePanel, type AnkingMatchMeta } from "./lib/ResourceImagePanel";
@@ -339,17 +342,21 @@ function ago(iso: string) {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
-/* "My notes" and "Group notes" are the same gesture twice, so they share one
-   row of the learning stack instead of costing two full-width cards. Both stay
-   independently expandable; the pair collapses back to a single column on
-   narrow screens (see .learningPair). Keyed off the cards' own keys so the
-   section list stays the single source of order. */
+/* Pair adjacent learning cards that belong together on one row. Both stay
+   independently expandable; the pair collapses to a single column on narrow
+   screens (see .learningPair). Keyed off the cards' own keys so the section
+   list stays the single source of order. */
 function pairNoteCards(cards: React.ReactElement[]): React.ReactNode[] {
   const out: React.ReactNode[] = [];
   for (let i = 0; i < cards.length; i++) {
-    if (cards[i].key === "mine" && cards[i + 1]?.key === "group") {
+    const a = cards[i].key;
+    const b = cards[i + 1]?.key;
+    if ((a === "mine" && b === "group") || (a === "context" && b === "video")) {
       out.push(
-        <div key="notesPair" className="learningPair">{cards[i]}{cards[i + 1]}</div>
+        <div key={`${String(a)}-${String(b)}-pair`} className="learningPair">
+          {cards[i]}
+          {cards[i + 1]}
+        </div>
       );
       i++;
     } else {
@@ -357,6 +364,35 @@ function pairNoteCards(cards: React.ReactElement[]): React.ReactNode[] {
     }
   }
   return out;
+}
+
+/* Persist the active Today queue so "Another set" / mid-set progress survives
+   refresh and re-login. Device-local (same model as timer prefs before sync). */
+type TodayQueueSnap = {
+  day: string;
+  extra: boolean;
+  bonusRound: number;
+  reviewMode: boolean;
+  ids: { year: string; q_index: number }[];
+};
+function todayQueueKey(uid: string) {
+  return `pd_today_queue_${uid}`;
+}
+function readTodayQueueSnap(uid: string): TodayQueueSnap | null {
+  try {
+    const raw = localStorage.getItem(todayQueueKey(uid));
+    if (!raw) return null;
+    const v = JSON.parse(raw) as TodayQueueSnap;
+    if (!v || v.day !== ymd() || !Array.isArray(v.ids)) return null;
+    return v;
+  } catch {
+    return null;
+  }
+}
+function writeTodayQueueSnap(uid: string, snap: TodayQueueSnap) {
+  try {
+    localStorage.setItem(todayQueueKey(uid), JSON.stringify(snap));
+  } catch { /* private mode */ }
 }
 
 // ---- "Ask AI": open an external AI with a pre-filled prompt about this question ----
@@ -673,34 +709,203 @@ function HighlightableText({ text, ranges, editable, onChange, style }: {
   );
 }
 
+/** Parse Anki cloze tokens: {{c1::answer}} or {{c1::answer::hint}} */
+function parseClozeToken(raw: string): { id: string; answer: string; hint?: string } | null {
+  const m = raw.match(/^\{\{(c\d+)::([^}]*)\}\}$/);
+  if (!m) return null;
+  const parts = m[2].split("::");
+  return { id: m[1], answer: parts[0] ?? "", hint: parts[1] };
+}
+
 function renderClozeRaw(text: string) {
-  return text.split(/(\{\{c\d::[^}]*\}\})/g).map((p, i) => {
-    const m = p.match(/^\{\{(c\d)::([^}]*)\}\}$/);
+  return text.split(/(\{\{c\d+::[^}]*\}\})/g).map((p, i) => {
+    const m = parseClozeToken(p);
     if (!m) return <span key={i}>{p}</span>;
     return (
       <span key={i}>
-        <span style={{ color: T.faint }}>{`{{${m[1]}::`}</span>
-        <span style={{ color: T.teal, fontWeight: 700 }}>{m[2]}</span>
+        <span style={{ color: T.faint }}>{`{{${m.id}::`}</span>
+        <span style={{ color: T.teal, fontWeight: 700 }}>{m.answer}</span>
+        {m.hint != null && m.hint !== "" && (
+          <span style={{ color: T.faint }}>{`::${m.hint}`}</span>
+        )}
         <span style={{ color: T.faint }}>{`}}`}</span>
       </span>
     );
   });
 }
 function renderClozePreview(text: string) {
-  return text.split(/(\{\{c\d::[^}]*\}\})/g).map((p, i) => {
-    const m = p.match(/^\{\{(c\d)::([^}]*)\}\}$/);
+  return text.split(/(\{\{c\d+::[^}]*\}\})/g).map((p, i) => {
+    const m = parseClozeToken(p);
     if (!m) return <span key={i}>{p}</span>;
-    return <span key={i} style={s.blank}>[ {m[1]} ]</span>;
+    return <span key={i} style={s.blank}>[ {m.hint || "…"} ]</span>;
   });
 }
 /** The fully "solved" sentence — cloze markup resolved to plain text, with
     the previously-blanked words called out. Used once a card is revealed. */
 function renderClozeResolved(text: string) {
-  return text.split(/(\{\{c\d::[^}]*\}\})/g).map((p, i) => {
-    const m = p.match(/^\{\{(c\d)::([^}]*)\}\}$/);
+  return text.split(/(\{\{c\d+::[^}]*\}\})/g).map((p, i) => {
+    const m = parseClozeToken(p);
     if (!m) return <span key={i}>{p}</span>;
-    return <b key={i} style={{ color: T.teal }}>{m[2]}</b>;
+    return <b key={i} style={{ color: T.teal }}>{m.answer}</b>;
   });
+}
+
+/**
+ * Anki-style practice view: blanks start hidden; click a blank to unveil that
+ * deletion, or "Show answer" to unveil all. Clicking the card body also reveals.
+ */
+function AnkiClozePractice({
+  clozeText,
+  extra,
+  revealed,
+  openIds,
+  onRevealAll,
+  onToggleBlank,
+  onReset,
+}: {
+  clozeText: string;
+  extra?: string;
+  revealed: boolean;
+  openIds: Set<string>;
+  onRevealAll: () => void;
+  onToggleBlank: (id: string) => void;
+  onReset: () => void;
+}) {
+  const parts = clozeText.split(/(\{\{c\d+::[^}]*\}\})/g);
+  const allOpen = revealed || parts.every((p) => {
+    const m = parseClozeToken(p);
+    return !m || openIds.has(m.id);
+  });
+
+  return (
+    <div>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => (allOpen ? onReset() : onRevealAll())}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            if (allOpen) onReset();
+            else onRevealAll();
+          }
+        }}
+        style={{
+          display: "block",
+          width: "100%",
+          textAlign: "left",
+          border: `1.5px solid ${allOpen ? T.teal + "66" : T.paperEdge}`,
+          borderRadius: 14,
+          padding: "18px 18px 16px",
+          background: allOpen ? T.tealSoft : T.paper,
+          cursor: "pointer",
+          font: "inherit",
+          color: "inherit",
+          transition: "border-color 160ms ease, background 160ms ease",
+          boxSizing: "border-box",
+        }}
+      >
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.1, textTransform: "uppercase", color: T.muted, marginBottom: 10 }}>
+          {allOpen ? "Answer" : "Question"} · click blank or card
+        </div>
+        <p style={{ margin: 0, fontSize: 16.5, lineHeight: 1.65, color: T.text }}>
+          {parts.map((p, i) => {
+            const m = parseClozeToken(p);
+            if (!m) return <span key={i}>{p}</span>;
+            const isOpen = revealed || openIds.has(m.id);
+            if (isOpen) {
+              return (
+                <span
+                  key={i}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleBlank(m.id);
+                  }}
+                  style={{
+                    display: "inline",
+                    color: T.tealDeep,
+                    fontWeight: 750,
+                    background: "rgba(15, 118, 110, 0.12)",
+                    borderRadius: 5,
+                    padding: "1px 7px",
+                    margin: "0 1px",
+                    boxDecorationBreak: "clone",
+                    WebkitBoxDecorationBreak: "clone",
+                  }}
+                  title="Click to hide again"
+                >
+                  {m.answer}
+                </span>
+              );
+            }
+            return (
+              <span
+                key={i}
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleBlank(m.id);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onToggleBlank(m.id);
+                  }
+                }}
+                style={{
+                  display: "inline-block",
+                  minWidth: 48,
+                  background: "linear-gradient(180deg, #f7f1e3 0%, #efe4cf 100%)",
+                  color: "#8a6414",
+                  borderRadius: 6,
+                  padding: "2px 12px",
+                  margin: "0 3px",
+                  fontSize: 13.5,
+                  fontWeight: 700,
+                  letterSpacing: 0.4,
+                  border: "1px dashed rgba(138, 100, 20, 0.35)",
+                  verticalAlign: "baseline",
+                  cursor: "pointer",
+                  boxShadow: "inset 0 -1px 0 rgba(138,100,20,0.08)",
+                }}
+                title="Click to reveal"
+              >
+                {m.hint ? m.hint : "····"}
+              </span>
+            );
+          })}
+        </p>
+        {!allOpen && (
+          <div style={{ marginTop: 14, fontSize: 12.5, color: T.muted }}>
+            Tip: click a blank to unveil just that deletion, or use Show answer for the whole card.
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 12, alignItems: "center" }}>
+        {!allOpen ? (
+          <button type="button" style={s.primarySm} onClick={onRevealAll}>
+            <Eye size={14} strokeWidth={2.2} /> Show answer
+          </button>
+        ) : (
+          <button type="button" style={s.ghost} onClick={onReset}>
+            <EyeOff size={14} strokeWidth={2.2} /> Hide answer
+          </button>
+        )}
+      </div>
+
+      {allOpen && extra && (
+        <div style={{ marginTop: 14 }}>
+          <div style={s.fieldLbl}>Extra · under the answer</div>
+          <div style={s.extra}>
+            <p style={{ ...s.extraLine, marginBottom: 0 }}>{extra}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function isSameDay(iso: string) {
@@ -748,7 +953,7 @@ function writePref(key: string, value: unknown) {
 }
 const LEARNING_SECTION_IDS = new Set([
   "explanation", "textbook", "anking", "sketchy", "practice", "mnemonic", "context",
-  "diagram", "video", "mine", "group", "flash",
+  "diagram", "video", "mine", "group", "flash", "research",
 ]);
 function readLearningOpenPref(): Set<string> {
   return new Set(readPref<string[]>("pd_learning_open_sections", ["explanation"])
@@ -781,6 +986,9 @@ export default function App() {
   // this used to fail silently, which made a broken fetch indistinguishable from
   // "this question just has no citation".
   const [kaplanErr, setKaplanErr] = useState<string | null>(null);
+  // question id -> MEDLINE further-reading articles (public PubMed/PMC links)
+  const [researchRefs, setResearchRefs] = useState<Record<string, ResearchRef>>({});
+  const [researchErr, setResearchErr] = useState<string | null>(null);
 
   const [year, setYear] = useState<string>("all");
   const [qi, setQi] = useState(0);
@@ -1044,6 +1252,8 @@ export default function App() {
     } catch { return []; }
   });
   const [todayQueue, setTodayQueue] = useState<RawQuestion[]>([]);
+  /** 0 = primary daily set; 1+ = explicit "Another set" bonus rounds after the goal. */
+  const [bonusRound, setBonusRound] = useState(0);
   const [customQueue, setCustomQueue] = useState<RawQuestion[]>([]);
   const [customLabel, setCustomLabel] = useState<string>("");
   const [answersLoaded, setAnswersLoaded] = useState(false);
@@ -1059,6 +1269,11 @@ export default function App() {
   const [card, setCard] = useState<Flashcard | null>(null);
   const [cardBusy, setCardBusy] = useState(false);
   const [editCard, setEditCard] = useState<{ cloze: string; extra: string } | null>(null);
+  /** Anki-style practice on the question Flashcard tab: all blanks revealed? */
+  const [clozeRevealed, setClozeRevealed] = useState(false);
+  /** Individually unveiled cloze ids (c1, c2, …). */
+  const [clozeOpenIds, setClozeOpenIds] = useState<Set<string>>(() => new Set());
+  const [showClozeSource, setShowClozeSource] = useState(false);
   const [highlights, setHighlights] = useState<HlRange[]>([]);
   const [context, setContext] = useState<string | null>(null); // null = not yet loaded
   const [showReport, setShowReport] = useState(false);     // per-question "report a problem"
@@ -1146,7 +1361,7 @@ export default function App() {
     const missed = new Set(
       pool.filter((q) => answers[questionId(q.year, q.q_index)]).map((q) => questionId(q.year, q.q_index)),
     );
-    return pool
+    const ordered = pool
       .slice()
       .sort(orderComparator({
         order: dailyOrder,
@@ -1154,8 +1369,8 @@ export default function App() {
         weakCats: new Set(weakAreasForOrder.map((w) => w.cat)),
         missedIds: missed,
         answers,
-      }))
-      .slice(0, 8);
+      }));
+    return ordered.slice(0, 8);
   }, [all, answers, dailyOrder, yearFocus, weakAreasForOrder]);
   /* Every year in the bank, built from the data so a newly published exam
      appears without a code change. Sorted plain newest-first, NOT by yearRank:
@@ -1227,8 +1442,20 @@ export default function App() {
     // leading with them; ranked lower, they fall in among the fresh ones.
     const picked = [...due.slice(0, reviewCount), ...fresher];
     if (dailyOrder.indexOf("missed") > 0) picked.sort(cmp);
+    const uid = profile?.id ?? session?.user?.id ?? "local";
     setTodayQueue(picked);
-  }, [all, settings, dailyOrder, yearFocus]);
+    setBonusRound((prev) => {
+      const nextBonus = extra ? Math.max(1, prev + 1) : 0;
+      writeTodayQueueSnap(uid, {
+        day: ymd(),
+        extra,
+        bonusRound: nextBonus,
+        reviewMode: false,
+        ids: picked.map((qq) => ({ year: String(qq.year), q_index: qq.q_index })),
+      });
+      return nextBonus;
+    });
+  }, [all, settings, dailyOrder, yearFocus, profile?.id, session?.user?.id]);
 
   // build a review-only set from every currently-missed question, presented
   // fresh (answer hidden) for a second attempt
@@ -1239,14 +1466,40 @@ export default function App() {
       const row = a[questionId(qq.year, qq.q_index)];
       return row && !row.correct && !row.cleared;
     });
+    const picked = missed.slice(0, 30);
     setReviewMode(true);
-    setTodayQueue(missed.slice(0, 30));
+    setBonusRound(0);
+    setTodayQueue(picked);
     setMode("today"); setQi(0);
-  }, [all]);
+    const uid = profile?.id ?? session?.user?.id ?? "local";
+    writeTodayQueueSnap(uid, {
+      day: ymd(),
+      extra: false,
+      bonusRound: 0,
+      reviewMode: true,
+      ids: picked.map((qq) => ({ year: String(qq.year), q_index: qq.q_index })),
+    });
+  }, [all, profile?.id, session?.user?.id]);
 
+  // Restore today's queue (including mid-bonus-set progress) before rebuilding.
   useEffect(() => {
-    if (persist && answersLoaded) buildToday();
-  }, [persist, answersLoaded, buildToday]);
+    if (!persist || !answersLoaded || !all) return;
+    const uid = profile?.id ?? session?.user?.id ?? "local";
+    const snap = readTodayQueueSnap(uid);
+    if (snap && snap.ids.length > 0) {
+      const byId = new Map(all.map((qq) => [questionId(qq.year, qq.q_index), qq]));
+      const restored = snap.ids
+        .map((id) => byId.get(questionId(id.year, id.q_index)))
+        .filter((qq): qq is RawQuestion => !!qq);
+      if (restored.length > 0) {
+        setTodayQueue(restored);
+        setBonusRound(snap.bonusRound || 0);
+        setReviewMode(!!snap.reviewMode);
+        return;
+      }
+    }
+    buildToday(false);
+  }, [persist, answersLoaded, all, buildToday, profile?.id, session?.user?.id]);
 
   // admins: load the member list (for the approvals panel + pending badge)
   const adminLoggedIn = isConfigured && !!profile?.is_admin;
@@ -1302,6 +1555,21 @@ export default function App() {
     loadQuestionBank()
       .then((data) => { if (alive) setAll(data as RawQuestion[]); })
       .catch((e) => { if (alive) setLoadErr(String(e?.message ?? e)); });
+    return () => { alive = false; };
+  }, [signedIn, approved]);
+
+  // Further-reading: MEDLINE papers + APA PsychiatryOnline chapters (~static JSON).
+  // Same sign-in gate as the bank so we don't spend bandwidth on the landing page.
+  // Section hidden when a question has neither papers nor APA chapters.
+  useEffect(() => {
+    if (isConfigured && !(signedIn && approved)) return;
+    let alive = true;
+    loadResearchRefs()
+      .then((m) => { if (alive) { setResearchRefs(m); setResearchErr(null); } })
+      .catch((e) => {
+        if (alive) setResearchErr(String(e?.message ?? e));
+        console.warn("[research] further-reading index failed to load:", e);
+      });
     return () => { alive = false; };
   }, [signedIn, approved]);
 
@@ -1407,6 +1675,13 @@ export default function App() {
     const cur = set[qi];
     if (cur) getFlashcard(questionId(cur.year, cur.q_index)).then((c) => { if (c) setCard(c); });
   }, [openSections, qi, persist, mode]); // eslint-disable-line
+
+  // Reset Anki-style cloze practice when the question (or card text) changes
+  useEffect(() => {
+    setClozeRevealed(false);
+    setClozeOpenIds(new Set());
+    setShowClozeSource(false);
+  }, [navQid, card?.cloze_text]);
 
   // per-question class stats: fetch once the answer is actually shown
   useEffect(() => {
@@ -1957,6 +2232,7 @@ export default function App() {
   // Roughly 45% of questions have a verified textbook passage; the card is hidden
   // entirely for the rest rather than showing an empty state on every other question.
   const kaplan = q ? kaplanRefs[questionId(q.year, q.q_index)] : undefined;
+  const research = q ? researchRefs[questionId(q.year, q.q_index)] : undefined;
   const sections: [string, string, string, React.ReactNode][] = [
     ["explanation", "Explanation", "Why this answer is correct", <Layers size={17} strokeWidth={2.1} />],
     ...(kaplan
@@ -1972,14 +2248,19 @@ export default function App() {
     ...(mnemonics.length
       ? ([["mnemonic", "Mnemonic", "Quick ways to remember it", <Brain size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
       : []),
+    // Adjacent so pairNoteCards can put Context | Video on one row
     ["context", "Context", "The story behind the concept", <Lightbulb size={17} strokeWidth={2.1} />],
+    ["video", "Video and podcasts", "Curated episodes and a focused YouTube search", <Youtube size={17} strokeWidth={2.1} />],
     ...(hasDiagram
       ? ([["diagram", "Diagram", "Visual map and comparison", <Network size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
       : []),
-    ["video", "Video and podcasts", "Curated episodes and a focused YouTube search", <Youtube size={17} strokeWidth={2.1} />],
     ["mine", "My notes", "Your private study space", <NotebookPen size={17} strokeWidth={2.1} />],
     ["group", "Group notes", "Learn with your class", <Users size={17} strokeWidth={2.1} />],
     ["flash", "Flashcard", "Turn this into an Anki card", <Sparkles size={17} strokeWidth={2.1} />],
+    // Further reading sits last so the clinical stack comes first
+    ...(research?.articles?.length
+      ? ([["research", "Further reading", "Peer-reviewed articles on this topic", <Library size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
+      : []),
   ];
   const toggleSection = (id: string) => setOpenSections((current) => {
     const next = new Set(current);
@@ -2084,12 +2365,16 @@ export default function App() {
   // not from the live queue (which rebuilds and drops answered questions)
   const target = settings?.regimen ?? 10;
   const doneToday = Object.values(answers).filter((a) => isSameDay(a.updated_at)).length;
-  const dayComplete = inToday && doneToday >= target;
-  const missedOutstanding = Object.values(answers).filter((a) => !a.correct && !a.cleared).length;
-
   // exam-mode progress across the current set
   const setRows = inPractice ? set.map((qq) => answers[questionId(qq.year, qq.q_index)]) : [];
   const setAnswered = setRows.filter(Boolean).length;
+  // Daily goal met AND the *current* Today queue is finished — so mid "Another
+  // set" work does not keep the completion banner pinned forever. Empty queue
+  // after the goal still counts complete (no more questions left to pull).
+  const currentSetComplete = set.length === 0 || setAnswered >= set.length;
+  const dayComplete =
+    inToday && !reviewMode && doneToday >= target && currentSetComplete;
+  const missedOutstanding = Object.values(answers).filter((a) => !a.correct && !a.cleared).length;
   const examSetComplete = examMode && inPractice && set.length > 0 && setAnswered >= set.length;
   const examScore = setRows.filter((r) => r && r.correct).length;
   // Falls back to the residency's assumed PRITE date (Oct 6, see
@@ -2397,7 +2682,7 @@ export default function App() {
           <span className="nextUpRim" aria-hidden />
           <span style={{ position: "relative" }}>Next question</span>
           <span className="nextUpArrow" aria-hidden>
-            <ArrowRight size={16} strokeWidth={2.6} />
+            <ArrowRight size={20} strokeWidth={2.6} />
           </span>
         </button>
       )}
@@ -2619,8 +2904,14 @@ export default function App() {
         {dayComplete && !examReview && (
           <div style={s.doneBanner} className="slidein">
             <span style={s.doneIcon}><Check size={15} strokeWidth={3} color="#fff" /></span>
-            <span><b>That's your {target} for today.</b> Nice work — come back tomorrow for a fresh set.</span>
-            <button style={s.doneBtn} onClick={() => { buildToday(true); setQi(0); }}><RotateCcw size={13} strokeWidth={2.3} /> Another set</button>
+            <span>
+              {bonusRound > 0 ? (
+                <><b>Bonus set complete.</b> Great extra work — grab another set, or call it a day.</>
+              ) : (
+                <><b>That's your {target} for today.</b> Nice work — come back tomorrow for a fresh set.</>
+              )}
+            </span>
+            <button style={s.doneBtn} onClick={() => { buildToday(true); setQi(0); fire(bonusRound > 0 ? "Starting another bonus set" : "Starting a bonus set"); }}><RotateCcw size={13} strokeWidth={2.3} /> Another set</button>
             {missedOutstanding > 0 && (
               <button style={{ ...s.doneBtn, marginLeft: 0, background: "transparent" }} onClick={() => { startReview(); fire("Retrying the ones you missed"); }} title="Take another crack at the questions you got wrong">
                 <Flame size={13} strokeWidth={2.3} /> Redo {missedOutstanding} missed
@@ -2851,9 +3142,26 @@ export default function App() {
                 🤷 I have no clue <ExternalLink size={12} strokeWidth={2.2} />
               </button>
             )}
-            {/* "Next question" used to sit here at the right of the row; it now
-                floats bottom-right (see s.nextUpFab) so it stays reachable from
-                anywhere in a long explanation. */}
+            {/* Static Next on the opposite side of this row from Ask AI; the
+                larger floating FAB still pins bottom-right for long scrolls. */}
+            {set.length > 1 && showAnswer && (
+              <button
+                className={`nextUp${nextLaunching ? " nextUpGo" : ""}`}
+                style={s.nextUpInline}
+                onClick={launchNext}
+                onMouseMove={trackGlass}
+                onMouseLeave={resetGlass}
+                title="Go to the next question (Enter or →)"
+                aria-label="Next question"
+              >
+                <span className="nextUpLens" aria-hidden />
+                <span className="nextUpRim" aria-hidden />
+                <span style={{ position: "relative" }}>Next question</span>
+                <span className="nextUpArrow" aria-hidden>
+                  <ArrowRight size={18} strokeWidth={2.6} />
+                </span>
+              </button>
+            )}
             {askOpen && (
               <div style={s.askPanel} className="fade">
                 <div style={s.askRow}>
@@ -3006,6 +3314,12 @@ export default function App() {
                   <KaplanPanel data={kaplan} theme={T} onZoom={setZoomImg} />
                 </div>
               )}
+
+              {id === "research" && research?.articles?.length ? (
+                <div className="fade">
+                  <ResearchPanel data={research} theme={T} />
+                </div>
+              ) : null}
 
               {id === "anking" && ankingImgs.length > 0 && (
                 <div className="fade">
@@ -3213,7 +3527,7 @@ export default function App() {
                     <div style={s.flashEmpty}>
                       <Sparkles size={20} strokeWidth={1.9} color={T.teal} />
                       <p style={{ margin: "8px 0 14px", color: T.muted, fontSize: 14, lineHeight: 1.5 }}>
-                        Turn this question into an Anki cloze card. Generated once by AI, then cached for the whole class.
+                        Turn this question into an Anki-style cloze card. Practice here (click blanks to unveil), then download for Anki. Generated once by AI and cached for the class.
                       </p>
                       <button style={{ ...s.primarySm, opacity: cardBusy ? 0.5 : 1 }} disabled={cardBusy} onClick={() => doGenerateCard(false)}>
                         <Sparkles size={14} strokeWidth={2.2} /> {cardBusy ? "Generating…" : "Generate flashcard"}
@@ -3225,7 +3539,7 @@ export default function App() {
                     <>
                       <div style={s.cardChrome}>
                         <div style={s.cardChromeHead}>
-                          <span style={s.cardType}>Cloze</span>
+                          <span style={s.cardType}>Cloze · practice</span>
                           <span style={s.cardCached}><Sparkles size={12} strokeWidth={2.2} /> cached for the class</span>
                           {isAdmin && (
                             <button style={s.tinyBtn} onClick={() => setEditCard({ cloze: card.cloze_text, extra: card.extra })}>
@@ -3233,16 +3547,60 @@ export default function App() {
                             </button>
                           )}
                         </div>
-                        <span style={s.fieldLbl}>Text</span>
-                        <code style={s.clozeRaw}>{renderClozeRaw(card.cloze_text)}</code>
-                        <div style={s.clozePreview}>{renderClozePreview(card.cloze_text)}</div>
-                        <span style={{ ...s.fieldLbl, marginTop: 14 }}>Extra <span style={{ color: T.faint, fontWeight: 500 }}>· shown under the answer</span></span>
-                        <div style={s.extra}><p style={{ ...s.extraLine, marginBottom: 0 }}>{card.extra}</p></div>
+
+                        <AnkiClozePractice
+                          clozeText={card.cloze_text}
+                          extra={card.extra}
+                          revealed={clozeRevealed}
+                          openIds={clozeOpenIds}
+                          onRevealAll={() => {
+                            setClozeRevealed(true);
+                            setClozeOpenIds(new Set());
+                          }}
+                          onToggleBlank={(cid) => {
+                            if (clozeRevealed) {
+                              // After full reveal, toggling a blank starts selective mode
+                              setClozeRevealed(false);
+                              const all = new Set(
+                                [...card.cloze_text.matchAll(/\{\{(c\d+)::/g)].map((x) => x[1]),
+                              );
+                              all.delete(cid);
+                              setClozeOpenIds(all);
+                              return;
+                            }
+                            setClozeOpenIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(cid)) next.delete(cid);
+                              else next.add(cid);
+                              return next;
+                            });
+                          }}
+                          onReset={() => {
+                            setClozeRevealed(false);
+                            setClozeOpenIds(new Set());
+                          }}
+                        />
+
+                        <div style={{ marginTop: 16 }}>
+                          <button
+                            type="button"
+                            style={{ ...s.tinyBtn, marginLeft: 0 }}
+                            onClick={() => setShowClozeSource((v) => !v)}
+                          >
+                            {showClozeSource ? "Hide Anki markup" : "View Anki markup"}
+                          </button>
+                          {showClozeSource && (
+                            <div style={{ marginTop: 8 }}>
+                              <span style={s.fieldLbl}>Source (for Anki import)</span>
+                              <code style={s.clozeRaw}>{renderClozeRaw(card.cloze_text)}</code>
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <div style={s.flashActions}>
                         <button style={s.primarySm} onClick={doDownloadCard}><Download size={14} strokeWidth={2.2} /> Download for Anki</button>
                         {isAdmin && <button style={s.ghost} onClick={() => doGenerateCard(true)} disabled={cardBusy}><RotateCcw size={13} strokeWidth={2.2} /> Regenerate</button>}
-                        <span style={s.flashNote}>Imports as a Cloze note · Extra carries the Q&A</span>
+                        <span style={s.flashNote}>Practice like Anki · imports as a Cloze note</span>
                       </div>
                     </>
                   )}
@@ -9529,10 +9887,35 @@ function ReviewPanel({
                 <p style={{ ...s.apEmpty, fontStyle: "normal" }}>Loading card…</p>
               ) : card ? (
                 <>
-                  <p style={s.stem}>{revealed ? renderClozeResolved(card.cloze_text) : renderClozePreview(card.cloze_text)}</p>
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => !revealed && setRevealed(true)}
+                    onKeyDown={(e) => {
+                      if (!revealed && (e.key === "Enter" || e.key === " ")) {
+                        e.preventDefault();
+                        setRevealed(true);
+                      }
+                    }}
+                    style={{
+                      border: `1.5px solid ${revealed ? T.teal + "66" : T.paperEdge}`,
+                      borderRadius: 14,
+                      padding: "16px 16px 14px",
+                      background: revealed ? T.tealSoft : T.paper,
+                      cursor: revealed ? "default" : "pointer",
+                      marginBottom: 12,
+                    }}
+                  >
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: T.muted, marginBottom: 8 }}>
+                      {revealed ? "Answer" : "Question · click to unveil"}
+                    </div>
+                    <p style={{ ...s.stem, margin: 0 }}>
+                      {revealed ? renderClozeResolved(card.cloze_text) : renderClozePreview(card.cloze_text)}
+                    </p>
+                  </div>
                   {!revealed ? (
                     <button style={{ ...s.apApprove, padding: "10px 20px", fontSize: 14 }} onClick={() => setRevealed(true)}>
-                      Show answer
+                      <Eye size={14} strokeWidth={2.2} /> Show answer
                     </button>
                   ) : (
                     <>
@@ -10152,9 +10535,9 @@ button:focus-visible { outline: 2px solid ${T.teal}; outline-offset: 2px; }
 @keyframes nextUpSheen { 0% { left: -60%; } 22%, 100% { left: 130%; } }
 
 .nextUp:hover {
-  transform: translateY(-2px) scale(1.035);
+  transform: translateY(-3px) scale(1.05);
   border-color: rgba(255,255,255,.58);
-  box-shadow: 0 12px 30px rgba(6,20,26,.46), inset 0 1px 0 rgba(255,255,255,.7), inset 0 -8px 18px rgba(255,255,255,.16);
+  box-shadow: 0 14px 34px rgba(6,20,26,.48), inset 0 1px 0 rgba(255,255,255,.7), inset 0 -8px 18px rgba(255,255,255,.16);
 }
 .nextUp:hover .nextUpArrow { transform: translateX(4px); }
 .nextUp:active { transform: translateY(0) scale(.97); }
@@ -10624,31 +11007,39 @@ const s: Record<string, React.CSSProperties> = {
   hlHint: { display: "flex", justifyContent: "center", alignItems: "center", gap: 5, fontSize: 11.5, color: T.faint, margin: "12px 0 0" },
 
   options: { display: "flex", flexDirection: "column", gap: 9 },
-  askWrap: { marginTop: 14, display: "flex", flexWrap: "wrap", alignItems: "flex-start", gap: 9 },
+  askWrap: { marginTop: 14, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 9 },
   noClueBtn: { display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: `1px solid ${T.paperEdge}`, color: T.muted, padding: "9px 14px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer" },
   askToggle: { display: "inline-flex", alignItems: "center", gap: 7, background: T.tealSoft, border: `1px solid ${T.tealSoft}`, color: T.tealDeep, padding: "9px 15px", borderRadius: 10, fontSize: 13.5, fontWeight: 700, cursor: "pointer" },
   askToggleOn: { background: T.teal, border: `1px solid ${T.teal}`, color: "#fff" },
   askPanel: { flexBasis: "100%", marginTop: 1, padding: "13px 15px", background: T.card, border: `1px solid ${T.paperEdge}`, borderRadius: 12 },
-  // Floating Next button — liquid glass over the plasma backdrop. On desktop,
-  // align its right edge with the centered question card instead of the far
-  // viewport edge; max() retains a comfortable 16px inset on narrow screens.
-  // Everything decorative
-  // (sheen, specular lens, rim) is a child or pseudo-element, so overflow must
-  // stay hidden; the tinted-teal wash keeps it legible when the plasma drifts
-  // pale. The safe-area inset keeps it off the iPhone home indicator.
+  // Static Next on the Ask AI row — pushed to the far right of the card.
+  nextUpInline: {
+    marginLeft: "auto",
+    overflow: "hidden", isolation: "isolate",
+    display: "inline-flex", alignItems: "center", gap: 10,
+    background: `linear-gradient(145deg, rgba(255,255,255,.22), rgba(14,122,107,.30) 52%, rgba(255,255,255,.10)), ${T.teal}`,
+    border: "1px solid rgba(255,255,255,.34)", color: "#fff",
+    padding: "11px 20px", borderRadius: 999, fontSize: 14.5, fontWeight: 700, cursor: "pointer",
+    textShadow: "0 1px 2px rgba(0,0,0,.34)",
+    boxShadow: "0 6px 16px rgba(6,20,26,.28), inset 0 1px 0 rgba(255,255,255,.45), inset 0 -6px 14px rgba(255,255,255,.10)",
+    flexShrink: 0,
+  },
+  // Floating Next — larger hit target, liquid glass over the plasma backdrop.
+  // On desktop, align its right edge with the centered question card; max()
+  // keeps a 16px inset on narrow screens. Safe-area for the iPhone home bar.
   nextUpFab: {
     position: "fixed", right: "max(16px, calc(50vw - 348px))", bottom: "calc(20px + env(safe-area-inset-bottom, 0px))", zIndex: 50,
     overflow: "hidden", isolation: "isolate",
-    display: "inline-flex", alignItems: "center", gap: 9,
+    display: "inline-flex", alignItems: "center", gap: 12,
     // Opaque teal base under the glass gradient: floating, it now passes over
     // the white question card, where a purely translucent fill lost its white
     // label. The gradient still supplies the glass read.
     background: `linear-gradient(145deg, rgba(255,255,255,.22), rgba(14,122,107,.30) 52%, rgba(255,255,255,.10)), ${T.teal}`,
     backdropFilter: "blur(13px) saturate(1.9)", WebkitBackdropFilter: "blur(13px) saturate(1.9)",
     border: "1px solid rgba(255,255,255,.34)", color: "#fff",
-    padding: "11px 19px", borderRadius: 999, fontSize: 14, fontWeight: 700, cursor: "pointer",
+    padding: "16px 28px", borderRadius: 999, fontSize: 16.5, fontWeight: 700, cursor: "pointer",
     textShadow: "0 1px 2px rgba(0,0,0,.34)",
-    boxShadow: "0 10px 28px rgba(6,20,26,.5), inset 0 1px 0 rgba(255,255,255,.5), inset 0 -6px 14px rgba(255,255,255,.10)",
+    boxShadow: "0 12px 32px rgba(6,20,26,.52), inset 0 1px 0 rgba(255,255,255,.5), inset 0 -6px 14px rgba(255,255,255,.10)",
   },
   askRow: { display: "flex", flexWrap: "wrap", gap: 7, alignItems: "center", marginBottom: 9 },
   askLabel: { fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: T.faint, minWidth: 50 },

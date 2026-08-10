@@ -1,9 +1,11 @@
 /**
  * Grid of AnKing/AnkiHub or Sketchy images for a question.
  * Loads via authenticated blob URLs (private R2).
+ * Each figure sits in a Uiverse-style 3D tilt frame (CyberTiltCard).
  */
 import { useEffect, useState } from "react";
 import { resourceImage, prefetchResourceImage } from "./resourceImages";
+import { CyberTiltCard, cyberTiltStyles } from "./CyberTiltCard";
 
 type Kind = "anking" | "sketchy";
 
@@ -11,11 +13,13 @@ function AuthImg({
   kind,
   name,
   alt,
+  wide,
   onZoom,
 }: {
   kind: Kind;
   name: string;
   alt: string;
+  wide?: boolean;
   onZoom?: (src: string) => void;
 }) {
   const [src, setSrc] = useState<string | null>(null);
@@ -52,36 +56,25 @@ function AuthImg({
       </div>
     );
   }
+
   if (!src) {
     return (
-      <div
-        style={{
-          width: "100%",
-          minHeight: 120,
-          borderRadius: 10,
-          background: "rgba(127,127,127,0.08)",
-        }}
-      />
+      <CyberTiltCard wide={wide}>
+        <div
+          style={{
+            width: "100%",
+            minHeight: wide ? 220 : 260,
+            background: "rgba(127,127,127,0.1)",
+          }}
+        />
+      </CyberTiltCard>
     );
   }
+
   return (
-    <img
-      src={src}
-      alt={alt}
-      loading="lazy"
-      decoding="async"
-      onClick={onZoom ? () => onZoom(src) : undefined}
-      style={{
-        display: "block",
-        width: "100%",
-        maxHeight: 420,
-        objectFit: "contain",
-        borderRadius: 10,
-        background: "#fff",
-        border: "1px solid #ece5d8",
-        cursor: onZoom ? "zoom-in" : "default",
-      }}
-    />
+    <CyberTiltCard wide={wide} onActivate={onZoom ? () => onZoom(src) : undefined}>
+      <img src={src} alt={alt} loading="lazy" decoding="async" draggable={false} />
+    </CyberTiltCard>
   );
 }
 
@@ -107,7 +100,6 @@ export function ResourceImagePanel({
   onZoom?: (src: string) => void;
 }) {
   useEffect(() => {
-    // Prefetch the next couple so scrolling the grid feels instant
     for (const name of images.slice(0, 3)) prefetchResourceImage(kind, name);
   }, [kind, images]);
 
@@ -119,9 +111,14 @@ export function ResourceImagePanel({
       ? "Diagrams from matched AnKing Extra / First Aid fields (community Step deck)."
       : "Sketchy panels from matched AnKing Sketchy fields.";
 
+  // AnKing / First Aid pages need width for readable text — one wide column.
+  // Sketchy can share a multi-column grid of medium tiles.
+  const wide = kind === "anking";
+
   return (
     <div>
-      <p style={{ margin: "0 0 10px", color: theme.muted, fontSize: 13, lineHeight: 1.5 }}>
+      <style>{cyberTiltStyles}</style>
+      <p style={{ margin: "0 0 12px", color: theme.muted, fontSize: 13, lineHeight: 1.5 }}>
         {blurb}
         {match?.text_preview ? (
           <>
@@ -136,8 +133,13 @@ export function ResourceImagePanel({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-          gap: 12,
+          gridTemplateColumns: wide
+            ? "1fr"
+            : "repeat(auto-fill, minmax(280px, 1fr))",
+          gap: 16,
+          // Let AnKing use nearly the full learning-panel width
+          width: "100%",
+          maxWidth: wide ? "100%" : undefined,
         }}
       >
         {images.map((name, i) => (
@@ -146,13 +148,15 @@ export function ResourceImagePanel({
             kind={kind}
             name={name}
             alt={`${title} figure ${i + 1}`}
+            wide={wide}
             onZoom={onZoom}
           />
         ))}
       </div>
-      <p style={{ margin: "12px 0 0", color: theme.faint, fontSize: 11.5, lineHeight: 1.45 }}>
+      <p style={{ margin: "14px 0 0", color: theme.faint, fontSize: 11.5, lineHeight: 1.45 }}>
         Educational use for approved PRITE Daily members only. Images remain property of their
         respective copyright holders (AnKing/AnkiHub community assets, Sketchy, etc.).
+        {" "}Click an image to enlarge.
       </p>
     </div>
   );
