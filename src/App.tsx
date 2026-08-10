@@ -524,6 +524,33 @@ function questionGroupKey(q: { stem: string }): string {
   return (q.stem ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().slice(0, 160);
 }
 
+/** Keep at most one cross-year copy of the same PRITE item in a queue. The
+ * bank intentionally retains every exam-year occurrence for provenance, but a
+ * study set should treat those occurrences as one concept rather than five
+ * separate "unseen" questions. Input order decides which representative wins,
+ * so callers sort first according to the resident's ordering preferences. */
+function uniqueQuestionGroups(qs: RawQuestion[], alreadyUsed: Set<string> = new Set()): RawQuestion[] {
+  const seen = new Set(alreadyUsed);
+  return qs.filter((q) => {
+    const key = questionGroupKey(q);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/** Small deterministic hash used to mix equally high-yield groups. A caller
+ * supplies a per-build seed, so the queue is varied without using a random
+ * comparator (which would violate Array.sort's ordering contract). */
+function mixedOrderScore(value: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
 // Daily sets lead with the most recently tested exams (2022 → 2025), since those
 // best reflect what's likely on the upcoming PRITE. Older years follow,
 // most-recent-first. Lower rank = served sooner.
@@ -607,14 +634,27 @@ function orderComparator(opts: {
   weakCats: Set<string>;
   missedIds: Set<string>;
   answers: Record<string, AnswerRow>;
+  highYieldMixSeed?: string;
+  recentlyAnsweredGroups?: Set<string>;
 }) {
-  const { order, yearFocus, weakCats, missedIds, answers } = opts;
+  const {
+    order, yearFocus, weakCats, missedIds, answers,
+    highYieldMixSeed = ymd(), recentlyAnsweredGroups = new Set<string>(),
+  } = opts;
   const score = (q: RawQuestion, rule: OrderRuleId): number => {
     switch (rule) {
       case "missed": return missedIds.has(questionId(q.year, q.q_index)) ? 0 : 1;
       case "weak": return weakCats.has(q.prite_category ?? "") ? 0 : 1;
-      // Negated so the most-repeated question sorts earliest.
-      case "highyield": return -(q.repeat_count ?? 1);
+      case "highyield": {
+        // Keep repeat-count tiers strict, but mix concepts within each tier.
+        // A concept seen this week goes behind equally repeated concepts so a
+        // bonus set does not immediately open with another year's clone.
+        const group = questionGroupKey(q);
+        const repeatTier = -(q.repeat_count ?? 1) * 10_000_000;
+        const recentPenalty = recentlyAnsweredGroups.has(group) ? 2_000_000 : 0;
+        const mixed = mixedOrderScore(`${highYieldMixSeed}:${group}`) % 1_000_000;
+        return repeatTier + recentPenalty + mixed;
+      }
       case "unseen": return answers[questionId(q.year, q.q_index)] ? 1 : 0;
       case "year": {
         const pinned = yearFocus.indexOf(q.year);
@@ -1252,6 +1292,9 @@ export default function App() {
     } catch { return []; }
   });
   const [todayQueue, setTodayQueue] = useState<RawQuestion[]>([]);
+  // Incremented for every newly built queue. This gives equally high-yield
+  // concepts a fresh, stable mix while keeping each individual sort valid.
+  const highYieldMixRef = useRef(0);
   /** 0 = primary daily set; 1+ = explicit "Another set" bonus rounds after the goal. */
   const [bonusRound, setBonusRound] = useState(0);
   const [customQueue, setCustomQueue] = useState<RawQuestion[]>([]);
@@ -1370,7 +1413,7 @@ export default function App() {
         missedIds: missed,
         answers,
       }));
-    return ordered.slice(0, 8);
+    return uniqueQuestionGroups(ordered).slice(0, 8);
   }, [all, answers, dailyOrder, yearFocus, weakAreasForOrder]);
   /* Every year in the bank, built from the data so a newly published exam
      appears without a code change. Sorted plain newest-first, NOT by yearRank:
@@ -1409,6 +1452,16 @@ export default function App() {
     const a = answersRef.current;
     const answeredToday = Object.values(a).filter((r) => isSameDay(r.updated_at)).length;
     const remaining = count != null ? count : extra ? regimen : Math.max(0, regimen - answeredToday);
+    const recentCutoff = now - 7 * 86400000;
+    const recentlyAnsweredGroups = new Set(
+      all
+        .filter((qq) => {
+          const row = a[questionId(qq.year, qq.q_index)];
+          return !!row && Date.parse(row.updated_at) >= recentCutoff;
+        })
+        .map(questionGroupKey),
+    );
+    const highYieldMixSeed = `${ymd()}:${++highYieldMixRef.current}`;
     const due: RawQuestion[] = [], fresh: RawQuestion[] = [];
     for (const qq of all) {
       const id = questionId(qq.year, qq.q_index);
@@ -1429,18 +1482,28 @@ export default function App() {
       weakCats: new Set(weakCategories(all, a).map((w) => w.cat)),
       missedIds,
       answers: a,
+      highYieldMixSeed,
+      recentlyAnsweredGroups,
     });
     fresh.sort(cmp);
     due.sort(cmp);
+    // Sorting first means the preferred exam year wins as the group's single
+    // representative. Other year-copies remain eligible for a later set, where
+    // the recent-repeat badge gives the resident the right context.
+    const uniqueDue = uniqueQuestionGroups(due);
+    const uniqueFresh = uniqueQuestionGroups(
+      fresh,
+      new Set(uniqueDue.map(questionGroupKey)),
+    );
     // include up to `reviewCap` due-review questions, fill the rest with new.
     // The cap still applies however the rules are arranged — a resident with a
     // long miss list shouldn't get a set that is nothing but repeats.
-    const reviewCount = Math.min(reviewCap, due.length, remaining);
-    const fresher = fresh.slice(0, Math.max(0, remaining - reviewCount));
+    const reviewCount = Math.min(reviewCap, uniqueDue.length, remaining);
+    const fresher = uniqueFresh.slice(0, Math.max(0, remaining - reviewCount));
     setReviewMode(false);
     // "Questions I got wrong" ranked first keeps the historical behaviour of
     // leading with them; ranked lower, they fall in among the fresh ones.
-    const picked = [...due.slice(0, reviewCount), ...fresher];
+    const picked = [...uniqueDue.slice(0, reviewCount), ...fresher];
     if (dailyOrder.indexOf("missed") > 0) picked.sort(cmp);
     const uid = profile?.id ?? session?.user?.id ?? "local";
     setTodayQueue(picked);
@@ -1466,7 +1529,7 @@ export default function App() {
       const row = a[questionId(qq.year, qq.q_index)];
       return row && !row.correct && !row.cleared;
     });
-    const picked = missed.slice(0, 30);
+    const picked = uniqueQuestionGroups(missed).slice(0, 30);
     setReviewMode(true);
     setBonusRound(0);
     setTodayQueue(picked);
@@ -1492,6 +1555,14 @@ export default function App() {
         .map((id) => byId.get(questionId(id.year, id.q_index)))
         .filter((qq): qq is RawQuestion => !!qq);
       if (restored.length > 0) {
+        const repaired = uniqueQuestionGroups(restored);
+        // Older snapshots may contain every year-copy of a high-yield item.
+        // Rebuild those sets at their original requested size so a resident
+        // stuck in a two-concept loop gets a real set after refreshing.
+        if (repaired.length < restored.length) {
+          buildToday(snap.extra, snap.extra ? snap.ids.length : undefined);
+          return;
+        }
         setTodayQueue(restored);
         setBonusRound(snap.bonusRound || 0);
         setReviewMode(!!snap.reviewMode);
@@ -2352,6 +2423,24 @@ export default function App() {
   };
 
   const qid = q ? questionId(q.year, q.q_index) : "";
+  const recentRepeatCutoff = Date.now() - 7 * 86400000;
+  const recentHighYieldRepeat = q && (q.repeat_count ?? 1) > 1
+    ? all
+        .map((other) => ({
+          question: other,
+          id: questionId(other.year, other.q_index),
+          row: answers[questionId(other.year, other.q_index)],
+        }))
+        .filter(({ question, id, row }) =>
+          id !== qid &&
+          !!row &&
+          questionGroupKey(question) === questionGroupKey(q) &&
+          Date.parse(row.updated_at) >= recentRepeatCutoff &&
+          Date.parse(row.updated_at) <= Date.now()
+        )
+        .sort((a, b) => Date.parse(b.row!.updated_at) - Date.parse(a.row!.updated_at))[0]
+      ?? null
+    : null;
   const isAdmin = !!profile?.is_admin;
   const pendingCount = profiles.filter((p) => p.status === "pending").length;
   const answeredCount = Object.keys(answers).length;
@@ -2929,6 +3018,14 @@ export default function App() {
           <span style={s.qeyebrow}>{q.year} · Q{q.q_index} <span style={{ color: T.faint }}>(slide {q.slide_number})</span></span>
           {reviewMode && <span style={{ ...s.multiTag, color: T.teal, background: T.tealSoft }}><RotateCcw size={12} strokeWidth={2.2} /> Reviewing missed — try again</span>}
           {q.multi_select && <span style={s.multiTag}><ListChecks size={12} strokeWidth={2.2} /> Select {requiredSelections} answers</span>}
+          {recentHighYieldRepeat && (
+            <span
+              style={{ ...s.multiTag, color: T.gold, background: T.goldSoft }}
+              title={`You answered the ${recentHighYieldRepeat.question.year} version within the last 7 days. This is the ${q.year} version of the same high-yield PRITE item.`}
+            >
+              <Repeat size={12} strokeWidth={2.4} /> High-yield repeat · answered in {recentHighYieldRepeat.question.year} this week · this is {q.year}
+            </span>
+          )}
           {persist && (
             <button style={s.reportBtn} onClick={() => setShowReport(true)} title="Report a problem with this question">
               <Bug size={12} strokeWidth={2.2} /> Report a problem
