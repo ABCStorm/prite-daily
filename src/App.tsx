@@ -2431,7 +2431,7 @@ export default function App() {
   };
 
   const qid = q ? questionId(q.year, q.q_index) : "";
-  const recentHighYieldRepeat = useMemo(() => {
+  const recentHighYieldRepeat = (() => {
     if (!q || !all || (q.repeat_count ?? 1) <= 1) return null;
     const now = Date.now();
     const recentRepeatCutoff = now - 7 * 86400000;
@@ -2451,7 +2451,7 @@ export default function App() {
         )
         .sort((a, b) => Date.parse(b.row!.updated_at) - Date.parse(a.row!.updated_at))[0]
       ?? null;
-  }, [q, all, answers, qid]);
+  })();
   const isAdmin = !!profile?.is_admin;
   const pendingCount = profiles.filter((p) => p.status === "pending").length;
   const answeredCount = Object.keys(answers).length;
