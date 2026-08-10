@@ -7221,7 +7221,10 @@ function Approvals({
     return nameOrder || a.email.localeCompare(b.email, undefined, { sensitivity: "base" });
   };
   const pending = profiles.filter((p) => p.status === "pending").sort(byDisplayName);
-  const others = profiles.filter((p) => p.status !== "pending").sort(byDisplayName);
+  const others = profiles.filter((p) => p.status !== "pending").sort((a, b) => {
+    const statusOrder = Number(a.status === "blocked") - Number(b.status === "blocked");
+    return statusOrder || byDisplayName(a, b);
+  });
   const row = (p: Profile) => {
     const year = matchYear(p.full_name);
     const isSelf = p.id === currentUserId;
