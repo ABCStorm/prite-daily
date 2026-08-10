@@ -373,6 +373,8 @@ type TodayQueueSnap = {
   extra: boolean;
   bonusRound: number;
   reviewMode: boolean;
+  /** Daily target used when this queue was built (older snapshots omit it). */
+  goal?: number;
   ids: { year: string; q_index: number }[];
 };
 function todayQueueKey(uid: string) {
@@ -1522,6 +1524,7 @@ export default function App() {
         extra,
         bonusRound: nextBonus,
         reviewMode: false,
+        goal: regimen,
         ids: picked.map((qq) => ({ year: String(qq.year), q_index: qq.q_index })),
       });
       return nextBonus;
@@ -1554,10 +1557,22 @@ export default function App() {
 
   // Restore today's queue (including mid-bonus-set progress) before rebuilding.
   useEffect(() => {
-    if (!persist || !answersLoaded || !all) return;
+    // Settings and their synced preferences load independently from answers.
+    // Waiting here prevents the fallback 10-question regimen from being saved
+    // before an account's real target (for example 50) arrives.
+    if (!persist || !answersLoaded || !prefsSynced || !all) return;
     const uid = profile?.id ?? session?.user?.id ?? "local";
     const snap = readTodayQueueSnap(uid);
     if (snap && snap.ids.length > 0) {
+      const regimen = settings?.regimen ?? 10;
+      const answeredToday = Object.values(answersRef.current).filter((row) => isSameDay(row.updated_at)).length;
+      const expectedRemaining = Math.max(0, regimen - answeredToday);
+      const goalChanged = snap.goal != null && snap.goal !== regimen;
+      const legacyQueueTooShort = snap.goal == null && snap.ids.length < expectedRemaining;
+      if (!snap.extra && !snap.reviewMode && (goalChanged || legacyQueueTooShort)) {
+        buildToday(false);
+        return;
+      }
       const byId = new Map(all.map((qq) => [questionId(qq.year, qq.q_index), qq]));
       const restored = snap.ids
         .map((id) => byId.get(questionId(id.year, id.q_index)))
@@ -1578,7 +1593,7 @@ export default function App() {
       }
     }
     buildToday(false);
-  }, [persist, answersLoaded, all, buildToday, profile?.id, session?.user?.id]);
+  }, [persist, answersLoaded, prefsSynced, all, settings?.regimen, buildToday, profile?.id, session?.user?.id]);
 
   // admins: load the member list (for the approvals panel + pending badge)
   const adminLoggedIn = isConfigured && !!profile?.is_admin;
