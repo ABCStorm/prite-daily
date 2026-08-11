@@ -2,6 +2,9 @@
 
 Find **real, MEDLINE-indexed** papers users can open for further reading after each question.
 
+**Full handoff (lessons, failure modes, ship policy):**  
+[`docs/research-articles-handoff.md`](../../docs/research-articles-handoff.md)
+
 ## Design choices
 
 - **Europe PMC is only the search index.** User-facing links are PubMed / PMC / DOI. We never invent PMIDs.
@@ -36,3 +39,21 @@ print(len(r), 'questions')
 print(sum(1 for v in r.values() if v.get('articles')), 'with articles')
 "
 ```
+
+## Ship to the app UI
+
+After a full match run, rebuild the client index and deploy:
+
+```bash
+python3 scripts/research-articles/build_client_bundle.py
+# writes public/data/research_refs.json (+ .gz)
+
+npm run build
+npx wrangler@3 pages deploy dist --project-name=prite-daily --branch main --commit-dirty=true
+```
+
+UI pieces:
+- `src/lib/researchRefs.ts` — loads `/data/research_refs.json`
+- `src/lib/researchPanel.tsx` — card list with PubMed / PMC / DOI links
+- App learning stack section **"Further reading"** (only when the question has matches)
+

@@ -15,7 +15,7 @@ Quality bar:
 
 Usage:
   python3 scripts/research-articles/match_articles.py --sample 50 --seed 0
-  python3 scripts/research-articles/match_articles.py --all --resume
+  python3 scripts/research-articles/match_articles.py --all --resume --workers 10
 """
 
 from __future__ import annotations
@@ -25,11 +25,13 @@ import json
 import random
 import re
 import sys
+import threading
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
@@ -40,6 +42,21 @@ OUT_REFS = OUT_DIR / "refs.json"
 OUT_CACHE = OUT_DIR / "query_cache.json"
 
 EPMC = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
+
+# Shared polite rate limit across worker threads (requests/sec to Europe PMC).
+_API_RATE_LOCK = threading.Lock()
+_API_NEXT_OK = 0.0
+_API_MIN_INTERVAL = 0.08  # ~12.5 req/s shared across all workers
+
+
+def _api_rate_wait() -> None:
+    global _API_NEXT_OK
+    with _API_RATE_LOCK:
+        now = time.monotonic()
+        delay = _API_NEXT_OK - now
+        _API_NEXT_OK = max(now, _API_NEXT_OK) + _API_MIN_INTERVAL
+    if delay > 0:
+        time.sleep(delay)
 
 TIER1 = [
     "american journal of psychiatry", "am j psychiatry",
@@ -594,7 +611,35 @@ def passes_relevance_floor(hit: dict, focus: dict, score: float) -> bool:
     return False
 
 
+def _slim_hit(hit: dict) -> dict:
+    """Keep only fields we score/display — full core payloads balloon the cache to GBs."""
+    ji = hit.get("journalInfo") or {}
+    j = ji.get("journal") or {}
+    abstract = hit.get("abstractText") or ""
+    if len(abstract) > 1200:
+        abstract = abstract[:1200]
+    return {
+        "pmid": hit.get("pmid"),
+        "pmcid": hit.get("pmcid"),
+        "doi": hit.get("doi"),
+        "title": hit.get("title"),
+        "abstractText": abstract,
+        "pubYear": hit.get("pubYear"),
+        "citedByCount": hit.get("citedByCount"),
+        "isOpenAccess": hit.get("isOpenAccess"),
+        "pubTypeList": hit.get("pubTypeList"),
+        "journalInfo": {
+            "journal": {
+                "title": j.get("title"),
+                "medlineAbbreviation": j.get("medlineAbbreviation"),
+                "isoabbreviation": j.get("isoabbreviation"),
+            }
+        },
+    }
+
+
 def epmc_search(query: str, page_size: int = 25, timeout: float = 30.0) -> list[dict]:
+    _api_rate_wait()
     params = {
         "query": query,
         "resultType": "core",
@@ -606,11 +651,21 @@ def epmc_search(query: str, page_size: int = 25, timeout: float = 30.0) -> list[
     }
     url = EPMC + "?" + urllib.parse.urlencode(params)
     req = urllib.request.Request(
-        url, headers={"User-Agent": "prite-daily-research-matcher/1.1"}
+        url, headers={"User-Agent": "prite-daily-research-matcher/1.2"}
     )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
-    return list((data.get("resultList") or {}).get("result") or [])
+    # Small retry for transient network / 429 / 5xx
+    last_err: Exception | None = None
+    for attempt in range(4):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            raw = list((data.get("resultList") or {}).get("result") or [])
+            return [_slim_hit(h) for h in raw]
+        except Exception as e:
+            last_err = e
+            time.sleep(0.4 * (attempt + 1))
+            _api_rate_wait()
+    raise last_err  # type: ignore[misc]
 
 
 def article_record(hit: dict, score: float, focus: dict) -> dict[str, Any]:
@@ -666,23 +721,32 @@ def article_record(hit: dict, score: float, focus: dict) -> dict[str, Any]:
     }
 
 
-def search_for_question(q: dict, cache: dict) -> dict[str, Any]:
+def search_for_question(
+    q: dict,
+    cache: dict,
+    cache_lock: threading.Lock | None = None,
+) -> dict[str, Any]:
+    """cache may be shared across threads; pass cache_lock when it is."""
+    lock = cache_lock or threading.Lock()
     focus = clinical_focus(q)
     strategies = build_queries(q, focus)
     all_hits: dict[str, dict] = {}
     used: list[str] = []
 
     for name, query in strategies:
-        if query in cache:
-            hits = cache[query]
-        else:
+        with lock:
+            hits = cache.get(query)
+            cached = hits is not None
+        if not cached:
             try:
                 hits = epmc_search(query, page_size=25)
             except Exception as e:
                 used.append(f"{name}:ERROR:{type(e).__name__}")
                 continue
-            cache[query] = hits
-            time.sleep(0.11)
+            with lock:
+                # Another worker may have filled it; keep first or ours — identical enough
+                cache.setdefault(query, hits)
+                hits = cache[query]
         used.append(f"{name}:{len(hits)}")
         for h in hits:
             pmid = h.get("pmid")
@@ -780,7 +844,37 @@ def save_json(path: Path, data) -> None:
     tmp.replace(path)
 
 
+def _process_one(
+    id_: str,
+    q: dict,
+    cache: dict,
+    cache_lock: threading.Lock,
+) -> tuple[str, dict]:
+    try:
+        result = search_for_question(q, cache, cache_lock=cache_lock)
+    except Exception as e:
+        result = {
+            "articles": [],
+            "query": "",
+            "status": f"error:{e}",
+            "strategies": [],
+            "focus": {},
+        }
+    rec = {
+        "id": id_,
+        "year": q["year"],
+        "q_index": q["q_index"],
+        "stem_preview": (q.get("stem") or "")[:180],
+        "answer_text": q.get("answer_text"),
+        "answer_letter": q.get("answer_letter"),
+        "tags": q.get("tags"),
+        **result,
+    }
+    return id_, rec
+
+
 def main() -> int:
+    global _API_MIN_INTERVAL
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--sample", type=int)
@@ -790,8 +884,18 @@ def main() -> int:
     ap.add_argument("--resume", action="store_true")
     ap.add_argument("--fresh", action="store_true", help="Ignore existing refs for selected ids")
     ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--workers", type=int, default=1, help="Parallel workers (default 1). Try 8–12.")
+    ap.add_argument("--rps", type=float, default=12.0, help="Max Europe PMC requests/sec across all workers")
     ap.add_argument("--out", type=Path, default=OUT_REFS)
     args = ap.parse_args()
+
+    if args.workers < 1:
+        print("--workers must be >= 1", file=sys.stderr)
+        return 2
+    if args.rps <= 0:
+        print("--rps must be > 0", file=sys.stderr)
+        return 2
+    _API_MIN_INTERVAL = 1.0 / args.rps
 
     questions = load_questions()
     by_id = {qid(q): q for q in questions}
@@ -809,8 +913,9 @@ def main() -> int:
         ids = ids[: args.limit]
 
     refs = {} if args.fresh else load_json(args.out, {})
-    # Keep unselected ids when writing a sample into the same file? For pilot use fresh out.
     cache = load_json(OUT_CACHE, {})
+    cache_lock = threading.Lock()
+    refs_lock = threading.Lock()
 
     if args.resume and not args.fresh:
         before = len(ids)
@@ -820,61 +925,76 @@ def main() -> int:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     n_ok = n_empty = 0
     t0 = time.time()
-    # For sample/fresh runs, only keep these ids in output if --fresh
-    out_refs = {} if args.fresh else dict(refs)
+    # For --fresh sample runs, start empty; otherwise keep prior refs (resume).
+    out_refs: dict = {} if args.fresh else dict(refs)
 
-    for i, id_ in enumerate(ids, 1):
+    print(
+        f"Workers={args.workers}  rps={args.rps}  remaining={len(ids)}",
+        file=sys.stderr,
+    )
+
+    def handle_result(i: int, id_: str, rec: dict) -> None:
+        nonlocal n_ok, n_empty
+        with refs_lock:
+            out_refs[id_] = rec
+            if rec.get("articles"):
+                n_ok += 1
+                top = rec["articles"][0]
+                print(
+                    f"[{i}/{len(ids)}] {id_} → {len(rec['articles'])}  "
+                    f"#{top['pmid']} ({top['journal_tier']}) "
+                    f"{top['title'][:72]}",
+                    file=sys.stderr,
+                )
+            else:
+                n_empty += 1
+                print(
+                    f"[{i}/{len(ids)}] {id_} → NONE ({rec.get('status')})",
+                    file=sys.stderr,
+                )
+            if i % 40 == 0 or i == len(ids):
+                save_json(args.out, out_refs)
+                with cache_lock:
+                    cache_snap = dict(cache)
+                save_json(OUT_CACHE, cache_snap)
+                elapsed = time.time() - t0
+                rate = i / elapsed if elapsed else 0
+                eta_s = (len(ids) - i) / rate if rate else 0
+                print(
+                    f"  checkpoint {i}/{len(ids)} ok={n_ok} empty={n_empty} "
+                    f"{rate:.2f} q/s cache={len(cache_snap)} "
+                    f"eta={eta_s/60:.0f}m total_refs={len(out_refs)}",
+                    file=sys.stderr,
+                )
+
+    # Filter unknown ids first
+    work: list[tuple[str, dict]] = []
+    for id_ in ids:
         q = by_id.get(id_)
         if not q:
             print(f"  skip unknown {id_}", file=sys.stderr)
             continue
-        try:
-            result = search_for_question(q, cache)
-        except Exception as e:
-            result = {
-                "articles": [],
-                "query": "",
-                "status": f"error:{e}",
-                "strategies": [],
-                "focus": {},
-            }
-        rec = {
-            "id": id_,
-            "year": q["year"],
-            "q_index": q["q_index"],
-            "stem_preview": (q.get("stem") or "")[:180],
-            "answer_text": q.get("answer_text"),
-            "answer_letter": q.get("answer_letter"),
-            "tags": q.get("tags"),
-            **result,
-        }
-        out_refs[id_] = rec
-        if result.get("articles"):
-            n_ok += 1
-            top = result["articles"][0]
-            print(
-                f"[{i}/{len(ids)}] {id_} → {len(result['articles'])}  "
-                f"#{top['pmid']} ({top['journal_tier']}) "
-                f"{top['title'][:72]}",
-                file=sys.stderr,
-            )
-        else:
-            n_empty += 1
-            print(f"[{i}/{len(ids)}] {id_} → NONE ({result.get('status')})", file=sys.stderr)
+        work.append((id_, q))
 
-        if i % 20 == 0 or i == len(ids):
-            save_json(args.out, out_refs)
-            save_json(OUT_CACHE, cache)
-            elapsed = time.time() - t0
-            rate = i / elapsed if elapsed else 0
-            print(
-                f"  checkpoint {i}/{len(ids)} ok={n_ok} empty={n_empty} "
-                f"{rate:.2f} q/s cache={len(cache)}",
-                file=sys.stderr,
-            )
+    if args.workers == 1:
+        for i, (id_, q) in enumerate(work, 1):
+            _, rec = _process_one(id_, q, cache, cache_lock)
+            handle_result(i, id_, rec)
+    else:
+        completed = 0
+        with ThreadPoolExecutor(max_workers=args.workers) as pool:
+            futures = {
+                pool.submit(_process_one, id_, q, cache, cache_lock): id_
+                for id_, q in work
+            }
+            for fut in as_completed(futures):
+                id_, rec = fut.result()
+                completed += 1
+                handle_result(completed, id_, rec)
 
     save_json(args.out, out_refs)
-    save_json(OUT_CACHE, cache)
+    with cache_lock:
+        save_json(OUT_CACHE, dict(cache))
 
     tiers = Counter()
     n_art = 0
@@ -900,3 +1020,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
