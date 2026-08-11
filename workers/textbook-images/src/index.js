@@ -8,12 +8,14 @@
  * Do NOT make the bucket public — that would publish ~1,800 pages of the book
  * to the open internet.
  *
- * GET /textbook/<image>.png   — a single page screenshot
- * GET /refs.json              — the whole citation index (plain JSON)
+ * GET /textbook/<image>.png   — a single K&S page screenshot
+ * GET /refs.json              — K&S citation index (plain JSON)
+ * GET /dsm/<image>.png        — a single DSM-5-TR page screenshot (dsm-NNNNN.png)
+ * GET /dsm-refs.json          — DSM-5-TR section/page-window index
  *   Authorization: Bearer <supabase access_token>
  *
- * The citation index is gated too, not just the images: the quotes are verbatim
- * excerpts from the same copyrighted book.
+ * The citation indexes are gated too, not just the images: the quotes/pages are
+ * verbatim excerpts from copyrighted books.
  */
 
 const ALLOWED_ORIGINS = [
@@ -71,8 +73,8 @@ export default {
     // unauthenticated caller can't tell a real filename from a bogus one.
     let key = null
     let extra = null
-    if (path === '/refs.json') {
-      key = 'refs.json'
+    if (path === '/refs.json' || path === '/dsm-refs.json') {
+      key = path === '/refs.json' ? 'refs.json' : 'dsm-refs.json'
       // Stored UNCOMPRESSED on purpose. It was briefly stored pre-gzipped with a
       // hand-set `Content-Encoding: gzip`, which broke in production: Cloudflare
       // did not pass that header through, so browsers got raw gzip bytes and
@@ -89,6 +91,13 @@ export default {
       const name = decodeURIComponent(path.slice('/textbook/'.length))
       // Reject anything that isn't a plain image filename (no traversal, no listing).
       if (/^[A-Za-z0-9._-]+\.png$/.test(name)) {
+        key = name
+        extra = { 'Content-Type': 'image/png' }
+      }
+    } else if (path.startsWith('/dsm/')) {
+      const name = decodeURIComponent(path.slice('/dsm/'.length))
+      // DSM pages: dsm-01234.png only (no traversal / listing).
+      if (/^dsm-\d{5}\.png$/.test(name)) {
         key = name
         extra = { 'Content-Type': 'image/png' }
       }
