@@ -9,12 +9,17 @@ import {
   Eye, EyeOff, PanelRight, PanelBottom,
   BookOpen, Volume2, Play, Pause, Square, Copy, Shuffle, GripVertical,
   Brain, Pill, HeartPulse, GraduationCap, LayoutDashboard, Pin, Headphones,
+  Library, BookMarked,
 } from "lucide-react";
 import mermaid from "mermaid";
 import { nextRewardPost, RewardKind } from "./lib/motivation";
 import { ExplanationText } from "./lib/explanationFormat";
 import { KaplanPanel } from "./lib/kaplanPanel";
 import { loadKaplanRefs, type KaplanRef } from "./lib/kaplanRefs";
+import { ResearchPanel } from "./lib/researchPanel";
+import { loadResearchRefs, type ResearchRef } from "./lib/researchRefs";
+import { DsmPanel } from "./lib/dsmPanel";
+import { loadDsmRefs, type DsmRef } from "./lib/dsmRefs";
 import { ZoomLightbox } from "./lib/ZoomLightbox";
 import { ScenarioIllustration } from "./lib/ScenarioIllustration";
 import { ResourceImagePanel, type AnkingMatchMeta } from "./lib/ResourceImagePanel";
@@ -339,17 +344,21 @@ function ago(iso: string) {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
-/* "My notes" and "Group notes" are the same gesture twice, so they share one
-   row of the learning stack instead of costing two full-width cards. Both stay
-   independently expandable; the pair collapses back to a single column on
-   narrow screens (see .learningPair). Keyed off the cards' own keys so the
-   section list stays the single source of order. */
+/* Pair adjacent learning cards that belong together on one row. Both stay
+   independently expandable; the pair collapses to a single column on narrow
+   screens (see .learningPair). Keyed off the cards' own keys so the section
+   list stays the single source of order. */
 function pairNoteCards(cards: React.ReactElement[]): React.ReactNode[] {
   const out: React.ReactNode[] = [];
   for (let i = 0; i < cards.length; i++) {
-    if (cards[i].key === "mine" && cards[i + 1]?.key === "group") {
+    const a = cards[i].key;
+    const b = cards[i + 1]?.key;
+    if ((a === "mine" && b === "group") || (a === "context" && b === "video")) {
       out.push(
-        <div key="notesPair" className="learningPair">{cards[i]}{cards[i + 1]}</div>
+        <div key={`${String(a)}-${String(b)}-pair`} className="learningPair">
+          {cards[i]}
+          {cards[i + 1]}
+        </div>
       );
       i++;
     } else {
@@ -357,6 +366,35 @@ function pairNoteCards(cards: React.ReactElement[]): React.ReactNode[] {
     }
   }
   return out;
+}
+
+/* Persist the active Today queue so "Another set" / mid-set progress survives
+   refresh and re-login. Device-local (same model as timer prefs before sync). */
+type TodayQueueSnap = {
+  day: string;
+  extra: boolean;
+  bonusRound: number;
+  reviewMode: boolean;
+  ids: { year: string; q_index: number }[];
+};
+function todayQueueKey(uid: string) {
+  return `pd_today_queue_${uid}`;
+}
+function readTodayQueueSnap(uid: string): TodayQueueSnap | null {
+  try {
+    const raw = localStorage.getItem(todayQueueKey(uid));
+    if (!raw) return null;
+    const v = JSON.parse(raw) as TodayQueueSnap;
+    if (!v || v.day !== ymd() || !Array.isArray(v.ids)) return null;
+    return v;
+  } catch {
+    return null;
+  }
+}
+function writeTodayQueueSnap(uid: string, snap: TodayQueueSnap) {
+  try {
+    localStorage.setItem(todayQueueKey(uid), JSON.stringify(snap));
+  } catch { /* private mode */ }
 }
 
 // ---- "Ask AI": open an external AI with a pre-filled prompt about this question ----
@@ -488,6 +526,33 @@ function questionGroupKey(q: { stem: string }): string {
   return (q.stem ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().slice(0, 160);
 }
 
+/** Keep at most one cross-year copy of the same PRITE item in a queue. The
+ * bank intentionally retains every exam-year occurrence for provenance, but a
+ * study set should treat those occurrences as one concept rather than five
+ * separate "unseen" questions. Input order decides which representative wins,
+ * so callers sort first according to the resident's ordering preferences. */
+function uniqueQuestionGroups(qs: RawQuestion[], alreadyUsed: Set<string> = new Set()): RawQuestion[] {
+  const seen = new Set(alreadyUsed);
+  return qs.filter((q) => {
+    const key = questionGroupKey(q);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/** Small deterministic hash used to mix equally high-yield groups. A caller
+ * supplies a per-build seed, so the queue is varied without using a random
+ * comparator (which would violate Array.sort's ordering contract). */
+function mixedOrderScore(value: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
 // Daily sets lead with the most recently tested exams (2022 → 2025), since those
 // best reflect what's likely on the upcoming PRITE. Older years follow,
 // most-recent-first. Lower rank = served sooner.
@@ -571,14 +636,27 @@ function orderComparator(opts: {
   weakCats: Set<string>;
   missedIds: Set<string>;
   answers: Record<string, AnswerRow>;
+  highYieldMixSeed?: string;
+  recentlyAnsweredGroups?: Set<string>;
 }) {
-  const { order, yearFocus, weakCats, missedIds, answers } = opts;
+  const {
+    order, yearFocus, weakCats, missedIds, answers,
+    highYieldMixSeed = ymd(), recentlyAnsweredGroups = new Set<string>(),
+  } = opts;
   const score = (q: RawQuestion, rule: OrderRuleId): number => {
     switch (rule) {
       case "missed": return missedIds.has(questionId(q.year, q.q_index)) ? 0 : 1;
       case "weak": return weakCats.has(q.prite_category ?? "") ? 0 : 1;
-      // Negated so the most-repeated question sorts earliest.
-      case "highyield": return -(q.repeat_count ?? 1);
+      case "highyield": {
+        // Keep repeat-count tiers strict, but mix concepts within each tier.
+        // A concept seen this week goes behind equally repeated concepts so a
+        // bonus set does not immediately open with another year's clone.
+        const group = questionGroupKey(q);
+        const repeatTier = -(q.repeat_count ?? 1) * 10_000_000;
+        const recentPenalty = recentlyAnsweredGroups.has(group) ? 2_000_000 : 0;
+        const mixed = mixedOrderScore(`${highYieldMixSeed}:${group}`) % 1_000_000;
+        return repeatTier + recentPenalty + mixed;
+      }
       case "unseen": return answers[questionId(q.year, q.q_index)] ? 1 : 0;
       case "year": {
         const pinned = yearFocus.indexOf(q.year);
@@ -673,34 +751,203 @@ function HighlightableText({ text, ranges, editable, onChange, style }: {
   );
 }
 
+/** Parse Anki cloze tokens: {{c1::answer}} or {{c1::answer::hint}} */
+function parseClozeToken(raw: string): { id: string; answer: string; hint?: string } | null {
+  const m = raw.match(/^\{\{(c\d+)::([^}]*)\}\}$/);
+  if (!m) return null;
+  const parts = m[2].split("::");
+  return { id: m[1], answer: parts[0] ?? "", hint: parts[1] };
+}
+
 function renderClozeRaw(text: string) {
-  return text.split(/(\{\{c\d::[^}]*\}\})/g).map((p, i) => {
-    const m = p.match(/^\{\{(c\d)::([^}]*)\}\}$/);
+  return text.split(/(\{\{c\d+::[^}]*\}\})/g).map((p, i) => {
+    const m = parseClozeToken(p);
     if (!m) return <span key={i}>{p}</span>;
     return (
       <span key={i}>
-        <span style={{ color: T.faint }}>{`{{${m[1]}::`}</span>
-        <span style={{ color: T.teal, fontWeight: 700 }}>{m[2]}</span>
+        <span style={{ color: T.faint }}>{`{{${m.id}::`}</span>
+        <span style={{ color: T.teal, fontWeight: 700 }}>{m.answer}</span>
+        {m.hint != null && m.hint !== "" && (
+          <span style={{ color: T.faint }}>{`::${m.hint}`}</span>
+        )}
         <span style={{ color: T.faint }}>{`}}`}</span>
       </span>
     );
   });
 }
 function renderClozePreview(text: string) {
-  return text.split(/(\{\{c\d::[^}]*\}\})/g).map((p, i) => {
-    const m = p.match(/^\{\{(c\d)::([^}]*)\}\}$/);
+  return text.split(/(\{\{c\d+::[^}]*\}\})/g).map((p, i) => {
+    const m = parseClozeToken(p);
     if (!m) return <span key={i}>{p}</span>;
-    return <span key={i} style={s.blank}>[ {m[1]} ]</span>;
+    return <span key={i} style={s.blank}>[ {m.hint || "…"} ]</span>;
   });
 }
 /** The fully "solved" sentence — cloze markup resolved to plain text, with
     the previously-blanked words called out. Used once a card is revealed. */
 function renderClozeResolved(text: string) {
-  return text.split(/(\{\{c\d::[^}]*\}\})/g).map((p, i) => {
-    const m = p.match(/^\{\{(c\d)::([^}]*)\}\}$/);
+  return text.split(/(\{\{c\d+::[^}]*\}\})/g).map((p, i) => {
+    const m = parseClozeToken(p);
     if (!m) return <span key={i}>{p}</span>;
-    return <b key={i} style={{ color: T.teal }}>{m[2]}</b>;
+    return <b key={i} style={{ color: T.teal }}>{m.answer}</b>;
   });
+}
+
+/**
+ * Anki-style practice view: blanks start hidden; click a blank to unveil that
+ * deletion, or "Show answer" to unveil all. Clicking the card body also reveals.
+ */
+function AnkiClozePractice({
+  clozeText,
+  extra,
+  revealed,
+  openIds,
+  onRevealAll,
+  onToggleBlank,
+  onReset,
+}: {
+  clozeText: string;
+  extra?: string;
+  revealed: boolean;
+  openIds: Set<string>;
+  onRevealAll: () => void;
+  onToggleBlank: (id: string) => void;
+  onReset: () => void;
+}) {
+  const parts = clozeText.split(/(\{\{c\d+::[^}]*\}\})/g);
+  const allOpen = revealed || parts.every((p) => {
+    const m = parseClozeToken(p);
+    return !m || openIds.has(m.id);
+  });
+
+  return (
+    <div>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => (allOpen ? onReset() : onRevealAll())}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            if (allOpen) onReset();
+            else onRevealAll();
+          }
+        }}
+        style={{
+          display: "block",
+          width: "100%",
+          textAlign: "left",
+          border: `1.5px solid ${allOpen ? T.teal + "66" : T.paperEdge}`,
+          borderRadius: 14,
+          padding: "18px 18px 16px",
+          background: allOpen ? T.tealSoft : T.paper,
+          cursor: "pointer",
+          font: "inherit",
+          color: "inherit",
+          transition: "border-color 160ms ease, background 160ms ease",
+          boxSizing: "border-box",
+        }}
+      >
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.1, textTransform: "uppercase", color: T.muted, marginBottom: 10 }}>
+          {allOpen ? "Answer" : "Question"} · click blank or card
+        </div>
+        <p style={{ margin: 0, fontSize: 16.5, lineHeight: 1.65, color: T.text }}>
+          {parts.map((p, i) => {
+            const m = parseClozeToken(p);
+            if (!m) return <span key={i}>{p}</span>;
+            const isOpen = revealed || openIds.has(m.id);
+            if (isOpen) {
+              return (
+                <span
+                  key={i}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleBlank(m.id);
+                  }}
+                  style={{
+                    display: "inline",
+                    color: T.tealDeep,
+                    fontWeight: 750,
+                    background: "rgba(15, 118, 110, 0.12)",
+                    borderRadius: 5,
+                    padding: "1px 7px",
+                    margin: "0 1px",
+                    boxDecorationBreak: "clone",
+                    WebkitBoxDecorationBreak: "clone",
+                  }}
+                  title="Click to hide again"
+                >
+                  {m.answer}
+                </span>
+              );
+            }
+            return (
+              <span
+                key={i}
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleBlank(m.id);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onToggleBlank(m.id);
+                  }
+                }}
+                style={{
+                  display: "inline-block",
+                  minWidth: 48,
+                  background: "linear-gradient(180deg, #f7f1e3 0%, #efe4cf 100%)",
+                  color: "#8a6414",
+                  borderRadius: 6,
+                  padding: "2px 12px",
+                  margin: "0 3px",
+                  fontSize: 13.5,
+                  fontWeight: 700,
+                  letterSpacing: 0.4,
+                  border: "1px dashed rgba(138, 100, 20, 0.35)",
+                  verticalAlign: "baseline",
+                  cursor: "pointer",
+                  boxShadow: "inset 0 -1px 0 rgba(138,100,20,0.08)",
+                }}
+                title="Click to reveal"
+              >
+                {m.hint ? m.hint : "····"}
+              </span>
+            );
+          })}
+        </p>
+        {!allOpen && (
+          <div style={{ marginTop: 14, fontSize: 12.5, color: T.muted }}>
+            Tip: click a blank to unveil just that deletion, or use Show answer for the whole card.
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 12, alignItems: "center" }}>
+        {!allOpen ? (
+          <button type="button" style={s.primarySm} onClick={onRevealAll}>
+            <Eye size={14} strokeWidth={2.2} /> Show answer
+          </button>
+        ) : (
+          <button type="button" style={s.ghost} onClick={onReset}>
+            <EyeOff size={14} strokeWidth={2.2} /> Hide answer
+          </button>
+        )}
+      </div>
+
+      {allOpen && extra && (
+        <div style={{ marginTop: 14 }}>
+          <div style={s.fieldLbl}>Extra · under the answer</div>
+          <div style={s.extra}>
+            <p style={{ ...s.extraLine, marginBottom: 0 }}>{extra}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function isSameDay(iso: string) {
@@ -747,8 +994,8 @@ function writePref(key: string, value: unknown) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* best-effort */ }
 }
 const LEARNING_SECTION_IDS = new Set([
-  "explanation", "textbook", "anking", "sketchy", "practice", "mnemonic", "context",
-  "diagram", "video", "mine", "group", "flash",
+  "explanation", "textbook", "dsm", "anking", "sketchy", "practice", "mnemonic", "context",
+  "diagram", "video", "mine", "group", "flash", "research",
 ]);
 function readLearningOpenPref(): Set<string> {
   return new Set(readPref<string[]>("pd_learning_open_sections", ["explanation"])
@@ -781,6 +1028,12 @@ export default function App() {
   // this used to fail silently, which made a broken fetch indistinguishable from
   // "this question just has no citation".
   const [kaplanErr, setKaplanErr] = useState<string | null>(null);
+  // question id -> MEDLINE further-reading articles (public PubMed/PMC links)
+  const [researchRefs, setResearchRefs] = useState<Record<string, ResearchRef>>({});
+  const [researchErr, setResearchErr] = useState<string | null>(null);
+  // question id -> DSM-5-TR section link (static offline match)
+  const [dsmRefs, setDsmRefs] = useState<Record<string, DsmRef>>({});
+  const [dsmErr, setDsmErr] = useState<string | null>(null);
 
   const [year, setYear] = useState<string>("all");
   const [qi, setQi] = useState(0);
@@ -1044,6 +1297,11 @@ export default function App() {
     } catch { return []; }
   });
   const [todayQueue, setTodayQueue] = useState<RawQuestion[]>([]);
+  // Incremented for every newly built queue. This gives equally high-yield
+  // concepts a fresh, stable mix while keeping each individual sort valid.
+  const highYieldMixRef = useRef(0);
+  /** 0 = primary daily set; 1+ = explicit "Another set" bonus rounds after the goal. */
+  const [bonusRound, setBonusRound] = useState(0);
   const [customQueue, setCustomQueue] = useState<RawQuestion[]>([]);
   const [customLabel, setCustomLabel] = useState<string>("");
   const [answersLoaded, setAnswersLoaded] = useState(false);
@@ -1059,6 +1317,11 @@ export default function App() {
   const [card, setCard] = useState<Flashcard | null>(null);
   const [cardBusy, setCardBusy] = useState(false);
   const [editCard, setEditCard] = useState<{ cloze: string; extra: string } | null>(null);
+  /** Anki-style practice on the question Flashcard tab: all blanks revealed? */
+  const [clozeRevealed, setClozeRevealed] = useState(false);
+  /** Individually unveiled cloze ids (c1, c2, …). */
+  const [clozeOpenIds, setClozeOpenIds] = useState<Set<string>>(() => new Set());
+  const [showClozeSource, setShowClozeSource] = useState(false);
   const [highlights, setHighlights] = useState<HlRange[]>([]);
   const [context, setContext] = useState<string | null>(null); // null = not yet loaded
   const [showReport, setShowReport] = useState(false);     // per-question "report a problem"
@@ -1146,7 +1409,7 @@ export default function App() {
     const missed = new Set(
       pool.filter((q) => answers[questionId(q.year, q.q_index)]).map((q) => questionId(q.year, q.q_index)),
     );
-    return pool
+    const ordered = pool
       .slice()
       .sort(orderComparator({
         order: dailyOrder,
@@ -1154,8 +1417,8 @@ export default function App() {
         weakCats: new Set(weakAreasForOrder.map((w) => w.cat)),
         missedIds: missed,
         answers,
-      }))
-      .slice(0, 8);
+      }));
+    return uniqueQuestionGroups(ordered).slice(0, 8);
   }, [all, answers, dailyOrder, yearFocus, weakAreasForOrder]);
   /* Every year in the bank, built from the data so a newly published exam
      appears without a code change. Sorted plain newest-first, NOT by yearRank:
@@ -1194,6 +1457,16 @@ export default function App() {
     const a = answersRef.current;
     const answeredToday = Object.values(a).filter((r) => isSameDay(r.updated_at)).length;
     const remaining = count != null ? count : extra ? regimen : Math.max(0, regimen - answeredToday);
+    const recentCutoff = now - 7 * 86400000;
+    const recentlyAnsweredGroups = new Set(
+      all
+        .filter((qq) => {
+          const row = a[questionId(qq.year, qq.q_index)];
+          return !!row && Date.parse(row.updated_at) >= recentCutoff;
+        })
+        .map(questionGroupKey),
+    );
+    const highYieldMixSeed = `${ymd()}:${++highYieldMixRef.current}`;
     const due: RawQuestion[] = [], fresh: RawQuestion[] = [];
     for (const qq of all) {
       const id = questionId(qq.year, qq.q_index);
@@ -1214,21 +1487,43 @@ export default function App() {
       weakCats: new Set(weakCategories(all, a).map((w) => w.cat)),
       missedIds,
       answers: a,
+      highYieldMixSeed,
+      recentlyAnsweredGroups,
     });
     fresh.sort(cmp);
     due.sort(cmp);
+    // Sorting first means the preferred exam year wins as the group's single
+    // representative. Other year-copies remain eligible for a later set, where
+    // the recent-repeat badge gives the resident the right context.
+    const uniqueDue = uniqueQuestionGroups(due);
+    const uniqueFresh = uniqueQuestionGroups(
+      fresh,
+      new Set(uniqueDue.map(questionGroupKey)),
+    );
     // include up to `reviewCap` due-review questions, fill the rest with new.
     // The cap still applies however the rules are arranged — a resident with a
     // long miss list shouldn't get a set that is nothing but repeats.
-    const reviewCount = Math.min(reviewCap, due.length, remaining);
-    const fresher = fresh.slice(0, Math.max(0, remaining - reviewCount));
+    const reviewCount = Math.min(reviewCap, uniqueDue.length, remaining);
+    const fresher = uniqueFresh.slice(0, Math.max(0, remaining - reviewCount));
     setReviewMode(false);
     // "Questions I got wrong" ranked first keeps the historical behaviour of
     // leading with them; ranked lower, they fall in among the fresh ones.
-    const picked = [...due.slice(0, reviewCount), ...fresher];
+    const picked = [...uniqueDue.slice(0, reviewCount), ...fresher];
     if (dailyOrder.indexOf("missed") > 0) picked.sort(cmp);
+    const uid = profile?.id ?? session?.user?.id ?? "local";
     setTodayQueue(picked);
-  }, [all, settings, dailyOrder, yearFocus]);
+    setBonusRound((prev) => {
+      const nextBonus = extra ? Math.max(1, prev + 1) : 0;
+      writeTodayQueueSnap(uid, {
+        day: ymd(),
+        extra,
+        bonusRound: nextBonus,
+        reviewMode: false,
+        ids: picked.map((qq) => ({ year: String(qq.year), q_index: qq.q_index })),
+      });
+      return nextBonus;
+    });
+  }, [all, settings, dailyOrder, yearFocus, profile?.id, session?.user?.id]);
 
   // build a review-only set from every currently-missed question, presented
   // fresh (answer hidden) for a second attempt
@@ -1239,14 +1534,48 @@ export default function App() {
       const row = a[questionId(qq.year, qq.q_index)];
       return row && !row.correct && !row.cleared;
     });
+    const picked = missed.slice(0, 30);
     setReviewMode(true);
-    setTodayQueue(missed.slice(0, 30));
+    setBonusRound(0);
+    setTodayQueue(picked);
     setMode("today"); setQi(0);
-  }, [all]);
+    const uid = profile?.id ?? session?.user?.id ?? "local";
+    writeTodayQueueSnap(uid, {
+      day: ymd(),
+      extra: false,
+      bonusRound: 0,
+      reviewMode: true,
+      ids: picked.map((qq) => ({ year: String(qq.year), q_index: qq.q_index })),
+    });
+  }, [all, profile?.id, session?.user?.id]);
 
+  // Restore today's queue (including mid-bonus-set progress) before rebuilding.
   useEffect(() => {
-    if (persist && answersLoaded) buildToday();
-  }, [persist, answersLoaded, buildToday]);
+    if (!persist || !answersLoaded || !all) return;
+    const uid = profile?.id ?? session?.user?.id ?? "local";
+    const snap = readTodayQueueSnap(uid);
+    if (snap && snap.ids.length > 0) {
+      const byId = new Map(all.map((qq) => [questionId(qq.year, qq.q_index), qq]));
+      const restored = snap.ids
+        .map((id) => byId.get(questionId(id.year, id.q_index)))
+        .filter((qq): qq is RawQuestion => !!qq);
+      if (restored.length > 0) {
+        const repaired = uniqueQuestionGroups(restored);
+        // Older snapshots may contain every year-copy of a high-yield item.
+        // Rebuild those sets at their original requested size so a resident
+        // stuck in a two-concept loop gets a real set after refreshing.
+        if (repaired.length < restored.length) {
+          buildToday(snap.extra, snap.extra ? snap.ids.length : undefined);
+          return;
+        }
+        setTodayQueue(restored);
+        setBonusRound(snap.bonusRound || 0);
+        setReviewMode(!!snap.reviewMode);
+        return;
+      }
+    }
+    buildToday(false);
+  }, [persist, answersLoaded, all, buildToday, profile?.id, session?.user?.id]);
 
   // admins: load the member list (for the approvals panel + pending badge)
   const adminLoggedIn = isConfigured && !!profile?.is_admin;
@@ -1320,6 +1649,34 @@ export default function App() {
         // so a failure is diagnosable instead of looking like "no citations".
         if (alive) setKaplanErr(String(e?.message ?? e));
         console.warn("[kaplan] citations failed to load:", e);
+      });
+    return () => { alive = false; };
+  }, [signedIn, approved]);
+
+  // Further-reading: MEDLINE papers + APA PsychiatryOnline chapters (~static JSON).
+  // Same sign-in gate as the bank so we don't spend bandwidth on the landing page.
+  // Section hidden when a question has neither papers nor APA chapters.
+  useEffect(() => {
+    if (isConfigured && !(signedIn && approved)) return;
+    let alive = true;
+    loadResearchRefs()
+      .then((m) => { if (alive) { setResearchRefs(m); setResearchErr(null); } })
+      .catch((e) => {
+        if (alive) setResearchErr(String(e?.message ?? e));
+        console.warn("[research] further-reading index failed to load:", e);
+      });
+    return () => { alive = false; };
+  }, [signedIn, approved]);
+
+  // DSM-5-TR section links (static offline match to disorder/chapter titles).
+  useEffect(() => {
+    if (isConfigured && !(signedIn && approved)) return;
+    let alive = true;
+    loadDsmRefs()
+      .then((m) => { if (alive) { setDsmRefs(m); setDsmErr(null); } })
+      .catch((e) => {
+        if (alive) setDsmErr(String(e?.message ?? e));
+        console.warn("[dsm] section index failed to load:", e);
       });
     return () => { alive = false; };
   }, [signedIn, approved]);
@@ -1407,6 +1764,13 @@ export default function App() {
     const cur = set[qi];
     if (cur) getFlashcard(questionId(cur.year, cur.q_index)).then((c) => { if (c) setCard(c); });
   }, [openSections, qi, persist, mode]); // eslint-disable-line
+
+  // Reset Anki-style cloze practice when the question (or card text) changes
+  useEffect(() => {
+    setClozeRevealed(false);
+    setClozeOpenIds(new Set());
+    setShowClozeSource(false);
+  }, [navQid, card?.cloze_text]);
 
   // per-question class stats: fetch once the answer is actually shown
   useEffect(() => {
@@ -1957,10 +2321,15 @@ export default function App() {
   // Roughly 45% of questions have a verified textbook passage; the card is hidden
   // entirely for the rest rather than showing an empty state on every other question.
   const kaplan = q ? kaplanRefs[questionId(q.year, q.q_index)] : undefined;
+  const research = q ? researchRefs[questionId(q.year, q.q_index)] : undefined;
+  const dsm = q ? dsmRefs[questionId(q.year, q.q_index)] : undefined;
   const sections: [string, string, string, React.ReactNode][] = [
     ["explanation", "Explanation", "Why this answer is correct", <Layers size={17} strokeWidth={2.1} />],
     ...(kaplan
       ? ([["textbook", "Textbook", "Verified Kaplan & Sadock support", <BookOpen size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
+      : []),
+    ...(dsm
+      ? ([["dsm", "DSM-5-TR", "Diagnostic criteria section", <BookMarked size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
       : []),
     ...(ankingImgs.length
       ? ([["anking", "AnKing", "AnKing / AnkiHub diagrams", <ImageIcon size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
@@ -1972,14 +2341,19 @@ export default function App() {
     ...(mnemonics.length
       ? ([["mnemonic", "Mnemonic", "Quick ways to remember it", <Brain size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
       : []),
+    // Adjacent so pairNoteCards can put Context | Video on one row
     ["context", "Context", "The story behind the concept", <Lightbulb size={17} strokeWidth={2.1} />],
+    ["video", "Video and podcasts", "Curated episodes and a focused YouTube search", <Youtube size={17} strokeWidth={2.1} />],
     ...(hasDiagram
       ? ([["diagram", "Diagram", "Visual map and comparison", <Network size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
       : []),
-    ["video", "Video and podcasts", "Curated episodes and a focused YouTube search", <Youtube size={17} strokeWidth={2.1} />],
     ["mine", "My notes", "Your private study space", <NotebookPen size={17} strokeWidth={2.1} />],
     ["group", "Group notes", "Learn with your class", <Users size={17} strokeWidth={2.1} />],
     ["flash", "Flashcard", "Turn this into an Anki card", <Sparkles size={17} strokeWidth={2.1} />],
+    // Further reading sits last so the clinical stack comes first
+    ...(research?.articles?.length
+      ? ([["research", "Further reading", "Papers & APA Publishing chapters", <Library size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
+      : []),
   ];
   const toggleSection = (id: string) => setOpenSections((current) => {
     const next = new Set(current);
@@ -2071,6 +2445,24 @@ export default function App() {
   };
 
   const qid = q ? questionId(q.year, q.q_index) : "";
+  const recentRepeatCutoff = Date.now() - 7 * 86400000;
+  const recentHighYieldRepeat = q && (q.repeat_count ?? 1) > 1
+    ? all
+        .map((other) => ({
+          question: other,
+          id: questionId(other.year, other.q_index),
+          row: answers[questionId(other.year, other.q_index)],
+        }))
+        .filter(({ question, id, row }) =>
+          id !== qid &&
+          !!row &&
+          questionGroupKey(question) === questionGroupKey(q) &&
+          Date.parse(row.updated_at) >= recentRepeatCutoff &&
+          Date.parse(row.updated_at) <= Date.now()
+        )
+        .sort((a, b) => Date.parse(b.row!.updated_at) - Date.parse(a.row!.updated_at))[0]
+      ?? null
+    : null;
   const isAdmin = !!profile?.is_admin;
   const pendingCount = profiles.filter((p) => p.status === "pending").length;
   const answeredCount = Object.keys(answers).length;
@@ -2084,12 +2476,16 @@ export default function App() {
   // not from the live queue (which rebuilds and drops answered questions)
   const target = settings?.regimen ?? 10;
   const doneToday = Object.values(answers).filter((a) => isSameDay(a.updated_at)).length;
-  const dayComplete = inToday && doneToday >= target;
-  const missedOutstanding = Object.values(answers).filter((a) => !a.correct && !a.cleared).length;
-
   // exam-mode progress across the current set
   const setRows = inPractice ? set.map((qq) => answers[questionId(qq.year, qq.q_index)]) : [];
   const setAnswered = setRows.filter(Boolean).length;
+  // Daily goal met AND the *current* Today queue is finished — so mid "Another
+  // set" work does not keep the completion banner pinned forever. Empty queue
+  // after the goal still counts complete (no more questions left to pull).
+  const currentSetComplete = set.length === 0 || setAnswered >= set.length;
+  const dayComplete =
+    inToday && !reviewMode && doneToday >= target && currentSetComplete;
+  const missedOutstanding = Object.values(answers).filter((a) => !a.correct && !a.cleared).length;
   const examSetComplete = examMode && inPractice && set.length > 0 && setAnswered >= set.length;
   const examScore = setRows.filter((r) => r && r.correct).length;
   // Falls back to the residency's assumed PRITE date (Oct 6, see
@@ -2397,7 +2793,7 @@ export default function App() {
           <span className="nextUpRim" aria-hidden />
           <span style={{ position: "relative" }}>Next question</span>
           <span className="nextUpArrow" aria-hidden>
-            <ArrowRight size={16} strokeWidth={2.6} />
+            <ArrowRight size={20} strokeWidth={2.6} />
           </span>
         </button>
       )}
@@ -2405,7 +2801,7 @@ export default function App() {
       <main style={
         examActive ? { ...s.well, maxWidth: 880 }
           // Textbook pages are large screenshots — give them most of the screen width.
-          : openSections.has("textbook") && showAnswer ? { ...s.well, maxWidth: 1100 }
+          : (openSections.has("textbook") || openSections.has("dsm")) && showAnswer ? { ...s.well, maxWidth: 1100 }
           : s.well
       }>
         {/* Navigation / filter row */}
@@ -2619,8 +3015,14 @@ export default function App() {
         {dayComplete && !examReview && (
           <div style={s.doneBanner} className="slidein">
             <span style={s.doneIcon}><Check size={15} strokeWidth={3} color="#fff" /></span>
-            <span><b>That's your {target} for today.</b> Nice work — come back tomorrow for a fresh set.</span>
-            <button style={s.doneBtn} onClick={() => { buildToday(true); setQi(0); }}><RotateCcw size={13} strokeWidth={2.3} /> Another set</button>
+            <span>
+              {bonusRound > 0 ? (
+                <><b>Bonus set complete.</b> Great extra work — grab another set, or call it a day.</>
+              ) : (
+                <><b>That's your {target} for today.</b> Nice work — come back tomorrow for a fresh set.</>
+              )}
+            </span>
+            <button style={s.doneBtn} onClick={() => { buildToday(true); setQi(0); fire(bonusRound > 0 ? "Starting another bonus set" : "Starting a bonus set"); }}><RotateCcw size={13} strokeWidth={2.3} /> Another set</button>
             {missedOutstanding > 0 && (
               <button style={{ ...s.doneBtn, marginLeft: 0, background: "transparent" }} onClick={() => { startReview(); fire("Retrying the ones you missed"); }} title="Take another crack at the questions you got wrong">
                 <Flame size={13} strokeWidth={2.3} /> Redo {missedOutstanding} missed
@@ -2638,6 +3040,14 @@ export default function App() {
           <span style={s.qeyebrow}>{q.year} · Q{q.q_index} <span style={{ color: T.faint }}>(slide {q.slide_number})</span></span>
           {reviewMode && <span style={{ ...s.multiTag, color: T.teal, background: T.tealSoft }}><RotateCcw size={12} strokeWidth={2.2} /> Reviewing missed — try again</span>}
           {q.multi_select && <span style={s.multiTag}><ListChecks size={12} strokeWidth={2.2} /> Select {requiredSelections} answers</span>}
+          {recentHighYieldRepeat && (
+            <span
+              style={{ ...s.multiTag, color: T.gold, background: T.goldSoft }}
+              title={`You answered the ${recentHighYieldRepeat.question.year} version within the last 7 days. This is the ${q.year} version of the same high-yield PRITE item.`}
+            >
+              <Repeat size={12} strokeWidth={2.4} /> High-yield repeat · answered in {recentHighYieldRepeat.question.year} this week · this is {q.year}
+            </span>
+          )}
           {persist && (
             <button style={s.reportBtn} onClick={() => setShowReport(true)} title="Report a problem with this question">
               <Bug size={12} strokeWidth={2.2} /> Report a problem
@@ -2851,9 +3261,26 @@ export default function App() {
                 🤷 I have no clue <ExternalLink size={12} strokeWidth={2.2} />
               </button>
             )}
-            {/* "Next question" used to sit here at the right of the row; it now
-                floats bottom-right (see s.nextUpFab) so it stays reachable from
-                anywhere in a long explanation. */}
+            {/* Static Next on the opposite side of this row from Ask AI; the
+                larger floating FAB still pins bottom-right for long scrolls. */}
+            {set.length > 1 && showAnswer && (
+              <button
+                className={`nextUp${nextLaunching ? " nextUpGo" : ""}`}
+                style={s.nextUpInline}
+                onClick={launchNext}
+                onMouseMove={trackGlass}
+                onMouseLeave={resetGlass}
+                title="Go to the next question (Enter or →)"
+                aria-label="Next question"
+              >
+                <span className="nextUpLens" aria-hidden />
+                <span className="nextUpRim" aria-hidden />
+                <span style={{ position: "relative" }}>Next question</span>
+                <span className="nextUpArrow" aria-hidden>
+                  <ArrowRight size={18} strokeWidth={2.6} />
+                </span>
+              </button>
+            )}
             {askOpen && (
               <div style={s.askPanel} className="fade">
                 <div style={s.askRow}>
@@ -3006,6 +3433,18 @@ export default function App() {
                   <KaplanPanel data={kaplan} theme={T} onZoom={setZoomImg} />
                 </div>
               )}
+
+              {id === "dsm" && dsm && (
+                <div className="fade">
+                  <DsmPanel data={dsm} theme={T} onZoom={setZoomImg} />
+                </div>
+              )}
+
+              {id === "research" && research?.articles?.length ? (
+                <div className="fade">
+                  <ResearchPanel data={research} theme={T} />
+                </div>
+              ) : null}
 
               {id === "anking" && ankingImgs.length > 0 && (
                 <div className="fade">
@@ -3213,7 +3652,7 @@ export default function App() {
                     <div style={s.flashEmpty}>
                       <Sparkles size={20} strokeWidth={1.9} color={T.teal} />
                       <p style={{ margin: "8px 0 14px", color: T.muted, fontSize: 14, lineHeight: 1.5 }}>
-                        Turn this question into an Anki cloze card. Generated once by AI, then cached for the whole class.
+                        Turn this question into an Anki-style cloze card. Practice here (click blanks to unveil), then download for Anki. Generated once by AI and cached for the class.
                       </p>
                       <button style={{ ...s.primarySm, opacity: cardBusy ? 0.5 : 1 }} disabled={cardBusy} onClick={() => doGenerateCard(false)}>
                         <Sparkles size={14} strokeWidth={2.2} /> {cardBusy ? "Generating…" : "Generate flashcard"}
@@ -3225,7 +3664,7 @@ export default function App() {
                     <>
                       <div style={s.cardChrome}>
                         <div style={s.cardChromeHead}>
-                          <span style={s.cardType}>Cloze</span>
+                          <span style={s.cardType}>Cloze · practice</span>
                           <span style={s.cardCached}><Sparkles size={12} strokeWidth={2.2} /> cached for the class</span>
                           {isAdmin && (
                             <button style={s.tinyBtn} onClick={() => setEditCard({ cloze: card.cloze_text, extra: card.extra })}>
@@ -3233,16 +3672,60 @@ export default function App() {
                             </button>
                           )}
                         </div>
-                        <span style={s.fieldLbl}>Text</span>
-                        <code style={s.clozeRaw}>{renderClozeRaw(card.cloze_text)}</code>
-                        <div style={s.clozePreview}>{renderClozePreview(card.cloze_text)}</div>
-                        <span style={{ ...s.fieldLbl, marginTop: 14 }}>Extra <span style={{ color: T.faint, fontWeight: 500 }}>· shown under the answer</span></span>
-                        <div style={s.extra}><p style={{ ...s.extraLine, marginBottom: 0 }}>{card.extra}</p></div>
+
+                        <AnkiClozePractice
+                          clozeText={card.cloze_text}
+                          extra={card.extra}
+                          revealed={clozeRevealed}
+                          openIds={clozeOpenIds}
+                          onRevealAll={() => {
+                            setClozeRevealed(true);
+                            setClozeOpenIds(new Set());
+                          }}
+                          onToggleBlank={(cid) => {
+                            if (clozeRevealed) {
+                              // After full reveal, toggling a blank starts selective mode
+                              setClozeRevealed(false);
+                              const all = new Set(
+                                [...card.cloze_text.matchAll(/\{\{(c\d+)::/g)].map((x) => x[1]),
+                              );
+                              all.delete(cid);
+                              setClozeOpenIds(all);
+                              return;
+                            }
+                            setClozeOpenIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(cid)) next.delete(cid);
+                              else next.add(cid);
+                              return next;
+                            });
+                          }}
+                          onReset={() => {
+                            setClozeRevealed(false);
+                            setClozeOpenIds(new Set());
+                          }}
+                        />
+
+                        <div style={{ marginTop: 16 }}>
+                          <button
+                            type="button"
+                            style={{ ...s.tinyBtn, marginLeft: 0 }}
+                            onClick={() => setShowClozeSource((v) => !v)}
+                          >
+                            {showClozeSource ? "Hide Anki markup" : "View Anki markup"}
+                          </button>
+                          {showClozeSource && (
+                            <div style={{ marginTop: 8 }}>
+                              <span style={s.fieldLbl}>Source (for Anki import)</span>
+                              <code style={s.clozeRaw}>{renderClozeRaw(card.cloze_text)}</code>
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <div style={s.flashActions}>
                         <button style={s.primarySm} onClick={doDownloadCard}><Download size={14} strokeWidth={2.2} /> Download for Anki</button>
                         {isAdmin && <button style={s.ghost} onClick={() => doGenerateCard(true)} disabled={cardBusy}><RotateCcw size={13} strokeWidth={2.2} /> Regenerate</button>}
-                        <span style={s.flashNote}>Imports as a Cloze note · Extra carries the Q&A</span>
+                        <span style={s.flashNote}>Practice like Anki · imports as a Cloze note</span>
                       </div>
                     </>
                   )}
@@ -4456,6 +4939,9 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
   const nameRef = useRef<Map<string, string>>(new Map());   // voter -> display name, for the individual leaderboard
   const joinedRef = useRef<Set<string>>(new Set());  // every voter who has said hello or voted
   const correctRef = useRef<Map<string, string[]>>(new Map()); // qid -> correct letters (recorded on reveal)
+  // Historical context per qid — prefetched so guests get the Context chip
+  // after reveal without needing approved DB access of their own.
+  const contextRef = useRef<Map<string, string>>(new Map());
   const chanRef = useRef<ReturnType<NonNullable<typeof supabase>["channel"]> | null>(null);
 
   // Cumulative team leaderboard. The whole team scores as one entity —
@@ -4571,6 +5057,15 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
       revealed,
       revealAt: revealed ? undefined : revealAt ?? undefined,
       correct: revealed ? correctSet : [],
+      // Only after reveal — guests have no local bank, so this is how they get
+      // the explanation section + study extras on their phone once the answer
+      // is shown.
+      explanation_text: revealed ? (q?.explanation_text ?? "") : undefined,
+      explanation_images: revealed ? (q?.explanation_images ?? []) : undefined,
+      clinical_application: revealed ? (q?.clinical_application ?? "") : undefined,
+      video_query: revealed ? (q?.video_query ?? "") : undefined,
+      answer_text: revealed ? (q?.answer_text ?? "") : undefined,
+      context: revealed ? (contextRef.current.get(qid) ?? "") : undefined,
       standings: computeStandings(),
       // Union of the roster's teams and any team a participant has actually
       // announced — covers self-named teams and auto-assign, where there is no
@@ -4622,6 +5117,21 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
   // re-broadcast the live question whenever it changes (incl. the lobby→started
   // flip), and whenever the standings ranking metric flips so phones re-order too
   useEffect(() => { broadcastRef.current(); }, [index, revealed, revealAt, finished, started, rankByTotal]); // eslint-disable-line
+
+  // Prefetch historical context for the live question so the post-reveal
+  // broadcast can include it for guests (they can't read question_context).
+  useEffect(() => {
+    if (!qid || contextRef.current.has(qid)) return;
+    let alive = true;
+    getQuestionContext(qid).then((c) => {
+      if (!alive) return;
+      contextRef.current.set(qid, c ?? "");
+      // Re-send once revealed so phones that already got an empty context
+      // pick up the blurb when it lands.
+      if (revealed) broadcastRef.current();
+    });
+    return () => { alive = false; };
+  }, [qid, revealed]); // eslint-disable-line
 
   // per-question countdown; starts the reveal countdown when it hits zero (never runs in the lobby)
   useEffect(() => {
@@ -5392,24 +5902,69 @@ function PodcastPicks({ q, dark = false }: { q: RawQuestion; dark?: boolean }) {
 const TEAM_KEY = "prite_poll_team";
 const STEM_OPEN_KEY = "prite.poll.stemOpen"; // participant's "show question text" preference, kept for the whole poll
 
+// Thin RawQuestion rebuilt from a poll broadcast / history snapshot so guests
+// (no private bank) can still open PollExtras, export missed PDFs, etc.
+function syntheticPollQuestion(p: {
+  year?: string;
+  qIndex?: number;
+  stem?: string;
+  options?: { letter: string; text: string }[];
+  correct?: string[];
+  multiSelect?: boolean;
+  explanation_text?: string;
+  explanation_images?: string[];
+  clinical_application?: string;
+  video_query?: string;
+  answer_text?: string;
+}): RawQuestion {
+  const correct = p.correct ?? [];
+  return {
+    deck: "",
+    year: p.year ?? "",
+    q_index: p.qIndex ?? 0,
+    slide_number: 0,
+    stem: p.stem ?? "",
+    options: p.options ?? [],
+    answer_letter: correct[0] ?? null,
+    answer_letters: correct,
+    multi_select: p.multiSelect ?? correct.length > 1,
+    answer_text: p.answer_text ?? "",
+    answer_source: "",
+    answer_raw: "",
+    explanation_text: p.explanation_text ?? "",
+    figure_images: [],
+    explanation_images: p.explanation_images ?? [],
+    clinical_application: p.clinical_application || undefined,
+    video_query: p.video_query || undefined,
+    flags: [],
+  };
+}
+
 // Extra study material for a revealed poll question, as tap-to-open chips
 // inside the answer box: the "in practice" scenario, historical context
-// (fetched on demand), a YouTube search, and an "Ask AI" launcher that opens
-// an external chatbot in a NEW tab — so a participant can dig deeper without
-// leaving the poll. Only rendered for signed-in participants (guests have no
-// local question bank, so `q` is never available for them).
-function PollExtras({ q }: { q: RawQuestion }) {
+// (fetched on demand, or supplied by the host broadcast for guests), a
+// YouTube search, and an "Ask AI" launcher that opens an external chatbot
+// in a NEW tab — so a participant can dig deeper without leaving the poll.
+// Works for guests when `q` is a syntheticPollQuestion + optional contextText.
+function PollExtras({ q, contextText }: { q: RawQuestion; contextText?: string }) {
   const [open, setOpen] = useState<null | "practice" | "context" | "video" | "ai">(null);
   const [ctx, setCtx] = useState<string | null>(null);
   const [ctxLoaded, setCtxLoaded] = useState(false);
   const [aiNote, setAiNote] = useState("");
   const toggle = (k: NonNullable<typeof open>) => setOpen((cur) => (cur === k ? null : k));
+  // Reset cached context when the question (or host-supplied blurb) changes.
+  useEffect(() => { setCtx(null); setCtxLoaded(false); }, [q.year, q.q_index, contextText]);
   useEffect(() => {
     if (open === "context" && !ctxLoaded) {
       setCtxLoaded(true);
+      // Guests get the blurb from the host broadcast (no approved DB access).
+      if (contextText !== undefined) {
+        setCtx(contextText);
+        return;
+      }
       getQuestionContext(questionId(q.year, q.q_index)).then((c) => setCtx(c ?? ""));
     }
-  }, [open, ctxLoaded, q]);
+  }, [open, ctxLoaded, q, contextText]);
   const chip = (k: NonNullable<typeof open>, label: string, icon: React.ReactNode, show = true) => show ? (
     <button style={{ ...s.pollExtraChip, ...(open === k ? s.pollExtraChipOn : {}) }} onClick={() => toggle(k)}>{icon} {label}</button>
   ) : null;
@@ -5501,11 +6056,31 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
   // moment each question is revealed (myVoteRef still reflects that question;
   // it's reset only once the NEXT qid comes in). Drives the missed-questions
   // download at the end, and lets me flip back through past questions (with
-  // their full explanation, pulled from the local question bank) while the
-  // live question is still on the clock.
-  const historyRef = useRef<Map<string, { correct: string[]; myChoice: string[] | null; index: number }>>(new Map());
+  // their full explanation) while the live question is still on the clock.
+  // Stem/options/explanation/extras are cached from the broadcast so guests
+  // (no local bank) can still review, export, and use PollExtras after reveal.
+  type PollHistory = {
+    correct: string[];
+    myChoice: string[] | null;
+    index: number;
+    year?: string;
+    qIndex?: number;
+    stem?: string;
+    options?: { letter: string; text: string }[];
+    multiSelect?: boolean;
+    explanation_text?: string;
+    explanation_images?: string[];
+    clinical_application?: string;
+    video_query?: string;
+    answer_text?: string;
+    context?: string;
+  };
+  const historyRef = useRef<Map<string, PollHistory>>(new Map());
   const [reviewQid, setReviewQid] = useState<string | null>(null); // set while browsing a past question instead of the live one
   const recordedRef = useRef<Set<string>>(new Set()); // qids already persisted to poll_answers, so a re-broadcast doesn't double-insert
+  // Bump when history changes so finish-screen personal stats / buttons re-render
+  // (historyRef itself is a ref and wouldn't otherwise trigger a paint).
+  const [, bumpHistory] = useState(0);
   // Seconds left in the "revealing the answer" countdown (see remote.revealAt),
   // ticked locally off the wall clock so the phone doesn't need a broadcast
   // every second. Null when no countdown is running.
@@ -5536,8 +6111,29 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
     const ch = supabase.channel(channelName(code), { config: { broadcast: { self: false } } });
     ch.on("broadcast", { event: POLL_EVENTS.state }, ({ payload }: { payload: PollState }) => {
       if (payload.revealed && payload.qid) {
-        historyRef.current.set(payload.qid, { correct: payload.correct, myChoice: myVoteRef.current, index: payload.index });
-        const gotIt = !!myVoteRef.current && pickIsCorrect(myVoteRef.current, payload.correct);
+        const prev = historyRef.current.get(payload.qid);
+        // Keep the first myChoice we snapshotted for this qid (re-broadcasts
+        // after vote-count updates arrive with myVote already cleared on the
+        // next question, but while still on this one myVoteRef is stable).
+        historyRef.current.set(payload.qid, {
+          correct: payload.correct,
+          myChoice: prev?.myChoice ?? myVoteRef.current,
+          index: payload.index,
+          year: payload.year,
+          qIndex: payload.qIndex,
+          stem: payload.stem,
+          options: payload.options,
+          multiSelect: payload.multiSelect,
+          explanation_text: payload.explanation_text,
+          explanation_images: payload.explanation_images,
+          clinical_application: payload.clinical_application,
+          video_query: payload.video_query,
+          answer_text: payload.answer_text,
+          context: payload.context,
+        });
+        bumpHistory((n) => n + 1);
+        const choice = prev?.myChoice ?? myVoteRef.current;
+        const gotIt = !!choice && pickIsCorrect(choice, payload.correct);
         // Buzz once per reveal if I got it right — a re-broadcast while still
         // revealed (e.g. a late vote count update) shouldn't re-trigger it.
         if (gotIt && vibratedQidRef.current !== payload.qid) {
@@ -5548,15 +6144,26 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
         // qid, and only if I actually voted (not for questions I sat out).
         // The DB column is a single TEXT field, so a multi-select pick joins
         // as "A,C" — nothing else reads it back apart from `correct`.
-        if (!guest && voter !== "anon" && myVoteRef.current?.length && !recordedRef.current.has(payload.qid)) {
+        // Guests have no account: write a device-local session ledger instead
+        // so they still get personal answer stats for this poll.
+        if (!recordedRef.current.has(payload.qid) && choice?.length) {
           recordedRef.current.add(payload.qid);
-          recordPollAnswer({
-            question_id: payload.qid,
-            poll_code: code,
-            team: teamRef.current || null,
-            choice: myVoteRef.current.slice().sort().join(","),
-            correct: gotIt,
-          });
+          if (!guest && voter !== "anon") {
+            recordPollAnswer({
+              question_id: payload.qid,
+              poll_code: code,
+              team: teamRef.current || null,
+              choice: choice.slice().sort().join(","),
+              correct: gotIt,
+            });
+          } else if (guest) {
+            recordGuestPollAnswer({
+              poll_code: code,
+              question_id: payload.qid,
+              team: teamRef.current || null,
+              correct: gotIt,
+            });
+          }
         }
       }
       setRemote(payload);
@@ -5619,31 +6226,66 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
     castVote(pendingPicks);
   };
 
+  // Rebuild a question for export / extras: bank first, else the host snapshot.
+  const questionFromHistory = (qid: string, h: PollHistory): RawQuestion | null => {
+    const bank = byId.get(qid);
+    if (bank) return bank;
+    if (!h.stem && !(h.options?.length)) return null;
+    return syntheticPollQuestion({
+      year: h.year,
+      qIndex: h.qIndex,
+      stem: h.stem,
+      options: h.options,
+      correct: h.correct,
+      multiSelect: h.multiSelect,
+      explanation_text: h.explanation_text,
+      explanation_images: h.explanation_images,
+      clinical_application: h.clinical_application,
+      video_query: h.video_query,
+      answer_text: h.answer_text,
+    });
+  };
+
   // Every question I saw revealed, that I either missed or never voted on —
-  // built once the poll finishes, from the local question bank (byId) so the
-  // export can include the full explanation (never broadcast over the poll
-  // channel itself).
+  // bank when available, otherwise the host-broadcast snapshot (guests).
   const missedRows = () => {
     const rows: { q: RawQuestion; myChoice: string[] | null }[] = [];
     for (const [qid, h] of historyRef.current) {
-      const q = byId.get(qid);
-      if (!q) continue;
-      if (!pickIsCorrect(h.myChoice ?? [], h.correct)) rows.push({ q, myChoice: h.myChoice });
+      if (pickIsCorrect(h.myChoice ?? [], h.correct)) continue;
+      const q = questionFromHistory(qid, h);
+      if (q) rows.push({ q, myChoice: h.myChoice });
     }
     return rows;
   };
 
-  // Persist this session's missed questions into the same personal SM-2
-  // review queue the regular practice mode uses (spaced_repetition table) —
-  // a poll session is otherwise gone the moment it ends, with no way to come
-  // back and drill what was missed. Guests have no account to save to.
+  // Session personal score from revealed history (works for guests + signed-in).
+  const sessionPersonal = (() => {
+    let answered = 0, correct = 0;
+    for (const h of historyRef.current.values()) {
+      if (!h.myChoice?.length) continue;
+      answered++;
+      if (pickIsCorrect(h.myChoice, h.correct)) correct++;
+    }
+    return { answered, correct, pct: answered ? Math.round((100 * correct) / answered) : 0 };
+  })();
+
+  // Persist this session's missed questions into the personal SM-2 review queue
+  // (signed-in) or a device-local guest review pack (no account).
   const addMissedToReview = async () => {
-    const qids = [...historyRef.current.entries()]
-      .filter(([, h]) => !pickIsCorrect(h.myChoice ?? [], h.correct))
-      .map(([qid]) => qid);
-    if (!qids.length) return;
+    const rows = missedRows();
+    if (!rows.length) return;
     setReviewAddState("saving");
-    await Promise.all(qids.map((qid) => ensureTrackedForReview(qid)));
+    if (guest) {
+      saveGuestReviewPack(rows.map((r) => ({
+        q: r.q,
+        myChoice: r.myChoice,
+        poll_code: code,
+        saved_at: new Date().toISOString(),
+      })));
+      setReviewAddState("done");
+      return;
+    }
+    await Promise.all(rows.map(({ q }) => ensureTrackedForReview(questionId(q.year, q.q_index))));
     setReviewAddState("done");
   };
 
@@ -5760,19 +6402,23 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
         ) : (
           <>
             {reviewQid ? (() => {
-              const rq = byId.get(reviewQid);
               const rh = historyRef.current.get(reviewQid);
+              if (!rh) return <p style={s.joinMsg}>That question isn't available to review.</p>;
+              const bankQ = byId.get(reviewQid);
+              const rq = questionFromHistory(reviewQid, rh);
               if (!rq) return <p style={s.joinMsg}>That question isn't available to review.</p>;
-              const rCorrect = rh?.correct ?? [];
-              const rMine = rh?.myChoice ?? [];
+              const explText = rq.explanation_text ?? "";
+              const explImgs = rq.explanation_images ?? [];
+              const rCorrect = rh.correct ?? [];
+              const rMine = rh.myChoice ?? [];
               const rGotIt = pickIsCorrect(rMine, rCorrect);
               return (
                 <>
                   <div style={s.pollReviewHead}>
-                    <span style={s.joinMsg}>Reviewing question {(rh?.index ?? 0) + 1}</span>
+                    <span style={s.joinMsg}>Reviewing question {(rh.index ?? 0) + 1}</span>
                     <button style={s.teamChange} onClick={() => setReviewQid(null)}><RotateCcw size={13} strokeWidth={2.4} /> Back to live</button>
                   </div>
-                  <p style={s.joinMsg}>{rq.stem}</p>
+                  {rq.stem && <p style={s.joinMsg}>{rq.stem}</p>}
                   <div style={s.joinOptsFull}>
                     {rq.options.map((o) => {
                       const isCorrect = rCorrect.includes(o.letter);
@@ -5792,12 +6438,16 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                   </p>
                   <div style={s.joinExplBox}>
                     <span style={s.joinExplLabel}><Lightbulb size={13} strokeWidth={2.3} /> Explanation</span>
-                    {rq.explanation_text && <ExplanationText text={rq.explanation_text} accent="#8fd9b6" style={s.joinExpl} />}
-                    {rq.explanation_images.filter((src) => imgSrc(src)).map((src, i) => (
-                      <AuditedQuestionImage key={i} q={rq} path={src} kind="explanation" index={i} alt="explanation" style={{ ...s.joinExplImg, cursor: "zoom-in" }} onZoom={setZoomImg} dark />
-                    ))}
-                    {!rq.explanation_text && rq.explanation_images.length === 0 && <p style={{ ...s.joinExpl, fontStyle: "italic", color: "#8a9099" }}>No explanation slide — see the extras below.</p>}
-                    <PollExtras q={rq} />
+                    {explText && <ExplanationText text={explText} accent="#8fd9b6" style={s.joinExpl} />}
+                    {bankQ
+                      ? explImgs.filter((src) => imgSrc(src)).map((src, i) => (
+                          <AuditedQuestionImage key={i} q={bankQ} path={src} kind="explanation" index={i} alt="explanation" style={{ ...s.joinExplImg, cursor: "zoom-in" }} onZoom={setZoomImg} dark />
+                        ))
+                      : explImgs.filter((src) => imgSrc(src)).map((src, i) => (
+                          <img key={i} src={imgSrc(src)} alt="explanation" style={{ ...s.joinExplImg, cursor: "zoom-in" }} loading="lazy" onClick={() => setZoomImg(imgSrc(src))} title="Click to enlarge" />
+                        ))}
+                    {!explText && explImgs.length === 0 && <p style={{ ...s.joinExpl, fontStyle: "italic", color: "#8a9099" }}>No explanation slide — see the extras below.</p>}
+                    <PollExtras q={rq} contextText={bankQ ? undefined : (rh.context ?? "")} />
                   </div>
                 </>
               );
@@ -5900,23 +6550,50 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                 </p>
                 )}
                 {!remote.finished && remote.revealed && (() => {
-                  const cq = byId.get(remote.qid);
-                  if (!cq) return null; // guests / bank not loaded — no extras to show
+                  const bankQ = byId.get(remote.qid);
+                  const hasBroadcast = remote.explanation_text !== undefined || remote.explanation_images !== undefined
+                    || remote.clinical_application !== undefined || remote.context !== undefined;
+                  if (!bankQ && !hasBroadcast) return null; // older host + no bank
+                  const cq = bankQ ?? syntheticPollQuestion({
+                    year: remote.year,
+                    qIndex: remote.qIndex,
+                    stem: remote.stem,
+                    options: remote.options,
+                    correct: remote.correct,
+                    multiSelect: remote.multiSelect,
+                    explanation_text: remote.explanation_text,
+                    explanation_images: remote.explanation_images,
+                    clinical_application: remote.clinical_application,
+                    video_query: remote.video_query,
+                    answer_text: remote.answer_text,
+                  });
+                  const explText = cq.explanation_text ?? "";
+                  const explImgs = cq.explanation_images ?? [];
                   return (
                     <div style={s.joinExplBox}>
                       <span style={s.joinExplLabel}><Lightbulb size={13} strokeWidth={2.3} /> Explanation</span>
-                      {cq.explanation_text && <ExplanationText text={cq.explanation_text} accent="#8fd9b6" style={s.joinExpl} />}
-                      {cq.explanation_images.filter((src) => imgSrc(src)).map((src, i) => (
-                        <AuditedQuestionImage key={i} q={cq} path={src} kind="explanation" index={i} alt="explanation" style={{ ...s.joinExplImg, cursor: "zoom-in" }} onZoom={setZoomImg} dark />
-                      ))}
-                      {!cq.explanation_text && cq.explanation_images.length === 0 && <p style={{ ...s.joinExpl, fontStyle: "italic", color: "#8a9099" }}>No explanation slide — see the extras below.</p>}
-                      <PollExtras q={cq} />
+                      {explText && <ExplanationText text={explText} accent="#8fd9b6" style={s.joinExpl} />}
+                      {bankQ
+                        ? explImgs.filter((src) => imgSrc(src)).map((src, i) => (
+                            <AuditedQuestionImage key={i} q={bankQ} path={src} kind="explanation" index={i} alt="explanation" style={{ ...s.joinExplImg, cursor: "zoom-in" }} onZoom={setZoomImg} dark />
+                          ))
+                        : explImgs.filter((src) => imgSrc(src)).map((src, i) => (
+                            <img key={i} src={imgSrc(src)} alt="explanation" style={{ ...s.joinExplImg, cursor: "zoom-in" }} loading="lazy" onClick={() => setZoomImg(imgSrc(src))} title="Click to enlarge" />
+                          ))}
+                      {!explText && explImgs.length === 0 && (
+                        <p style={{ ...s.joinExpl, fontStyle: "italic", color: "#8a9099" }}>
+                          No explanation slide — see the extras below.
+                        </p>
+                      )}
+                      <PollExtras q={cq} contextText={bankQ ? undefined : (remote.context ?? "")} />
                     </div>
                   );
                 })()}
               </>
             )}
-            {historyRef.current.size > 0 && byId.size > 0 && (
+            {/* Review chips: signed-in users use the bank; guests use the
+                stem/options/explanation the host broadcast at each reveal. */}
+            {historyRef.current.size > 0 && (byId.size > 0 || guest) && (
               <div style={s.pollReviewBar}>
                 <span style={s.pollReviewBarLabel}><ListChecks size={13} strokeWidth={2.3} /> Review a past question{!remote.finished ? " while you wait" : ""}:</span>
                 <div style={s.pollReviewChipsRow}>
@@ -5926,6 +6603,18 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                     </button>
                   ))}
                 </div>
+              </div>
+            )}
+            {remote.finished && sessionPersonal.answered > 0 && (
+              <div style={s.teamBoardMini}>
+                <div style={{ ...s.teamMiniRow, ...s.teamMiniMine }}>
+                  <span style={s.teamMiniRank}><Crown size={15} strokeWidth={2.4} color="#f2c14e" /></span>
+                  <span style={s.teamMiniName}>Your score this poll</span>
+                  <span style={s.teamMiniScore}>{sessionPersonal.correct}/{sessionPersonal.answered} · {sessionPersonal.pct}%</span>
+                </div>
+                {guest && (
+                  <p style={s.scoringNote}>Saved on this device only — <a href="/" style={{ color: "#4fd1c5" }}>sign in</a> to keep permanent poll stats across sessions.</p>
+                )}
               </div>
             )}
             {(remote.finished || remote.revealed) && isIndividualMode && (remote.individuals?.length ?? 0) > 0 && (
@@ -5961,7 +6650,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                 <Download size={13} strokeWidth={2.3} /> Download team stats (Excel)
               </button>
             )}
-            {remote.finished && byId.size > 0 && (
+            {remote.finished && historyRef.current.size > 0 && (
               <button
                 style={s.teamDownload}
                 onClick={() => exportPollMissed(missedRows(), { code, who: displayName })}
@@ -5970,18 +6659,20 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                 <Download size={13} strokeWidth={2.3} /> Download my missed questions (PDF)
               </button>
             )}
-            {remote.finished && !guest && byId.size > 0 && (
+            {remote.finished && historyRef.current.size > 0 && (
               <button
                 style={s.teamDownload}
                 onClick={addMissedToReview}
                 disabled={reviewAddState !== "idle"}
-                title="Add everything you missed this session to your personal spaced-repetition Review queue"
+                title={guest
+                  ? "Save everything you missed this session on this device (sign in for the full spaced-repetition Review queue)"
+                  : "Add everything you missed this session to your personal spaced-repetition Review queue"}
               >
                 {reviewAddState === "done"
-                  ? <><Check size={13} strokeWidth={2.6} /> Added to Review</>
+                  ? <><Check size={13} strokeWidth={2.6} /> {guest ? "Saved on this device" : "Added to Review"}</>
                   : reviewAddState === "saving"
                   ? "Adding…"
-                  : <><ListChecks size={13} strokeWidth={2.3} /> Add missed to Review</>}
+                  : <><ListChecks size={13} strokeWidth={2.3} /> {guest ? "Save missed on this device" : "Add missed to Review"}</>}
               </button>
             )}
           </>
@@ -5999,14 +6690,61 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
 // Visitors without an account (e.g. med students rotating through didactics)
 // can join a live poll straight from its ?poll=CODE link. Everything a
 // participant needs travels over the Realtime broadcast channel (choices,
-// reveals, standings), so no sign-in or DB access is required — the guest just
-// supplies a display name. Each device gets a random persistent voter id (the
-// host tallies votes per id, so guests must not share one), answers are never
-// persisted, and bank-dependent extras (stem shade, review, missed-questions
-// export) are hidden because guests have no local question bank.
+// reveals, standings, and — once revealed — explanation + study extras), so
+// no sign-in or DB access is required — the guest just supplies a display
+// name. Each device gets a random persistent voter id (the host tallies votes
+// per id, so guests must not share one). Answers and a missed-question pack
+// are kept on-device only (no account to write to the server).
 const GUEST_ID_KEY = "prite_guest_voter";
 const GUEST_NAME_KEY = "prite_guest_name";
+const GUEST_POLL_STATS_KEY = "prite_guest_poll_stats";
+const GUEST_REVIEW_KEY = "prite_guest_review_pack";
 const EMPTY_BANK = new Map<string, RawQuestion>();
+
+type GuestPollStatRow = {
+  poll_code: string;
+  question_id: string;
+  team: string | null;
+  correct: boolean;
+  at: string;
+};
+
+/** Device-local stand-in for poll_answers when there's no signed-in user. */
+function recordGuestPollAnswer(r: {
+  poll_code: string; question_id: string; team: string | null; correct: boolean;
+}): void {
+  try {
+    const cur: GuestPollStatRow[] = JSON.parse(localStorage.getItem(GUEST_POLL_STATS_KEY) || "[]");
+    if (cur.some((x) => x.poll_code === r.poll_code && x.question_id === r.question_id)) return;
+    cur.push({ ...r, at: new Date().toISOString() });
+    // Cap growth — keep the most recent ~500 answers on this browser.
+    localStorage.setItem(GUEST_POLL_STATS_KEY, JSON.stringify(cur.slice(-500)));
+  } catch { /* private mode */ }
+}
+
+type GuestReviewItem = {
+  q: RawQuestion;
+  myChoice: string[] | null;
+  poll_code: string;
+  saved_at: string;
+};
+
+/** Merge this session's missed questions into the on-device guest review pack. */
+function saveGuestReviewPack(items: GuestReviewItem[]): void {
+  try {
+    const prev: GuestReviewItem[] = JSON.parse(localStorage.getItem(GUEST_REVIEW_KEY) || "[]");
+    const byKey = new Map<string, GuestReviewItem>();
+    for (const it of prev) {
+      const k = `${it.q.year}-${it.q.q_index}`;
+      byKey.set(k, it);
+    }
+    for (const it of items) {
+      const k = `${it.q.year}-${it.q.q_index}`;
+      byKey.set(k, it);
+    }
+    localStorage.setItem(GUEST_REVIEW_KEY, JSON.stringify([...byKey.values()].slice(-200)));
+  } catch { /* private mode */ }
+}
 
 function guestVoterId(): string {
   try {
@@ -9529,10 +10267,35 @@ function ReviewPanel({
                 <p style={{ ...s.apEmpty, fontStyle: "normal" }}>Loading card…</p>
               ) : card ? (
                 <>
-                  <p style={s.stem}>{revealed ? renderClozeResolved(card.cloze_text) : renderClozePreview(card.cloze_text)}</p>
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => !revealed && setRevealed(true)}
+                    onKeyDown={(e) => {
+                      if (!revealed && (e.key === "Enter" || e.key === " ")) {
+                        e.preventDefault();
+                        setRevealed(true);
+                      }
+                    }}
+                    style={{
+                      border: `1.5px solid ${revealed ? T.teal + "66" : T.paperEdge}`,
+                      borderRadius: 14,
+                      padding: "16px 16px 14px",
+                      background: revealed ? T.tealSoft : T.paper,
+                      cursor: revealed ? "default" : "pointer",
+                      marginBottom: 12,
+                    }}
+                  >
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: T.muted, marginBottom: 8 }}>
+                      {revealed ? "Answer" : "Question · click to unveil"}
+                    </div>
+                    <p style={{ ...s.stem, margin: 0 }}>
+                      {revealed ? renderClozeResolved(card.cloze_text) : renderClozePreview(card.cloze_text)}
+                    </p>
+                  </div>
                   {!revealed ? (
                     <button style={{ ...s.apApprove, padding: "10px 20px", fontSize: 14 }} onClick={() => setRevealed(true)}>
-                      Show answer
+                      <Eye size={14} strokeWidth={2.2} /> Show answer
                     </button>
                   ) : (
                     <>
@@ -10152,9 +10915,9 @@ button:focus-visible { outline: 2px solid ${T.teal}; outline-offset: 2px; }
 @keyframes nextUpSheen { 0% { left: -60%; } 22%, 100% { left: 130%; } }
 
 .nextUp:hover {
-  transform: translateY(-2px) scale(1.035);
+  transform: translateY(-3px) scale(1.05);
   border-color: rgba(255,255,255,.58);
-  box-shadow: 0 12px 30px rgba(6,20,26,.46), inset 0 1px 0 rgba(255,255,255,.7), inset 0 -8px 18px rgba(255,255,255,.16);
+  box-shadow: 0 14px 34px rgba(6,20,26,.48), inset 0 1px 0 rgba(255,255,255,.7), inset 0 -8px 18px rgba(255,255,255,.16);
 }
 .nextUp:hover .nextUpArrow { transform: translateX(4px); }
 .nextUp:active { transform: translateY(0) scale(.97); }
@@ -10624,31 +11387,39 @@ const s: Record<string, React.CSSProperties> = {
   hlHint: { display: "flex", justifyContent: "center", alignItems: "center", gap: 5, fontSize: 11.5, color: T.faint, margin: "12px 0 0" },
 
   options: { display: "flex", flexDirection: "column", gap: 9 },
-  askWrap: { marginTop: 14, display: "flex", flexWrap: "wrap", alignItems: "flex-start", gap: 9 },
+  askWrap: { marginTop: 14, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 9 },
   noClueBtn: { display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: `1px solid ${T.paperEdge}`, color: T.muted, padding: "9px 14px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer" },
   askToggle: { display: "inline-flex", alignItems: "center", gap: 7, background: T.tealSoft, border: `1px solid ${T.tealSoft}`, color: T.tealDeep, padding: "9px 15px", borderRadius: 10, fontSize: 13.5, fontWeight: 700, cursor: "pointer" },
   askToggleOn: { background: T.teal, border: `1px solid ${T.teal}`, color: "#fff" },
   askPanel: { flexBasis: "100%", marginTop: 1, padding: "13px 15px", background: T.card, border: `1px solid ${T.paperEdge}`, borderRadius: 12 },
-  // Floating Next button — liquid glass over the plasma backdrop. On desktop,
-  // align its right edge with the centered question card instead of the far
-  // viewport edge; max() retains a comfortable 16px inset on narrow screens.
-  // Everything decorative
-  // (sheen, specular lens, rim) is a child or pseudo-element, so overflow must
-  // stay hidden; the tinted-teal wash keeps it legible when the plasma drifts
-  // pale. The safe-area inset keeps it off the iPhone home indicator.
+  // Static Next on the Ask AI row — pushed to the far right of the card.
+  nextUpInline: {
+    marginLeft: "auto",
+    overflow: "hidden", isolation: "isolate",
+    display: "inline-flex", alignItems: "center", gap: 10,
+    background: `linear-gradient(145deg, rgba(255,255,255,.22), rgba(14,122,107,.30) 52%, rgba(255,255,255,.10)), ${T.teal}`,
+    border: "1px solid rgba(255,255,255,.34)", color: "#fff",
+    padding: "11px 20px", borderRadius: 999, fontSize: 14.5, fontWeight: 700, cursor: "pointer",
+    textShadow: "0 1px 2px rgba(0,0,0,.34)",
+    boxShadow: "0 6px 16px rgba(6,20,26,.28), inset 0 1px 0 rgba(255,255,255,.45), inset 0 -6px 14px rgba(255,255,255,.10)",
+    flexShrink: 0,
+  },
+  // Floating Next — larger hit target, liquid glass over the plasma backdrop.
+  // On desktop, align its right edge with the centered question card; max()
+  // keeps a 16px inset on narrow screens. Safe-area for the iPhone home bar.
   nextUpFab: {
     position: "fixed", right: "max(16px, calc(50vw - 348px))", bottom: "calc(20px + env(safe-area-inset-bottom, 0px))", zIndex: 50,
     overflow: "hidden", isolation: "isolate",
-    display: "inline-flex", alignItems: "center", gap: 9,
+    display: "inline-flex", alignItems: "center", gap: 12,
     // Opaque teal base under the glass gradient: floating, it now passes over
     // the white question card, where a purely translucent fill lost its white
     // label. The gradient still supplies the glass read.
     background: `linear-gradient(145deg, rgba(255,255,255,.22), rgba(14,122,107,.30) 52%, rgba(255,255,255,.10)), ${T.teal}`,
     backdropFilter: "blur(13px) saturate(1.9)", WebkitBackdropFilter: "blur(13px) saturate(1.9)",
     border: "1px solid rgba(255,255,255,.34)", color: "#fff",
-    padding: "11px 19px", borderRadius: 999, fontSize: 14, fontWeight: 700, cursor: "pointer",
+    padding: "16px 28px", borderRadius: 999, fontSize: 16.5, fontWeight: 700, cursor: "pointer",
     textShadow: "0 1px 2px rgba(0,0,0,.34)",
-    boxShadow: "0 10px 28px rgba(6,20,26,.5), inset 0 1px 0 rgba(255,255,255,.5), inset 0 -6px 14px rgba(255,255,255,.10)",
+    boxShadow: "0 12px 32px rgba(6,20,26,.52), inset 0 1px 0 rgba(255,255,255,.5), inset 0 -6px 14px rgba(255,255,255,.10)",
   },
   askRow: { display: "flex", flexWrap: "wrap", gap: 7, alignItems: "center", marginBottom: 9 },
   askLabel: { fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: T.faint, minWidth: 50 },

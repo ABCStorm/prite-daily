@@ -86,6 +86,19 @@ export type PollState = {
   // itself doesn't flip until it elapses). Cleared once revealed is true.
   revealAt?: number;
   correct: string[]; // populated only once revealed
+  // Explanation content, only populated once revealed — same privacy gate as
+  // `correct`. Guests (and anyone without the private question bank) can still
+  // read why the answer is right after the reveal; older hosts omit these and
+  // phones just fall back to the local bank when they have one.
+  explanation_text?: string;
+  explanation_images?: string[];
+  // Extra study chips after reveal (In practice / Context / Video / Ask AI).
+  // Host has the bank + approved DB access; guests rebuild a thin question
+  // object from these fields. Optional for older hosts.
+  clinical_application?: string;
+  video_query?: string;
+  answer_text?: string;
+  context?: string; // historical context blurb (host-fetched; guests can't read the table)
   standings: TeamStanding[]; // cumulative team leaderboard (highest first)
   // The teams this session actually has, broadcast so a guest can PICK one
   // instead of typing it. Standings alone aren't enough: a team with nobody

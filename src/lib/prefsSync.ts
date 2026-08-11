@@ -43,7 +43,7 @@ type Blob = {
 
 const LEARNING_SECTION_IDS = new Set([
   "explanation", "textbook", "anking", "sketchy", "practice", "mnemonic", "context",
-  "diagram", "video", "mine", "group", "flash",
+  "diagram", "video", "mine", "group", "flash", "research",
 ]);
 
 /* --- localStorage accessors, matching each key's historical format --- */
