@@ -30,6 +30,10 @@ BLANK_CHAR_THRESHOLD = 80
 # Cap extremely long sections so a single match doesn't load 150 pages of
 # Substance-Related chapter. Still much larger than the old ±4.
 MAX_SECTION_PAGES = 80
+# Many DSM sections end mid-page while the next disorder starts halfway down;
+# the last criteria/text often bleeds onto that following page. Include one
+# extra page past section_end so the pager doesn't cut those paragraphs off.
+TAIL_BLEED_PAGES = 1
 WORKERS = 12
 
 
@@ -88,10 +92,20 @@ def main() -> int:
     pages: set[int] = set()
     blank_skips = 0
 
+    # PDF page count so bleed never walks past the last page.
+    doc = fitz.open(str(PDF.resolve()))
+    try:
+        pdf_last = doc.page_count
+    finally:
+        doc.close()
+
     for id_, start, end in spans:
         m = matches[id_]
         lo = start
-        hi = end
+        section_end = int(m.get("pdf_page_end") or end)
+        # Window high-water: capped section end + bleed for mid-page handoffs
+        # (last paragraphs often continue onto the page where the next disorder starts).
+        hi = min(end + TAIL_BLEED_PAGES, pdf_last)
         anchor = first_content_page(start, end, lens)
         if anchor > start:
             blank_skips += 1
@@ -108,12 +122,14 @@ def main() -> int:
             "lo": lo,
             "hi": hi,
             "section_start": start,
-            "section_end": int(m.get("pdf_page_end") or end),
+            "section_end": section_end,
             "atStart": True,
-            "atEnd": hi >= int(m.get("pdf_page_end") or end)
-            or (hi - (int(m.get("pdf_page_start") or start)) + 1) >= MAX_SECTION_PAGES,
-            "capped": (int(m.get("pdf_page_end") or end) - int(m.get("pdf_page_start") or start) + 1)
+            # atEnd means "you've reached the end of our readable window"
+            # (including bleed), not "strict section boundary only".
+            "atEnd": True,
+            "capped": (section_end - int(m.get("pdf_page_start") or start) + 1)
             > MAX_SECTION_PAGES,
+            "tail_bleed": TAIL_BLEED_PAGES,
         }
         for p in range(lo, hi + 1):
             pages.add(p)
