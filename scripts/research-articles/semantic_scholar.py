@@ -28,7 +28,9 @@ _lock = threading.Lock()
 _last = 0.0
 # Unauth shared pool is very tight; ~1 req / 3–4s when no key.
 _min_interval_no_key = 3.5
-_min_interval_with_key = 1.1
+# S2 keys are limited to 1 request/second cumulative across all endpoints.
+# Stay a hair under that (1.05s) so bursty retries don't trip 429s.
+_min_interval_with_key = 1.05
 
 
 def _load_key() -> str | None:
