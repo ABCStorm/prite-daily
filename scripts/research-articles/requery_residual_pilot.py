@@ -432,11 +432,6 @@ def openalex_search(query: str, per_page: int = 15) -> list[dict]:
             pmid_url = ids.get("pmid") or ""
             if "pubmed" in pmid_url:
                 pmid = pmid_url.rstrip("/").split("/")[-1]
-            # also check ids
-            if not pmid:
-                for loc in w.get("locations") or []:
-                    src = (loc.get("source") or {}).get("display_name") or ""
-                    pass
             title = (w.get("display_name") or w.get("title") or "").strip()
             if not title:
                 continue
@@ -453,7 +448,6 @@ def openalex_search(query: str, per_page: int = 15) -> list[dict]:
                     abstract = " ".join(w for _, w in positions)
                 except Exception:
                     abstract = ""
-            journal = ""
             primary = w.get("primary_location") or {}
             src = primary.get("source") or {}
             journal = src.get("display_name") or ""
@@ -480,6 +474,129 @@ def openalex_search(query: str, per_page: int = 15) -> list[dict]:
     except Exception as e:
         print(f"  openalex err: {e}", file=sys.stderr)
         return []
+
+
+# DOI → PMID cache for Crossref / OpenAlex resolve (shared across workers)
+_doi_pmid_cache: dict[str, str | None] = {}
+_doi_lock = threading.Lock()
+
+
+def doi_to_pmid(doi: str) -> str | None:
+    """Resolve DOI → PubMed ID via NCBI id converter (fallback: PubMed esearch)."""
+    doi = (doi or "").strip().lower()
+    doi = doi.replace("https://doi.org/", "").replace("http://doi.org/", "")
+    if not doi or "/" not in doi:
+        return None
+    with _doi_lock:
+        if doi in _doi_pmid_cache:
+            return _doi_pmid_cache[doi]
+    pmid: str | None = None
+    try:
+        params = urllib.parse.urlencode(
+            {"ids": doi, "format": "json", "tool": "prite_daily", "email": "prite-daily@local"}
+        )
+        data = json.loads(
+            _http_get(f"https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/?{params}")
+        )
+        recs = data.get("records") or []
+        if recs and recs[0].get("pmid"):
+            pmid = str(recs[0]["pmid"]).strip()
+    except Exception:
+        pmid = None
+    if not pmid:
+        # PubMed esearch by DOI
+        try:
+            api_key = _ncbi_api_key()
+            d: dict[str, str] = {
+                "db": "pubmed",
+                "term": f"{doi}[doi]",
+                "retmax": "1",
+                "retmode": "json",
+            }
+            if api_key:
+                d["api_key"] = api_key
+            data = json.loads(
+                _http_get(
+                    f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?{urllib.parse.urlencode(d)}"
+                )
+            )
+            ids = data.get("esearchresult", {}).get("idlist") or []
+            if ids:
+                pmid = str(ids[0])
+        except Exception:
+            pmid = None
+    with _doi_lock:
+        _doi_pmid_cache[doi] = pmid
+    return pmid
+
+
+def crossref_search(query: str, rows: int = 12) -> list[dict]:
+    """Crossref works search → DOI hits; PMID filled when idconv/esearch succeeds."""
+    try:
+        params = urllib.parse.urlencode(
+            {
+                "query.bibliographic": query,
+                "rows": str(rows),
+                "select": "DOI,title,container-title,published-print,published-online,abstract,type,is-referenced-by-count,author",
+                "filter": "type:journal-article",
+                "mailto": "prite-daily@local",
+            }
+        )
+        data = json.loads(_http_get(f"https://api.crossref.org/works?{params}"))
+        items = ((data.get("message") or {}).get("items")) or []
+        hits: list[dict] = []
+        for it in items:
+            doi = (it.get("DOI") or "").strip()
+            titles = it.get("title") or []
+            title = (titles[0] if titles else "").strip()
+            if not title:
+                continue
+            containers = it.get("container-title") or []
+            journal = containers[0] if containers else ""
+            year = None
+            for key in ("published-print", "published-online"):
+                parts = ((it.get(key) or {}).get("date-parts") or [[None]])[0]
+                if parts and parts[0]:
+                    year = str(parts[0])
+                    break
+            abstract = it.get("abstract") or ""
+            # Crossref abstracts often wrap in <jats:p>
+            if abstract:
+                abstract = re.sub(r"<[^>]+>", " ", abstract)
+                abstract = re.sub(r"\s+", " ", abstract).strip()
+            pmid = doi_to_pmid(doi) if doi else None
+            hits.append(
+                {
+                    "pmid": pmid,
+                    "doi": doi or None,
+                    "title": title,
+                    "journalTitle": journal,
+                    "pubYear": year,
+                    "pubTypeList": {"pubType": []},
+                    "citedByCount": it.get("is-referenced-by-count") or 0,
+                    "isOpenAccess": "N",
+                    "abstractText": abstract[:1500],
+                    "source": "crossref",
+                }
+            )
+        return hits
+    except Exception as e:
+        print(f"  crossref err: {e}", file=sys.stderr)
+        return []
+
+
+def resolve_missing_pmids(raw: list[dict], limit: int = 24) -> None:
+    """In-place: fill pmid from DOI for up to `limit` DOI-only hits (Crossref/OpenAlex)."""
+    n = 0
+    for h in raw:
+        if h.get("pmid") or not h.get("doi"):
+            continue
+        if n >= limit:
+            break
+        pmid = doi_to_pmid(str(h["doi"]))
+        n += 1
+        if pmid:
+            h["pmid"] = pmid
 
 
 def epmc_free_search(query: str, page_size: int = 20) -> list[dict]:
@@ -528,38 +645,156 @@ def unify_hits(raw_hits: list[dict]) -> dict[str, dict]:
     return by_key
 
 
+# Semantic Scholar budget per residual question (global 1 rps lock).
+# Always burn the first query; keep expanding while the pool looks thin/weak.
+S2_MAX_QUERIES = 5
+S2_MIN_PMID = 4
+S2_MIN_TOP_SCORE = 28.0
+
+
+def _pool_stats(raw: list[dict], focus: dict) -> tuple[int, float]:
+    """Return (pmid_count, best_score) over unified PMID hits."""
+    with_pmid = [h for h in unify_hits(raw).values() if h.get("pmid")]
+    if not with_pmid:
+        return 0, 0.0
+    best = max(score_hit(h, focus) for h in with_pmid)
+    return len(with_pmid), float(best)
+
+
+def _pool_needs_s2_expand(raw: list[dict], focus: dict) -> bool:
+    """True when we should spend another S2 request looking for a better paper."""
+    n, best = _pool_stats(raw, focus)
+    if n < S2_MIN_PMID:
+        return True
+    if best < S2_MIN_TOP_SCORE:
+        return True
+    # Fat but low-signal pool (common residual failure): few multi-source hits
+    unified = unify_hits(raw)
+    multi = sum(1 for h in unified.values() if h.get("pmid") and "+" in (h.get("source") or ""))
+    if multi == 0 and best < 50:
+        return True
+    return False
+
+
+def _extra_s2_fallbacks(q: dict, focus: dict) -> list[tuple[str, str]]:
+    """Last-resort S2 query variants when primary strategies still look weak."""
+    ans = (focus.get("answer") or q.get("answer_text") or "").strip()
+    expl = (q.get("explanation_text") or "")[:400]
+    phrases = expl_key_phrases(expl, ans) if expl else []
+    out: list[tuple[str, str]] = []
+    if ans:
+        out.append(("s2_fb_psych", f"{ans} psychiatry"))
+        out.append(("s2_fb_review", f"{ans} systematic review psychiatry"))
+        out.append(("s2_fb_rct", f"{ans} randomized controlled trial"))
+    if ans and phrases:
+        out.append(("s2_fb_expl", f"{ans} {phrases[0]}"))
+    if phrases:
+        out.append(("s2_fb_teach", " ".join(phrases[:3])))
+    # dedupe
+    seen: set[str] = set()
+    uniq: list[tuple[str, str]] = []
+    for name, qt in out:
+        k = qt.lower()
+        if k in seen:
+            continue
+        seen.add(k)
+        uniq.append((name, qt))
+    return uniq
+
+
 def wide_candidates_requery(q: dict, sources: str = "all") -> tuple[list[dict], list[str], list[str]]:
-    """sources: all | epmc | pubmed | openalex (comma-ok)."""
+    """sources: all | epmc | pubmed | openalex | semantic (comma-ok).
+
+    Fast path: EPMC/PubMed/OpenAlex first (parallelizable across workers).
+    Then Semantic Scholar with a *fallback ladder*: always 1 query, then keep
+    spending S2 (up to S2_MAX_QUERIES, still 1 rps global) while the PMID pool
+    looks empty/weak. Residual gaps often have fat keyword junk from EPMC —
+    extra S2 queries with alternate phrasings are how we still try for one
+    honest paper per question.
+    """
     focus = clinical_focus(q)
-    strategies = build_improved_queries(q, focus)[:6]  # cap strategies to reduce rate load
+    strategies = build_improved_queries(q, focus)[:8]
     want = (
         {s.strip() for s in sources.split(",")}
         if sources != "all"
-        else {"epmc", "pubmed", "openalex", "semantic"}
+        else {"epmc", "pubmed", "openalex", "crossref", "semantic"}
     )
+    want_s2 = bool(want & {"semantic", "semanticscholar", "s2"})
+    want_oa = "openalex" in want
+    want_cr = "crossref" in want or "cr" in want
     raw: list[dict] = []
-    used = []
+    used: list[str] = []
+
+    # --- phase 1: free / high-rate sources ---
+    # Best strategies get OpenAlex + Crossref (diversity); all get EPMC/PubMed.
+    rich_names = {
+        "ans_expl0", "short_ans_disambig", "intent_side_effect",
+        "intent_first_line_tx", "intent_prevalence_epi", "ans_anchor",
+        "ans_expl1", "ans_review", "expl_only",
+    }
     for name, query in strategies:
         used.append(f"{name}:{query[:80]}")
-        # EPMC first (more tolerant); PubMed/OpenAlex on best strategies only
         if "epmc" in want:
             raw.extend(epmc_free_search(query, page_size=15))
-        if "pubmed" in want and name in (
-            "ans_expl0", "short_ans_disambig", "intent_side_effect",
-            "intent_first_line_tx", "intent_prevalence_epi", "ans_anchor",
-        ):
+        if "pubmed" in want and name in rich_names:
             raw.extend(pubmed_search(query, retmax=10))
-        if "openalex" in want and name in ("ans_expl0", "short_ans_disambig", "intent_side_effect"):
-            raw.extend(openalex_search(query, per_page=8))
-        # Semantic Scholar: slow public pool OK; only best strategies to limit volume
-        if "semantic" in want or "semanticscholar" in want or "s2" in want:
-            if name in ("ans_expl0", "short_ans_disambig", "intent_side_effect", "intent_first_line_tx"):
-                try:
-                    from semantic_scholar import search_papers as s2_search
+        if want_oa and name in (
+            "ans_expl0", "short_ans_disambig", "intent_side_effect",
+            "ans_expl1", "ans_review", "expl_only",
+        ):
+            raw.extend(openalex_search(query, per_page=10))
+        if want_cr and name in (
+            "ans_expl0", "short_ans_disambig", "intent_side_effect",
+            "ans_expl1", "expl_only",
+        ):
+            raw.extend(crossref_search(query, rows=10))
 
-                    raw.extend(s2_search(query, limit=6))
+    # DOI-only OpenAlex/Crossref hits → try to attach real PMIDs (ship path)
+    resolve_missing_pmids(raw, limit=30)
+    used.append(f"doi_resolve:pmid_n={sum(1 for h in raw if h.get('pmid'))}")
+
+    # --- phase 2: S2 with expand-until-good fallback ---
+    if want_s2:
+        try:
+            from semantic_scholar import search_papers as s2_search
+        except Exception as e:
+            print(f"  s2 import err: {e}", file=sys.stderr)
+            s2_search = None  # type: ignore
+
+        if s2_search is not None:
+            # Primary strategies first, then emergency fallbacks.
+            s2_plan: list[tuple[str, str]] = []
+            seen_q: set[str] = set()
+            for name, query in strategies:
+                k = query.lower()
+                if k in seen_q:
+                    continue
+                seen_q.add(k)
+                s2_plan.append((name, query))
+            for name, query in _extra_s2_fallbacks(q, focus):
+                k = query.lower()
+                if k in seen_q:
+                    continue
+                seen_q.add(k)
+                s2_plan.append((name, query))
+
+            s2_calls = 0
+            for name, query in s2_plan:
+                if s2_calls >= S2_MAX_QUERIES:
+                    break
+                # Always run the first; later ones only while pool still looks weak.
+                if s2_calls > 0 and not _pool_needs_s2_expand(raw, focus):
+                    used.append(f"s2:stop_ok(pool={_pool_stats(raw, focus)})")
+                    break
+                try:
+                    hits = s2_search(query, limit=8)
+                    raw.extend(hits)
+                    s2_calls += 1
+                    used.append(f"s2:{name}:n={len(hits)}:{query[:50]}")
                 except Exception as e:
-                    print(f"  s2 err: {e}", file=sys.stderr)
+                    print(f"  s2 search err: {e}", file=sys.stderr)
+                    s2_calls += 1  # still count toward budget / pace
+                    used.append(f"s2:{name}:err")
 
     unified = unify_hits(raw)
     # Only judge items with real PMIDs (no invented IDs; DOI-only dropped for ship path)
@@ -613,8 +848,8 @@ def main() -> int:
     ap.add_argument("--out-dir", type=Path, default=None)
     ap.add_argument(
         "--sources",
-        default="epmc,pubmed,semantic",
-        help="Comma list: epmc,pubmed,openalex,semantic (or 'all')",
+        default="epmc,pubmed,openalex,crossref,semantic",
+        help="Comma list: epmc,pubmed,openalex,crossref,semantic (or 'all')",
     )
     ap.add_argument(
         "--exclude-pilot",
@@ -687,9 +922,30 @@ def main() -> int:
         print("nothing to do", file=sys.stderr)
         return 0
 
+    # Resume: skip ids already present in a prior partial.json for this out_dir.
+    partial_path = out_dir / "partial.json"
     results: dict[str, dict] = {}
+    if partial_path.exists():
+        try:
+            prev = json.loads(partial_path.read_text())
+            if isinstance(prev, dict):
+                results = {k: v for k, v in prev.items() if isinstance(v, dict) and "candidates" in v}
+                print(f"resumed {len(results)} from {partial_path.name}", file=sys.stderr)
+        except Exception as e:
+            print(f"partial load failed ({e}); starting fresh", file=sys.stderr)
+            results = {}
+
+    todo_ids = [i for i in sample_ids if i not in results]
+    print(f"todo: {len(todo_ids)} (of {len(sample_ids)})", file=sys.stderr)
+
     lock = threading.Lock()
+    done0 = len(results)
     done = 0
+
+    def flush_partial() -> None:
+        tmp = partial_path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(results, ensure_ascii=False) + "\n")
+        tmp.replace(partial_path)
 
     def work(id_: str) -> None:
         nonlocal done
@@ -705,50 +961,81 @@ def main() -> int:
             "candidates": cands,
             "queries_used": used,
             "intents": intents,
-            "pipeline": "requery_multi_source_v1",
+            "pipeline": "requery_multi_source_v2",
         }
         with lock:
             results[id_] = rec
             done += 1
-            if done % 10 == 0 or done == len(sample_ids):
-                print(f"  {done}/{len(sample_ids)}", file=sys.stderr)
+            total_done = done0 + done
+            if done % 10 == 0 or done == len(todo_ids):
+                with_c = sum(1 for r in results.values() if r.get("candidates"))
+                print(
+                    f"  {total_done}/{len(sample_ids)} (+{done} this run) "
+                    f"with_cands={with_c}",
+                    file=sys.stderr,
+                )
+            if done % 25 == 0 or done == len(todo_ids):
+                flush_partial()
 
-    with ThreadPoolExecutor(max_workers=args.workers) as pool:
-        futs = [pool.submit(work, id_) for id_ in sample_ids]
-        for f in as_completed(futs):
-            f.result()
+    def write_batches() -> int:
+        """Write complete batch files for every full batch of finished sample_ids."""
+        bs = args.batch_size
+        off = args.batch_index_offset
+        n = 0
+        ordered_ids = [i for i in sample_ids if i in results]
+        # only emit full batches (size bs) plus a final partial if run complete
+        complete = len(results) >= len(sample_ids)
+        for bi, start in enumerate(range(0, len(ordered_ids), bs)):
+            chunk_ids = ordered_ids[start : start + bs]
+            if len(chunk_ids) < bs and not complete:
+                break
+            bidx = off + bi
+            path = batch_dir / f"batch_{bidx:04d}.json"
+            if path.exists() and not complete:
+                # don't rewrite mid-run unless finalizing
+                n += 1
+                continue
+            batch = {
+                "batch_index": bidx,
+                "pipeline": "requery_multi_source_v2",
+                "shard": args.shard,
+                "questions": [results[i] for i in chunk_ids],
+            }
+            path.write_text(json.dumps(batch, indent=2, ensure_ascii=False) + "\n")
+            n += 1
+        return n
 
-    # write batches
-    bs = args.batch_size
-    n_batches = 0
-    off = args.batch_index_offset
-    for bi, start in enumerate(range(0, len(sample_ids), bs)):
-        chunk = sample_ids[start : start + bs]
-        bidx = off + bi
-        batch = {
-            "batch_index": bidx,
-            "pipeline": "requery_multi_source_v1",
-            "shard": args.shard,
-            "questions": [results[i] for i in chunk],
-        }
-        (batch_dir / f"batch_{bidx:04d}.json").write_text(
-            json.dumps(batch, indent=2, ensure_ascii=False) + "\n"
-        )
-        n_batches += 1
+    if todo_ids:
+        with ThreadPoolExecutor(max_workers=args.workers) as pool:
+            futs = [pool.submit(work, id_) for id_ in todo_ids]
+            finished = 0
+            for f in as_completed(futs):
+                f.result()
+                finished += 1
+                # emit full batches as soon as we have them so judging can start early
+                if finished % (args.batch_size * 2) == 0:
+                    write_batches()
+        flush_partial()
 
-    with_any = sum(1 for r in results.values() if r["candidates"])
-    median_c = sorted(len(r["candidates"]) for r in results.values())[len(results) // 2]
-    # how many candidates are NEW vs would have been in old pool? we only have n_candidates count
+    # write batches from full results (stable order = sample_ids)
+    n_batches = write_batches()
+
+    with_any = sum(1 for r in results.values() if r.get("candidates"))
+    pools = sorted(len(r.get("candidates") or []) for r in results.values()) or [0]
+    median_c = pools[len(pools) // 2]
     print(f"wrote {n_batches} batches -> {batch_dir}", file=sys.stderr)
     print(f"with >=1 candidate: {with_any}/{len(results)} median_pool={median_c}", file=sys.stderr)
 
-    # summary json
     summary = {
         "sample": len(sample_ids),
+        "completed": len(results),
         "seed": args.seed,
         "with_candidates": with_any,
         "median_pool": median_c,
         "batch_dir": str(batch_dir),
+        "sources": args.sources,
+        "workers": args.workers,
+        "pipeline": "requery_multi_source_v2",
         "ids": sample_ids,
     }
     (out_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
