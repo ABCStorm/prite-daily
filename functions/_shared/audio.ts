@@ -7,10 +7,12 @@ export interface AudioEnv {
 
 const exportKey = /^exports\/(?:v2|v3-48k|v4-16k-5100|v6-16k-5100-topics)\/[a-z0-9-]+\.mp3(?:\.part-\d{2,4})?$/;
 const clipKey = /^\d{4}-\d+\/v(?:3|4-open-ended)\/(?:prompt|answer)\.mp3$/;
+const owlKey = /^owl\/\d{4}-\d+\/v1\.mp3$/;
+const dynKey = /^dyn\/\d{4}-\d+\/v1\.mp3$/;
 
 export function keyFromParam(value: string | string[] | undefined): string | null {
   const key = Array.isArray(value) ? value.join("/") : value ?? "";
-  if (!key || key.includes("..") || (!exportKey.test(key) && !clipKey.test(key))) return null;
+  if (!key || key.includes("..") || (!exportKey.test(key) && !clipKey.test(key) && !owlKey.test(key) && !dynKey.test(key))) return null;
   return key;
 }
 

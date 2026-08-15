@@ -39,6 +39,8 @@ type Blob = {
       years. Deliberate selections, so the account copy wins outright. */
   daily_order?: string[];
   year_focus?: string[];
+  owl_on?: boolean;
+  fox_on?: boolean;
 };
 
 const LEARNING_SECTION_IDS = new Set([
@@ -88,6 +90,8 @@ function snapshot(uid: string): Blob {
     learning_open_sections: learningSectionList(readJson("pd_learning_open_sections", ["explanation"])),
     daily_order: strList(readJson("pd_daily_order", [])),
     year_focus: strList(readJson("pd_year_focus", [])),
+    owl_on: readJson<boolean>("pd_stat_on", false) === true,
+    fox_on: readJson<boolean>("pd_dyn_on", false) === true,
   };
 }
 
@@ -123,6 +127,8 @@ export function syncClientPrefs(uid: string, remoteRaw: Record<string, unknown> 
     // accumulation, so it must not be unioned across devices.
     daily_order: Array.isArray(r.daily_order) ? strList(r.daily_order) : l.daily_order,
     year_focus: Array.isArray(r.year_focus) ? strList(r.year_focus) : l.year_focus,
+    owl_on: typeof r.owl_on === "boolean" ? r.owl_on : l.owl_on,
+    fox_on: typeof r.fox_on === "boolean" ? r.fox_on : l.fox_on,
   };
 
   // write the merged state back into the exact keys/formats the UI reads
@@ -142,6 +148,8 @@ export function syncClientPrefs(uid: string, remoteRaw: Record<string, unknown> 
   writeJson("pd_learning_open_sections", merged.learning_open_sections);
   writeJson("pd_daily_order", merged.daily_order ?? []);
   writeJson("pd_year_focus", merged.year_focus ?? []);
+  writeJson("pd_stat_on", merged.owl_on === true);
+  writeJson("pd_dyn_on", merged.fox_on === true);
 
   // one small write per sign-in keeps the server copy honest (and covers the
   // first-ever sync, where the server blob is empty)
