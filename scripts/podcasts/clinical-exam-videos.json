@@ -1,0 +1,406 @@
+{
+  "_comment": "Hand-curated CLINICAL FINDING demos for the Video tab. Rule: only attach when the clip actually SHOWS the abnormal finding (patient or clearly abnormal segment). Do NOT attach normal OSCE technique exams (Stanford/Geeky Medics style) for 'what does X look like' questions — those teach how to test, not the pathology. merge-clinical-exam.mjs deep-links startSec when known.",
+  "videos": {
+    "intention_tremor_abnormal": {
+      "videoId": "1I4Sl_Jmxl4",
+      "title": "Abnormal Coordination Exam — Cerebellar Intention Tremor",
+      "channel": "onlinemedicalvideo",
+      "kind": "lecture",
+      "contentType": "pathology",
+      "why": "Patient clip: cerebellar intention tremor maximal near the target (scene 1); contrasts postural and rest tremor",
+      "confidence": "high",
+      "durationSec": 34,
+      "startSec": 0,
+      "chapterTitle": "Cerebellar intention tremor (abnormal)"
+    },
+    "dysmetria_finger_nose_abnormal": {
+      "videoId": "-dFMisBl1aM",
+      "title": "Abnormal Coordination Exam — Finger-to-nose (Dysmetria)",
+      "channel": "onlinemedicalvideo",
+      "kind": "lecture",
+      "contentType": "pathology",
+      "why": "Abnormal finger–nose: dysmetria (over/undershoot) and movement decomposition with appendicular ataxia",
+      "confidence": "high",
+      "durationSec": 57,
+      "startSec": 0,
+      "chapterTitle": "Abnormal finger–nose / dysmetria"
+    },
+    "dysdiadochokinesia_abnormal": {
+      "videoId": "ylcWsoBOGzk",
+      "title": "Abnormal Coordination Exam — Hand Rapid Alternating Movements",
+      "channel": "onlinemedicalvideo",
+      "kind": "lecture",
+      "contentType": "pathology",
+      "why": "Abnormal rapid alternating movements = dysdiadochokinesia (irregular, poorly timed hand flips)",
+      "confidence": "high",
+      "durationSec": 56,
+      "startSec": 0,
+      "chapterTitle": "Dysdiadochokinesia (abnormal RAM)"
+    },
+    "dysdiadochokinesia_normal_abnormal": {
+      "videoId": "2EZqnmxWyAY",
+      "title": "Dysdiadochokinesia — Normal and Abnormal",
+      "channel": "Doctor O'Donovan",
+      "kind": "lecture",
+      "contentType": "pathology",
+      "why": "Side-by-side normal vs abnormal rapid alternating movements (dysdiadochokinesia)",
+      "confidence": "high",
+      "durationSec": 55,
+      "startSec": 0,
+      "chapterTitle": "Normal vs abnormal RAM"
+    },
+    "resting_tremor_patient": {
+      "videoId": "zn1pbKcLhYU",
+      "title": "Parkinson's Disease Real Patient’s Tremor Exam",
+      "channel": "Stanford Medicine 25",
+      "kind": "lecture",
+      "contentType": "pathology",
+      "why": "Real patient: pill-rolling rest tremor (not a normal technique demo)",
+      "confidence": "high",
+      "durationSec": 294,
+      "startSec": 40,
+      "chapterTitle": "Pill-rolling rest tremor"
+    },
+    "essential_tremor_patient": {
+      "videoId": "U3Ktz-UbqDo",
+      "title": "Essential Tremor vs Parkinson Tremor",
+      "channel": "JAMA Network",
+      "kind": "lecture",
+      "contentType": "pathology",
+      "why": "Real patient with essential (action/postural) tremor on exam",
+      "confidence": "high",
+      "durationSec": 260,
+      "startSec": 15,
+      "chapterTitle": "Essential tremor (patient)"
+    },
+    "parkinson_tremor_patient_jama": {
+      "videoId": "U3Ktz-UbqDo",
+      "title": "Essential Tremor vs Parkinson Tremor",
+      "channel": "JAMA Network",
+      "kind": "lecture",
+      "contentType": "pathology",
+      "why": "Real patient Parkinson rest tremor segment for comparison with ET",
+      "confidence": "high",
+      "durationSec": 260,
+      "startSec": 122,
+      "chapterTitle": "Parkinson rest tremor (patient)"
+    },
+    "et_vs_pd_differential": {
+      "videoId": "zn1pbKcLhYU",
+      "title": "Parkinson's Disease Real Patient’s Tremor Exam",
+      "channel": "Stanford Medicine 25",
+      "kind": "lecture",
+      "contentType": "pathology",
+      "why": "Same real-patient exam: Parkinson vs essential tremor features",
+      "confidence": "high",
+      "durationSec": 294,
+      "startSec": 135,
+      "chapterTitle": "Parkinson’s vs essential tremor"
+    },
+    "catatonia_historic": {
+      "videoId": "V55klYxkjvQ",
+      "title": "Catatonia — Negativism, Waxy Flexibility, Catalepsy (1940s)",
+      "channel": "Mental Health Treatment",
+      "kind": "lecture",
+      "contentType": "pathology",
+      "why": "Historic patient footage: immobility, resistance to repositioning, maintained postures (catalepsy)",
+      "confidence": "high",
+      "durationSec": 215,
+      "startSec": 0,
+      "chapterTitle": "Catatonic motor signs (patient)"
+    },
+    "catatonia_hypokinetic_bfcrs": {
+      "videoId": "VgCFhvlzg0g",
+      "title": "Bush-Francis — Hypokinetic Catatonia",
+      "channel": "URochester Department of Psychiatry",
+      "kind": "lecture",
+      "contentType": "pathology",
+      "why": "Standardized-patient BFCRS exam of hypokinetic catatonia (stupor, posturing, catalepsy-type signs)",
+      "confidence": "high",
+      "durationSec": 547,
+      "startSec": 0,
+      "chapterTitle": "Hypokinetic catatonia exam"
+    },
+    "waxy_flexibility": {
+      "videoId": "DdTR8QzA7No",
+      "title": "Waxy Flexibility | Bush-Francis Catatonia Rating Scale",
+      "channel": "URochester Department of Psychiatry",
+      "kind": "lecture",
+      "contentType": "pathology",
+      "why": "Focused BFCRS demo of waxy flexibility on exam",
+      "confidence": "high",
+      "durationSec": 63,
+      "startSec": 0,
+      "chapterTitle": "Waxy flexibility"
+    },
+    "aims_exam": {
+      "videoId": "s1Mc_sGFPb4",
+      "title": "Abnormal Involuntary Movement Scale (AIMS Scale)",
+      "channel": "Prof. Suresh Bada Math",
+      "kind": "lecture",
+      "contentType": "pathology",
+      "why": "Walks through AIMS with movement examples used to rate tardive dyskinesia",
+      "confidence": "medium",
+      "durationSec": 1124,
+      "startSec": 0,
+      "chapterTitle": "AIMS examination"
+    },
+    "acute_dystonia_patient": {
+      "videoId": "2krwEbm5hBo",
+      "title": "Acute Dystonic Reaction",
+      "channel": "Larry B. Mellick, MD",
+      "kind": "lecture",
+      "contentType": "pathology",
+      "why": "Real ED patient with acute dystonia after risperidone; treatment with diphenhydramine shown",
+      "confidence": "high",
+      "durationSec": 268,
+      "startSec": 0,
+      "chapterTitle": "Acute dystonic reaction (patient)"
+    },
+    "oculogyric_crisis": {
+      "videoId": "nmm6nffq2Cs",
+      "title": "Oculogyric Crisis",
+      "channel": "JAMA Network",
+      "kind": "lecture",
+      "contentType": "pathology",
+      "why": "Clinical example of oculogyric crisis (acute dystonic eye deviation)",
+      "confidence": "high",
+      "durationSec": 93,
+      "startSec": 0,
+      "chapterTitle": "Oculogyric crisis"
+    },
+    "asterixis_patient": {
+      "videoId": "JUTOh9WYuAM",
+      "title": "Asterixis of Upper and Lower Extremities",
+      "channel": "neurosigns.org",
+      "kind": "lecture",
+      "contentType": "pathology",
+      "why": "Patient demonstration of asterixis (flapping tremor) in hands and feet",
+      "confidence": "high",
+      "durationSec": 35,
+      "startSec": 0,
+      "chapterTitle": "Asterixis (patient)"
+    },
+    "asterixis_demo": {
+      "videoId": "JZ4F9Z2W0kE",
+      "title": "Flapping Tremor — Asterixis",
+      "channel": "Doctor O'Donovan",
+      "kind": "lecture",
+      "contentType": "pathology",
+      "why": "Demonstration of flapping tremor / asterixis (hepatic encephalopathy context)",
+      "confidence": "high",
+      "durationSec": 61,
+      "startSec": 0,
+      "chapterTitle": "Flapping tremor (asterixis)"
+    }
+  },
+  "rules": [
+    {
+      "id": "intention_tremor_definition",
+      "description": "Answer/stem is cerebellar or intention tremor phenomenology — need abnormal intention tremor footage, not normal finger–nose technique",
+      "match": {
+        "stem_or_answer_regex": [
+          "intention tremor",
+          "cerebellar tremor",
+          "most evident toward the end of reaching"
+        ]
+      },
+      "exclude_regex": [
+        "myelinat",
+        "rhombencephal",
+        "motor sequence",
+        "pathological laughter",
+        "SILENT",
+        "pseudobulbar",
+        "psychogenic",
+        "entrain"
+      ],
+      "videos": ["intention_tremor_abnormal", "dysmetria_finger_nose_abnormal"]
+    },
+    {
+      "id": "cerebellar_localization_exam",
+      "description": "Case localizes to cerebellum via ipsilateral limb ataxia signs",
+      "match": {
+        "stem_or_answer_regex": [
+          "rapid alternating movements",
+          "intention tremor",
+          "dysmetria",
+          "finger[- ]to[- ]nose",
+          "clumsiness of the right hand"
+        ],
+        "answer_regex": ["^Cerebellum\\.?$"]
+      },
+      "exclude_regex": [
+        "myelinat",
+        "rhombencephal",
+        "motor sequence",
+        "pathological laughter",
+        "SILENT",
+        "blurry vision"
+      ],
+      "videos": ["intention_tremor_abnormal", "dysmetria_finger_nose_abnormal"]
+    },
+    {
+      "id": "cerebellar_hemisphere_signs",
+      "description": "Ipsilateral cerebellar hemisphere lesion effects",
+      "match": {
+        "stem_or_answer_regex": [
+          "lesions involving one of the cerebellar hemispheres",
+          "cerebellar hemisphere"
+        ]
+      },
+      "exclude_regex": ["myelinat", "motor sequence", "rhombencephal"],
+      "videos": ["intention_tremor_abnormal", "dysmetria_finger_nose_abnormal"]
+    },
+    {
+      "id": "dysdiadochokinesia",
+      "description": "Dysdiadochokinesia / rapid alternating movements as the finding",
+      "match": {
+        "stem_or_answer_regex": [
+          "dysdiadochokines",
+          "slap the palm of his hand",
+          "Rapid alternating movements"
+        ]
+      },
+      "exclude_regex": ["myelinat", "motor sequence"],
+      "videos": ["dysdiadochokinesia_abnormal", "dysdiadochokinesia_normal_abnormal"]
+    },
+    {
+      "id": "essential_tremor",
+      "description": "Essential tremor diagnosis or classic bilateral action/postural tremor",
+      "match": {
+        "stem_or_answer_regex": [
+          "essential tremor",
+          "Essential tremor",
+          "most prevalent movement disorder",
+          "tremor in both hands and arms",
+          "bilateral hand tremor",
+          "tremor of both hands that developed",
+          "worsens with arm extension and eating",
+          "maintain a static limb posture"
+        ]
+      },
+      "require_answer_or_stem_regex": [
+        "Essential",
+        "essential tremor",
+        "Propranolol",
+        "propranolol",
+        "drinking alcohol",
+        "alcohol",
+        "Primidone",
+        "primidone",
+        "Ventral intermediate"
+      ],
+      "exclude_regex": [
+        "akathisia",
+        "lithium-induced tremor is usually",
+        "performance anxiety",
+        "social anxiety",
+        "racing heart"
+      ],
+      "videos": ["essential_tremor_patient", "et_vs_pd_differential"]
+    },
+    {
+      "id": "resting_tremor_parkinson",
+      "description": "Resting / pill-rolling tremor is the answer",
+      "match": {
+        "answer_regex": [
+          "^Resting tremor\\.?$",
+          "pill[- ]rolling"
+        ]
+      },
+      "exclude_regex": [
+        "pimavanserin",
+        "psychosis",
+        "Lewy bodies",
+        "Wilson",
+        "copper",
+        "OSA"
+      ],
+      "videos": ["resting_tremor_patient", "parkinson_tremor_patient_jama"]
+    },
+    {
+      "id": "catalepsy_catatonia_motor",
+      "description": "Catatonia motor signs: catalepsy, waxy flexibility, posturing",
+      "match": {
+        "stem_or_answer_regex": [
+          "catalepsy",
+          "waxy flexibil",
+          "immobility, posturing",
+          "posturing, and echopraxia",
+          "holding a posture"
+        ]
+      },
+      "videos": ["catatonia_historic", "waxy_flexibility"]
+    },
+    {
+      "id": "aims_exam",
+      "description": "AIMS scale is the named instrument",
+      "match": {
+        "stem_or_answer_regex": [
+          "Abnormal Involuntary Movement Scale"
+        ],
+        "stem_or_answer_regex_cs": [
+          "\\bAIMS\\b"
+        ]
+      },
+      "videos": ["aims_exam"]
+    },
+    {
+      "id": "tardive_dyskinesia_recognition",
+      "description": "TD treatment/management — AIMS exam is the useful visual (recognition + rating)",
+      "match": {
+        "stem_or_answer_regex": [
+          "tardive dyskinesia",
+          "valbenazine",
+          "deutetrabenazine",
+          "VMAT ?2"
+        ]
+      },
+      "require_answer_or_stem_regex": [
+        "tardive dyskinesia",
+        "Valbenazine",
+        "valbenazine",
+        "deutetrabenazine",
+        "VMAT"
+      ],
+      "exclude_regex": [
+        "nigrostriatal",
+        "Globus Pallidus",
+        "globus pallidus",
+        "estrogen",
+        "lowest incidence",
+        "Huntington"
+      ],
+      "videos": ["aims_exam"]
+    },
+    {
+      "id": "acute_dystonia",
+      "description": "Acute dystonic reaction / oculogyric / laryngospasm",
+      "match": {
+        "stem_or_answer_regex": [
+          "acute dyston",
+          "Acute dystonic",
+          "oculogyric",
+          "laryngospasm",
+          "protruding tongue and torticollis"
+        ]
+      },
+      "videos": ["acute_dystonia_patient", "oculogyric_crisis"]
+    },
+    {
+      "id": "asterixis",
+      "description": "Asterixis / flapping tremor",
+      "match": {
+        "stem_or_answer_regex": [
+          "asterixis",
+          "flapping tremor",
+          "extends both arms with five f",
+          "liver disease presents with confusion"
+        ]
+      },
+      "videos": ["asterixis_patient", "asterixis_demo"]
+    }
+  ]
+}
+

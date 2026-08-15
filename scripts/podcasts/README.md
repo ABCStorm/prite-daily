@@ -68,10 +68,26 @@ re-judging.
 
 ```bash
 node scripts/podcasts/build-index.mjs --incremental && node scripts/podcasts/match.mjs && node scripts/podcasts/verify.mjs
+node scripts/podcasts/merge-clinical-exam.mjs   # re-apply bedside exam clips after any full rebuild
 ```
 
 Monthly is plenty. The incremental index pull stops at the newest already-known
 video, so a refresh costs a handful of quota units and only judges new pairings.
+
+## Clinical exam / visualization clips
+
+Some PRITE items are much easier once you *see* the finding (intention tremor on
+finger–nose, AIMS orofacial TD, acute dystonia, catalepsy, etc.). Those are
+hand-curated in `clinical-exam-videos.json` and merged by
+`merge-clinical-exam.mjs` — **not** produced by the embedding pipeline.
+
+- Only attaches when stem/answer (not a loose explanation aside) matches a
+  strict rule; near-misses are dropped on purpose.
+- Deep-links with `startSec` / `chapterTitle` to the most helpful moment.
+- Clinical clips are preferred over prior podcast matches and still respect
+  the max of 2 videos per question.
+- Re-run `merge-clinical-exam.mjs` after any full `verify.mjs` rebuild so the
+  sidecar does not lose these overlays.
 
 ## Channel yield
 
