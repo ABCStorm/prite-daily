@@ -169,7 +169,7 @@ import {
   type OfficialPollResult, type QuestionStat, type SrsRow, type PollStats,
 } from "./lib/db";
 import { exportMyNotes, exportGroupNotes, exportMissed, ankingLecture, exportPptx, exportTeachingPptx, exportPollTeams, exportOfficialPollResults, exportPollMissed } from "./lib/exports";
-import { loadTests, saveTest, renameTest, deleteTest, updateTestQids, type SavedTest } from "./lib/tests";
+import { loadTests, saveTest, renameTest, deleteTest, updateTestQids, shareTest, listShareablePeople, type SavedTest, type SharePerson, type TestVisibility } from "./lib/tests";
 import {
   generateStudyGuide, getStudyGuide, getStudyGuideAudioUrl, listStudyGuidesForTests, listLibraryStudyGuides, canGenerateStudyGuides,
   getOwnAiKeys, setOwnAiKeys, type OwnAiKeys,
@@ -1241,6 +1241,7 @@ export default function App() {
   const [savedTests, setSavedTests] = useState<SavedTest[]>([]);
   const [showTests, setShowTests] = useState(false);
   const [editingTest, setEditingTest] = useState<SavedTest | null>(null); // saved test open in the add/remove/reorder editor
+  const [sharingTest, setSharingTest] = useState<SavedTest | null>(null);
   useEffect(() => { writePref("pd_exam_mode", examMode); schedulePrefsPush(); }, [examMode]);
   useEffect(() => { writePref("pd_timer_on", timerOn); schedulePrefsPush(); }, [timerOn]);
   useEffect(() => { writePref("pd_timer_secs", timerSecs); schedulePrefsPush(); }, [timerSecs]);
@@ -1763,9 +1764,12 @@ export default function App() {
   // already handed out in a prior week's set.
   const usedGroupKeys = useMemo(() => {
     const keys = new Set<string>();
-    for (const t of savedTests) for (const id of t.qids) {
-      const q = byId.get(id);
-      if (q) keys.add(questionGroupKey(q));
+    for (const t of savedTests) {
+      if (!t.mine) continue;
+      for (const id of t.qids) {
+        const q = byId.get(id);
+        if (q) keys.add(questionGroupKey(q));
+      }
     }
     return keys;
   }, [savedTests, byId]);
@@ -1775,6 +1779,7 @@ export default function App() {
   const testsByGroupKey = useMemo(() => {
     const m = new Map<string, { id: string; name: string }[]>();
     for (const t of savedTests) {
+      if (!t.mine) continue;
       const seen = new Set<string>();
       for (const id of t.qids) {
         const q = byId.get(id);
@@ -2918,7 +2923,7 @@ export default function App() {
                 return next;
               });
             }}
-            title="Saved tests — hand-picked sets for class sessions"
+            title="Saved tests — yours, plus any sets shared with you"
           >
             <ListChecks size={13} strokeWidth={2.4} /> Saved tests{savedTests.length ? ` (${savedTests.length})` : ""}
             {readyUnseenGuideCount > 0 && (
@@ -4112,6 +4117,7 @@ export default function App() {
             await deleteTest(t.id);
             setSavedTests(await loadTests());
           }}
+          onShare={(t) => setSharingTest(t)}
           guidesByTest={guidesByTest}
           onStudyGuide={(t) => setGuideCreateFor({ test: t, force: guidesByTest[t.id]?.status === "generating" })}
           onOpenGuide={(t, guide) => setGuideToShare({ guide, test: t })}
@@ -4120,6 +4126,17 @@ export default function App() {
             const guide = guidesByTest[t.id];
             if ((guide?.slides?.length ?? 0) > 0) downloadTeachingDeck(t, guide); // already written — just build the file
             else buildStudyGuide(t, false, null, true);
+          }}
+        />
+      )}
+
+      {sharingTest && (
+        <ShareTestModal
+          test={sharingTest}
+          onClose={() => setSharingTest(null)}
+          onSaved={async () => {
+            setSavedTests(await loadTests());
+            fire(`Updated sharing for “${sharingTest.name}”`);
           }}
         />
       )}
@@ -9596,8 +9613,161 @@ function StudyGuideCreateModal({
   );
 }
 
+function shareLabel(t: SavedTest): string | null {
+  if (!t.mine) return t.owner_name ? `From ${t.owner_name}` : "Shared with you";
+  if (t.visibility === "everyone") return "Everyone";
+  if (t.visibility === "chiefs") return t.shared_with.length ? `Ed chiefs + ${t.shared_with.length}` : "Ed chiefs";
+  if (t.shared_with.length) return `${t.shared_with.length} person${t.shared_with.length === 1 ? "" : "s"}`;
+  return null;
+}
+
+function ShareTestModal({
+  test, onClose, onSaved,
+}: {
+  test: SavedTest;
+  onClose: () => void;
+  onSaved: () => Promise<void>;
+}) {
+  const [visibility, setVisibility] = useState<TestVisibility>(test.visibility);
+  const [picked, setPicked] = useState<Set<string>>(() => new Set(test.shared_with));
+  const [people, setPeople] = useState<SharePerson[] | null>(null);
+  const [q, setQ] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    listShareablePeople().then((list) => { if (alive) setPeople(list); });
+    return () => { alive = false; };
+  }, []);
+
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    const list = people ?? [];
+    if (!needle) return list;
+    return list.filter((p) =>
+      p.name.toLowerCase().includes(needle) || (p.level ?? "").toLowerCase().includes(needle)
+    );
+  }, [people, q]);
+
+  const toggle = (id: string) => {
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const save = async () => {
+    setSaving(true); setErr(null);
+    const ok = await shareTest(test.id, visibility, [...picked]);
+    setSaving(false);
+    if (!ok) { setErr("Couldn't update sharing — try signing in again."); return; }
+    await onSaved();
+    onClose();
+  };
+
+  const visCopy =
+    visibility === "everyone" ? "Every approved account can study, host, or export this test."
+    : visibility === "chiefs" ? "Education chiefs (and admins) can open it. Add extra names below if you want."
+    : picked.size ? "Only you and the people you pick below can open it."
+    : "Only you can see this test until you pick people or change who it's for.";
+
+  return (
+    <div data-scrim style={s.scrim} onClick={onClose}>
+      <div style={{ ...s.apPanel, maxWidth: 480 }} onClick={(e) => e.stopPropagation()} className="rise">
+        <div style={s.apHead}>
+          <div>
+            <div style={s.apEyebrow}>Share a saved test</div>
+            <div style={s.apTitle}>{test.name}</div>
+          </div>
+          <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
+        </div>
+        <div style={s.apBody}>
+          <p style={{ fontSize: 13.5, color: T.muted, lineHeight: 1.6, margin: "0 0 12px" }}>
+            Recipients can study it, host a live poll, or export the PowerPoint. They can't edit or delete your copy.
+          </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+            {([
+              ["private", "Just me"],
+              ["chiefs", "Ed chiefs"],
+              ["everyone", "Everyone"],
+            ] as const).map(([v, label]) => (
+              <button
+                key={v}
+                type="button"
+                style={{ ...s.apToggle, ...(visibility === v ? s.apToggleOn : {}) }}
+                onClick={() => setVisibility(v)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p style={{ fontSize: 13, color: T.muted, lineHeight: 1.5, margin: "0 0 14px" }}>{visCopy}</p>
+          {visibility !== "everyone" && (
+            <>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: T.muted, textTransform: "uppercase", letterSpacing: 0.4, margin: "4px 0 8px" }}>
+                {visibility === "chiefs" ? "Also share with" : "Share with specific people"}
+                {picked.size ? ` · ${picked.size} selected` : ""}
+              </div>
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search by name"
+                style={{ ...s.deckSearch, marginBottom: 8 }}
+              />
+              {people === null && <p style={s.apEmpty}>Loading people…</p>}
+              {people && filtered.length === 0 && <p style={s.apEmpty}>No matching names.</p>}
+              {filtered.map((p) => {
+                const on = picked.has(p.id);
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => toggle(p.id)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10, width: "100%",
+                      textAlign: "left", background: on ? T.tealSoft : "#fff",
+                      border: `1px solid ${on ? T.teal : T.paperEdge}`,
+                      borderRadius: 10, padding: "8px 10px", marginBottom: 6, cursor: "pointer",
+                    }}
+                  >
+                    <span style={{
+                      width: 18, height: 18, borderRadius: 5, flexShrink: 0,
+                      display: "grid", placeItems: "center",
+                      background: on ? T.teal : "#fff",
+                      border: `1px solid ${on ? T.teal : T.paperEdge}`,
+                      color: "#fff",
+                    }}>
+                      {on && <Check size={12} strokeWidth={3} />}
+                    </span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>{p.name}</span>
+                    {p.level && <span style={{ fontSize: 12, color: T.faint }}>{p.level}</span>}
+                    {p.chief && (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: T.tealDeep, background: T.tealSoft, borderRadius: 999, padding: "1px 7px" }}>
+                        ed chief
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </>
+          )}
+          {err && <p style={{ ...s.apEmpty, color: T.wrongLine, fontStyle: "normal" }}>{err}</p>}
+        </div>
+        <div style={s.deckFoot}>
+          <button style={{ ...s.primarySm, opacity: saving ? 0.5 : 1 }} disabled={saving} onClick={save}>
+            <Share2 size={13} strokeWidth={2.3} /> {saving ? "Saving…" : "Save sharing"}
+          </button>
+          <button style={{ ...s.ghost, marginLeft: 0 }} onClick={onClose}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TestsPanel({
-  tests, byId, onClose, onStudy, onHost, onPptx, onEdit, onRename, onDelete, guidesByTest, onStudyGuide, onOpenGuide, onSlides, canGenerate,
+  tests, byId, onClose, onStudy, onHost, onPptx, onEdit, onRename, onDelete, onShare, guidesByTest, onStudyGuide, onOpenGuide, onSlides, canGenerate,
 }: {
   tests: SavedTest[];
   byId: Map<string, RawQuestion>;
@@ -9608,6 +9778,7 @@ function TestsPanel({
   onEdit: (t: SavedTest) => void;
   onRename: (t: SavedTest) => void;
   onDelete: (t: SavedTest) => void;
+  onShare: (t: SavedTest) => void;
   guidesByTest: Record<string, StudyGuide>;
   onStudyGuide: (t: SavedTest) => void;
   onOpenGuide: (t: SavedTest, guide: StudyGuide) => void;
@@ -9629,18 +9800,30 @@ function TestsPanel({
             <b style={{ display: "block", fontSize: 15.5, marginBottom: 8 }}>No saved tests yet</b>
             Open <b>Search</b>, check the questions you want, and hit <b>Save as test</b> —
             then run it here as a live poll, restudy it, or export it to PowerPoint.
+            Tests someone shares with you will show up here too.
           </p>
         ) : (
-          <div style={{ display: "grid", gap: 10 }}>
-            {tests.map((t) => {
+          <div style={{ ...s.apBody, display: "grid", gap: 10 }}>
+            {tests.map((t, i) => {
+              const prev = tests[i - 1];
+              const section =
+                t.mine && (!prev || !prev.mine) && tests.some((x) => !x.mine) ? "Your tests"
+                : !t.mine && (!prev || prev.mine) ? "Shared with you"
+                : null;
               const found = t.qids.filter((id) => byId.has(id)).length;
+              const shared = shareLabel(t);
               return (
-                <div key={t.id} style={{ border: `1px solid ${T.paperEdge}`, borderRadius: 12, padding: "12px 14px", background: "#fff" }}>
+                <React.Fragment key={t.id}>
+                {section && <div style={{ ...s.apSectionLbl, margin: i === 0 ? "0 0 2px" : "8px 0 2px" }}>{section}</div>}
+                <div style={{ border: `1px solid ${T.paperEdge}`, borderRadius: 12, padding: "12px 14px", background: "#fff" }}>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
                     <b style={{ fontSize: 15.5, color: T.text }}>{t.name}</b>
                     <span style={{ fontSize: 12.5, color: T.faint }}>
                       {found} question{found === 1 ? "" : "s"}{found !== t.qids.length ? ` (${t.qids.length - found} not in this bank)` : ""} · saved {new Date(t.created).toLocaleDateString()}
                     </span>
+                    {shared && (
+                      <span style={{ fontSize: 11.5, fontWeight: 700, color: T.tealDeep, background: T.tealSoft, borderRadius: 999, padding: "2px 8px" }}>{shared}</span>
+                    )}
                   </div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
                     <button style={s.primarySm} onClick={() => onHost(t)} title="Run this test as a live class poll">
@@ -9658,10 +9841,11 @@ function TestsPanel({
                       // Mid-generation the study-guide section below already
                       // shows the shared progress bar — no second button here.
                       if (!hasSlides && guide?.status === "generating") return null;
-                      // Generating costs money — chiefs/admins only. Once the
-                      // slides exist this button is just a free download, so
-                      // it stays for everyone.
-                      if (!hasSlides && !canGenerate) return null;
+                      // Generating costs money — chiefs/admins only, and only
+                      // the owner can kick off a new run against this test.
+                      // Once the slides exist this button is just a free
+                      // download, so it stays for everyone who can see the test.
+                      if (!hasSlides && (!canGenerate || !t.mine)) return null;
                       return (
                         <button
                           style={hasSlides ? { ...s.ghost, marginLeft: 0, border: `1px solid ${T.teal}`, color: T.tealDeep, background: T.tealSoft } : { ...s.ghost, marginLeft: 0 }}
@@ -9699,6 +9883,9 @@ function TestsPanel({
                       }
                       if (guide?.status === "generating") {
                         if (guideIsStuck(guide)) {
+                          if (!t.mine || !canGenerate) {
+                            return <span style={{ fontSize: 11.5, color: T.faint }}>guide still working…</span>;
+                          }
                           return (
                             <button style={{ ...s.ghost, marginLeft: 0, color: T.wrongLine }} onClick={() => onStudyGuide(t)} title="This is taking much longer than usual — click to restart it">
                               <BookOpen size={13} strokeWidth={2.3} /> Taking a while — retry?
@@ -9716,7 +9903,7 @@ function TestsPanel({
                           </div>
                         );
                       }
-                      if (!canGenerate) return null; // generating costs money — chiefs/admins only
+                      if (!canGenerate || !t.mine) return null; // generating costs money — chiefs/admins only, owner only
                       return (
                         <button
                           style={{ ...s.ghost, marginLeft: 0, color: guide?.status === "error" ? T.wrongLine : undefined }}
@@ -9730,17 +9917,29 @@ function TestsPanel({
                         </button>
                       );
                     })()}
-                    <button style={{ ...s.ghost, marginLeft: 0 }} onClick={() => onEdit(t)} title="Add, remove, or reorder this test's questions">
-                      <ListChecks size={13} strokeWidth={2.3} /> Edit questions
-                    </button>
-                    <button style={{ ...s.ghost, marginLeft: 0 }} onClick={() => onRename(t)} title="Rename">
-                      <Pencil size={13} strokeWidth={2.3} /> Rename
-                    </button>
-                    <button style={{ ...s.ghost, marginLeft: 0, color: T.wrongLine }} onClick={() => onDelete(t)} title="Delete this test">
-                      <Trash2 size={13} strokeWidth={2.3} /> Delete
-                    </button>
+                    {t.mine && (
+                      <button style={{ ...s.ghost, marginLeft: 0 }} onClick={() => onShare(t)} title="Share with ed chiefs, everyone, or specific people">
+                        <Share2 size={13} strokeWidth={2.3} /> Share
+                      </button>
+                    )}
+                    {t.mine && (
+                      <button style={{ ...s.ghost, marginLeft: 0 }} onClick={() => onEdit(t)} title="Add, remove, or reorder this test's questions">
+                        <ListChecks size={13} strokeWidth={2.3} /> Edit questions
+                      </button>
+                    )}
+                    {t.mine && (
+                      <button style={{ ...s.ghost, marginLeft: 0 }} onClick={() => onRename(t)} title="Rename">
+                        <Pencil size={13} strokeWidth={2.3} /> Rename
+                      </button>
+                    )}
+                    {t.mine && (
+                      <button style={{ ...s.ghost, marginLeft: 0, color: T.wrongLine }} onClick={() => onDelete(t)} title="Delete this test">
+                        <Trash2 size={13} strokeWidth={2.3} /> Delete
+                      </button>
+                    )}
                   </div>
                 </div>
+                </React.Fragment>
               );
             })}
           </div>
