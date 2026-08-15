@@ -46,10 +46,25 @@ function load() {
 }
 
 /** Refs for one question, or [] when nothing confidently matched — most of the
-    bank has no match, and that is the intended outcome. */
-export async function getPodcastRefs(year: string, qIndex: number): Promise<PodcastRef[]> {
+    bank has no match, and that is the intended outcome. Optional `extraKeys`
+    (therapy:CBT, neuro:Epilepsy) fill Neuro/Therapy items from a smaller
+    curated sidecar so those banks are not silent. */
+export async function getPodcastRefs(
+  year: string,
+  qIndex: number,
+  extraKeys: string[] = [],
+): Promise<PodcastRef[]> {
   const all = await load();
-  return all[`${year}-${qIndex}`] || [];
+  const direct = all[`${year}-${qIndex}`];
+  if (direct?.length) return direct;
+  if (!extraKeys.length) return [];
+  const { loadBankPodcasts } = await import("./bankExtras");
+  const bank = await loadBankPodcasts();
+  for (const key of extraKeys) {
+    const hit = bank[key];
+    if (hit?.length) return hit;
+  }
+  return [];
 }
 
 /** Deep-links to the matching chapter when there is one. */

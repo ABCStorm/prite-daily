@@ -236,7 +236,17 @@ def clinical_focus(q: dict) -> dict[str, Any]:
     distractor medication that happens to be listed on the item.
     """
     tags = q.get("tags") or {}
-    answer = (q.get("answer_text") or "").strip()
+    raw_answer = (q.get("answer_text") or "").strip()
+    topic = ((q.get("quizapine") or {}).get("topic") or "").strip()
+    chapter = ((q.get("kaufman") or {}).get("chapter") or "").strip()
+    # Therapy options are long spoken sentences — they make useless PMC queries.
+    # Search the teaching topic / chapter name instead, keep the option as a stem anchor.
+    if topic and (len(raw_answer) > 90 or q.get("quizapine")):
+        answer = topic
+    elif chapter and len(raw_answer) > 90:
+        answer = chapter
+    else:
+        answer = raw_answer
     # multi-select answers: "A / B"
     answer_parts = [p.strip() for p in re.split(r"\s*/\s*", answer) if p.strip()]
     ans_toks = tokens(answer)
@@ -288,6 +298,10 @@ def clinical_focus(q: dict) -> dict[str, Any]:
 
     # Primary topic phrases for phrase search
     phrases: list[str] = []
+    if topic:
+        phrases.append(topic[:120])
+    if chapter:
+        phrases.append(chapter)
     for part in answer_parts:
         # strip trailing punctuation
         p = re.sub(r"[.\s]+$", "", part).strip()
@@ -395,6 +409,39 @@ def build_queries(q: dict, focus: dict) -> list[tuple[str, str]]:
         'PUB_TYPE:"Meta-Analysis" OR PUB_TYPE:"Guideline" OR '
         'PUB_TYPE:"Practice Guideline")'
     )
+
+    # Named psychotherapy / neurology chapter queries beat long option text.
+    MOD_Q = {
+        "Psychodynamic": "psychodynamic psychotherapy",
+        "CBT": "cognitive behavioral therapy",
+        "DBT": "dialectical behavior therapy",
+        "MI": "motivational interviewing",
+        "IPT": "interpersonal psychotherapy",
+        "ACT": "acceptance and commitment therapy",
+        "MBT": "mentalization based treatment",
+        "TFP & Supportive": "transference focused psychotherapy",
+        "Trauma-focused": "trauma focused psychotherapy PTSD",
+        "Group, family & couples": "family therapy group psychotherapy",
+        "Integration": "psychotherapy integration",
+        "Psychosocial": "psychosocial intervention psychiatry",
+    }
+    quiz = q.get("quizapine") or {}
+    kauf = q.get("kaufman") or {}
+    if quiz.get("modality"):
+        mq = MOD_Q.get(quiz["modality"], quiz["modality"])
+        topic_bits = tokens(quiz.get("topic") or "")[:4]
+        if topic_bits:
+            tq = " AND ".join(f"({t})" for t in topic_bits[:3])
+            strategies.append(("tx_mod_topic_review", f'("{mq}") AND ({tq}) AND (SRC:MED) AND {review}'))
+            strategies.append(("tx_mod_topic_any", f'("{mq}") AND ({tq}) AND (SRC:MED)'))
+        strategies.append(("tx_mod_review", f'("{mq}") AND (SRC:MED) AND {review}'))
+    if kauf.get("chapter"):
+        ch = kauf["chapter"]
+        strategies.append(("kf_ch_review", f'("{ch}") AND (psychiatry OR neuropsychiatry OR neurology) AND (SRC:MED) AND {review}'))
+        ans_bits = tokens(q.get("answer_text") or "")[:3]
+        if ans_bits:
+            aq = " AND ".join(f"({t})" for t in ans_bits)
+            strategies.append(("kf_ch_ans", f'("{ch}") AND ({aq}) AND (SRC:MED)'))
 
     ans = focus["answer"]
     ans_q = _ans_query_clause(focus)
@@ -793,7 +840,7 @@ def search_for_question(
             if not (ov["ans_title"] or ov["phrase_title"] or ov["focus_title"] >= 2):
                 continue
         articles.append(article_record(hit, s, focus))
-        if len(articles) >= 2:  # 1–2 solid links beats 3 weak ones
+        if len(articles) >= 8:  # keep extras so a later unique-PMID pass can pick
             break
 
     # Last-resort: best MEDLINE non-demote with real multi-signal overlap
@@ -887,6 +934,7 @@ def main() -> int:
     ap.add_argument("--workers", type=int, default=1, help="Parallel workers (default 1). Try 8–12.")
     ap.add_argument("--rps", type=float, default=12.0, help="Max Europe PMC requests/sec across all workers")
     ap.add_argument("--out", type=Path, default=OUT_REFS)
+    ap.add_argument("--questions", type=Path, default=QUESTIONS, help="Question bank JSON (array)")
     args = ap.parse_args()
 
     if args.workers < 1:
@@ -897,7 +945,7 @@ def main() -> int:
         return 2
     _API_MIN_INTERVAL = 1.0 / args.rps
 
-    questions = load_questions()
+    questions = json.loads(args.questions.read_text()) if args.questions != QUESTIONS else load_questions()
     by_id = {qid(q): q for q in questions}
     print(f"Loaded {len(questions)} questions", file=sys.stderr)
 

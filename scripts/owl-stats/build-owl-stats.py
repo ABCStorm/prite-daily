@@ -64,7 +64,13 @@ def has_term(hay: str, term: str) -> bool:
 
 def surface_text(q: dict) -> str:
     """What the learner actually sees — stem and answer, never extractor tags."""
-    return norm(" ".join([q.get("stem") or "", q.get("answer_text") or ""]))
+    extra = " ".join([
+        ((q.get("quizapine") or {}).get("topic") or ""),
+        ((q.get("quizapine") or {}).get("modality") or ""),
+        ((q.get("kaufman") or {}).get("chapter") or ""),
+        q.get("prite_label") or "",
+    ])
+    return norm(" ".join([q.get("stem") or "", q.get("answer_text") or "", extra]))
 
 
 def tag_text(q: dict) -> str:
@@ -207,11 +213,7 @@ def pick(q: dict, used_recent: list[str]) -> tuple[dict, int, list[str]]:
     for points, stat in ranked:
         if not stat.get("broad") and points >= MIN_SCORE:
             return stat, points, content_hits(stat, content, q)
-    for points, stat in ranked:
-        if stat.get("broad") and stat["id"] not in used_recent:
-            return stat, points, content_hits(stat, content, q)
-    fallback = next((s for s in STATS if s.get("broad")), STATS[0])
-    return fallback, -1, []
+    return None, -1, []
 
 
 def build(bank_path: Path) -> dict:
@@ -224,10 +226,10 @@ def build(bank_path: Path) -> dict:
         qid = question_id(q)
         recent = by_year.setdefault(str(q["year"]), [])
         stat, points, hits = pick(q, recent[-8:])
+        if not stat:
+            continue
         recent.append(stat["id"])
         assigned[stat["id"]] += 1
-        if stat.get("broad") and not hits:
-            fallbacks += 1
         out[qid] = {
             "stat_id": stat["id"],
             "sentence": speak(stat, q),

@@ -9,7 +9,7 @@ import {
   Eye, EyeOff, PanelRight, PanelBottom,
   BookOpen, Volume2, Play, Pause, Square, Copy, Shuffle, GripVertical,
   Brain, Pill, HeartPulse, GraduationCap, LayoutDashboard, Pin, Headphones,
-  Library, BookMarked,
+  Library, BookMarked, Sofa,
 } from "lucide-react";
 import mermaid from "mermaid";
 import { nextRewardPost, RewardKind } from "./lib/motivation";
@@ -22,6 +22,12 @@ import { DsmPanel } from "./lib/dsmPanel";
 import { loadDsmRefs, type DsmRef } from "./lib/dsmRefs";
 import { KaufmanPanel, KaufmanFigure } from "./lib/kaufmanPanel";
 import { loadKaufmanRefs, loadKaufmanQuestions, type KaufmanRef } from "./lib/kaufmanRefs";
+import { loadTherapyQuestions } from "./lib/therapyQuestions";
+import {
+  enrichBankQuestion, furtherReadingFor, autoFlashcard, podcastKeysFor,
+  neuroChapter, therapyModality, neuroYearRank, neuroTopicLabel,
+  neuroChapterOptionLabel, slug, loadBankContext,
+} from "./lib/bankExtras";
 import { WiseOwl } from "./lib/WiseOwl";
 import { loadOwlStats, type OwlStat } from "./lib/owlStats";
 import { AnalystFox } from "./lib/AnalystFox";
@@ -285,6 +291,15 @@ type RawQuestion = {
     stem_figures?: { id: string; page: number; file: string; caption?: string }[];
     expl_figures?: { id: string; page: number; file: string; caption?: string }[];
   };
+  /** Present on Quizapine psychotherapy practice items. */
+  quizapine?: {
+    modality?: string;
+    topic?: string;
+    difficulty?: string;
+    sources?: string[];
+  };
+  /** Optional sidecar story for Neuro/Therapy items (not the PRITE context table). */
+  context?: string;
 };
 
 type GroupNote = { author: string; role: string; time: string; text: string };
@@ -1074,8 +1089,10 @@ export default function App() {
   const [priteAll, setPriteAll] = useState<RawQuestion[] | null>(null);
   const [kaufmanAll, setKaufmanAll] = useState<RawQuestion[] | null>(null);
   const [kaufmanBankErr, setKaufmanBankErr] = useState<string | null>(null);
-  const [psychMode, setPsychMode] = useState<"general" | "child" | "neuro">("general");
-  const all = psychMode === "neuro" ? kaufmanAll : priteAll;
+  const [therapyAll, setTherapyAll] = useState<RawQuestion[] | null>(null);
+  const [therapyBankErr, setTherapyBankErr] = useState<string | null>(null);
+  const [psychMode, setPsychMode] = useState<"general" | "child" | "neuro" | "therapy">("general");
+  const all = psychMode === "neuro" ? kaufmanAll : psychMode === "therapy" ? therapyAll : priteAll;
   const [loadErr, setLoadErr] = useState<string | null>(null);
   // question id -> supporting Kaplan & Sadock passage(s); empty until loaded
   const [kaplanRefs, setKaplanRefs] = useState<Record<string, KaplanRef>>({});
@@ -1095,6 +1112,7 @@ export default function App() {
   const [dynPearls, setDynPearls] = useState<Record<string, DynPearl>>({});
 
   const [year, setYear] = useState<string>("all");
+  const [modalityFilter, setModalityFilter] = useState<string>("all");
   const [qi, setQi] = useState(0);
 
   const [picked, setPicked] = useState<string[]>([]);
@@ -1363,7 +1381,8 @@ export default function App() {
   const [boardClosing, setBoardClosing] = useState(false); // play the summit pull-out before closing the leaderboard
   const [showCapite, setShowCapite] = useState(false); // "coming soon" modal — CAPITE bank isn't built yet
   const selectChildPsych = () => { setPsychMode("child"); setShowCapite(true); };
-  const selectNeuro = () => { setShowCapite(false); setPsychMode("neuro"); setYear("all"); setQi(0); };
+  const selectNeuro = () => { setShowCapite(false); setPsychMode("neuro"); setYear("all"); setModalityFilter("all"); setQi(0); };
+  const selectTherapy = () => { setShowCapite(false); setPsychMode("therapy"); setYear("all"); setModalityFilter("all"); setQi(0); };
   const closeCapite = () => { setShowCapite(false); setPsychMode("general"); }; // bounces back — nothing to switch to yet
   const [leaders, setLeaders] = useState<LeaderRow[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -1843,13 +1862,39 @@ export default function App() {
     if (kaufmanAll) return;
     let alive = true;
     loadKaufmanQuestions()
-      .then((data) => { if (alive) { setKaufmanAll(data as RawQuestion[]); setKaufmanBankErr(null); } })
+      .then((data) => { if (alive) { setKaufmanAll((data as RawQuestion[]).map(enrichBankQuestion)); setKaufmanBankErr(null); } })
       .catch((e) => {
         if (alive) setKaufmanBankErr(String(e?.message ?? e));
         console.warn("[kaufman] practice bank failed to load:", e);
       });
     return () => { alive = false; };
   }, [psychMode, signedIn, approved, kaufmanAll]);
+
+  // Quizapine psychotherapy bank — fetched when the Therapy toggle is on.
+  useEffect(() => {
+    if (psychMode !== "therapy") return;
+    if (isConfigured && !(signedIn && approved)) return;
+    if (therapyAll) return;
+    let alive = true;
+    loadTherapyQuestions()
+      .then((data) => { if (alive) { setTherapyAll((data as RawQuestion[]).map(enrichBankQuestion)); setTherapyBankErr(null); } })
+      .catch((e) => {
+        if (alive) setTherapyBankErr(String(e?.message ?? e));
+        console.warn("[therapy] practice bank failed to load:", e);
+      });
+    return () => { alive = false; };
+  }, [psychMode, signedIn, approved, therapyAll]);
+
+  // Historical / gee-whiz context for Neuro + Therapy items.
+  const [bankContext, setBankContext] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (isConfigured && !(signedIn && approved)) return;
+    let alive = true;
+    loadBankContext()
+      .then((m) => { if (alive) setBankContext(m); })
+      .catch((e) => { console.warn("[context] bank factoids failed to load:", e); });
+    return () => { alive = false; };
+  }, [signedIn, approved]);
 
   // Stat Cat pearls: one verified statistic + source URL per question.
   useEffect(() => {
@@ -1875,24 +1920,30 @@ export default function App() {
     if (!all) return [];
     const ys = Array.from(new Set(all.map((q) => q.year)));
     if (psychMode === "neuro") {
-      return ys.sort((a, b) => {
-        const rank = (y: string) => (y === "Review" ? 99 : parseInt(y.replace(/\D/g, ""), 10) || 0);
-        return rank(a) - rank(b);
-      });
+      return ys.sort((a, b) => neuroYearRank(a) - neuroYearRank(b));
+    }
+    if (psychMode === "therapy") {
+      const modality = (y: string) => all.find((q) => q.year === y)?.quizapine?.modality || "";
+      const filtered = modalityFilter === "all" ? ys : ys.filter((y) => modality(y) === modalityFilter);
+      return filtered.sort((a, b) => modality(a).localeCompare(modality(b)) || a.localeCompare(b));
     }
     return ys.sort();
-  }, [all, psychMode]);
-  const browseSet = useMemo(
-    () => (all ? (year === "all" ? all : all.filter((q) => q.year === year)) : []),
-    [all, year]
-  );
+  }, [all, psychMode, modalityFilter]);
+  const browseSet = useMemo(() => {
+    if (!all) return [];
+    return all.filter((q) => {
+      if (psychMode === "therapy" && modalityFilter !== "all" && q.quizapine?.modality !== modalityFilter) return false;
+      if (year !== "all" && q.year !== year) return false;
+      return true;
+    });
+  }, [all, year, psychMode, modalityFilter]);
   const byId = useMemo(() => {
     const m = new Map<string, RawQuestion>();
-    for (const bank of [priteAll, kaufmanAll]) {
+    for (const bank of [priteAll, kaufmanAll, therapyAll]) {
       if (bank) for (const qq of bank) m.set(questionId(qq.year, qq.q_index), qq);
     }
     return m;
-  }, [priteAll, kaufmanAll]);
+  }, [priteAll, kaufmanAll, therapyAll]);
   // Repeat-groups already used across ALL of this user's saved tests, so the
   // random test generator can skip questions (and their cross-year twins)
   // already handed out in a prior week's set.
@@ -1956,10 +2007,14 @@ export default function App() {
 
   // lazy-load the shared historical-context blurb when its card is opened
   useEffect(() => {
-    if (!openSections.has("context") || !persist || context !== null) return;
+    if (!openSections.has("context") || context !== null) return;
     const cur = set[qi];
-    if (cur) getQuestionContext(questionId(cur.year, cur.q_index)).then((c) => setContext(c ?? ""));
-  }, [openSections, qi, persist, mode]); // eslint-disable-line
+    if (!cur) return;
+    const qid = questionId(cur.year, cur.q_index);
+    const local = bankContext[qid] || cur.context || "";
+    if (!persist) { setContext(local); return; }
+    getQuestionContext(qid).then((c) => setContext(c || local));
+  }, [openSections, qi, persist, mode, bankContext]); // eslint-disable-line
 
   // lazy-load the cached flashcard when the Flashcard card is opened
   useEffect(() => {
@@ -2355,7 +2410,13 @@ export default function App() {
     return <TrainingLevelGate onSaved={reloadProfile} />;
 
   if (loadErr) return <Center>Couldn’t load the question bank: {loadErr}</Center>;
-  if (!all) return <Center>{psychMode === "neuro" ? (kaufmanBankErr ? `Kaufman questions: ${kaufmanBankErr}` : "Loading Kaufman questions…") : "Loading the PRITE bank…"}</Center>;
+  if (!all) return <Center>{
+    psychMode === "neuro"
+      ? (kaufmanBankErr ? `Kaufman questions: ${kaufmanBankErr}` : "Loading Kaufman questions…")
+      : psychMode === "therapy"
+        ? (therapyBankErr ? `Therapy questions: ${therapyBankErr}` : "Loading therapy questions…")
+        : "Loading the PRITE bank…"
+  }</Center>;
   // "Caught up today" is no longer a full-page takeover (that felt like leaving
   // the site). It now renders as a card in the normal app shell — the header,
   // nav and study bar stay put, and only the question slot is swapped for the
@@ -2530,7 +2591,11 @@ export default function App() {
   // Roughly 45% of questions have a verified textbook passage; the card is hidden
   // entirely for the rest rather than showing an empty state on every other question.
   const kaplan = q ? kaplanRefs[questionId(q.year, q.q_index)] : undefined;
-  const research = q ? researchRefs[questionId(q.year, q.q_index)] : undefined;
+  const research = q
+    ? (researchRefs[questionId(q.year, q.q_index)]?.articles?.length
+        ? researchRefs[questionId(q.year, q.q_index)]
+        : furtherReadingFor(q))
+    : undefined;
   const dsm = q ? dsmRefs[questionId(q.year, q.q_index)] : undefined;
   const kaufman: KaufmanRef | undefined = q
     ? (q.kaufman?.teach_page
@@ -2953,10 +3018,10 @@ export default function App() {
             </span>
             {persist ? (
               <span style={s.who} className="topActions mobExtra">
-                <span style={s.navSegRow} className="topActBtn" title="PRITE, CAPITE, or Kaufman neurology practice questions">
+                <span style={s.navSegRow} className="topActBtn" title="PRITE, CAPITE, Kaufman neurology, or psychotherapy">
                   <button
                     style={{ ...s.navSegBtn, ...(psychMode === "general" ? s.navSegOn : {}) }}
-                    onClick={() => setPsychMode("general")}
+                    onClick={() => { setShowCapite(false); setPsychMode("general"); setYear("all"); setModalityFilter("all"); setQi(0); }}
                   >
                     <Stethoscope size={12} strokeWidth={2.3} /> <span className="btnTxt">General</span>
                   </button>
@@ -2971,6 +3036,12 @@ export default function App() {
                     onClick={selectNeuro}
                   >
                     <Brain size={12} strokeWidth={2.3} /> <span className="btnTxt">Neuro</span>
+                  </button>
+                  <button
+                    style={{ ...s.navSegBtn, ...(psychMode === "therapy" ? s.navSegOn : {}) }}
+                    onClick={selectTherapy}
+                  >
+                    <Sofa size={12} strokeWidth={2.3} /> <span className="btnTxt">Therapy</span>
                   </button>
                 </span>
                 <button style={s.approveBtn} className="topActBtn" onClick={() => setShowBoard(true)} title="Leaderboard">
@@ -3064,6 +3135,11 @@ export default function App() {
           <div style={{ fontSize: 13, color: T.muted, margin: "0 0 10px", lineHeight: 1.45 }}>
             Practice questions from <b style={{ color: T.text, fontWeight: 650 }}>Kaufman’s Clinical Neurology for Psychiatrists</b>, 9th ed.
             Explanations are the book’s own. Open the Kaufman tab after you answer to read the surrounding pages.
+          </div>
+        )}
+        {psychMode === "therapy" && !examActive && (
+          <div style={{ fontSize: 13, color: T.muted, margin: "0 0 10px", lineHeight: 1.45 }}>
+            Psychotherapy practice questions — psychodynamic, CBT, DBT, MI, and the other talking-therapy decks.
           </div>
         )}
         {/* Navigation / filter row */}
@@ -3162,10 +3238,17 @@ export default function App() {
             </span>
           ) : (
             <select value={year} onChange={(e) => { setYear(e.target.value); setQi(0); }} style={s.sel}>
-              <option value="all">{psychMode === "neuro" ? "All chapters" : "All years"} ({all.length})</option>
-              {years.map((y) => (
-                <option key={y} value={y}>{y} ({all.filter((x) => x.year === y).length})</option>
-              ))}
+              <option value="all">{psychMode === "neuro" ? "All chapters" : psychMode === "therapy" ? "All topics" : "All years"} ({all.length})</option>
+              {years.map((y) => {
+                const n = all.filter((x) => x.year === y).length;
+                const sample = all.find((x) => x.year === y);
+                const mod = psychMode === "therapy" ? sample?.quizapine?.modality : null;
+                const ch = psychMode === "neuro" && sample ? neuroChapter(sample) : null;
+                const label = psychMode === "neuro" && sample
+                  ? neuroChapterOptionLabel(y, ch || "")
+                  : mod ? `${mod} · ${y}` : y;
+                return <option key={y} value={y}>{label} ({n})</option>;
+              })}
             </select>
           )}
           {/* Redo-my-misses lives outside the mode branch (and outside the
@@ -3302,7 +3385,9 @@ export default function App() {
           <span style={s.qeyebrow}>
             {q.kaufman
               ? <>Kaufman · {q.year} · Q{q.kaufman.book_number ?? q.q_index}{q.prite_label ? <span style={{ color: T.faint }}> · {q.prite_label.replace(/^Chapter \d+:\s*/, "")}</span> : null}</>
-              : <>{q.year} · Q{q.q_index} <span style={{ color: T.faint }}>(slide {q.slide_number})</span></>}
+              : q.quizapine
+                ? <>Therapy · {q.quizapine.modality || "Psychotherapy"} · Q{q.q_index}{q.year ? <span style={{ color: T.faint }}> · {q.year}</span> : null}</>
+                : <>{q.year} · Q{q.q_index} <span style={{ color: T.faint }}>(slide {q.slide_number})</span></>}
           </span>
           {reviewMode && <span style={{ ...s.multiTag, color: T.teal, background: T.tealSoft }}><RotateCcw size={12} strokeWidth={2.2} /> Reviewing missed — try again</span>}
           {q.multi_select && <span style={s.multiTag}><ListChecks size={12} strokeWidth={2.2} /> Select {requiredSelections} answers</span>}
@@ -3833,7 +3918,7 @@ export default function App() {
 
               {id === "video" && (
                 <div className="fade">
-                  <PodcastPicks q={q} />
+                  <PodcastPicks q={q} extraKeys={podcastKeysFor(q)} />
                   <label style={s.lbl}>Related videos · opens a YouTube search in a new tab</label>
                   <a
                     style={s.videoLink}
@@ -3962,6 +4047,36 @@ export default function App() {
 
               {id === "flash" && (
                 <div className="fade">
+                  {!card && !editCard && (q.kaufman || q.quizapine) && (
+                    <div style={{ marginBottom: 16 }}>
+                      <label style={s.lbl}>Ready-made cloze from this item’s teaching point</label>
+                      <AnkiClozePractice
+                        clozeText={autoFlashcard(q).cloze_text}
+                        extra={autoFlashcard(q).extra}
+                        revealed={clozeRevealed}
+                        openIds={clozeOpenIds}
+                        onReset={() => { setClozeRevealed(false); setClozeOpenIds(new Set()); }}
+                        onRevealAll={() => { setClozeRevealed(true); setClozeOpenIds(new Set()); }}
+                        onToggleBlank={(cid) => {
+                          if (clozeRevealed) {
+                            setClozeRevealed(false);
+                            const allIds = new Set([...autoFlashcard(q).cloze_text.matchAll(/\{\{(c\d+)::/g)].map((x) => x[1]));
+                            allIds.delete(cid);
+                            setClozeOpenIds(allIds);
+                            return;
+                          }
+                          setClozeOpenIds((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(cid)) next.delete(cid); else next.add(cid);
+                            return next;
+                          });
+                        }}
+                      />
+                      <p style={{ ...s.videoNote, marginTop: 10 }}>
+                        This card is built from the item itself. Generate a class-cached AI card below if you want a tighter cloze.
+                      </p>
+                    </div>
+                  )}
                   {!card && !editCard && (
                     <div style={s.flashEmpty}>
                       <Sparkles size={20} strokeWidth={1.9} color={T.teal} />
@@ -4275,6 +4390,7 @@ export default function App() {
       {showDeck && all && (
         <DeckBuilder
           all={all} byId={byId} fire={fire}
+          kind={psychMode === "neuro" ? "neuro" : psychMode === "therapy" ? "therapy" : "prite"}
           usedGroupKeys={usedGroupKeys}
           answers={answers}
           kaplanRefs={kaplanRefs}
@@ -6236,13 +6352,13 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
 // to, and a near-miss recommendation costs more time than none at all.
 // Tier "related" is looser background teaching on the same topic (not a direct
 // concept hit) and is labeled accordingly in the UI.
-function PodcastPicks({ q, dark = false }: { q: RawQuestion; dark?: boolean }) {
+function PodcastPicks({ q, extraKeys = [], dark = false }: { q: RawQuestion; extraKeys?: string[]; dark?: boolean }) {
   const [refs, setRefs] = useState<PodcastRef[] | null>(null);
   useEffect(() => {
     let live = true;
-    getPodcastRefs(q.year, q.q_index).then((r) => { if (live) setRefs(r); });
+    getPodcastRefs(q.year, q.q_index, extraKeys).then((r) => { if (live) setRefs(r); });
     return () => { live = false; };
-  }, [q.year, q.q_index]);
+  }, [q.year, q.q_index, extraKeys.join("|")]); // eslint-disable-line
 
   if (!refs?.length) return null;
   const allRelated = refs.every((r) => r.tier === "related");
@@ -7754,6 +7870,71 @@ function OfficialResultsPanel({ results, onClose, onCleared, onEditTeams, onEdit
   );
 }
 
+function BankTopicFilters({
+  mode, all, year, modality, onYear, onModality,
+}: {
+  mode: "neuro" | "therapy";
+  all: RawQuestion[];
+  year: string;
+  modality: string;
+  onYear: (y: string) => void;
+  onModality: (m: string) => void;
+}) {
+  const therapyChips = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const q of all) {
+      const m = therapyModality(q);
+      counts.set(m, (counts.get(m) || 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }, [all]);
+  const neuroChips = useMemo(() => {
+    const counts = new Map<string, { label: string; n: number; year: string }>();
+    for (const q of all) {
+      const label = neuroChapter(q);
+      const prev = counts.get(q.year) || { label, n: 0, year: q.year };
+      prev.n += 1;
+      counts.set(q.year, prev);
+    }
+    return [...counts.values()].sort((a, b) => {
+      if (a.year === "Review") return 1;
+      if (b.year === "Review") return -1;
+      return (parseInt(a.year.replace(/\D/g, ""), 10) || 0) - (parseInt(b.year.replace(/\D/g, ""), 10) || 0);
+    });
+  }, [all]);
+
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "0 0 12px" }}>
+      <button
+        style={{ ...s.orderYear, ...((mode === "therapy" ? modality === "all" : year === "all") ? s.orderYearOn : {}) }}
+        onClick={() => { if (mode === "therapy") onModality("all"); else onYear("all"); }}
+      >
+        All ({all.length})
+      </button>
+      {mode === "therapy"
+        ? therapyChips.map(([name, n]) => (
+            <button
+              key={name}
+              style={{ ...s.orderYear, ...(modality === name ? s.orderYearOn : {}) }}
+              onClick={() => onModality(modality === name ? "all" : name)}
+            >
+              {name} <span style={{ fontWeight: 500, opacity: 0.7 }}>{n}</span>
+            </button>
+          ))
+        : neuroChips.map((c) => (
+            <button
+              key={c.year}
+              style={{ ...s.orderYear, ...(year === c.year ? s.orderYearOn : {}) }}
+              onClick={() => onYear(year === c.year ? "all" : c.year)}
+              title={c.label}
+            >
+              {c.year === "Review" ? "Review" : c.label} <span style={{ fontWeight: 500, opacity: 0.7 }}>{c.n}</span>
+            </button>
+          ))}
+    </div>
+  );
+}
+
 // "Child Psychiatry" nav toggle — the CAPITE bank doesn't exist yet, so this
 // is a friendly placeholder pointing volunteers at who's driving the effort.
 function CapiteComingSoon({ onClose }: { onClose: () => void }) {
@@ -9136,7 +9317,7 @@ function AudioDrillsPanel({ all, onClose, fire }: { all: RawQuestion[]; onClose:
 }
 
 function DeckBuilder({
-  all, byId, onClose, onOpen, onStudy, onSaveTest, fire, usedGroupKeys, answers, kaplanRefs, kaplanErr,
+  all, byId, onClose, onOpen, onStudy, onSaveTest, fire, usedGroupKeys, answers, kaplanRefs, kaplanErr, kind = "prite",
 }: {
   all: RawQuestion[];
   byId: Map<string, RawQuestion>;
@@ -9149,6 +9330,7 @@ function DeckBuilder({
   answers: Record<string, AnswerRow>; // this user's attempt history
   kaplanRefs: Record<string, KaplanRef>; // question id -> textbook citation, {} until loaded
   kaplanErr?: string | null; // why they didn't load, shown instead of a silently dead filter
+  kind?: "prite" | "neuro" | "therapy";
 }) {
   const [search, setSearch] = useState("");
   const [scope, setScope] = useState<"both" | "stem" | "choices" | "answer">("both");
@@ -9175,7 +9357,11 @@ function DeckBuilder({
   const [sampleN, setSampleN] = useState(20);
   const [pptxWithExpl, setPptxWithExpl] = useState(false);
 
-  const years = useMemo(() => Array.from(new Set(all.map((q) => q.year))).sort(), [all]);
+  const years = useMemo(() => {
+    const ys = Array.from(new Set(all.map((q) => q.year)));
+    if (kind === "neuro") return ys.sort((a, b) => neuroYearRank(a) - neuroYearRank(b));
+    return ys.sort((a, b) => a.localeCompare(b));
+  }, [all, kind]);
   const cats = useMemo(() => {
     const m = new Map<string, string>();
     all.forEach((q) => { if (q.prite_category) m.set(q.prite_category, q.prite_label || q.prite_category); });
@@ -9185,7 +9371,15 @@ function DeckBuilder({
     Array.from(new Set(all.flatMap((q) => q.tags?.[key] ?? []))).sort();
   const meds = useMemo(() => uniq("medication"), [all]);
   const dxs = useMemo(() => uniq("diagnosis"), [all]);
-  const topics = useMemo(() => uniq("topics"), [all]);
+  const topics = useMemo(() => uniq("topics").filter((t) => t !== "Kaufman"), [all]);
+  const neuroTopics = useMemo(() => {
+    const names = new Set<string>();
+    for (const q of all) {
+      const label = neuroTopicLabel(neuroChapter(q));
+      if (label && label !== "Kaufman") names.add(label);
+    }
+    return [...names].sort((a, b) => a.localeCompare(b));
+  }, [all]);
 
   // Where each question stands for this user. "Got wrong" keys off the latest
   // attempt and ignores `cleared` — dismissing the learning-opportunities nag
@@ -9243,7 +9437,13 @@ function DeckBuilder({
       if (cat !== "all" && q.prite_category !== cat) return false;
       if (med !== "all" && !(q.tags?.medication ?? []).includes(med)) return false;
       if (dx !== "all" && !(q.tags?.diagnosis ?? []).includes(dx)) return false;
-      if (topic !== "all" && !(q.tags?.topics ?? []).includes(topic)) return false;
+      if (topic !== "all") {
+        if (kind === "neuro") {
+          if (neuroTopicLabel(neuroChapter(q)) !== topic) return false;
+        } else if (!(q.tags?.topics ?? []).includes(topic)) {
+          return false;
+        }
+      }
       if (progress !== "all" && progressOf(q) !== progress) return false;
       if (repeatMin !== "all" && (q.repeat_count ?? 1) < parseInt(repeatMin, 10)) return false;
       // Weak-areas mode: only the low-accuracy categories, and skip anything
@@ -9271,7 +9471,7 @@ function DeckBuilder({
       return [...filtered].sort((a, b) => (b.repeat_count ?? 1) - (a.repeat_count ?? 1));
     }
     return filtered;
-  }, [all, year, cat, med, dx, topic, progress, answers, repeatMin, kaplan, kaplanRefs, sortBy, search, scope, weakOnly, weakCatSet]); // eslint-disable-line
+  }, [all, year, cat, med, dx, topic, progress, answers, repeatMin, kaplan, kaplanRefs, sortBy, search, scope, weakOnly, weakCatSet, kind]); // eslint-disable-line
 
   // De-duplicated view: drop questions whose repeat-group is already in a
   // saved test, then collapse remaining cross-year twins to one apiece
@@ -9394,7 +9594,7 @@ function DeckBuilder({
         <div style={s.apHead}>
           <div>
             <div style={s.apEyebrow}>Search · study · export</div>
-            <div style={s.apTitle}>Build a study set</div>
+            <div style={s.apTitle}>{kind === "neuro" ? "Filter Kaufman questions" : kind === "therapy" ? "Filter therapy questions" : "Build a study set"}</div>
           </div>
           <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
         </div>
@@ -9450,6 +9650,19 @@ function DeckBuilder({
               <b style={{ fontWeight: 700 }}>{weakAreas.length ? presetCounts.weak.toLocaleString() : "—"}</b>
             </button>
           </div>
+          {(kind === "neuro" || kind === "therapy") && (
+            <div style={{ margin: "4px 0 10px" }}>
+              <span style={s.quickLabel} className="quickLabel">{kind === "neuro" ? "Chapters" : "Modalities"}</span>
+              <BankTopicFilters
+                mode={kind}
+                all={all}
+                year={year}
+                modality={cat === "all" ? "all" : (catLabel.get(cat) || cat)}
+                onYear={(y) => { setYear(y); setTopic("all"); }}
+                onModality={(m) => { setCat(m === "all" ? "all" : slug(m)); setYear("all"); setTopic("all"); }}
+              />
+            </div>
+          )}
           <p style={s.quickHint}>
             {weakOnly && weakAreas.length ? (
               <>
@@ -9493,20 +9706,38 @@ function DeckBuilder({
               <div style={s.advGroup}>
                 <span style={s.advLabel}>What it&rsquo;s about</span>
                 <div style={s.deckSelRow}>
-                  <select value={cat} onChange={(e) => setCat(e.target.value)} style={{ ...s.cohortSel, ...(cat !== "all" ? s.cohortSelOn : {}) }}>
-                    <option value="all">Any category</option>{cats.map(([c, l]) => <option key={c} value={c}>{l}</option>)}
-                  </select>
-                  <select value={topic} onChange={(e) => setTopic(e.target.value)} style={{ ...s.cohortSel, ...(topic !== "all" ? s.cohortSelOn : {}) }}>
-                    <option value="all">Any topic</option>{topics.map((t) => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                  <select value={med} onChange={(e) => setMed(e.target.value)} style={{ ...s.cohortSel, ...(med !== "all" ? s.cohortSelOn : {}) }}>
-                    <option value="all">Any medication</option>{meds.map((m) => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                  <select value={dx} onChange={(e) => setDx(e.target.value)} style={{ ...s.cohortSel, ...(dx !== "all" ? s.cohortSelOn : {}) }}>
-                    <option value="all">Any diagnosis</option>{dxs.map((d) => <option key={d} value={d}>{d}</option>)}
-                  </select>
+                  {kind !== "neuro" && (
+                    <select value={cat} onChange={(e) => setCat(e.target.value)} style={{ ...s.cohortSel, ...(cat !== "all" ? s.cohortSelOn : {}) }}>
+                      <option value="all">{kind === "therapy" ? "Any modality" : "Any category"}</option>{cats.map(([c, l]) => <option key={c} value={c}>{l}</option>)}
+                    </select>
+                  )}
+                  {kind !== "therapy" && (
+                    <select value={topic} onChange={(e) => setTopic(e.target.value)} style={{ ...s.cohortSel, ...(topic !== "all" ? s.cohortSelOn : {}) }}>
+                      <option value="all">Any topic</option>
+                      {(kind === "neuro" ? neuroTopics : topics).map((t) => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  )}
+                  {kind === "prite" && (
+                    <select value={med} onChange={(e) => setMed(e.target.value)} style={{ ...s.cohortSel, ...(med !== "all" ? s.cohortSelOn : {}) }}>
+                      <option value="all">Any medication</option>{meds.map((m) => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  )}
+                  {kind === "prite" && (
+                    <select value={dx} onChange={(e) => setDx(e.target.value)} style={{ ...s.cohortSel, ...(dx !== "all" ? s.cohortSelOn : {}) }}>
+                      <option value="all">Any diagnosis</option>{dxs.map((d) => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  )}
                   <select value={year} onChange={(e) => setYear(e.target.value)} style={{ ...s.cohortSel, ...(year !== "all" ? s.cohortSelOn : {}) }}>
-                    <option value="all">Any year</option>{years.map((y) => <option key={y} value={y}>{y}</option>)}
+                    <option value="all">{kind === "neuro" ? "Any chapter" : kind === "therapy" ? "Any topic" : "Any year"}</option>
+                    {years.map((y) => {
+                      const sample = all.find((q) => q.year === y);
+                      const label = kind === "neuro" && sample
+                        ? neuroChapterOptionLabel(y, neuroChapter(sample))
+                        : kind === "therapy" && sample
+                          ? (therapyModality(sample) && therapyModality(sample) !== y ? `${therapyModality(sample)} · ${y}` : y)
+                          : y;
+                      return <option key={y} value={y}>{label}</option>;
+                    })}
                   </select>
                 </div>
               </div>

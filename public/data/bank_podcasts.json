@@ -1,0 +1,92 @@
+{
+  "therapy:Psychodynamic": [
+    {"videoId":"CPiA_uhnrpQ","title":"Psychodynamic Technique: Clarification, Confrontation, Interpretation","channel":"Psychofarm","why":"Walks the supportive-expressive intervention ladder these items test.","confidence":"high","kind":"lecture","tier":"direct","durationSec":2403},
+    {"videoId":"kqRlbzU3ukw","title":"Psychodynamic Psychopharmacology with Dr. David Mintz","channel":"Psychiatry & Psychotherapy","why":"Meaning of medication, split treatment, and the prescribing relationship.","confidence":"high","kind":"podcast","tier":"direct","durationSec":4410}
+  ],
+  "therapy:CBT": [
+    {"videoId":"l6-kV6IOgEQ","title":"CBT for OCD (ERP)","channel":"Prof. Suresh Bada Math","why":"Cognitive model plus exposure/response prevention as actually delivered.","confidence":"high","kind":"lecture","tier":"direct","durationSec":3243},
+    {"videoId":"17A_eL8h-Hk","title":"DBT vs CBT","channel":"Prof. Suresh Bada Math","why":"When CBT is the right modality versus a third-wave alternative.","confidence":"medium","kind":"lecture","tier":"related","durationSec":687}
+  ],
+  "therapy:DBT": [
+    {"videoId":"NUavPxCD_7U","title":"Practical steps in DBT","channel":"Prof. Suresh Bada Math","why":"Targets, chain analysis, and skills as used on the unit.","confidence":"high","kind":"lecture","tier":"direct","durationSec":1656},
+    {"videoId":"DZiR5ytnAe4","title":"Assumptions in DBT","channel":"Prof. Suresh Bada Math","why":"The dialectical stance these questions keep probing.","confidence":"high","kind":"lecture","tier":"direct","durationSec":591}
+  ],
+  "therapy:MI": [
+    {"videoId":"FpnaJFStVGQ","title":"The Power of Motivational Interviewing with Dr. William Miller","channel":"Psychiatry & Psychotherapy","why":"Spirit, change talk, and the OARS skills from the source.","confidence":"high","kind":"podcast","tier":"direct","durationSec":5065},
+    {"videoId":"oyePSkoO0qs","title":"Motivational Interviewing [MI]","channel":"Prof. Suresh Bada Math","why":"Compact MI principles lecture for applied psychiatric practice.","confidence":"high","kind":"lecture","tier":"direct","durationSec":2455}
+  ],
+  "therapy:IPT": [
+    {"videoId":"fG_PS5jRvlg","title":"Interpersonal Psychotherapy — Role Transitions","channel":"Prof. Suresh Bada Math","why":"IPT problem areas and how a role-transition focus is run.","confidence":"high","kind":"lecture","tier":"direct","durationSec":720}
+  ],
+  "therapy:Trauma-focused": [
+    {"videoId":"tPSmsu83vOA","title":"Assessment & Management of PTSD","channel":"Prof. Suresh Bada Math","why":"PTSD treatment choices these PE/CPT/EMDR items sit on.","confidence":"high","kind":"lecture","tier":"direct","durationSec":840},
+    {"videoId":"GmO9Mlbkqvw","title":"Trauma and Stressor Related Disorders","channel":"American Psychoanalytic Association","why":"Broader trauma-spectrum framing, including phase-based care.","confidence":"medium","kind":"lecture","tier":"related","durationSec":4897}
+  ],
+  "therapy:ACT": [
+    {"videoId":"17A_eL8h-Hk","title":"DBT vs CBT","channel":"Prof. Suresh Bada Math","why":"Places ACT among third-wave therapies next to CBT/DBT.","confidence":"medium","kind":"lecture","tier":"related","durationSec":687}
+  ],
+  "therapy:TFP & Supportive": [
+    {"videoId":"CPiA_uhnrpQ","title":"Psychodynamic Technique: Clarification, Confrontation, Interpretation","channel":"Psychofarm","why":"Supportive-expressive continuum that TFP and supportive therapy sit on.","confidence":"high","kind":"lecture","tier":"direct","durationSec":2403},
+    {"videoId":"4pR4E8s0dgQ","title":"BPD: Splitting & Identity Diffusion with Mark Ruffalo","channel":"Psychiatry & Psychotherapy","why":"Personality organization language TFP items use.","confidence":"high","kind":"podcast","tier":"direct","durationSec":6270}
+  ],
+  "therapy:MBT": [
+    {"videoId":"4pR4E8s0dgQ","title":"BPD: Splitting & Identity Diffusion with Mark Ruffalo","channel":"Psychiatry & Psychotherapy","why":"Mentalizing failures and identity diffusion in BPD work.","confidence":"medium","kind":"podcast","tier":"related","durationSec":6270}
+  ],
+  "therapy:Group, family & couples": [
+    {"videoId":"oyePSkoO0qs","title":"Motivational Interviewing [MI]","channel":"Prof. Suresh Bada Math","why":"Collaborative stance that also shows up in family/couples work.","confidence":"medium","kind":"lecture","tier":"related","durationSec":2455}
+  ],
+  "therapy:Integration": [
+    {"videoId":"17A_eL8h-Hk","title":"DBT vs CBT","channel":"Prof. Suresh Bada Math","why":"Choosing and combining modalities — the integration items.","confidence":"high","kind":"lecture","tier":"direct","durationSec":687}
+  ],
+  "therapy:Psychosocial": [
+    {"videoId":"oyePSkoO0qs","title":"Motivational Interviewing [MI]","channel":"Prof. Suresh Bada Math","why":"Psychosocial intervention stance and collaborative change.","confidence":"medium","kind":"lecture","tier":"related","durationSec":2455}
+  ],
+  "neuro:Epilepsy": [
+    {"videoId":"OHMAoVmotXo","title":"Pregnancy Safe with Epilepsy. Avoid Valproate","channel":"American Academy of Neurology","why":"Prescribing epilepsy drugs in a psychiatry-relevant population.","confidence":"high","kind":"lecture","tier":"direct","durationSec":607}
+  ],
+  "neuro:Dementia": [
+    {"videoId":"DxYioI3WUUA","title":"Vascular Dementia, DLB, Frontotemporal Dementia","channel":"Memorable Psychiatry and Neurology","why":"The dementia differentials Kaufman keeps asking.","confidence":"high","kind":"lecture","tier":"direct","durationSec":834},
+    {"videoId":"eKsf8hAn6DI","title":"Psychiatry Lecture: Dementia","channel":"Psychiatry Lectures","why":"Clinical features and exam for the same chapter.","confidence":"medium","kind":"lecture","tier":"related","durationSec":3011}
+  ],
+  "neuro:Sleep Disorders": [
+    {"videoId":"3h_AwmM6SxA","title":"Sleep and Sleep Disorders","channel":"Memorable Psychiatry and Neurology","why":"Insomnia, narcolepsy, and the sleep-psychiatry overlap.","confidence":"high","kind":"lecture","tier":"direct","durationSec":1341}
+  ],
+  "neuro:Involuntary Movement Disorders": [
+    {"videoId":"U3Ktz-UbqDo","title":"Essential Tremor vs Parkinson Tremor","channel":"JAMA Network","why":"Bedside tremor distinction these items test.","confidence":"high","kind":"lecture","tier":"direct","durationSec":260},
+    {"videoId":"X0JX1rSAUjk","title":"Neuropsychiatric Aspects of Parkinson's Disease","channel":"Prof. Suresh Bada Math","why":"Psychiatry of movement-disorder patients.","confidence":"high","kind":"lecture","tier":"direct","durationSec":2242}
+  ],
+  "neuro:Transient Ischemic Attacks and Stroke": [
+    {"videoId":"p52QcpxczSQ","title":"Circle of Willis and Stroke","channel":"Armando Hasudungan","why":"Vascular territories behind the stroke questions.","confidence":"high","kind":"lecture","tier":"direct","durationSec":504}
+  ],
+  "neuro:Headaches": [
+    {"videoId":"R5DNwE4JehM","title":"Cluster Headache, SUNCT, and SUNA","channel":"American Academy of Neurology","why":"Primary headache syndromes Kaufman contrasts.","confidence":"high","kind":"podcast","tier":"direct","durationSec":1398}
+  ],
+  "neuro:Multiple Sclerosis": [
+    {"videoId":"yzH8ul5PSZ8","title":"Multiple sclerosis — pathology and clinical features","channel":"Osmosis from Elsevier","why":"MS localization and findings used in the chapter items.","confidence":"high","kind":"lecture","tier":"direct","durationSec":676}
+  ],
+  "neuro:Muscle Disorders": [
+    {"videoId":"Gut8w4a3zas","title":"Myasthenia Gravis","channel":"Medicosis Perfectionalis","why":"Fatigable weakness and the neuromuscular chapter.","confidence":"high","kind":"lecture","tier":"direct","durationSec":1789},
+    {"videoId":"XCN4IdFEbe0","title":"Muscle Channelopathies and Rhabdomyolysis","channel":"Continuum","why":"Periodic paralysis and muscle-channel items.","confidence":"high","kind":"podcast","tier":"direct","durationSec":1461}
+  ],
+  "neuro:Aphasia and Anosognosia": [
+    {"videoId":"jQn_7uQe5MA","title":"Wernicke's Aphasia (Fluent Aphasia)","channel":"Medicosis Perfectionalis","why":"Fluent vs nonfluent aphasia localization.","confidence":"high","kind":"lecture","tier":"direct","durationSec":606}
+  ],
+  "neuro:Neurologic Aspects of Chronic Pain": [
+    {"videoId":"edPyzuDIX6s","title":"Chronic Pain, Opioids, Tapers","channel":"The Curbsiders Internal Medicine","why":"Pain-psychiatry overlap and opioid caveats.","confidence":"medium","kind":"podcast","tier":"related","durationSec":3932}
+  ],
+  "neuro:Traumatic Brain Injury": [
+    {"videoId":"4yUsfy6hMpQ","title":"Traumatic Brain Injury [Part 1]","channel":"Prof. Suresh Bada Math","why":"TBI neuropsychiatry overview for the chapter.","confidence":"high","kind":"lecture","tier":"direct","durationSec":2580}
+  ],
+  "neuro:Lumbar Puncture and Imaging Studies": [
+    {"videoId":"QpKr7kvaH5c","title":"Lumbar Puncture and CSF Analysis","channel":"Medicosis Perfectionalis","why":"How an LP is done and what the tubes mean.","confidence":"high","kind":"lecture","tier":"direct","durationSec":1090}
+  ],
+  "neuro:Neurotransmitters and Drug Abuse": [
+    {"videoId":"F9fsFuGULm0","title":"Neurotransmitters","channel":"Neuroscientifically Challenged","why":"Transmitter systems behind the pharmacology items.","confidence":"high","kind":"lecture","tier":"direct","durationSec":858}
+  ],
+  "neuro:Cranial Nerve Impairments": [
+    {"videoId":"jQn_7uQe5MA","title":"Wernicke's Aphasia (Fluent Aphasia)","channel":"Medicosis Perfectionalis","why":"Related localization thinking for cranial-nerve and language items.","confidence":"medium","kind":"lecture","tier":"related","durationSec":606}
+  ],
+  "neuro:Peripheral Nerve Disorders": [
+    {"videoId":"Gut8w4a3zas","title":"Myasthenia Gravis","channel":"Medicosis Perfectionalis","why":"Neuromuscular junction vs peripheral-nerve weakness.","confidence":"medium","kind":"lecture","tier":"related","durationSec":1789}
+  ]
+}
