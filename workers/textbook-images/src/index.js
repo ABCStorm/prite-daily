@@ -12,6 +12,9 @@
  * GET /refs.json              — K&S citation index (plain JSON)
  * GET /dsm/<image>.png        — a single DSM-5-TR page screenshot (dsm-NNNNN.png)
  * GET /dsm-refs.json          — DSM-5-TR section/page-window index
+ * GET /kaufman/<image>.png    — a single Kaufman 9e page (kf-NNNNN.png)
+ * GET /kaufman-refs.json      — PRITE → Kaufman section/page-window index
+ * GET /kaufman-questions.json — extracted Kaufman MCQ practice bank
  *   Authorization: Bearer <supabase access_token>
  *
  * The citation indexes are gated too, not just the images: the quotes/pages are
@@ -73,8 +76,8 @@ export default {
     // unauthenticated caller can't tell a real filename from a bogus one.
     let key = null
     let extra = null
-    if (path === '/refs.json' || path === '/dsm-refs.json') {
-      key = path === '/refs.json' ? 'refs.json' : 'dsm-refs.json'
+    if (path === '/refs.json' || path === '/dsm-refs.json' || path === '/kaufman-refs.json' || path === '/kaufman-questions.json') {
+      key = path.slice(1)
       // Stored UNCOMPRESSED on purpose. It was briefly stored pre-gzipped with a
       // hand-set `Content-Encoding: gzip`, which broke in production: Cloudflare
       // did not pass that header through, so browsers got raw gzip bytes and
@@ -98,6 +101,12 @@ export default {
       const name = decodeURIComponent(path.slice('/dsm/'.length))
       // DSM pages: dsm-01234.png only (no traversal / listing).
       if (/^dsm-\d{5}\.png$/.test(name)) {
+        key = name
+        extra = { 'Content-Type': 'image/png' }
+      }
+    } else if (path.startsWith('/kaufman/')) {
+      const name = decodeURIComponent(path.slice('/kaufman/'.length))
+      if (/^kf-\d{5}\.png$/.test(name) || /^kf-fig-[A-Za-z0-9._-]+\.png$/.test(name)) {
         key = name
         extra = { 'Content-Type': 'image/png' }
       }

@@ -224,4 +224,56 @@ await it('preflight needs no auth', async () => {
   assert.equal(r.status, 200)
 })
 
+console.log('\nkaufman routes')
+
+await it('kaufman-refs.json without token -> 401', async () => {
+  const r = await call('/kaufman-refs.json')
+  assert.equal(r.status, 401)
+})
+
+await it('kaufman image traversal -> 404', async () => {
+  const r = await call('/kaufman/../../etc/passwd', { token: 'good-token' })
+  assert.equal(r.status, 404)
+})
+
+await it('kaufman bad filename -> 404', async () => {
+  const r = await call('/kaufman/dsm-00001.png', { token: 'good-token' })
+  assert.equal(r.status, 404)
+})
+
+await it('kaufman figure crop is allowed', async () => {
+  const env = makeEnv({
+    objects: new Map([['kf-fig-4-11.png', PNG]]),
+  })
+  const r = await worker.fetch(req('/kaufman/kf-fig-4-11.png', { token: 'good-token' }), env)
+  assert.equal(r.status, 200)
+})
+
+await it('kaufman figure traversal -> 404', async () => {
+  const r = await call('/kaufman/kf-fig-../../x.png', { token: 'good-token' })
+  assert.equal(r.status, 404)
+})
+
+await it('valid token can read a Kaufman page', async () => {
+  const env = makeEnv({
+    objects: new Map([
+      ['kf-00210.png', PNG],
+      ['kaufman-refs.json', JSON_BODY],
+    ]),
+  })
+  const r = await worker.fetch(req('/kaufman/kf-00210.png', { token: 'good-token' }), env)
+  assert.equal(r.status, 200)
+  assert.equal(r.headers.get('Content-Type'), 'image/png')
+})
+
+await it('kaufman-refs.json is JSON and not hand-encoded', async () => {
+  const env = makeEnv({
+    objects: new Map([['kaufman-refs.json', JSON_BODY]]),
+  })
+  const r = await worker.fetch(req('/kaufman-refs.json', { token: 'good-token' }), env)
+  assert.equal(r.status, 200)
+  assert.match(r.headers.get('Content-Type'), /application\/json/)
+  assert.equal(r.headers.get('Content-Encoding'), null)
+})
+
 console.log(`\n${passed} passed${process.exitCode ? ' (with failures)' : ''}\n`)

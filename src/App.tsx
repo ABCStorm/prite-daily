@@ -20,6 +20,8 @@ import { ResearchPanel } from "./lib/researchPanel";
 import { loadResearchRefs, type ResearchRef } from "./lib/researchRefs";
 import { DsmPanel } from "./lib/dsmPanel";
 import { loadDsmRefs, type DsmRef } from "./lib/dsmRefs";
+import { KaufmanPanel, KaufmanFigure } from "./lib/kaufmanPanel";
+import { loadKaufmanRefs, loadKaufmanQuestions, type KaufmanRef } from "./lib/kaufmanRefs";
 import { WiseOwl } from "./lib/WiseOwl";
 import { loadOwlStats, type OwlStat } from "./lib/owlStats";
 import { AnalystFox } from "./lib/AnalystFox";
@@ -265,6 +267,16 @@ type RawQuestion = {
       year's exam — see extraction/detect_repeats.mjs. count includes this
       occurrence; years lists every year the group appeared in. */
   repeat_count?: number; repeat_years?: string[];
+  /** Present on extracted Kaufman 9e practice items. */
+  kaufman?: {
+    chapter_num?: number | string;
+    chapter?: string;
+    pdf_page?: number;
+    book_number?: number;
+    needs_figure?: boolean;
+    stem_figures?: { id: string; page: number; file: string; caption?: string }[];
+    expl_figures?: { id: string; page: number; file: string; caption?: string }[];
+  };
 };
 
 type GroupNote = { author: string; role: string; time: string; text: string };
@@ -1026,7 +1038,11 @@ function streakMessage(kind: "login" | "completion", streak: number): string {
 }
 
 export default function App() {
-  const [all, setAll] = useState<RawQuestion[] | null>(null);
+  const [priteAll, setPriteAll] = useState<RawQuestion[] | null>(null);
+  const [kaufmanAll, setKaufmanAll] = useState<RawQuestion[] | null>(null);
+  const [kaufmanBankErr, setKaufmanBankErr] = useState<string | null>(null);
+  const [psychMode, setPsychMode] = useState<"general" | "child" | "neuro">("general");
+  const all = psychMode === "neuro" ? kaufmanAll : priteAll;
   const [loadErr, setLoadErr] = useState<string | null>(null);
   // question id -> supporting Kaplan & Sadock passage(s); empty until loaded
   const [kaplanRefs, setKaplanRefs] = useState<Record<string, KaplanRef>>({});
@@ -1040,6 +1056,8 @@ export default function App() {
   // question id -> DSM-5-TR section link (static offline match)
   const [dsmRefs, setDsmRefs] = useState<Record<string, DsmRef>>({});
   const [dsmErr, setDsmErr] = useState<string | null>(null);
+  const [kaufmanRefs, setKaufmanRefs] = useState<Record<string, KaufmanRef>>({});
+  const [kaufmanErr, setKaufmanErr] = useState<string | null>(null);
   const [owlStats, setOwlStats] = useState<Record<string, OwlStat>>({});
   const [dynPearls, setDynPearls] = useState<Record<string, DynPearl>>({});
 
@@ -1311,8 +1329,8 @@ export default function App() {
   const [showBoard, setShowBoard] = useState(false);
   const [boardClosing, setBoardClosing] = useState(false); // play the summit pull-out before closing the leaderboard
   const [showCapite, setShowCapite] = useState(false); // "coming soon" modal — CAPITE bank isn't built yet
-  const [psychMode, setPsychMode] = useState<"general" | "child">("general"); // General/Child Psychiatry toggle
   const selectChildPsych = () => { setPsychMode("child"); setShowCapite(true); };
+  const selectNeuro = () => { setShowCapite(false); setPsychMode("neuro"); setYear("all"); setQi(0); };
   const closeCapite = () => { setShowCapite(false); setPsychMode("general"); }; // bounces back — nothing to switch to yet
   const [leaders, setLeaders] = useState<LeaderRow[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -1674,7 +1692,7 @@ export default function App() {
     if (isConfigured && !(signedIn && approved)) return;
     let alive = true;
     loadQuestionBank()
-      .then((data) => { if (alive) setAll(data as RawQuestion[]); })
+      .then((data) => { if (alive) setPriteAll(data as RawQuestion[]); })
       .catch((e) => { if (alive) setLoadErr(String(e?.message ?? e)); });
     return () => { alive = false; };
   }, [signedIn, approved]);
@@ -1726,6 +1744,34 @@ export default function App() {
     return () => { alive = false; };
   }, [signedIn, approved]);
 
+  // Kaufman 9e chapter windows for neurology PRITE items.
+  useEffect(() => {
+    if (isConfigured && !(signedIn && approved)) return;
+    let alive = true;
+    loadKaufmanRefs()
+      .then((m) => { if (alive) { setKaufmanRefs(m); setKaufmanErr(null); } })
+      .catch((e) => {
+        if (alive) setKaufmanErr(String(e?.message ?? e));
+        console.warn("[kaufman] section index failed to load:", e);
+      });
+    return () => { alive = false; };
+  }, [signedIn, approved]);
+
+  // Kaufman practice bank — only fetched when the Neuro toggle is on.
+  useEffect(() => {
+    if (psychMode !== "neuro") return;
+    if (isConfigured && !(signedIn && approved)) return;
+    if (kaufmanAll) return;
+    let alive = true;
+    loadKaufmanQuestions()
+      .then((data) => { if (alive) { setKaufmanAll(data as RawQuestion[]); setKaufmanBankErr(null); } })
+      .catch((e) => {
+        if (alive) setKaufmanBankErr(String(e?.message ?? e));
+        console.warn("[kaufman] practice bank failed to load:", e);
+      });
+    return () => { alive = false; };
+  }, [psychMode, signedIn, approved, kaufmanAll]);
+
   // Stat Cat pearls: one verified statistic + source URL per question.
   useEffect(() => {
     if (isConfigured && !(signedIn && approved)) return;
@@ -1746,19 +1792,28 @@ export default function App() {
     return () => { alive = false; };
   }, [signedIn, approved]);
 
-  const years = useMemo(
-    () => (all ? Array.from(new Set(all.map((q) => q.year))).sort() : []),
-    [all]
-  );
+  const years = useMemo(() => {
+    if (!all) return [];
+    const ys = Array.from(new Set(all.map((q) => q.year)));
+    if (psychMode === "neuro") {
+      return ys.sort((a, b) => {
+        const rank = (y: string) => (y === "Review" ? 99 : parseInt(y.replace(/\D/g, ""), 10) || 0);
+        return rank(a) - rank(b);
+      });
+    }
+    return ys.sort();
+  }, [all, psychMode]);
   const browseSet = useMemo(
     () => (all ? (year === "all" ? all : all.filter((q) => q.year === year)) : []),
     [all, year]
   );
   const byId = useMemo(() => {
     const m = new Map<string, RawQuestion>();
-    if (all) for (const qq of all) m.set(questionId(qq.year, qq.q_index), qq);
+    for (const bank of [priteAll, kaufmanAll]) {
+      if (bank) for (const qq of bank) m.set(questionId(qq.year, qq.q_index), qq);
+    }
     return m;
-  }, [all]);
+  }, [priteAll, kaufmanAll]);
   // Repeat-groups already used across ALL of this user's saved tests, so the
   // random test generator can skip questions (and their cross-year twins)
   // already handed out in a prior week's set.
@@ -2221,7 +2276,7 @@ export default function App() {
     return <TrainingLevelGate onSaved={reloadProfile} />;
 
   if (loadErr) return <Center>Couldn’t load the question bank: {loadErr}</Center>;
-  if (!all) return <Center>Loading the PRITE bank…</Center>;
+  if (!all) return <Center>{psychMode === "neuro" ? (kaufmanBankErr ? `Kaufman questions: ${kaufmanBankErr}` : "Loading Kaufman questions…") : "Loading the PRITE bank…"}</Center>;
   // "Caught up today" is no longer a full-page takeover (that felt like leaving
   // the site). It now renders as a card in the normal app shell — the header,
   // nav and study bar stay put, and only the question slot is swapped for the
@@ -2392,6 +2447,19 @@ export default function App() {
   const kaplan = q ? kaplanRefs[questionId(q.year, q.q_index)] : undefined;
   const research = q ? researchRefs[questionId(q.year, q.q_index)] : undefined;
   const dsm = q ? dsmRefs[questionId(q.year, q.q_index)] : undefined;
+  const kaufman: KaufmanRef | undefined = q
+    ? (q.kaufman?.pdf_page
+        ? {
+            section: String(q.kaufman.chapter_num ?? "R"),
+            title: q.kaufman.chapter || q.prite_label || "Kaufman",
+            why: "This item and its explanation come from the book’s question-and-answer section. Page through to read the surrounding discussion and any figures.",
+            book: "Kaufman's Clinical Neurology for Psychiatrists, 9th ed.",
+            page: q.kaufman.pdf_page,
+            lo: Math.max(1, q.kaufman.pdf_page - 1),
+            hi: q.kaufman.pdf_page + 2,
+          }
+        : kaufmanRefs[questionId(q.year, q.q_index)])
+    : undefined;
   const owl = q ? owlStats[questionId(q.year, q.q_index)] : undefined;
   const dyn = q ? dynPearls[questionId(q.year, q.q_index)] : undefined;
   const sections: [string, string, string, React.ReactNode][] = [
@@ -2401,6 +2469,9 @@ export default function App() {
       : []),
     ...(dsm
       ? ([["dsm", "DSM-5-TR", "Diagnostic criteria section", <BookMarked size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
+      : []),
+    ...(kaufman
+      ? ([["kaufman", "Kaufman", "Clinical neurology for psychiatrists", <Brain size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
       : []),
     ...(ankingImgs.length
       ? ([["anking", "AnKing", "AnKing / AnkiHub diagrams", <ImageIcon size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
@@ -2774,7 +2845,7 @@ export default function App() {
             </span>
             {persist ? (
               <span style={s.who} className="topActions mobExtra">
-                <span style={s.navSegRow} className="topActBtn" title="General Psychiatry (PRITE) vs. Child & Adolescent Psychiatry (CAPITE)">
+                <span style={s.navSegRow} className="topActBtn" title="PRITE, CAPITE, or Kaufman neurology practice questions">
                   <button
                     style={{ ...s.navSegBtn, ...(psychMode === "general" ? s.navSegOn : {}) }}
                     onClick={() => setPsychMode("general")}
@@ -2786,6 +2857,12 @@ export default function App() {
                     onClick={selectChildPsych}
                   >
                     <Baby size={12} strokeWidth={2.3} /> <span className="btnTxt">Child</span>
+                  </button>
+                  <button
+                    style={{ ...s.navSegBtn, ...(psychMode === "neuro" ? s.navSegOn : {}) }}
+                    onClick={selectNeuro}
+                  >
+                    <Brain size={12} strokeWidth={2.3} /> <span className="btnTxt">Neuro</span>
                   </button>
                 </span>
                 <button style={s.approveBtn} className="topActBtn" onClick={() => setShowBoard(true)} title="Leaderboard">
@@ -2872,9 +2949,15 @@ export default function App() {
       <main style={
         examActive ? { ...s.well, maxWidth: 880 }
           // Textbook pages are large screenshots — give them most of the screen width.
-          : (openSections.has("textbook") || openSections.has("dsm")) && showAnswer ? { ...s.well, maxWidth: 1100 }
+          : (openSections.has("textbook") || openSections.has("dsm") || openSections.has("kaufman")) && showAnswer ? { ...s.well, maxWidth: 1100 }
           : s.well
       }>
+        {psychMode === "neuro" && !examActive && (
+          <div style={{ fontSize: 13, color: T.muted, margin: "0 0 10px", lineHeight: 1.45 }}>
+            Practice questions from <b style={{ color: T.text, fontWeight: 650 }}>Kaufman’s Clinical Neurology for Psychiatrists</b>, 9th ed.
+            Explanations are the book’s own. Open the Kaufman tab after you answer to read the surrounding pages.
+          </div>
+        )}
         {/* Navigation / filter row */}
         <div style={s.nav} className={examActive ? "examDim" : undefined}>
           {persist && (
@@ -2971,7 +3054,7 @@ export default function App() {
             </span>
           ) : (
             <select value={year} onChange={(e) => { setYear(e.target.value); setQi(0); }} style={s.sel}>
-              <option value="all">All years ({all.length})</option>
+              <option value="all">{psychMode === "neuro" ? "All chapters" : "All years"} ({all.length})</option>
               {years.map((y) => (
                 <option key={y} value={y}>{y} ({all.filter((x) => x.year === y).length})</option>
               ))}
@@ -3108,7 +3191,11 @@ export default function App() {
         <>
         {/* Provenance line */}
         <div style={s.progressRow} className={examActive ? "examDim" : undefined}>
-          <span style={s.qeyebrow}>{q.year} · Q{q.q_index} <span style={{ color: T.faint }}>(slide {q.slide_number})</span></span>
+          <span style={s.qeyebrow}>
+            {q.kaufman
+              ? <>Kaufman · {q.year} · Q{q.kaufman.book_number ?? q.q_index}{q.prite_label ? <span style={{ color: T.faint }}> · {q.prite_label.replace(/^Chapter \d+:\s*/, "")}</span> : null}</>
+              : <>{q.year} · Q{q.q_index} <span style={{ color: T.faint }}>(slide {q.slide_number})</span></>}
+          </span>
           {reviewMode && <span style={{ ...s.multiTag, color: T.teal, background: T.tealSoft }}><RotateCcw size={12} strokeWidth={2.2} /> Reviewing missed — try again</span>}
           {q.multi_select && <span style={s.multiTag}><ListChecks size={12} strokeWidth={2.2} /> Select {requiredSelections} answers</span>}
           {recentHighYieldRepeat && (
@@ -3160,6 +3247,15 @@ export default function App() {
           )}
           {dyn && foxOn && !examActive && <AnalystFox qid={qid} pearl={dyn} theme={T} />}
           {owl && owlOn && !examActive && <WiseOwl qid={qid} stat={owl} theme={T} />}
+          {(q.kaufman?.stem_figures ?? []).map((fig) => (
+            <KaufmanFigure
+              key={fig.file}
+              file={fig.file}
+              caption={fig.caption}
+              theme={T}
+              onZoom={setZoomImg}
+            />
+          ))}
           {q.figure_images.filter((p) => imgSrc(p)).length > 0 && (
             <>
               <div style={{ ...s.figRow, ...((owlOn || foxOn) && !examActive ? { paddingRight: owl && owlOn ? 78 : 0, paddingLeft: dyn && foxOn ? 84 : 0 } : {}) }}>
@@ -3502,6 +3598,15 @@ export default function App() {
               {id === "explanation" && (
                 <div className="fade">
                   {q.explanation_text && <ExplanationText text={q.explanation_text} style={s.expl} />}
+                  {(q.kaufman?.expl_figures ?? []).map((fig) => (
+                    <KaufmanFigure
+                      key={fig.file}
+                      file={fig.file}
+                      caption={fig.caption}
+                      theme={T}
+                      onZoom={setZoomImg}
+                    />
+                  ))}
                   {q.explanation_images.filter((p) => imgSrc(p)).map((p, i) => (
                     <AuditedQuestionImage
                       key={i}
@@ -3532,6 +3637,12 @@ export default function App() {
               {id === "dsm" && dsm && (
                 <div className="fade">
                   <DsmPanel data={dsm} theme={T} onZoom={setZoomImg} />
+                </div>
+              )}
+
+              {id === "kaufman" && kaufman && (
+                <div className="fade">
+                  <KaufmanPanel data={kaufman} theme={T} onZoom={setZoomImg} />
                 </div>
               )}
 
