@@ -103,6 +103,7 @@ export type AnswerRow = {
   correct: boolean;
   first_correct: boolean;
   attempts: number;
+  created_at?: string; // first attempt; the trend chart keys off this, not updated_at
   updated_at: string;
   cleared?: boolean; // dismissed from the "learning opportunities" list (history kept)
 };
@@ -138,42 +139,81 @@ export async function saveSettings(patch: Partial<Settings>): Promise<void> {
   await supabase.from("settings").update(patch).eq("user_id", u.user.id);
 }
 
-/** All of my answers, as a map keyed by question_id (for fast lookup). */
+/** All of my answers, as a map keyed by question_id (for fast lookup).
+    Pages through the PostgREST default 1000-row cap so a resident past ~1k
+    questions doesn't silently lose the tail (or a just-finished 40-set). */
 export async function getMyAnswers(): Promise<Record<string, AnswerRow>> {
   if (!supabase) return {};
-  const { data, error } = await supabase.from("answers").select("*");
-  if (error) { console.warn("getMyAnswers", error.message); return {}; }
   const map: Record<string, AnswerRow> = {};
-  for (const r of (data ?? []) as AnswerRow[]) map[r.question_id] = r;
+  const PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from("answers")
+      .select("*")
+      .order("question_id", { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error) { console.warn("getMyAnswers", error.message); break; }
+    const rows = (data ?? []) as AnswerRow[];
+    for (const r of rows) map[r.question_id] = r;
+    if (rows.length < PAGE) break;
+  }
   return map;
 }
 
-/** Upsert an answer; tracks attempts and first-attempt correctness. */
-export async function saveAnswer(
+/** Build the next answers-row locally so a close/reload can keep it even if
+    the network write is still in flight. Retrying later upserts this same
+    row (attempts already applied) instead of incrementing again. */
+export function nextAnswerRow(
+  existing: AnswerRow | undefined,
   questionId: string,
   picked: string[],
-  correct: boolean
-): Promise<AnswerRow | null> {
-  if (!supabase) return null;
-  const { data: u } = await supabase.auth.getUser();
-  if (!u.user) return null;
-  const uid = u.user.id;
-  const { data: existing } = await supabase
-    .from("answers").select("attempts, first_correct")
-    .eq("user_id", uid).eq("question_id", questionId).maybeSingle();
-  const row = {
+  correct: boolean,
+  uid: string,
+): AnswerRow {
+  const now = new Date().toISOString();
+  return {
     user_id: uid,
     question_id: questionId,
     picked,
     correct,
     first_correct: existing ? existing.first_correct : correct,
     attempts: existing ? existing.attempts + 1 : 1,
-    updated_at: new Date().toISOString(),
+    created_at: existing?.created_at ?? now,
+    updated_at: now,
+    ...(existing?.cleared ? { cleared: existing.cleared } : {}),
   };
+}
+
+/** Write an already-built answer row. Idempotent for retries. */
+export async function pushAnswerRow(row: AnswerRow): Promise<AnswerRow | null> {
+  if (!supabase) return null;
+  const { data: u } = await supabase.auth.getUser();
+  if (!u.user) return null;
+  const payload = { ...row, user_id: u.user.id };
   const { data, error } = await supabase
-    .from("answers").upsert(row, { onConflict: "user_id,question_id" }).select().maybeSingle();
+    .from("answers").upsert(payload, { onConflict: "user_id,question_id" }).select().maybeSingle();
   if (error) { console.warn("saveAnswer", error.message); return null; }
   return data as AnswerRow;
+}
+
+/** Upsert an answer; tracks attempts and first-attempt correctness. */
+export async function saveAnswer(
+  questionId: string,
+  picked: string[],
+  correct: boolean,
+  existing?: AnswerRow | null,
+): Promise<AnswerRow | null> {
+  if (!supabase) return null;
+  const { data: u } = await supabase.auth.getUser();
+  if (!u.user) return null;
+  let prior = existing ?? undefined;
+  if (!prior) {
+    const { data } = await supabase
+      .from("answers").select("attempts, first_correct, created_at, cleared")
+      .eq("user_id", u.user.id).eq("question_id", questionId).maybeSingle();
+    prior = (data as AnswerRow | null) ?? undefined;
+  }
+  return pushAnswerRow(nextAnswerRow(prior, questionId, picked, correct, u.user.id));
 }
 
 /** Clear my "learning opportunities" — flag every missed answer (correct = false)

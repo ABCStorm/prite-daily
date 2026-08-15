@@ -14,6 +14,7 @@
    the union/max merges are what protect streaks from ever going backwards. */
 
 import { supabase } from "./supabase";
+import { pickDailyOrder } from "./dailyOrder";
 
 const PUSH_DEBOUNCE_MS = 1500;
 
@@ -123,9 +124,9 @@ export function syncClientPrefs(uid: string, remoteRaw: Record<string, unknown> 
     learning_open_sections: Array.isArray(r.learning_open_sections)
       ? learningSectionList(r.learning_open_sections)
       : l.learning_open_sections,
-    // Same reasoning: an arrangement (or a cleared one) is a choice, not an
-    // accumulation, so it must not be unioned across devices.
-    daily_order: Array.isArray(r.daily_order) ? strList(r.daily_order) : l.daily_order,
+    // A real rearrangement (local or account) wins. The old missed-first
+    // default is treated as unset so the year-first default can take over.
+    daily_order: pickDailyOrder(l.daily_order, r.daily_order),
     year_focus: Array.isArray(r.year_focus) ? strList(r.year_focus) : l.year_focus,
     owl_on: typeof r.owl_on === "boolean" ? r.owl_on : l.owl_on,
     fox_on: typeof r.fox_on === "boolean" ? r.fox_on : l.fox_on,

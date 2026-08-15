@@ -143,6 +143,9 @@ import {
 } from "./lib/poll";
 import { ImmersiveScene, ImmersiveFlash } from "./ImmersiveScene";
 import { nextPollDrumrollGif, prefetchPollDrumrollGifs } from "./lib/pollGifs";
+import { hydrateAnswers, rememberAnswer, confirmAnswer, retryPendingAnswers } from "./lib/answersSync";
+import { buildPerfChart } from "./lib/perfChart";
+import { DEFAULT_DAILY_ORDER, isUnspecifiedDailyOrder } from "./lib/dailyOrder";
 import { AdminUsageDashboard } from "./AdminUsageDashboard";
 import ClosingPlasmaBackground from "./ClosingPlasmaBackground";
 
@@ -398,8 +401,34 @@ type TodayQueueSnap = {
   extra: boolean;
   bonusRound: number;
   reviewMode: boolean;
+  qi?: number;
   ids: { year: string; q_index: number }[];
 };
+type CustomQueueSnap = {
+  label: string;
+  qi: number;
+  ids: { year: string; q_index: number }[];
+};
+function customQueueKey(uid: string) {
+  return `pd_custom_queue_${uid}`;
+}
+function readCustomQueueSnap(uid: string): CustomQueueSnap | null {
+  try {
+    const raw = localStorage.getItem(customQueueKey(uid));
+    if (!raw) return null;
+    const v = JSON.parse(raw) as CustomQueueSnap;
+    if (!v || !Array.isArray(v.ids) || v.ids.length === 0) return null;
+    return v;
+  } catch {
+    return null;
+  }
+}
+function writeCustomQueueSnap(uid: string, snap: CustomQueueSnap | null) {
+  try {
+    if (!snap) localStorage.removeItem(customQueueKey(uid));
+    else localStorage.setItem(customQueueKey(uid), JSON.stringify(snap));
+  } catch { /* private mode */ }
+}
 function todayQueueKey(uid: string) {
   return `pd_today_queue_${uid}`;
 }
@@ -606,12 +635,11 @@ const ORDER_RULES: { id: OrderRuleId; label: string; hint: string }[] = [
   { id: "year",      label: "Exam year",              hint: "Newest exams first, unless you pin years below" },
 ];
 
-// Matches the behaviour that shipped before this setting existed: missed
-// questions first, then newest exams. Existing users see no change until they
-// rearrange something.
-const DEFAULT_ORDER: OrderRuleId[] = ["missed", "year", "weak", "highyield", "unseen"];
+// Newest exams first unless the resident has rearranged "What comes first".
+const DEFAULT_ORDER: OrderRuleId[] = [...DEFAULT_DAILY_ORDER];
 
 function normalizeOrder(raw: unknown): OrderRuleId[] {
+  if (isUnspecifiedDailyOrder(raw)) return [...DEFAULT_ORDER];
   const ids = ORDER_RULES.map((r) => r.id);
   const seen = Array.isArray(raw)
     ? raw.filter((v): v is OrderRuleId => typeof v === "string" && (ids as string[]).includes(v))
@@ -1419,7 +1447,13 @@ export default function App() {
   useEffect(() => {
     if (persist) {
       setAnswersLoaded(false);
-      getMyAnswers().then((a) => { setAnswers(a); setAnswersLoaded(true); });
+      const uid = profile?.id ?? session?.user?.id ?? "local";
+      getMyAnswers().then((server) => {
+        const { merged, pending } = hydrateAnswers(uid, server);
+        setAnswers(merged);
+        setAnswersLoaded(true);
+        if (pending.length) void retryPendingAnswers(uid, pending);
+      });
       getMySettings().then((st) => {
         setSettings(st);
         // Merge the account's synced prefs (streak days, timer/exam prefs,
@@ -1579,6 +1613,7 @@ export default function App() {
         extra,
         bonusRound: nextBonus,
         reviewMode: false,
+        qi: 0,
         ids: picked.map((qq) => ({ year: String(qq.year), q_index: qq.q_index })),
       });
       return nextBonus;
@@ -1595,16 +1630,18 @@ export default function App() {
       return row && !row.correct && !row.cleared;
     });
     const picked = missed.slice(0, 30);
+    const uid = profile?.id ?? session?.user?.id ?? "local";
     setReviewMode(true);
     setBonusRound(0);
     setTodayQueue(picked);
     setMode("today"); setQi(0);
-    const uid = profile?.id ?? session?.user?.id ?? "local";
+    try { localStorage.setItem(`pd_practice_mode_${uid}`, "today"); } catch { /* private mode */ }
     writeTodayQueueSnap(uid, {
       day: ymd(),
       extra: false,
       bonusRound: 0,
       reviewMode: true,
+      qi: 0,
       ids: picked.map((qq) => ({ year: String(qq.year), q_index: qq.q_index })),
     });
   }, [all, profile?.id, session?.user?.id]);
@@ -1613,9 +1650,9 @@ export default function App() {
   useEffect(() => {
     if (!persist || !answersLoaded || !all) return;
     const uid = profile?.id ?? session?.user?.id ?? "local";
+    const byId = new Map(all.map((qq) => [questionId(qq.year, qq.q_index), qq]));
     const snap = readTodayQueueSnap(uid);
     if (snap && snap.ids.length > 0) {
-      const byId = new Map(all.map((qq) => [questionId(qq.year, qq.q_index), qq]));
       const restored = snap.ids
         .map((id) => byId.get(questionId(id.year, id.q_index)))
         .filter((qq): qq is RawQuestion => !!qq);
@@ -1626,16 +1663,53 @@ export default function App() {
         // stuck in a two-concept loop gets a real set after refreshing.
         if (repaired.length < restored.length) {
           buildToday(snap.extra, snap.extra ? snap.ids.length : undefined);
-          return;
+        } else {
+          setTodayQueue(restored);
+          setBonusRound(snap.bonusRound || 0);
+          setReviewMode(!!snap.reviewMode);
+          if (typeof snap.qi === "number") setQi(Math.max(0, Math.min(snap.qi, restored.length - 1)));
         }
-        setTodayQueue(restored);
-        setBonusRound(snap.bonusRound || 0);
-        setReviewMode(!!snap.reviewMode);
-        return;
+      } else {
+        buildToday(false);
+      }
+    } else {
+      buildToday(false);
+    }
+    const custom = readCustomQueueSnap(uid);
+    if (custom) {
+      const restoredCustom = custom.ids
+        .map((id) => byId.get(questionId(id.year, id.q_index)))
+        .filter((qq): qq is RawQuestion => !!qq);
+      if (restoredCustom.length > 0) {
+        setCustomQueue(restoredCustom);
+        setCustomLabel(custom.label || "");
+        let lastMode = "today";
+        try { lastMode = localStorage.getItem(`pd_practice_mode_${uid}`) || "today"; } catch { /* ignore */ }
+        if (lastMode === "custom") {
+          setMode("custom");
+          setQi(Math.max(0, Math.min(custom.qi ?? 0, restoredCustom.length - 1)));
+        }
       }
     }
-    buildToday(false);
   }, [persist, answersLoaded, all, buildToday, profile?.id, session?.user?.id]);
+
+  // Keep the current index (and custom set) on disk so a tab close mid-set
+  // comes back on the same question, not question 1 of an empty-looking set.
+  useEffect(() => {
+    if (!persist) return;
+    const uid = profile?.id ?? session?.user?.id ?? "local";
+    if (mode === "today" && todayQueue.length > 0) {
+      const prev = readTodayQueueSnap(uid);
+      if (prev) writeTodayQueueSnap(uid, { ...prev, qi });
+    }
+    if (customQueue.length > 0) {
+      writeCustomQueueSnap(uid, {
+        label: customLabel,
+        qi: mode === "custom" ? qi : (readCustomQueueSnap(uid)?.qi ?? 0),
+        ids: customQueue.map((qq) => ({ year: String(qq.year), q_index: qq.q_index })),
+      });
+    }
+  }, [persist, mode, qi, todayQueue, customQueue, customLabel, profile?.id, session?.user?.id]);
 
   // admins: load the member list (for the approvals panel + pending badge)
   const adminLoggedIn = isConfigured && !!profile?.is_admin;
@@ -2324,8 +2398,14 @@ export default function App() {
     if (right && !examActive) setTimeout(fireConfetti, 140);
     if (persist && q) {
       const qid = questionId(q.year, q.q_index);
-      const saved = await saveAnswer(qid, picked, right);
-      if (saved) setAnswers((m) => ({ ...m, [qid]: saved }));
+      const uid = profile?.id ?? session?.user?.id ?? "local";
+      const optimistic = rememberAnswer(uid, qid, picked, right, answersRef.current[qid]);
+      setAnswers((m) => ({ ...m, [qid]: optimistic }));
+      const saved = await saveAnswer(qid, picked, right, answersRef.current[qid]);
+      if (saved) {
+        confirmAnswer(uid, saved);
+        setAnswers((m) => ({ ...m, [qid]: saved }));
+      }
       if (!right) { ensureTrackedForReview(qid).then(refreshSrsDue); }
     }
     // Exam mode hides the result, so move straight to the next question.
@@ -2651,7 +2731,11 @@ export default function App() {
   // reminderWindow.ts) when the user hasn't set their own — same default the
   // Settings date box now displays.
   const examDays = settings ? daysUntil(settings.exam_date || guessedExamDate()) : null;
-  const switchMode = (m: "today" | "browse" | "custom") => { setMode(m); setQi(0); setReviewMode(false); };
+  const switchMode = (m: "today" | "browse" | "custom") => {
+    setMode(m); setQi(0); setReviewMode(false);
+    const uid = profile?.id ?? session?.user?.id ?? "local";
+    try { localStorage.setItem(`pd_practice_mode_${uid}`, m); } catch { /* private mode */ }
+  };
 
   // Clicking the PRITE Daily wordmark: back to the home screen — today's set,
   // every overlay panel closed, scrolled to the top. Deliberately doesn't
@@ -2671,6 +2755,13 @@ export default function App() {
     setCustomLabel(label);
     setMode("custom"); setQi(0); setReviewMode(false);
     setShowDeck(false);
+    const uid = profile?.id ?? session?.user?.id ?? "local";
+    try { localStorage.setItem(`pd_practice_mode_${uid}`, "custom"); } catch { /* private mode */ }
+    writeCustomQueueSnap(uid, {
+      label,
+      qi: 0,
+      ids: qs.map((qq) => ({ year: String(qq.year), q_index: qq.q_index })),
+    });
     fire(`Studying ${qs.length} question${qs.length === 1 ? "" : "s"}${label ? ` · ${label}` : ""}`);
   };
   // Kick off (or regenerate) the study guide for a saved test. Generation
@@ -8426,7 +8517,7 @@ function PerfChart({ chart, per }: { chart: ChartData; per: { n: number; rise: n
         </p>
       ) : (
         <p style={s.chartNote}>
-          No clear upward trend yet — each dot is one day's first-try accuracy. Keep answering and a trend line appears once it's pointing up.
+          No clear upward trend yet — each dot is first-try accuracy for questions you first saw that day. Days with fewer than 5 new questions are left off so one lucky item doesn’t look like 100%. Keep answering and a trend line appears once it’s pointing up.
         </p>
       )}
     </div>
@@ -8460,7 +8551,9 @@ function Stats({
     const mastered = entries.filter((e) => e.correct).length;
     const outstanding = entries.filter((e) => !e.correct && !e.cleared).length;
     const attempts = entries.reduce((n, e) => n + (e.attempts || 1), 0);
-    const today = entries.filter((e) => isSameDay(e.updated_at)).length;
+    const todayRows = entries.filter((e) => isSameDay(e.updated_at));
+    const today = todayRows.length;
+    const todayOk = todayRows.filter((e) => e.correct).length;
     const week = entries.filter((e) => Date.now() - Date.parse(e.updated_at) < 7 * 86400000).length;
 
     // streak: consecutive days (ending today or yesterday) with activity
@@ -8472,50 +8565,16 @@ function Stats({
     while (activeDays.has(dayKey(cur))) { streak++; cur.setDate(cur.getDate() - 1); }
 
     return {
-      answered, attempts, today, week, mastered, outstanding,
+      answered, attempts, today, todayOk, week, mastered, outstanding,
       firstTryAcc: answered ? Math.round((firstTry / answered) * 100) : 0,
       currentAcc: answered ? Math.round((mastered / answered) * 100) : 0,
       streak,
     };
   }, [answers]);
 
-  // Performance over time. One point per active day: first-try accuracy that
-  // day, positioned by the running total of questions answered. A least-squares
-  // line (y = m·x + b) is fit so the slope reads as "% gained per question."
-  const chart = useMemo(() => {
-    const recs = Object.values(answers)
-      .map((a) => ({ t: Date.parse(a.updated_at), ok: !!a.first_correct }))
-      .filter((r) => Number.isFinite(r.t))
-      .sort((a, b) => a.t - b.t);
-    const dayKey = (t: number) => { const d = new Date(t); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
-    const byDay = new Map<string, { first: number; n: number; ok: number }>();
-    for (const r of recs) {
-      const k = dayKey(r.t);
-      const g = byDay.get(k) ?? { first: r.t, n: 0, ok: 0 };
-      g.n++; if (r.ok) g.ok++;
-      byDay.set(k, g);
-    }
-    const days = [...byDay.values()].sort((a, b) => a.first - b.first);
-    let cum = 0;
-    const points = days.map((d) => { cum += d.n; return { x: cum, y: (d.ok / d.n) * 100, n: d.n }; });
-    const N = points.length;
-    const base = { points, N, totalQ: cum, fit: null as null | { m: number; b: number; r: number }, improving: false };
-    if (N < 2) return base;
-    const sx = points.reduce((s, p) => s + p.x, 0);
-    const sy = points.reduce((s, p) => s + p.y, 0);
-    const sxx = points.reduce((s, p) => s + p.x * p.x, 0);
-    const syy = points.reduce((s, p) => s + p.y * p.y, 0);
-    const sxy = points.reduce((s, p) => s + p.x * p.y, 0);
-    const denom = N * sxx - sx * sx;
-    const slope = denom ? (N * sxy - sx * sy) / denom : 0;
-    const b = (sy - slope * sx) / N;
-    const rDen = Math.sqrt(denom * (N * syy - sy * sy));
-    const r = rDen ? (N * sxy - sx * sy) / rDen : 0;
-    // Only call it a trend when it's upward, has a few days behind it, and the
-    // fit isn't pure noise. Otherwise we show the scatter alone.
-    const improving = N >= 4 && slope > 0 && r >= 0.15;
-    return { ...base, fit: { m: slope, b, r }, improving };
-  }, [answers]);
+  // Performance over time. One point per day you first-attempted enough
+  // questions, pinned to created_at so a review session cannot paint today red.
+  const chart = useMemo(() => buildPerfChart(Object.values(answers)), [answers]);
 
   // "For every N questions, +X%." Pick the smallest round N giving a readable rise.
   const per = useMemo(() => {
@@ -8592,7 +8651,7 @@ function Stats({
                   `${m.attempts} total attempts`
                 )}
                 {card(`${m.firstTryAcc}%`, "First-try accuracy", `${m.answered - m.outstanding} of ${m.answered} eventually right`, m.firstTryAcc >= 70 ? T.correctText : m.firstTryAcc >= 50 ? T.gold : T.wrongText)}
-                {card(<><Flame size={18} strokeWidth={2.4} style={{ verticalAlign: "-2px" }} color={m.streak > 0 ? T.gold : T.faint} /> {m.streak}</>, "Day streak", `${m.today} today · ${m.week} this week`, m.streak > 0 ? T.gold : undefined)}
+                {card(<><Flame size={18} strokeWidth={2.4} style={{ verticalAlign: "-2px" }} color={m.streak > 0 ? T.gold : T.faint} /> {m.streak}</>, "Day streak", `${m.today} today${m.today ? ` · ${m.todayOk}/${m.today} this session` : ""} · ${m.week} this week`, m.streak > 0 ? T.gold : undefined)}
                 {card(m.outstanding, "To review", m.outstanding === 0 ? "all caught up 🎉" : "missed, not yet re-answered", m.outstanding > 0 ? T.wrongText : T.correctText)}
               </div>
 
