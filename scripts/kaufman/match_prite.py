@@ -36,7 +36,7 @@ CHAPTER_ALIASES: dict[int | str, list[str]] = {
     2: ["upper motor neuron", "lower motor neuron", "babinski", "hemiparesis", "spasticity"],
     3: ["psychogenic", "functional neurological", "hoover sign", "conversion"],
     4: ["cranial nerve", "optic nerve", "trigeminal", "bell palsy", "bell's palsy", "acoustic neuroma"],
-    5: ["neuropathy", "guillain", "gbS", "peripheral nerve", "charcot marie"],
+    5: ["neuropathy", "guillain", "gbS", "peripheral nerve", "charcot marie", "ciguatera", "ciguatoxin", "barracuda"],
     6: ["myasthenia", "myopathy", "muscular dystrophy", "polymyositis", "lambert eaton"],
     7: ["dementia", "alzheimer", "delirium", "lewy body", "frontotemporal", "vascular dementia", "nph"],
     8: ["aphasia", "anosognosia", "broca", "wernicke", "conduction aphasia", "neglect"],

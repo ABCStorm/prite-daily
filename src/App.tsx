@@ -274,6 +274,11 @@ type RawQuestion = {
     pdf_page?: number;
     book_number?: number;
     needs_figure?: boolean;
+    teach_page?: number;
+    teach_lo?: number;
+    teach_hi?: number;
+    teach_section?: string;
+    teach_title?: string;
     stem_figures?: { id: string; page: number; file: string; caption?: string }[];
     expl_figures?: { id: string; page: number; file: string; caption?: string }[];
   };
@@ -2448,11 +2453,23 @@ export default function App() {
   const research = q ? researchRefs[questionId(q.year, q.q_index)] : undefined;
   const dsm = q ? dsmRefs[questionId(q.year, q.q_index)] : undefined;
   const kaufman: KaufmanRef | undefined = q
-    ? (q.kaufman?.pdf_page
+    ? (q.kaufman?.teach_page
+        ? {
+            section: String(q.kaufman.teach_section ?? q.kaufman.chapter_num ?? "R"),
+            title: q.kaufman.teach_title || q.kaufman.chapter || q.prite_label || "Kaufman",
+            why: "Main-text discussion of this topic — not the book’s review-question pages.",
+            book: "Kaufman's Clinical Neurology for Psychiatrists, 9th ed.",
+            page: q.kaufman.teach_page,
+            lo: q.kaufman.teach_lo ?? q.kaufman.teach_page,
+            hi: q.kaufman.teach_hi ?? q.kaufman.teach_page,
+            atStart: true,
+            atEnd: true,
+          }
+        : q.kaufman?.pdf_page
         ? {
             section: String(q.kaufman.chapter_num ?? "R"),
             title: q.kaufman.chapter || q.prite_label || "Kaufman",
-            why: "This item and its explanation come from the book’s question-and-answer section. Page through to read the surrounding discussion and any figures.",
+            why: "Main-text discussion of this topic — not the book’s review-question pages.",
             book: "Kaufman's Clinical Neurology for Psychiatrists, 9th ed.",
             page: q.kaufman.pdf_page,
             lo: Math.max(1, q.kaufman.pdf_page - 1),
