@@ -95,7 +95,6 @@ export const PLANNED_TEAMS: { first: string; last: string; team: string }[] = [
   { first: "Needa", last: "Toofanny", team: "Team 9" },
   { first: "Geoffrey", last: "McLatchey", team: "Team 8" },
   { first: "Logan", last: "Heckart", team: "Team 11" },
-  { first: "Adam", last: "Quinn", team: "Team 10" },
   { first: "Ryan", last: "Bernal", team: "Team 3" },
   { first: "Holland", last: "Arnold", team: "Team 1" },
   { first: "Emily", last: "Murphy", team: "Team 2" },

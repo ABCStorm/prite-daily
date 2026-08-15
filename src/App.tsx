@@ -1183,9 +1183,9 @@ export default function App() {
   // Returns null on success, or an error message to show in the modal.
   const runGenerateWeeklyTeams = async (): Promise<string | null> => {
     const all = await listProfiles();
-    // Same person with two emails (Alex Fowler / Adam Quinn) would otherwise
-    // land on two teams. Keep one account per name; the leftover still appears
-    // in the editor so an admin can drop the extra without touching access.
+    // Same display name with two emails would otherwise land on two teams.
+    // Keep one account per name; the leftover still appears in the editor so
+    // an admin can drop the extra without touching access.
     const unique = pickOneProfilePerPerson(all.filter((p) =>
       p.status === "approved" && !p.is_education_chief && p.role !== "alumni" && p.role !== "test"));
     const entries = unique
