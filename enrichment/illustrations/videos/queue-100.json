@@ -1,0 +1,802 @@
+[
+  {
+    "id": "2010-0029",
+    "year": "2010",
+    "q_index": 29,
+    "category": "Ethics, Forensics & Practice",
+    "rule": "capacity",
+    "age_desc": "elderly adult"
+  },
+  {
+    "id": "2010-0080",
+    "year": "2010",
+    "q_index": 80,
+    "category": "Psychopathology & Disorders",
+    "rule": "schneider",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2010-0094",
+    "year": "2010",
+    "q_index": 94,
+    "category": "Ethics, Forensics & Practice",
+    "rule": "delirium-paternalism",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2010-0130",
+    "year": "2010",
+    "q_index": 130,
+    "category": "Psychopathology & Disorders",
+    "rule": "split-treatment",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2010-0200",
+    "year": "2010",
+    "q_index": 200,
+    "category": "Development & Lifespan",
+    "rule": "erikson",
+    "age_desc": "60-year-old middle-aged adult"
+  },
+  {
+    "id": "2010-0221",
+    "year": "2010",
+    "q_index": 221,
+    "category": "Somatic Tx & Psychopharmacology",
+    "rule": "catie",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2010-0231",
+    "year": "2010",
+    "q_index": 231,
+    "category": "Psychopathology & Disorders",
+    "rule": "postpartum-psychosis",
+    "age_desc": "young adult postpartum mother (mid-20s)"
+  },
+  {
+    "id": "2011-0221",
+    "year": "2011",
+    "q_index": 221,
+    "category": "Epidemiology",
+    "rule": "child-abuse-risk",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2012-0102",
+    "year": "2012",
+    "q_index": 102,
+    "category": "Epidemiology",
+    "rule": "child-abuse-risk",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2012-0242",
+    "year": "2012",
+    "q_index": 242,
+    "category": "Psychopathology & Disorders",
+    "rule": "abortion-cl",
+    "age_desc": "21-year-old young woman"
+  },
+  {
+    "id": "2015-0101",
+    "year": "2015",
+    "q_index": 101,
+    "category": "Somatic Tx & Psychopharmacology",
+    "rule": "catie",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2015-0103",
+    "year": "2015",
+    "q_index": 103,
+    "category": "Ethics, Forensics & Practice",
+    "rule": "delirium-paternalism",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2015-0113",
+    "year": "2015",
+    "q_index": 113,
+    "category": "Psychopathology & Disorders",
+    "rule": "postpartum-psychosis",
+    "age_desc": "young adult postpartum mother (mid-20s)"
+  },
+  {
+    "id": "2015-0148",
+    "year": "2015",
+    "q_index": 148,
+    "category": "Psychopathology & Disorders",
+    "rule": "split-treatment",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2015-0177",
+    "year": "2015",
+    "q_index": 177,
+    "category": "Psychopathology & Disorders",
+    "rule": "schneider",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2015-0198",
+    "year": "2015",
+    "q_index": 198,
+    "category": "Development & Lifespan",
+    "rule": "erikson",
+    "age_desc": "60-year-old middle-aged adult"
+  },
+  {
+    "id": "2015-0276",
+    "year": "2015",
+    "q_index": 276,
+    "category": "Ethics, Forensics & Practice",
+    "rule": "capacity",
+    "age_desc": "elderly adult"
+  },
+  {
+    "id": "2016-0106",
+    "year": "2016",
+    "q_index": 106,
+    "category": "Epidemiology",
+    "rule": "child-abuse-risk",
+    "age_desc": "infant/toddler under 5"
+  },
+  {
+    "id": "2017-0020",
+    "year": "2017",
+    "q_index": 20,
+    "category": "Psychopathology & Disorders",
+    "rule": "abortion-cl",
+    "age_desc": "21-year-old young woman"
+  },
+  {
+    "id": "2020-0002",
+    "year": "2020",
+    "q_index": 2,
+    "category": "Development & Lifespan",
+    "rule": "erikson",
+    "age_desc": "60-year-old middle-aged adult"
+  },
+  {
+    "id": "2020-0063",
+    "year": "2020",
+    "q_index": 63,
+    "category": "Ethics, Forensics & Practice",
+    "rule": "capacity",
+    "age_desc": "elderly adult"
+  },
+  {
+    "id": "2020-0145",
+    "year": "2020",
+    "q_index": 145,
+    "category": "Psychopathology & Disorders",
+    "rule": "split-treatment",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2020-0151",
+    "year": "2020",
+    "q_index": 151,
+    "category": "Psychopathology & Disorders",
+    "rule": "schneider",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2020-0206",
+    "year": "2020",
+    "q_index": 206,
+    "category": "Somatic Tx & Psychopharmacology",
+    "rule": "catie",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2020-0213",
+    "year": "2020",
+    "q_index": 213,
+    "category": "Ethics, Forensics & Practice",
+    "rule": "delirium-paternalism",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2020-0271",
+    "year": "2020",
+    "q_index": 271,
+    "category": "Psychopathology & Disorders",
+    "rule": "postpartum-psychosis",
+    "age_desc": "young adult postpartum mother (mid-20s)"
+  },
+  {
+    "id": "2021-0118",
+    "year": "2021",
+    "q_index": 118,
+    "category": "Epidemiology",
+    "rule": "child-abuse-risk",
+    "age_desc": "infant/toddler under 5"
+  },
+  {
+    "id": "2022-0043",
+    "year": "2022",
+    "q_index": 43,
+    "category": "Psychopathology & Disorders",
+    "rule": "abortion-cl",
+    "age_desc": "21-year-old young woman"
+  },
+  {
+    "id": "2025-0031",
+    "year": "2025",
+    "q_index": 31,
+    "category": "Ethics, Forensics & Practice",
+    "rule": "delirium-paternalism",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2025-0144",
+    "year": "2025",
+    "q_index": 144,
+    "category": "Psychopathology & Disorders",
+    "rule": "split-treatment",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2025-0192",
+    "year": "2025",
+    "q_index": 192,
+    "category": "Ethics, Forensics & Practice",
+    "rule": "capacity",
+    "age_desc": "elderly adult"
+  },
+  {
+    "id": "2023-0138",
+    "year": "2023",
+    "q_index": 138,
+    "category": "Somatic Tx & Psychopharmacology",
+    "rule": "postpartum-psychosis",
+    "age_desc": "young adult postpartum mother (mid-20s)"
+  },
+  {
+    "id": "2017-0297",
+    "year": "2017",
+    "q_index": 297,
+    "category": "Epidemiology",
+    "rule": "postpartum-psychosis",
+    "age_desc": "young adult postpartum mother (mid-20s)"
+  },
+  {
+    "id": "2010-0005",
+    "year": "2010",
+    "q_index": 5,
+    "category": "Somatic Tx & Psychopharmacology",
+    "rule": "nms",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2009-0183",
+    "year": "2009",
+    "q_index": 183,
+    "category": "Somatic Tx & Psychopharmacology",
+    "rule": "nms",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2013-0068",
+    "year": "2013",
+    "q_index": 68,
+    "category": "Somatic Tx & Psychopharmacology",
+    "rule": "nms",
+    "age_desc": "45-year-old middle-aged adult"
+  },
+  {
+    "id": "2013-0140",
+    "year": "2013",
+    "q_index": 140,
+    "category": "Somatic Tx & Psychopharmacology",
+    "rule": "nms",
+    "age_desc": "32-year-old young adult"
+  },
+  {
+    "id": "2015-0068",
+    "year": "2015",
+    "q_index": 68,
+    "category": "Psychopathology & Disorders",
+    "rule": "catie",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2021-0156",
+    "year": "2021",
+    "q_index": 156,
+    "category": "Uncategorized",
+    "rule": "child-abuse-risk",
+    "age_desc": "6-year-old child"
+  },
+  {
+    "id": "2016-0239",
+    "year": "2016",
+    "q_index": 239,
+    "category": "Uncategorized",
+    "rule": "child-abuse-risk",
+    "age_desc": "6-year-old child"
+  },
+  {
+    "id": "2012-0187",
+    "year": "2012",
+    "q_index": 187,
+    "category": "Uncategorized",
+    "rule": "child-abuse-risk",
+    "age_desc": "infant/toddler under 5"
+  },
+  {
+    "id": "2022-0253",
+    "year": "2022",
+    "q_index": 253,
+    "category": "Uncategorized",
+    "rule": "child-abuse-risk",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2015-0037",
+    "year": "2015",
+    "q_index": 37,
+    "category": "Psychopathology & Disorders",
+    "rule": "panic",
+    "age_desc": "40-year-old middle-aged adult"
+  },
+  {
+    "id": "2010-0244",
+    "year": "2010",
+    "q_index": 244,
+    "category": "Psychopathology & Disorders",
+    "rule": "panic",
+    "age_desc": "40-year-old middle-aged adult"
+  },
+  {
+    "id": "2021-0091",
+    "year": "2021",
+    "q_index": 91,
+    "category": "Psychopathology & Disorders",
+    "rule": "panic",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2016-0001",
+    "year": "2016",
+    "q_index": 1,
+    "category": "Psychopathology & Disorders",
+    "rule": "panic",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2010-0270",
+    "year": "2010",
+    "q_index": 270,
+    "category": "Psychopathology & Disorders",
+    "rule": "panic",
+    "age_desc": "42-year-old middle-aged adult"
+  },
+  {
+    "id": "2013-0125",
+    "year": "2013",
+    "q_index": 125,
+    "category": "Psychotherapy & Psychosocial",
+    "rule": "panic",
+    "age_desc": "28-year-old young adult"
+  },
+  {
+    "id": "2020-0210",
+    "year": "2020",
+    "q_index": 210,
+    "category": "Somatic Tx & Psychopharmacology",
+    "rule": "panic",
+    "age_desc": "21-year-old young adult"
+  },
+  {
+    "id": "2025-0016",
+    "year": "2025",
+    "q_index": 16,
+    "category": "Somatic Tx & Psychopharmacology",
+    "rule": "panic",
+    "age_desc": "21-year-old young adult"
+  },
+  {
+    "id": "2016-0277",
+    "year": "2016",
+    "q_index": 277,
+    "category": "Psychopathology & Disorders",
+    "rule": "panic",
+    "age_desc": "27-year-old young adult"
+  },
+  {
+    "id": "2017-0068",
+    "year": "2017",
+    "q_index": 68,
+    "category": "Psychopathology & Disorders",
+    "rule": "panic",
+    "age_desc": "19-year-old young adult"
+  },
+  {
+    "id": "2021-0265",
+    "year": "2021",
+    "q_index": 265,
+    "category": "Psychopathology & Disorders",
+    "rule": "withdrawal",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2016-0124",
+    "year": "2016",
+    "q_index": 124,
+    "category": "Psychopathology & Disorders",
+    "rule": "withdrawal",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2019-0012",
+    "year": "2019",
+    "q_index": 12,
+    "category": "Clinical Neurosciences",
+    "rule": "withdrawal",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2020-0115",
+    "year": "2020",
+    "q_index": 115,
+    "category": "Psychopathology & Disorders",
+    "rule": "withdrawal",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2015-0015",
+    "year": "2015",
+    "q_index": 15,
+    "category": "Psychopathology & Disorders",
+    "rule": "withdrawal",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2013-0153",
+    "year": "2013",
+    "q_index": 153,
+    "category": "Psychopathology & Disorders",
+    "rule": "withdrawal",
+    "age_desc": "44-year-old middle-aged adult"
+  },
+  {
+    "id": "2016-0084",
+    "year": "2016",
+    "q_index": 84,
+    "category": "Psychopathology & Disorders",
+    "rule": "withdrawal",
+    "age_desc": "50-year-old middle-aged adult"
+  },
+  {
+    "id": "2021-0088",
+    "year": "2021",
+    "q_index": 88,
+    "category": "Psychopathology & Disorders",
+    "rule": "withdrawal",
+    "age_desc": "50-year-old middle-aged adult"
+  },
+  {
+    "id": "2012-0037",
+    "year": "2012",
+    "q_index": 37,
+    "category": "Somatic Tx & Psychopharmacology",
+    "rule": "withdrawal",
+    "age_desc": "40-year-old middle-aged adult"
+  },
+  {
+    "id": "2016-0210",
+    "year": "2016",
+    "q_index": 210,
+    "category": "Consultation & Collaborative Care",
+    "rule": "withdrawal",
+    "age_desc": "40-year-old middle-aged adult"
+  },
+  {
+    "id": "2010-0199",
+    "year": "2010",
+    "q_index": 199,
+    "category": "Psychopathology & Disorders",
+    "rule": "hiv-neuro",
+    "age_desc": "43-year-old middle-aged adult"
+  },
+  {
+    "id": "2020-0014",
+    "year": "2020",
+    "q_index": 14,
+    "category": "Psychopathology & Disorders",
+    "rule": "hiv-neuro",
+    "age_desc": "43-year-old middle-aged adult"
+  },
+  {
+    "id": "2015-0254",
+    "year": "2015",
+    "q_index": 254,
+    "category": "Psychopathology & Disorders",
+    "rule": "hiv-neuro",
+    "age_desc": "43-year-old middle-aged adult"
+  },
+  {
+    "id": "2025-0190",
+    "year": "2025",
+    "q_index": 190,
+    "category": "Clinical Neurology",
+    "rule": "migraine-aura",
+    "age_desc": "25-year-old young adult"
+  },
+  {
+    "id": "2015-0229",
+    "year": "2015",
+    "q_index": 229,
+    "category": "Clinical Neurology",
+    "rule": "migraine-aura",
+    "age_desc": "25-year-old young adult"
+  },
+  {
+    "id": "2010-0046",
+    "year": "2010",
+    "q_index": 46,
+    "category": "Clinical Neurology",
+    "rule": "migraine-aura",
+    "age_desc": "25-year-old young adult"
+  },
+  {
+    "id": "2020-0031",
+    "year": "2020",
+    "q_index": 31,
+    "category": "Clinical Neurology",
+    "rule": "migraine-aura",
+    "age_desc": "25-year-old young adult"
+  },
+  {
+    "id": "2010-0078",
+    "year": "2010",
+    "q_index": 78,
+    "category": "Clinical Neurology",
+    "rule": "aphasia",
+    "age_desc": "70-year-old older adult"
+  },
+  {
+    "id": "2020-0263",
+    "year": "2020",
+    "q_index": 263,
+    "category": "Clinical Neurology",
+    "rule": "aphasia",
+    "age_desc": "70-year-old older adult"
+  },
+  {
+    "id": "2015-0123",
+    "year": "2015",
+    "q_index": 123,
+    "category": "Clinical Neurology",
+    "rule": "aphasia",
+    "age_desc": "70-year-old older adult"
+  },
+  {
+    "id": "2015-0294",
+    "year": "2015",
+    "q_index": 294,
+    "category": "Somatic Tx & Psychopharmacology",
+    "rule": "tourette",
+    "age_desc": "adolescent"
+  },
+  {
+    "id": "2020-0149",
+    "year": "2020",
+    "q_index": 149,
+    "category": "Somatic Tx & Psychopharmacology",
+    "rule": "tourette",
+    "age_desc": "adolescent"
+  },
+  {
+    "id": "2023-0240",
+    "year": "2023",
+    "q_index": 240,
+    "category": "Clinical Neurology",
+    "rule": "cerebellar",
+    "age_desc": "26-year-old young adult"
+  },
+  {
+    "id": "2018-0005",
+    "year": "2018",
+    "q_index": 5,
+    "category": "Clinical Neurology",
+    "rule": "cerebellar",
+    "age_desc": "26-year-old young adult"
+  },
+  {
+    "id": "2024-0057",
+    "year": "2024",
+    "q_index": 57,
+    "category": "Clinical Neurology",
+    "rule": "parkinson",
+    "age_desc": "70-year-old older adult"
+  },
+  {
+    "id": "2010-0004",
+    "year": "2010",
+    "q_index": 4,
+    "category": "Clinical Neurology",
+    "rule": "parkinson",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2025-0260",
+    "year": "2025",
+    "q_index": 260,
+    "category": "Somatic Tx & Psychopharmacology",
+    "rule": "parkinson",
+    "age_desc": "80-year-old older adult"
+  },
+  {
+    "id": "2020-0172",
+    "year": "2020",
+    "q_index": 172,
+    "category": "Clinical Neurology",
+    "rule": "psp",
+    "age_desc": "66-year-old older adult"
+  },
+  {
+    "id": "2010-0098",
+    "year": "2010",
+    "q_index": 98,
+    "category": "Clinical Neurology",
+    "rule": "psp",
+    "age_desc": "66-year-old older adult"
+  },
+  {
+    "id": "2012-0131",
+    "year": "2012",
+    "q_index": 131,
+    "category": "Psychopathology & Disorders",
+    "rule": "psp",
+    "age_desc": "66-year-old older adult"
+  },
+  {
+    "id": "2013-0158",
+    "year": "2013",
+    "q_index": 158,
+    "category": "Clinical Neurology",
+    "rule": "psp",
+    "age_desc": "65-year-old older adult"
+  },
+  {
+    "id": "2014-0286",
+    "year": "2014",
+    "q_index": 286,
+    "category": "Psychopathology & Disorders",
+    "rule": "psp",
+    "age_desc": "68-year-old older adult"
+  },
+  {
+    "id": "2015-0288",
+    "year": "2015",
+    "q_index": 288,
+    "category": "Clinical Neurology",
+    "rule": "psp",
+    "age_desc": "82-year-old older adult"
+  },
+  {
+    "id": "2018-0131",
+    "year": "2018",
+    "q_index": 131,
+    "category": "Clinical Neurology",
+    "rule": "psp",
+    "age_desc": "65-year-old older adult"
+  },
+  {
+    "id": "2021-0106",
+    "year": "2021",
+    "q_index": 106,
+    "category": "Diagnostic Procedures",
+    "rule": "psp",
+    "age_desc": "66-year-old older adult"
+  },
+  {
+    "id": "2023-0233",
+    "year": "2023",
+    "q_index": 233,
+    "category": "Clinical Neurology",
+    "rule": "psp",
+    "age_desc": "75-year-old older adult"
+  },
+  {
+    "id": "2015-0056",
+    "year": "2015",
+    "q_index": 56,
+    "category": "Clinical Neurology",
+    "rule": "psp",
+    "age_desc": "66-year-old older adult"
+  },
+  {
+    "id": "2022-0060",
+    "year": "2022",
+    "q_index": 60,
+    "category": "Research & Statistics",
+    "rule": "generic",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2012-0293",
+    "year": "2012",
+    "q_index": 293,
+    "category": "Research & Statistics",
+    "rule": "generic",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2012-0039",
+    "year": "2012",
+    "q_index": 39,
+    "category": "Psychopathology & Disorders",
+    "rule": "generic",
+    "age_desc": "9-year-old child"
+  },
+  {
+    "id": "2012-0040",
+    "year": "2012",
+    "q_index": 40,
+    "category": "Psychopathology & Disorders",
+    "rule": "generic",
+    "age_desc": "9-year-old child"
+  },
+  {
+    "id": "2022-0180",
+    "year": "2022",
+    "q_index": 180,
+    "category": "Research & Statistics",
+    "rule": "generic",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2017-0104",
+    "year": "2017",
+    "q_index": 104,
+    "category": "Research & Statistics",
+    "rule": "generic",
+    "age_desc": "elderly adult"
+  },
+  {
+    "id": "2010-0019",
+    "year": "2010",
+    "q_index": 19,
+    "category": "Development & Lifespan",
+    "rule": "generic",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2020-0295",
+    "year": "2020",
+    "q_index": 295,
+    "category": "Development & Lifespan",
+    "rule": "generic",
+    "age_desc": "adult patient"
+  },
+  {
+    "id": "2020-0160",
+    "year": "2020",
+    "q_index": 160,
+    "category": "Diagnostic Procedures",
+    "rule": "generic",
+    "age_desc": "50-year-old middle-aged adult"
+  },
+  {
+    "id": "2015-0098",
+    "year": "2015",
+    "q_index": 98,
+    "category": "Diagnostic Procedures",
+    "rule": "generic",
+    "age_desc": "50-year-old middle-aged adult"
+  },
+  {
+    "id": "2020-0116",
+    "year": "2020",
+    "q_index": 116,
+    "category": "Research & Statistics",
+    "rule": "generic",
+    "age_desc": "adult patient"
+  }
+]

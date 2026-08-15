@@ -1,0 +1,902 @@
+[
+  {
+    "id": "2025-0004",
+    "year": "2025",
+    "q_index": 4,
+    "category": "Psychotherapy & Psychosocial",
+    "stem": "Which of the following home-based community services has demonstrated a robust evidence base in improving outcomes for juvenile offenders and youths with substance abuse at risk for out-of-home placement?",
+    "scenario": "A 15-year-old on your service has escalating conduct problems, substance use, and juvenile justice involvement, and the team is considering residential placement. Before defaulting to out-of-home care, you recommend multisystemic therapy, an intensive, home- and community-based intervention with the strongest evidence base for keeping high-risk juvenile offenders and substance-using youth in their communities. You explain that MST works across the youth's whole ecology, family, school, and peers, with therapists available around the clock. You connect the family to an MST team rather than a facility. Bottom line: Multisystemic therapy has the most robust evidence for improving outcomes in juvenile offenders and substance-using youth at risk for out-of-home placement.",
+    "score": 9
+  },
+  {
+    "id": "2025-0006",
+    "year": "2025",
+    "q_index": 6,
+    "category": "Psychopathology & Disorders",
+    "stem": "A 64-year-old man presents to the emergency department after two days of increased confusion and odd behavior, including making nonsensical statements, staring into space, and forgetting recent events. His wife shares that he has been intermittently confused for two years, describing behaviors like yelling at people she cannot see, cursing, and making threats. He still enjoys hobbies like golf; however, over the past six months, his golf swing has been shaky and slow, while his steps are smaller. The couple sleeps in separate beds because he recently started kicking in his sleep. What is his most likely diagnosis?",
+    "scenario": "A 64-year-old comes to the ED with fluctuating confusion superimposed on a two-year history of intermittent cognitive changes, vivid visual hallucinations he yells at, and new parkinsonism, shuffling gait and bradykinesia. His wife mentions he kicks and acts out dreams, sleeping separately. You assemble the pattern: fluctuating cognition, well-formed visual hallucinations, spontaneous parkinsonism, and REM sleep behavior disorder, the core features of dementia with Lewy bodies. This recognition is high-stakes: you flag extreme antipsychotic sensitivity, avoid first-generation neuroleptics for his agitation, and consider a cholinesterase inhibitor. Bottom line: Fluctuating cognition plus visual hallucinations plus parkinsonism plus REM sleep behavior disorder points to dementia with Lewy bodies, and recognizing it prevents dangerous antipsychotic prescribing.",
+    "score": 9
+  },
+  {
+    "id": "2025-0008",
+    "year": "2025",
+    "q_index": 8,
+    "category": "Epidemiology",
+    "stem": "Which of the following personality characteristics has been identified as a predictor of successful aging?",
+    "scenario": "In your geriatric clinic, a 78-year-old widow with multiple medical illnesses nonetheless reports high life satisfaction and stays engaged, while another patient with fewer problems is despairing. Counseling families about aging, you draw on research that successful aging depends less on the absence of disease than on personality traits, with resilience, the capacity to adapt and bounce back from adversity, being a key predictor. This reframes your interventions toward building coping, social connection, and meaning rather than only managing pathology. You incorporate resilience-building and behavioral activation into the care plan. Bottom line: Resilience is a personality characteristic predictive of successful aging, so foster adaptive coping and engagement, not just disease control, in older patients.",
+    "score": 9
+  },
+  {
+    "id": "2025-0011",
+    "year": "2025",
+    "q_index": 11,
+    "category": "Clinical Neurosciences",
+    "stem": "In patients with Trisomy 21 (Down syndrome), there are three copies of the gene coding for which of the following proteins?",
+    "scenario": "A 45-year-old man with Down syndrome is brought in by his group home staff for new memory loss and personality change. You explain to the family that this isn't unexpected: because the APP gene sits on chromosome 21, his extra chromosome means lifelong triple-dose APP expression, driving amyloid accumulation and Alzheimer-type dementia at a much younger age than the general population. Bottom line: trisomy 21 triples APP gene dosage, explaining the very high, early-onset Alzheimer's risk in Down syndrome.",
+    "score": 9
+  },
+  {
+    "id": "2025-0015",
+    "year": "2025",
+    "q_index": 15,
+    "category": "Diagnostic Procedures",
+    "stem": "A 72-year-old woman with no past psychiatric history presents to the emergency department for evaluation of aggression. She is accompanied by her daughter, who states that the patient has been yelling and throwing various items at her home health care nurse for the past week. The patient has not been aggressive toward any family members, and the daughter denies any history of similar episodes. Initial medical workup is unremarkable, and the patient has a Montreal Cognitive Assessment (MoCA) score of 26. Which of the following is the most likely explanation for her behavior?",
+    "scenario": "You are called to the ED for a 72-year-old with new-onset aggression. The daughter reports a week of yelling and throwing objects, but only at the home health nurse, never family. Medical workup is clean and her MoCA is 26, essentially normal cognition. Before you reach for an antipsychotic or anchor on dementia, notice the pattern: a cognitively intact elder whose distress is directed specifically at one caregiver. That should trigger a screen for elder abuse or mistreatment. Interview the patient alone, ask directly about the nurse, inspect for injuries, and involve adult protective services. Bottom line: When an intact older adult's agitation targets one specific caregiver, screen for elder abuse before assuming delirium or dementia.",
+    "score": 9
+  },
+  {
+    "id": "2025-0020",
+    "year": "2025",
+    "q_index": 20,
+    "category": "Development & Lifespan",
+    "stem": "By what age is cisgender identity usually well established?",
+    "scenario": "In a developmental clinic, parents of a 3-year-old worry that their child consistently insists on a gender and ask whether this is normal. Knowing that core gender identity, including cisgender identity, is typically well established by around age three lets you reassure them that a stable sense of being a boy or girl by this age is developmentally expected. It also sets a baseline: this timeline informs how you interpret persistent, consistent, insistent gender-diverse identification in young children versus exploratory play. Use it to guide watchful, affirming follow-up rather than premature conclusions. Bottom line: Gender identity, including cisgender identity, is usually well established by about age three.",
+    "score": 9
+  },
+  {
+    "id": "2025-0029",
+    "year": "2025",
+    "q_index": 29,
+    "category": "Psychopathology & Disorders",
+    "stem": "Which of the following abnormalities of speech or language is a patient with autism spectrum disorder most likely to demonstrate?",
+    "scenario": "Evaluating a verbal 8-year-old for possible autism, you listen carefully to how he speaks, not just what he says. His words are grammatically intact but flat and sing-song, with odd stress and little emotional inflection, classic impaired prosody. This abnormal melody and rhythm of speech is among the most characteristic language features in autism spectrum disorder, distinct from aphasia or dyslexia. Noting it supports your diagnosis, guides referral for speech-language therapy targeting social communication, and helps you counsel teachers that his monotone is part of the condition, not rudeness. Bottom line: Impaired prosody, the abnormal melody and rhythm of speech, is a hallmark language feature of autism.",
+    "score": 9
+  },
+  {
+    "id": "2025-0032",
+    "year": "2025",
+    "q_index": 32,
+    "category": "Psychopathology & Disorders",
+    "stem": "The parent of a 43 year-old patient died five years ago from pancreatic cancer. Four years ago, the patient noticed occasionally feeling uncomfortably full after eating enlarged, fatty meals and began fearing this was an early sign of pancreatic cancer. The patient acknowledges that this is unlikely but feels the need to frequently weigh themself to be reassured they are not losing weight. The patient had previously scheduled annual physicals but now avoids seeing the doctor due to the fear of being diagnosed with cancer. There are no other psychiatric symptoms. Which of the following is this patient’s most likely diagnosis?",
+    "scenario": "A 43-year-old, whose parent died of pancreatic cancer, has spent four years fearing they have it too. They have minimal somatic symptoms, just occasional fullness, yet weigh themselves constantly for reassurance and now avoid their doctor entirely to dodge a diagnosis. The key is that the preoccupation is with HAVING a serious illness, not with distressing physical symptoms, which defines illness anxiety disorder rather than somatic symptom disorder. The avoidance subtype, dodging medical care, points you toward CBT focused on health anxiety and graded re-engagement with appropriate care, not endless testing. Bottom line: Disease-focused fear with minimal actual symptoms equals illness anxiety disorder, not somatic symptom disorder.",
+    "score": 9
+  },
+  {
+    "id": "2025-0035",
+    "year": "2025",
+    "q_index": 35,
+    "category": "Research & Statistics",
+    "stem": "Dividing the rate of occurrence of a disease in specified family members of an affected individual by the rate of occurrence of the disease in the general population represents familial:",
+    "scenario": "A 24-year-old woman in your clinic asks whether her father's bipolar disorder means she will get it too. You recall that familial relative risk (sometimes called lambda) is the disease rate in relatives of an affected person divided by the rate in the general population. For bipolar disorder in first-degree relatives, that ratio is roughly 7-10. You translate this for her concretely: her risk is several times the population baseline, but the absolute lifetime risk is still well under 50 percent, so genes load the gun but do not guarantee illness. You use this to frame realistic monitoring and sleep hygiene rather than alarm. Bottom line: familial relative risk = rate in relatives divided by rate in the general population, and it contextualizes inherited risk for patients.",
+    "score": 9
+  },
+  {
+    "id": "2025-0037",
+    "year": "2025",
+    "q_index": 37,
+    "category": "Diagnostic Procedures",
+    "stem": "A 55-year old patient with HIV has fever, decreased alertness and headache. The MRI scan reveals multiple ring-enhancing lesions in the basal ganglia. This presentation is most consistent with which of the following?",
+    "scenario": "You are paged about a 55-year-old man with AIDS, fever, headache, and waning alertness; the ED MRI shows multiple ring-enhancing lesions in the basal ganglia. Your differential narrows fast: in an HIV patient with a low CD4 count, multiple ring-enhancing lesions point to CNS toxoplasmosis until proven otherwise, with CNS lymphoma as the main competitor. You recommend checking CD4 and Toxoplasma serology, and you advocate for empiric pyrimethamine-sulfadiazine with a follow-up scan in two weeks; radiographic improvement supports the diagnosis, while failure prompts biopsy for lymphoma. You also counsel the primary team on prophylaxis once stable. Bottom line: in an HIV patient, multiple ring-enhancing basal ganglia lesions are toxoplasmosis until disproven, warranting empiric therapy and short-interval reimaging.",
+    "score": 9
+  },
+  {
+    "id": "2025-0043",
+    "year": "2025",
+    "q_index": 43,
+    "category": "Psychopathology & Disorders",
+    "stem": "A 15 year old boy is brought in for evaluation due to poor school attendance and social isolation. They express a strong desire to be female, request to be called by a different name, and want laser hair removal. What is the most likely diagnosis?",
+    "scenario": "A 15-year-old is brought in for school refusal and isolation. During the interview the teen expresses a persistent, strong desire to be female, asks to be called a different name, and wants laser hair removal, and reports this has caused significant distress. You recognize gender dysphoria: a marked incongruence between experienced and assigned gender lasting at least six months with associated distress or impairment. Rather than pathologizing the identity, you assess the distress, screen for co-occurring depression and anxiety driving the school avoidance, and connect the family to gender-affirming specialty care. You document supportive, developmentally appropriate counseling. Bottom line: persistent gender incongruence with significant distress in an adolescent is gender dysphoria, warranting affirming assessment and care, not paraphilia labeling.",
+    "score": 9
+  },
+  {
+    "id": "2025-0048",
+    "year": "2025",
+    "q_index": 48,
+    "category": "Uncategorized",
+    "stem": "Rate of death by suicide is highest among which age group?",
+    "scenario": "On a geriatric consult you evaluate a recently widowed 78-year-old man living alone with access to firearms and worsening insomnia. Although your reflex from training is to worry most about adolescents, you remember that suicide death rates are highest in the elderly, particularly older men, who use more lethal means and give fewer warning signs. This shifts your threshold: you screen explicitly for suicidal ideation, counsel on firearm removal, treat depression aggressively, and mobilize social support rather than assuming low risk in a quiet older patient. Recognizing the demographic prevents a fatal undertriage. Bottom line: suicide death rates are highest among the elderly, especially older men, so screen and intervene proactively in this group.",
+    "score": 9
+  },
+  {
+    "id": "2025-0053",
+    "year": "2025",
+    "q_index": 53,
+    "category": "Psychopathology & Disorders",
+    "stem": "Which of the following is a first-line behavioral treatment for obsessive-compulsive disorder?",
+    "scenario": "A 24-year-old in your clinic checks the stove 30 times before leaving and washes until his hands crack. You start an SSRI, but you also refer for the behavioral treatment with the best evidence: exposure with response prevention. You explain ERP plainly, having him deliberately confront triggers (touching a doorknob) while resisting the compulsion (no washing), letting anxiety habituate. You distinguish this from relaxation or habit reversal, which target other problems. Setting this expectation early improves adherence, because patients often fear exposure and drop out without a clear rationale. You arrange a therapist skilled in ERP rather than generic supportive therapy. Bottom line: ERP is the first-line behavioral treatment for OCD; pair it with an SSRI.",
+    "score": 9
+  },
+  {
+    "id": "2025-0055",
+    "year": "2025",
+    "q_index": 55,
+    "category": "Psychopathology & Disorders",
+    "stem": "What is the most frequent comorbid personality disorder in epilepsy?",
+    "scenario": "An epilepsy clinic refers a 29-year-old with poorly controlled seizures for affective instability, self-harm, and stormy relationships. Knowing borderline is the most frequently reported comorbid personality disorder in epilepsy, you keep it on your differential rather than attributing everything to interictal mood changes or PNES alone. You screen carefully, since the overlap affects treatment: you coordinate with neurology, weigh AEDs with mood benefit, and prioritize dialectical and skills-based approaches while avoiding splitting between teams. Recognizing the comorbidity also reframes frequent ED visits and medication conflicts as treatable patterns rather than nonadherence. Bottom line: borderline personality disorder is the most common comorbid personality disorder in epilepsy, so screen for it deliberately.",
+    "score": 9
+  },
+  {
+    "id": "2025-0064",
+    "year": "2025",
+    "q_index": 64,
+    "category": "Development & Lifespan",
+    "stem": "Which of the following is the most robust predictor of resilient psychological development in children who experience significant adversity and trauma?",
+    "scenario": "In a child clinic, a foster mother of a maltreated 7-year-old asks what most protects his future. You explain that the most robust predictor of resilience after childhood adversity is supportive, responsive caregiving, more than IQ, income, or gender. This shifts your intervention toward strengthening the caregiving relationship: dyadic and attachment-based therapies, parent coaching, and stable placement, rather than focusing solely on the child's deficits. You frame the foster mother as the primary protective factor and support her capacity to respond sensitively. This also guides advocacy for placement stability. Bottom line: a supportive, responsive caregiver is the strongest predictor of resilience after childhood trauma, so invest in the relationship.",
+    "score": 9
+  },
+  {
+    "id": "2025-0073",
+    "year": "2025",
+    "q_index": 73,
+    "category": "Clinical Neurosciences",
+    "stem": "A patient undergoes a slit lamp exam that reveals Kayser-Fleischer rings. This patient is most likely to show damage in what section of their CNS?",
+    "scenario": "A 22-year-old presents with new tremor, dystonia, and personality change, and on exam you note odd eye findings; ophthalmology confirms Kayser-Fleischer rings. You recognize Wilson disease, where copper deposits in the basal ganglia (especially putamen) produce the movement and psychiatric symptoms, and you expect MRI changes there. This drives your workup: low serum ceruloplasmin, elevated 24-hour urinary copper, and prompt hepatology referral for chelation. Because the basal ganglia damage explains the parkinsonism and behavioral shift, you avoid anchoring on a primary psychiatric diagnosis. Bottom line: Kayser-Fleischer rings signal Wilson disease with basal ganglia copper deposition, so screen any young patient with new movement plus psychiatric symptoms for it.",
+    "score": 9
+  },
+  {
+    "id": "2025-0084",
+    "year": "2025",
+    "q_index": 84,
+    "category": "Psychopathology & Disorders",
+    "stem": "A physician is evaluating a patient with right leg weakness. Following a normal strength assessment of the left leg, with the patient lying supine, the examiner places a hand beneath the heel of the unaffected left leg and asks the patient to raise the affected right leg. During this attempt, the examiner notes there is no downward pressure toward the table surface by the unaffected left leg. This describes which of the following neurologic signs?",
+    "scenario": "You're the C-L resident asked to see a 30-year-old admitted for sudden right leg paralysis with a normal MRI and a recent psychosocial stressor. The team suspects functional neurological symptom disorder but wants objective confirmation before labeling it. You position the patient supine, cup your hand under the GOOD left heel, and ask them to lift the weak right leg. In genuine paralysis the brain recruits the contralateral leg and you'd feel the left heel press down (crossed extensor effort). Here you feel nothing, demonstrating Hoover sign and inconsistent effort. You document this positive rule-in finding and frame the diagnosis to the patient non-judgmentally as a real, treatable brain-network problem rather than malingering. Bottom line: A positive Hoover sign provides bedside, rule-in evidence for functional leg weakness.",
+    "score": 9
+  },
+  {
+    "id": "2025-0091",
+    "year": "2025",
+    "q_index": 91,
+    "category": "Psychopathology & Disorders",
+    "stem": "A 45-year-old patient presents with confusion, memory problems, and psychosis over a three-week period. MRI of the brain is unremarkable. Spinal fluid analysis shows increased white blood cells and protein, but no infection is identified. Which of the following antibodies is associated with this syndrome?",
+    "scenario": "A previously healthy 45-year-old is admitted with three weeks of psychiatric symptoms, memory loss, and confusion; the team is anchoring on a primary psychotic disorder. The MRI is normal but the LP shows pleocytosis and elevated protein with no infection. You raise anti-NMDA receptor encephalitis and send the CSF antibody panel, then push for tumor screening (notably ovarian teratoma) and early immunotherapy. Recognizing this prevents months of ineffective antipsychotics and catches a treatable, reversible cause. The lesson sticks: new psychosis with subacute cognitive decline and inflammatory CSF is autoimmune until proven otherwise. Bottom line: Subacute psychosis with CSF pleocytosis warrants an anti-NMDAR encephalitis workup, not just antipsychotics.",
+    "score": 9
+  },
+  {
+    "id": "2025-0092",
+    "year": "2025",
+    "q_index": 92,
+    "category": "Clinical Neurology",
+    "stem": "A 59-year-old presents with aphasia and right body weakness, onset two hours prior. Blood pressure is 176/92 mm Hg, and glucose is 138 mg/dL. Medications include amlodipine and warfarin, with INR of 2.2. CT of the head is unremarkable, and CT angiogram shows a large vessel left middle cerebral artery occlusion. Which of the following is the most appropriate treatment option?",
+    "scenario": "During a stroke alert, a 59-year-old presents two hours into aphasia and right-sided weakness, and CTA confirms a left MCA large-vessel occlusion. You note the INR is 2.2 on warfarin, which excludes IV thrombolytics, but anticoagulation does not exclude mechanical thrombectomy within the window for a large vessel occlusion. You activate neurointervention for thrombectomy rather than wasting time reversing warfarin or giving aspirin alone. For psychiatry, the takeaway is recognizing thrombectomy eligibility on a patient you may be co-managing and not assuming anticoagulation closes all reperfusion doors. Bottom line: Large-vessel occlusion strokes can be treated with thrombectomy even when anticoagulation rules out tPA.",
+    "score": 9
+  },
+  {
+    "id": "2025-0100",
+    "year": "2025",
+    "q_index": 100,
+    "category": "Psychopathology & Disorders",
+    "stem": "Two years after the death of a spouse, most elderly individuals are found to:",
+    "scenario": "A 74-year-old widow comes to your outpatient clinic accompanied by her daughter, who worries that her mother is \"still not over\" the husband's death two years ago. On interview, the patient describes occasional tearfulness on anniversaries but has resumed church, gardening, and lunches with friends; sleep and appetite are intact and she denies hopelessness or anhidonia. Knowing that most bereaved elders show gradual abatement of distress by two years, you reassure the family this trajectory is normal grief, not pathology, and you avoid reflexively starting an antidepressant. You document continued monitoring and screen specifically for prolonged grief or major depression if function declines. Bottom line: Two years out, expect resolving grief in most elders, not chronic illness.",
+    "score": 9
+  },
+  {
+    "id": "2025-0103",
+    "year": "2025",
+    "q_index": 103,
+    "category": "Psychotherapy & Psychosocial",
+    "stem": "Psychoanalytic psychotherapy would be most indicated for a patient who:",
+    "scenario": "In resident clinic a high-functioning 34-year-old accountant presents not in crisis but frustrated by a recurring pattern: she idealizes new partners, then sabotages each relationship and cannot understand why. She is psychologically minded, stable, and curious about the roots of her behavior. Matching treatment to the patient, you recognize this as an ideal candidate for psychoanalytic or psychodynamic psychotherapy, which targets insight into unconscious patterns and interpersonal difficulty rather than rapid symptom relief. You reserve manualized CBT or crisis stabilization for the panic, acute trauma, and emergent presentations on your list. Bottom line: Insight-oriented psychoanalytic therapy fits the stable, curious patient seeking to understand recurring interpersonal patterns.",
+    "score": 9
+  },
+  {
+    "id": "2025-0106",
+    "year": "2025",
+    "q_index": 106,
+    "category": "Somatic Tx & Psychopharmacology",
+    "stem": "Which of the following accurately describes risk associated with ECT in patients with depression?",
+    "scenario": "You consult on a 68-year-old with treatment-resistant depression and a history of myocardial infarction and reduced ejection fraction being considered for ECT. The family asks about the risk of dying. You explain that ECT mortality is very low, comparable to brief general anesthesia, but that the deaths that do occur cluster in patients with already-compromised cardiac status because of the transient hemodynamic surge during stimulation. This drives your action: you obtain cardiology clearance, optimize the patient medically, and arrange anesthesia with hemodynamic monitoring before proceeding. Bottom line: ECT is generally very safe, but mortality risk concentrates in cardiac-compromised patients, so optimize the heart first.",
+    "score": 9
+  },
+  {
+    "id": "2025-0107",
+    "year": "2025",
+    "q_index": 107,
+    "category": "Psychopathology & Disorders",
+    "stem": "Which symptom of insomnia is more common in younger adults compared to older adults?",
+    "scenario": "Two patients describe insomnia in clinic the same afternoon. A 28-year-old graduate student lies awake for two hours unable to fall asleep, while a 70-year-old retiree falls asleep easily but wakes at 4 a.m. unable to return to sleep. Recognizing that difficulty initiating sleep predominates in younger adults whereas early-morning awakening and sleep maintenance problems are more typical of older adults, you tailor each plan: stimulus control and sleep restriction with attention to delayed phase for the student, and evaluation for depression and circadian advance for the retiree. Bottom line: Sleep-onset difficulty skews younger; maintenance and early awakening skew older, so target the insomnia phenotype by age.",
+    "score": 9
+  },
+  {
+    "id": "2025-0109",
+    "year": "2025",
+    "q_index": 109,
+    "category": "Psychopathology & Disorders",
+    "stem": "Which of the following diagnostic tests would be most appropriate for workup of restless leg syndrome?",
+    "scenario": "A 52-year-old woman describes an irresistible urge to move her legs each evening, relieved by walking, that wrecks her sleep. You recognize restless legs syndrome, which is a clinical diagnosis, and instead of jumping to polysomnography you order a serum ferritin (plus iron studies). Knowing that iron deficiency drives RLS, you plan iron repletion if ferritin is low (generally targeting above 75-100 ng/mL) before reaching for dopaminergic agents. You also review her medications for SSRIs and antihistamines that worsen symptoms. Bottom line: In restless legs syndrome, check serum ferritin first, because correcting low iron can resolve symptoms without further sleep testing.",
+    "score": 9
+  },
+  {
+    "id": "2025-0114",
+    "year": "2025",
+    "q_index": 114,
+    "category": "Somatic Tx & Psychopharmacology",
+    "stem": "Which of the following statements regarding the use of stimulant medications in patients diagnosed with ADHD is most accurate?",
+    "scenario": "A mother in clinic worries that giving her 9-year-old son stimulants for ADHD will turn him into a drug user later. Drawing on the evidence, you reassure her that childhood stimulant treatment does not increase later substance use disorder risk and may actually lower it toward general-population rates, likely by improving impulse control and academic and social functioning. This counseling supports starting an indicated medication rather than withholding it out of misplaced fear, while you still monitor growth, sleep, and cardiac history. Bottom line: Treating childhood ADHD with stimulants does not raise, and may reduce, later substance use risk, so do not withhold effective treatment.",
+    "score": 9
+  },
+  {
+    "id": "2025-0115",
+    "year": "2025",
+    "q_index": 115,
+    "category": "Psychopathology & Disorders",
+    "stem": "A need for excessive reassurance, clinginess, and submissive behavior are most characteristic of which personality disorder?",
+    "scenario": "A 30-year-old in your clinic cannot make routine decisions without repeated reassurance, defers all choices to her partner, fears being unable to care for herself, and quickly seeks a new relationship whenever one ends. Recognizing the pervasive pattern of clinginess, submissiveness, and excessive need for reassurance, you identify dependent personality disorder rather than borderline or avoidant. This shapes therapy: you set a psychotherapy frame that gently builds autonomy and tolerance of independent decision-making, and you stay alert to the patient pulling you into a reassuring, directive role that reinforces dependence. Bottom line: Excessive reassurance-seeking, clinginess, and submissiveness define dependent personality disorder, and treatment fosters autonomy.",
+    "score": 9
+  },
+  {
+    "id": "2025-0117",
+    "year": "2025",
+    "q_index": 117,
+    "category": "Psychopathology & Disorders",
+    "stem": "Which of the following features of a depressive episode is most predictive of a bipolar disorder diagnosis?",
+    "scenario": "A 22-year-old presents to your clinic with a recurrent winter depression: hypersomnia, low energy, and carb craving that lift in spring. Before you reflexively start an SSRI, remember that certain depression features should raise your suspicion for an underlying bipolar diathesis. Seasonality, like early onset, atypical features, and recurrent brief episodes, is associated with eventual bipolar conversion, so you screen carefully for past hypomania, family history of bipolar disorder, and prior antidepressant-induced activation. You document these red flags, counsel on switch risk, and arrange close follow-up after starting treatment. Bottom line: Seasonal depressive episodes should prompt a careful bipolar screen before reaching for an antidepressant.",
+    "score": 9
+  },
+  {
+    "id": "2025-0118",
+    "year": "2025",
+    "q_index": 118,
+    "category": "Psychopathology & Disorders",
+    "stem": "Compared to younger patients, depression in the elderly is more:",
+    "scenario": "An 80-year-old man is referred after his PCP noted months of poor appetite, withdrawal, and vague somatic complaints. The family chalks it up to 'just getting old.' On interview you uncover passive death wishes and a stockpiled supply of pills. This is the danger of geriatric depression: it is far more closely tied to completed suicide than depression in younger patients, with older men carrying the highest rates. You don't normalize it as aging. You screen explicitly for suicidal ideation and access to means, reduce lethal means, and arrange urgent treatment and close follow-up. Bottom line: Take depression in the elderly seriously, because it carries a disproportionately high suicide risk.",
+    "score": 9
+  },
+  {
+    "id": "2025-0119",
+    "year": "2025",
+    "q_index": 119,
+    "category": "Psychopathology & Disorders",
+    "stem": "A patient believes their eyebrows are too bushy and spends much of the day repetitively plucking brow hair. The patient isolates and is unable to maintain friendships as a result. What is the most likely diagnosis?",
+    "scenario": "A 19-year-old comes to clinic distressed that her eyebrows are 'too bushy and uneven,' spending hours plucking and checking mirrors. She's stopped seeing friends out of embarrassment about her appearance. The plucking might suggest trichotillomania, but the driver here is a preoccupation with a perceived defect in appearance, with repetitive behaviors performed in response to that concern, which defines body dysmorphic disorder. You distinguish this from trichotillomania, where pulling is the primary problem, not appearance-based. You screen for suicidality (high in BDD), avoid cosmetic referrals that rarely help, and start an SSRI plus CBT targeting the appearance preoccupation. Bottom line: Appearance-driven grooming with social impairment points to BDD, not a simple body-focused repetitive behavior.",
+    "score": 9
+  },
+  {
+    "id": "2025-0145",
+    "year": "2025",
+    "q_index": 145,
+    "category": "Uncategorized",
+    "stem": "Which of the following are associated with normal aging in geriatric patients? (Select three.)",
+    "scenario": "An adult child brings their 78-year-old parent to clinic worried that being slower to recall names means dementia. You contrast normal aging with pathology: in healthy aging, crystallized verbal abilities are maintained, processing and memory speed slow, and there are some physiologic CNS changes, while well-preserved simple recall and intact ability to learn new information should remain. Marked decline in learning new information, falling IQ, or loss of recall points beyond normal aging toward neurocognitive disorder. You reassure the family about benign slowing but order cognitive screening to check learning and recall. Bottom line: Normal aging slows processing while preserving verbal skills and learning capacity.",
+    "score": 9
+  },
+  {
+    "id": "2025-0152",
+    "year": "2025",
+    "q_index": 152,
+    "category": "Diagnostic Procedures",
+    "stem": "A healthy 85-year-old undergoes detailed neuropsychological testing. Which of the following neuropsychological capabilities would be most preserved in an older adult?",
+    "scenario": "A worried family brings their healthy 85-year-old parent in because they 'seem slower.' On formal neuropsychological testing, processing speed, encoding, and learning new material are mildly reduced, but vocabulary and verbal ability remain strong—consistent with preserved crystallized intelligence in normal aging. You reassure the family these findings do not indicate dementia and contrast them with the memory-consolidation and naming deficits you would expect in Alzheimer disease. This lets you avoid an alarming workup while still tracking the patient over time. Bottom line: Verbal ability is the most preserved cognitive domain in healthy aging, whereas processing speed and new learning decline.",
+    "score": 9
+  },
+  {
+    "id": "2025-0153",
+    "year": "2025",
+    "q_index": 153,
+    "category": "Psychopathology & Disorders",
+    "stem": "A 28-year-old patient presents to clinic reporting a two-month history of worsening depression. The patient endorses four neurovegetative symptoms. Due to the patient's increasing use of alcohol over the past three months, the patient's spouse recently filed for divorce. Which of the following is the most appropriate diagnosis?",
+    "scenario": "A 28-year-old reports two months of worsening depression with neurovegetative symptoms, but the timeline tracks an escalation in alcohol use over the same three months. Before committing to an MDD diagnosis and an antidepressant, you recognize this fits substance-induced depressive disorder. Your plan prioritizes addressing the alcohol use and re-evaluating mood after a period of sobriety, since many such depressions remit with abstinence. Premature MDD labeling risks polypharmacy and missing the primary driver. You document the temporal link and arrange close follow-up to confirm the diagnosis once substance use is controlled. Bottom line: When depressive symptoms map onto active substance use, diagnose substance-induced depression and reassess after sobriety.",
+    "score": 9
+  },
+  {
+    "id": "2025-0166",
+    "year": "2025",
+    "q_index": 166,
+    "category": "Clinical Neurology",
+    "stem": "Secondary mania is most likely to arise in the setting of which of the following illnesses?",
+    "scenario": "A 34-year-old woman with known multiple sclerosis is admitted with three days of decreased sleep, pressured speech, grandiose plans, and irritability, with no prior psychiatric history and no substance use. Before anchoring on primary bipolar disorder, you recall that demyelinating disease, especially periventricular and frontal lesions, can produce secondary mania. You order an MRI, review her DMT and any recent steroid courses, and coordinate with neurology. Treatment leans on mood stabilizers or atypical antipsychotics while addressing the underlying lesion burden. Recognizing secondary mania changes your workup and prognosis discussion. Bottom line: new-onset mania in an MS patient should prompt neuroimaging and a secondary-mania workup, not just a bipolar label.",
+    "score": 9
+  },
+  {
+    "id": "2025-0167",
+    "year": "2025",
+    "q_index": 167,
+    "category": "Psychopathology & Disorders",
+    "stem": "In the outpatient setting, which of the following is a risk factor for suicide among patients diagnosed with schizophrenia?",
+    "scenario": "In clinic you are reassessing suicide risk in a 40-year-old man with chronic schizophrenia. He is articulate, partially adherent, and acutely aware of how illness has derailed his career, with several prior hospitalizations on his chart. Rather than being reassured by his insight, you weight it as risk: good awareness of deficits, prior multiple admissions, and high premorbid expectations all elevate suicide risk in schizophrenia. You tighten follow-up, address depression and hopelessness directly, ensure means safety, and consider clozapine for its anti-suicidality evidence. Counterintuitively, the more insightful, previously high-functioning patient often needs closer watching. Bottom line: in schizophrenia, multiple admissions and preserved insight raise suicide risk rather than lowering it.",
+    "score": 9
+  },
+  {
+    "id": "2025-0170",
+    "year": "2025",
+    "q_index": 170,
+    "category": "Clinical Neurosciences",
+    "stem": "Which of the following is the most important physiological cause of low sexual desire in post-menopausal women?",
+    "scenario": "A 55-year-old postmenopausal woman in your clinic reports markedly diminished sexual desire that distresses her, despite a stable relationship and remitted depression on a non-serotonergic regimen. You review her hormonal physiology: while declining estrogen drives vaginal dryness and dyspareunia, the most important physiologic contributor to low desire itself is reduced testosterone. You evaluate for contributing factors, counsel on the limited and off-label evidence for testosterone in women, and address relationship and medication factors. Understanding the androgen contribution helps you frame realistic options rather than reflexively blaming estrogen alone. Bottom line: reduced testosterone, more than estrogen, is the key physiologic driver of low sexual desire in postmenopausal women.",
+    "score": 9
+  },
+  {
+    "id": "2025-0171",
+    "year": "2025",
+    "q_index": 171,
+    "category": "Psychopathology & Disorders",
+    "stem": "Which of the following demographic features is associated with persistence of symptoms in adult patients diagnosed with somatic symptom disorder?",
+    "scenario": "In a primary care integration clinic you follow a 50-year-old man with somatic symptom disorder, frequent visits, and persistent unexplained pain. He left school early and works intermittently. When the team asks about prognosis, you note that lower educational level is associated with persistence of symptoms, which shapes expectations and intensity of support. Rather than chasing cures, you set up regular scheduled visits, limit unnecessary testing, treat comorbid depression and anxiety, and engage CBT. Identifying poor-prognosis demographics helps you plan longitudinal, realistic management. Bottom line: lower educational level predicts persistence in somatic symptom disorder, so plan for sustained, structured care rather than a quick fix.",
+    "score": 9
+  },
+  {
+    "id": "2025-0174",
+    "year": "2025",
+    "q_index": 174,
+    "category": "Psychopathology & Disorders",
+    "stem": "A two-year-old boy is brought to a clinician by his parents due to concerns that he is not talking. He appears to hear normally and follows simple commands. The parents note that he is not social with other children and consistently avoids eye contact. He is frequently irritable and hyperactive at home, occasionally hand-flapping and biting. Family history is significant for a maternal uncle with intellectual disability and learning problems in his mother. He is 20th percentile for weight, 30th percentile for height, and 90th percentile in head size. Which of the following is the most likely diagnosis?",
+    "scenario": "In a developmental clinic a 2-year-old boy presents with absent speech but intact hearing, poor eye contact, hand-flapping, self-biting, hyperactivity, and macrocephaly. The family history of a maternal uncle with intellectual disability and learning problems in the mother points to X-linked inheritance. You recognize fragile X syndrome and order FMR1 CGG-repeat testing rather than a generic autism panel alone. Confirming the diagnosis guides genetic counseling for the family, cascade testing of female carriers, and anticipatory care for connective tissue and cardiac issues. Pattern recognition here changes the workup. Bottom line: autism features plus macrocephaly and an X-linked family history of intellectual disability should trigger FMR1 testing for fragile X.",
+    "score": 9
+  },
+  {
+    "id": "2025-0177",
+    "year": "2025",
+    "q_index": 177,
+    "category": "Clinical Neurosciences",
+    "stem": "Under the individuals with Disabilities Education Improvement Act of 1990, students who are not making effective progress in school due to a documented disability must be provided with which of the following?",
+    "scenario": "In child clinic, parents of an 8-year-old with ADHD and a learning disorder ask how to get him school support. You explain that under IDEA, a child whose documented disability impairs educational progress is entitled to an Individualized Education Program (IEP), a legally binding plan with specialized instruction, measurable goals, and services, distinct from a 504 plan, which provides accommodations under civil-rights law. You help by writing a letter documenting his diagnoses and functional impairment to support the evaluation request. Knowing this lets you advocate effectively. Bottom line: under IDEA, a disabled student not making progress is entitled to an IEP, the formal special-education plan, not just a 504.",
+    "score": 9
+  },
+  {
+    "id": "2025-0179",
+    "year": "2025",
+    "q_index": 179,
+    "category": "Clinical Neurosciences",
+    "stem": "A surge of which of the following hormones initiates pubertal development in adolescents?",
+    "scenario": "A 13-year-old is referred to your child clinic for precocious puberty and possible behavioral effects of early development. The endocrinology team explains that puberty starts when the hypothalamus resumes pulsatile GnRH secretion, which then drives pituitary LH/FSH and downstream sex steroids. Understanding that GnRH is the trigger helps you counsel the family about why a GnRH-agonist (which paradoxically suppresses pulsatile signaling) is used to pause puberty, and why you should screen for mood and body-image distress in a child whose body is changing years ahead of peers. You frame the psychiatric care around the developmental mismatch rather than treating the hormones directly. Bottom line: Pulsatile GnRH from the hypothalamus initiates puberty and anchors how you interpret precocious development.",
+    "score": 9
+  },
+  {
+    "id": "2025-0180",
+    "year": "2025",
+    "q_index": 180,
+    "category": "Psychopathology & Disorders",
+    "stem": "Which of the following would confirm the suspected diagnosis of narcolepsy?",
+    "scenario": "A 22-year-old presents to your clinic with daytime sleepiness, sleep attacks, and episodes of knees buckling when laughing. You suspect narcolepsy type 1. While polysomnography with a next-day Multiple Sleep Latency Test is the usual confirmatory pathway, the most specific biologic marker is low or absent CSF orexin (hypocretin-1), reflecting destruction of hypothalamic orexin neurons. When the clinical picture is murky or the patient cannot complete sleep studies (e.g., on stimulants or antidepressants that confound the MSLT), a low CSF orexin level clinches the diagnosis. This also explains why you avoid abruptly stopping REM-suppressing antidepressants that may be masking cataplexy. Bottom line: Low CSF orexin is the most specific confirmatory test for narcolepsy type 1.",
+    "score": 9
+  },
+  {
+    "id": "2025-0181",
+    "year": "2025",
+    "q_index": 181,
+    "category": "Psychopathology & Disorders",
+    "stem": "During the neurological examination, a 59-year-old patient is asked to slap the palm of his hand on his knee, alternating with the back of his hand, in rapid succession. He performs this maneuver with difficulty, often clumsily hitting the side of his hand at an irregular tempo. Which of the following describes the abnormality demonstrated with this maneuver?",
+    "scenario": "On a C-L consult for a 59-year-old with new gait unsteadiness and slurred speech, you do a quick bedside neuro screen and ask him to rapidly alternate slapping his palm and the back of his hand on his thigh. He is slow, clumsy, and irregular. You document dysdiadochokinesia, a sign of cerebellar dysfunction, and pair it with finger-to-nose testing for dysmetria. This pushes your differential toward cerebellar pathology (alcohol-related degeneration, stroke, posterior fossa lesion, paraneoplastic) rather than a primary psychiatric cause, and prompts you to recommend imaging and a thiamine review before attributing his presentation to depression or functional illness. Bottom line: Impaired rapid alternating movements equals dysdiadochokinesia, a cerebellar localizing sign.",
+    "score": 9
+  },
+  {
+    "id": "2025-0185",
+    "year": "2025",
+    "q_index": 185,
+    "category": "Uncategorized",
+    "stem": "Which of the following factors contributes most to decreasing social networks in the elderly?",
+    "scenario": "In geriatric clinic, a widowed 80-year-old reports growing isolation and low mood. Before labeling it 'preference for solitude' or simple grief, you assess function: she stopped attending church and visiting friends after her knees and a prior hip fracture limited her mobility and driving. The dominant driver of shrinking social networks in elders is physical disability and reduced mobility, not a wish to withdraw. This reframes your plan toward physical therapy, transportation resources, and home-based or telehealth social engagement, alongside treating depression. You address the access barrier rather than misattributing isolation to personality. Bottom line: Physical disability and reduced mobility, not chosen withdrawal, most shrink elders' social networks.",
+    "score": 9
+  },
+  {
+    "id": "2025-0186",
+    "year": "2025",
+    "q_index": 186,
+    "category": "Clinical Neurology",
+    "stem": "A 48-year-old woman with metastatic breast cancer is hospitalized for altered mental status. The patient is having trouble staying awake or attending to conversations about her status. The medical team is concerned about brain metastasis, but when asked to consent to an MRI under anesthesia, the patient just repeats, \"Don't know, don't know.\" A psychiatrist is consulted to perform a capacity assessment and determines that the patient is delirious and does not currently have capacity to make medical decisions. What should the psychiatrist tell the primary team?",
+    "scenario": "You are consulted on a delirious woman with metastatic breast cancer who cannot meaningfully participate in consent for an urgent MRI. You determine she lacks capacity. Before escalating to courts or guardianship, the correct next step is to look for an advance health care directive or designated health care proxy, which provides a legally and ethically grounded decision-maker without delay. You ask the team and family whether documents exist, then engage the surrogate. This avoids unnecessary court involvement while respecting the patient's previously expressed wishes. If truly emergent and no surrogate exists, emergency-consent doctrine applies. Bottom line: When a patient lacks capacity, first seek an advance directive or surrogate before pursuing courts or guardianship.",
+    "score": 9
+  },
+  {
+    "id": "2025-0188",
+    "year": "2025",
+    "q_index": 188,
+    "category": "Somatic Tx & Psychopharmacology",
+    "stem": "A 30-year-old patient with treatment-resistant schizophrenia is on clozapine. The patient presents to the emergency department with dyspnea, orthostatic hypotension and a heart rate of 130 bpm. CBC is normal, except for an elevated eosinophil count. EKG shows nonspectic T-wave changes. Which of the following tests is most likely to be helpful in guiding the acute management of this patient?",
+    "scenario": "Your clozapine patient arrives in the ED with dyspnea, tachycardia at 130, orthostasis, eosinophilia, and nonspecific T-wave changes, all within the first weeks of titration. You immediately suspect clozapine-induced myocarditis, a potentially fatal early complication. You order a troponin (plus CRP, ECG, and echocardiogram), because a rising troponin confirms myocardial injury and guides urgent management: hold clozapine and involve cardiology. A clozapine level would not address this acute cardiac emergency. Recognizing this pattern early can be lifesaving and informs whether rechallenge is ever feasible. Bottom line: In early clozapine treatment with cardiac symptoms and eosinophilia, get a troponin to catch myocarditis.",
+    "score": 9
+  },
+  {
+    "id": "2025-0191",
+    "year": "2025",
+    "q_index": 191,
+    "category": "Psychopathology & Disorders",
+    "stem": "A three-and-a-half-year-old girl has increasingly become interested in dressing up in her mother's clothes and shoes, with increased remarks about being a girl. It would be most consistent with a social learning theory explanation of psychosexual development to say that the girl's behavior is:",
+    "scenario": "Parents in your clinic worry that their 3.5-year-old's enthusiasm for wearing mom's clothes and announcing she is a girl is abnormal. Using a social learning framework, you explain that gender-typed behavior at this age is substantially shaped by observing and imitating same-sex caregivers, modeling and reinforcement of maternal behavior. This normalizes the behavior, reduces parental alarm, and steers the conversation away from pathologizing typical preschool identification. It also helps you contrast competing theories (psychoanalytic, cognitive-developmental, biological) when families ask 'why.' You reassure them this is developmentally expected exploration. Bottom line: Social learning theory attributes a preschooler's gender-typed behavior to modeling and imitation of caregivers.",
+    "score": 9
+  },
+  {
+    "id": "2025-0193",
+    "year": "2025",
+    "q_index": 193,
+    "category": "Psychotherapy & Psychosocial",
+    "stem": "A 79-year-old sought psychotherapy after becoming alarmed by repeated online purchases of works of art, despite excessive financial costs. In psychotherapy, the patient began understanding how each purchase gave a brief lift in mood and soothed loneliness. This behavioral pattern is best explained by which of the following learning theories?",
+    "scenario": "A 79-year-old in your psychotherapy practice is distressed by compulsive online art purchases. As you explore the pattern, the patient realizes each buy delivers a brief mood lift and eases loneliness. You frame this through operant conditioning: the purchasing behavior is maintained by reinforcement, the immediate emotional reward strengthens the action and makes it recur. This formulation directs treatment toward identifying the reinforcing contingency, building alternative sources of soothing and connection, and using behavioral strategies (delay, substitution, reducing the reward loop). Naming the mechanism turns 'bad habit' into a modifiable learned behavior. Bottom line: Behavior sustained by its rewarding consequences is operant conditioning, which guides contingency-focused treatment.",
+    "score": 9
+  },
+  {
+    "id": "2025-0201",
+    "year": "2025",
+    "q_index": 201,
+    "category": "Psychopathology & Disorders",
+    "stem": "A 13-year-old is talking to their best friend about an upcoming move out of state. The child says, \"I am sad we are moving away. I am happy for my parents, but ! wish they understood my feelings.\" This comment is most likely an example of which of the following aspects of emotional development?",
+    "scenario": "In child clinic, a 13-year-old tells you, \"I'm sad we're moving, but happy for my parents.\" A worried parent wonders if the mixed message means the child is confused or unstable. You reassure them this is emotional ambivalence, the developmentally appropriate capacity to hold two opposing feelings about the same event at once, which emerges in adolescence and reflects maturing emotional complexity, not pathology. You frame it as a sign of healthy development and coach the parents to validate both feelings rather than try to resolve them. This also helps you distinguish normal adjustment from an adjustment disorder. Bottom line: Holding conflicting feelings simultaneously is emotional ambivalence, a normal adolescent milestone.",
+    "score": 9
+  },
+  {
+    "id": "2025-0207",
+    "year": "2025",
+    "q_index": 207,
+    "category": "Psychopathology & Disorders",
+    "stem": "A 47-year-old develops chronic pain in one arm following a fall. Over the next year, the patient develops excruciating pain throughout the arm. The skin becomes shiny and smooth with a dusky color and loss of hair. Treatment at which of the following anatomical locations is likely to provide pain reduction?",
+    "scenario": "A patient referred for \"chronic pain and depression\" describes burning, excruciating arm pain a year after a fall, with shiny, hairless, dusky skin. You recognize complex regional pain syndrome, a sympathetically mediated pain condition, rather than purely psychogenic pain. Knowing the sympathetic pathway is key: the stellate ganglion supplies sympathetic innervation to the upper extremity, so a stellate ganglion block can interrupt the pain cycle and provide relief. You coordinate referral to pain or anesthesia for the block, treat the comorbid mood symptoms, and validate that the pain is real and physiologic. Bottom line: Stellate ganglion block targets sympathetically mediated upper-limb CRPS pain.",
+    "score": 9
+  },
+  {
+    "id": "2025-0213",
+    "year": "2025",
+    "q_index": 213,
+    "category": "Psychopathology & Disorders",
+    "stem": "A 24-year-old male with a history of childhood physical abuse and phencyclidine use presents to the emergency department with psychotic symptoms. On a previous visit, he physically assaulted a nurse. Which of the following is the single strongest predictor of violent behavior during this patient encounter?",
+    "scenario": "You're paged to the ED for an agitated young man with PCP intoxication and psychosis who has assaulted staff before. Triaging risk, you're tempted to anchor on the psychosis or intoxication in front of you, but the strongest predictor of imminent violence is a documented history of prior violence. You pull his chart, confirm the past assault, and act on it: assign a sitter, ensure security presence, clear the room of ligatures and projectiles, keep an exit at your back, and have IM medication ready. You brief the nurses explicitly. The static risk factor drives your environmental and staffing plan. Bottom line: Past violence is the single best predictor of future violence, so let prior history drive safety precautions.",
+    "score": 9
+  },
+  {
+    "id": "2025-0228",
+    "year": "2025",
+    "q_index": 228,
+    "category": "Psychopathology & Disorders",
+    "stem": "Which of the following is a neurodevelopmental feature of children with autism spectrum disorder?",
+    "scenario": "In clinic a worried parent of a 2-year-old with autism asks whether their child's larger-than-average head size means something is wrong. Knowing that ASD is associated with early brain overgrowth, with accelerated brain volume increase between roughly ages two and four, you can explain that this macrocephaly trend is a recognized neurodevelopmental feature rather than a separate disease. This reassures the family while reinforcing the importance of early behavioral intervention during this critical window. It also reminds you to track head circumference and developmental trajectory rather than dismissing rapid early growth. Bottom line: Autism spectrum disorder features early brain overgrowth, with increased brain volume from roughly ages two to four.",
+    "score": 9
+  },
+  {
+    "id": "2025-0242",
+    "year": "2025",
+    "q_index": 242,
+    "category": "Psychopathology & Disorders",
+    "stem": "A 55-year-old presents for evaluation of cognitive and behavioral changes over the past three years. They have become impulsive and rude and lost their job for failure to meet project deadlines. The patient is found sitting at the computer workstation and says, \"I've been waiting so long, I figured I would go ahead and do your job for youl\" and later grabs the reflex hammer and says, Now, its my tum!* Which cognitive test would most likely be affected by this patient's disease?",
+    "scenario": "A 55-year-old with three years of disinhibition, impulsivity, social rudeness, and job loss demonstrates striking loss of social conduct, pointing to behavioral-variant frontotemporal dementia. Knowing FTD commonly involves language and frontal-executive deficits, you anticipate that bedside cognitive testing of language (and behavior) will be most affected, while memory and orientation may be relatively spared early. This steers your workup toward frontal/temporal-focused assessment and neuroimaging rather than an Alzheimer-style memory battery, and shapes caregiver counseling about behavioral management. Bottom line: In frontotemporal dementia, language and frontal-behavioral functions are affected early, unlike the memory-predominant pattern of Alzheimer disease.",
+    "score": 9
+  },
+  {
+    "id": "2025-0247",
+    "year": "2025",
+    "q_index": 247,
+    "category": "Psychopathology & Disorders",
+    "stem": "Following a bout of gastroenteritis, a 26-year-old presents to the emergency department with three days of progressive ascending weakness and paraesthesia. On examination, they are tachycardic and areflexic and have 2/5 strength in the bilateral lower extremities. An electromyogram/nerve conduction study a few days later shows demyelination. Which of the following findings would aid in confirming the suspected diagnosis?",
+    "scenario": "A 26-year-old comes to the ED with ascending leg weakness and numbness days after a diarrheal illness, and exam reveals areflexia and tachycardia. You suspect Guillain-Barre syndrome, and the EMG/NCS confirms demyelination. To support the diagnosis you order a lumbar puncture looking for albuminocytologic dissociation: high CSF protein with a normal cell count. Equally important, you appreciate that GBS is a medical emergency, so you monitor forced vital capacity for respiratory failure and watch for autonomic instability, while arranging IVIG or plasmapheresis. Bottom line: In suspected Guillain-Barre, CSF showing elevated protein with normal cells confirms it, and watch the diaphragm.",
+    "score": 9
+  },
+  {
+    "id": "2025-0253",
+    "year": "2025",
+    "q_index": 253,
+    "category": "Uncategorized",
+    "stem": "Which of the following correctly characterizes sexual activity in older adults?",
+    "scenario": "A 70-year-old widower in your outpatient clinic mentions a new relationship, and you remember that STI rates are rising among older adults, who often skip condoms because pregnancy is no longer a concern. Instead of assuming he is not sexually active, you take a frank, nonjudgmental sexual history, offer STI screening, and counsel on barrier protection. You also screen for erectile dysfunction and review interactions with his cardiac and psychiatric meds. Normalizing the conversation improves both safety and quality of life. Bottom line: Older adults remain sexually active and have rising STI rates, so screen and counsel rather than assume abstinence.",
+    "score": 9
+  },
+  {
+    "id": "2025-0275",
+    "year": "2025",
+    "q_index": 275,
+    "category": "Somatic Tx & Psychopharmacology",
+    "stem": "Esketamine is thought to exert its antidepressant effects through noncompetitive antagonism of which receptor type?",
+    "scenario": "A 48-year-old with treatment-resistant depression has failed three adequate antidepressant trials and is referred to your clinic for esketamine. As you consent her, she asks how this nasal spray differs from her old SSRIs. You explain it works on a completely different system: noncompetitive NMDA-receptor antagonism, triggering a glutamate surge and rapid synaptic changes rather than slow monoamine modulation. This mechanism shapes your monitoring plan: you schedule REMS-certified in-office dosing, check blood pressure before and after for transient spikes, watch for dissociation, and counsel her not to drive that day. Understanding the NMDA target tells you why effects come fast and why monitoring differs from oral agents. Bottom line: Esketamine's antidepressant action is NMDA-receptor antagonism, driving its rapid onset and unique monitoring needs.",
+    "score": 9
+  },
+  {
+    "id": "2025-0276",
+    "year": "2025",
+    "q_index": 276,
+    "category": "Psychotherapy & Psychosocial",
+    "stem": "Fundamental techniques utilized in motivational interviewing include:",
+    "scenario": "A 32-year-old with alcohol use disorder sits in your clinic saying he is not sure he really needs to quit. Instead of lecturing him on liver damage or arguing, you lean into motivational interviewing: you reflect back what you hear ('part of you worries the drinking is costing you your marriage'), ask open questions, and selectively reinforce his own change talk ('I guess I'd like to be more present for my kids'). By eliciting his reasons rather than supplying yours, you sidestep the defensiveness that confrontation breeds. He leaves having voiced his own motivation, which predicts behavior change better than your advice would. Bottom line: Motivational interviewing relies on reflective listening and eliciting the patient's own change talk, not confrontation or expert solutions.",
+    "score": 9
+  },
+  {
+    "id": "2025-0293",
+    "year": "2025",
+    "q_index": 293,
+    "category": "Uncategorized",
+    "stem": "Which factor is most important in influencing sexual activity in older men?",
+    "scenario": "A 72-year-old man on your geriatric clinic panel raises concerns about declining sexual function. Rather than assuming it's inevitable aging or focusing only on whether he's partnered, you take a careful medical history: diabetes, cardiovascular disease, BPH meds, and overall physical health are the dominant drivers of sexual activity in older men. You review his medication list for offenders, optimize glycemic and vascular control, and screen for depression. Counseling him that physical health, not age per se, is the key modifiable factor reframes the problem as treatable. This shifts your plan from reassurance toward a targeted medical workup. Bottom line: In older men, physical health is the most important determinant of continued sexual activity.",
+    "score": 9
+  },
+  {
+    "id": "2025-0294",
+    "year": "2025",
+    "q_index": 294,
+    "category": "Development & Lifespan",
+    "stem": "A child who has attained object permanence and engages in symbolic play but does not yet understand that a ball of clay rolled into a log is the same amount of clay is in which Piaget stage of cognitive development?",
+    "scenario": "During a child psychiatry rotation you assess a 4-year-old. She searches for a hidden toy (object permanence intact) and feeds her doll imaginary soup (symbolic play), but when you roll her clay snake out she insists there's now more clay. You place her in Piaget's preoperational stage, which spans roughly ages 2 to 7 and is marked by symbolic thought but failure of conservation and egocentrism. Knowing the stage calibrates how you communicate: you use concrete, simple language, avoid abstract reasoning, and interpret her magical thinking as developmentally normal rather than pathological. This frames your interview technique and parent guidance. Bottom line: Symbolic play plus failed conservation equals Piaget's preoperational stage.",
+    "score": 9
+  },
+  {
+    "id": "2025-0300",
+    "year": "2025",
+    "q_index": 300,
+    "category": "Psychopathology & Disorders",
+    "stem": "Which of the following are included in the criteria for gender dysphoria in children? (Select three.)",
+    "scenario": "A 7-year-old is brought to your child clinic because the parents are unsure whether their distress signals gender dysphoria. You apply the DSM-5 criteria for children: a marked incongruence with duration of at least six months, requiring a strong desire to be another gender, plus features such as distress about one's assigned sex and anxiety about pubertal sexual development. Children must show a strong cross-gender identification, not merely gender-nonconforming behavior. Anchoring on the specific criteria prevents over- or underdiagnosis and guides whether to offer watchful waiting, family support, or referral for specialized gender care. Bottom line: Childhood gender dysphoria requires distress about assigned sex, desire to be another gender, and anxiety about pubertal development.",
+    "score": 9
+  },
+  {
+    "id": "2024-0033",
+    "year": "2024",
+    "q_index": 33,
+    "category": "Clinical Neurosciences",
+    "stem": "Which of the following factors lowers the risk for severe vasomotor symptoms during perimenopause?",
+    "scenario": "A 49-year-old perimenopausal patient in your clinic reports disabling hot flashes worsening her sleep and mood. As you counsel her, you review risk factors for severe vasomotor symptoms: high BMI, smoking, and Black or Hispanic ethnicity raise risk, while a negative smoking history lowers it. This lets you frame smoking cessation as a concrete, modifiable lever that may ease her symptoms alongside addressing sleep and mood. Connecting menopausal physiology to lifestyle counseling makes your intervention more credible and actionable. Bottom line: not smoking lowers the risk of severe perimenopausal vasomotor symptoms, making cessation worthwhile counseling.",
+    "score": 9
+  },
+  {
+    "id": "2024-0041",
+    "year": "2024",
+    "q_index": 41,
+    "category": "Psychopathology & Disorders",
+    "stem": "Which of the following characteristics is more associated with bipolar depression rather than unipolar depression?",
+    "scenario": "A 22-year-old presents to your clinic with a depressive episode that came on over a few days rather than weeks, with prior similar abrupt episodes since the teens. Before reflexively starting an SSRI, you remember that abrupt onset, early age of onset, and recurrent brief episodes raise suspicion for bipolar depression rather than unipolar MDD. You take a careful history for prior hypomania, family history of bipolar disorder, and antidepressant-induced activation. This shifts your treatment toward a mood stabilizer or appropriate bipolar-depression agent and away from antidepressant monotherapy that could precipitate a switch. Screening with a tool like the MDQ becomes part of your workup. Bottom line: Abrupt onset of depression suggests bipolar rather than unipolar illness, so screen for bipolarity before starting an antidepressant.",
+    "score": 9
+  },
+  {
+    "id": "2024-0043",
+    "year": "2024",
+    "q_index": 43,
+    "category": "Psychopathology & Disorders",
+    "stem": "In young adults with schizophrenia, which of the following is associated with an increased risk of completed suicide?",
+    "scenario": "You're assessing suicide risk in a 24-year-old man with first-episode schizophrenia. He was a high-achieving student before his break, now grappling with the gap between his prior abilities and his current state. It's tempting to assume low premorbid functioning means higher risk, but you recall that in young patients with schizophrenia, good premorbid functioning and high personal expectations actually raise completed-suicide risk, often because preserved insight makes the loss devastating and depression more acute. You take his despair seriously, address the demoralization directly, ensure clozapine is considered for its anti-suicidal benefit, and tighten follow-up. Bottom line: In young patients with schizophrenia, good premorbid functioning and preserved insight increase completed-suicide risk, so don't be falsely reassured by a high-functioning history.",
+    "score": 9
+  },
+  {
+    "id": "2024-0046",
+    "year": "2024",
+    "q_index": 46,
+    "category": "Somatic Tx & Psychopharmacology",
+    "stem": "A 25-year-old patient presents to the emergency department for two hours of involuntary movements. They started taking risperidone two days ago. The patient's eyes are conjugately deviated up and to the right in a sustained manner. They have no abnormal mouth or tongue movements, and the remainder of the neurological examination is normal. Which clinical syndrome is most likely?",
+    "scenario": "The ED calls about a 25-year-old who started risperidone two days ago and now has eyes locked upward and to the right, an oculogyric crisis, with no tongue or mouth abnormalities and an otherwise normal exam. You recognize an acute dystonic reaction, an early extrapyramidal side effect most common in young men soon after starting a dopamine blocker. You order IM or IV benztropine or diphenhydramine and watch for rapid resolution. You reassure the frightened patient, distinguish this from akathisia, parkinsonism, and tardive dyskinesia, and consider lowering the dose or prophylactic anticholinergics. Recognizing it prevents misdiagnosis as seizure or malingering. Bottom line: Sustained upward eye deviation days after starting an antipsychotic is an acute dystonic reaction, treated urgently with IM anticholinergics.",
+    "score": 9
+  },
+  {
+    "id": "2024-0062",
+    "year": "2024",
+    "q_index": 62,
+    "category": "Uncategorized",
+    "stem": "Which of the following hypnotic medications has FDA-issued sex-specific dosage guidelines?",
+    "scenario": "A 58-year-old woman on the medicine ward reports next-morning grogginess and a near-fall after her home zolpidem. You recall the FDA's sex-specific guidance: women clear zolpidem more slowly, so recommended doses were lowered for women (5 mg immediate-release, 6.25 mg extended-release) to reduce next-morning impairment and driving risk. You reduce her dose, counsel on fall and driving precautions, and document the rationale. None of the other hypnotics carry sex-specific FDA dosing. This small adjustment directly prevents a fall or motor-vehicle accident in an at-risk inpatient. Bottom line: Zolpidem carries FDA sex-specific dosing because women metabolize it more slowly, raising next-morning impairment risk.",
+    "score": 9
+  },
+  {
+    "id": "2024-0065",
+    "year": "2024",
+    "q_index": 65,
+    "category": "Epidemiology",
+    "stem": "Which risk factor is most associated with the development of a depressive episode during perimenopause?",
+    "scenario": "A 49-year-old woman in clinic with hot flashes and new low mood asks if menopause is causing her depression. You take a careful history and find she had two prior depressive episodes in her twenties. A personal history of prior depression is the strongest predictor of a perimenopausal depressive episode, outweighing race or age at menopause. This shifts your management toward treating the depression directly with an antidepressant (some, like venlafaxine, also help vasomotor symptoms) and monitoring closely, rather than attributing her symptoms solely to hormones. Bottom line: A history of prior depressive episodes is the strongest risk factor for perimenopausal depression.",
+    "score": 9
+  },
+  {
+    "id": "2024-0066",
+    "year": "2024",
+    "q_index": 66,
+    "category": "Clinical Neurology",
+    "stem": "A 64-year-old is evaluated for new-onset headache characterized by one-sided sharp, stabbing pains on the side of the head. There is no history of migraine headache. The patient also has jaw pain that worsens when eating. Abnormality in which of the following lab tests would support the diagnosis?",
+    "scenario": "A 64-year-old on your C-L service has new unilateral temporal headache and jaw claudication while eating. You suspect giant cell (temporal) arteritis, a vision-threatening emergency. You order ESR and C-reactive protein; an elevated CRP (and ESR) supports the diagnosis. Crucially, you do not wait for biopsy or labs to act, you start high-dose corticosteroids immediately to prevent irreversible blindness, then arrange temporal artery biopsy. Recognizing this in a patient who came in for psychiatric reasons can save their sight. Bottom line: New temporal headache with jaw claudication in an older adult is giant cell arteritis until proven otherwise; check CRP/ESR and give steroids urgently.",
+    "score": 9
+  },
+  {
+    "id": "2024-0072",
+    "year": "2024",
+    "q_index": 72,
+    "category": "Somatic Tx & Psychopharmacology",
+    "stem": "Which of the following antiepileptic medications reduces the efficacy of oral contraceptives?",
+    "scenario": "A 24-year-old woman with bipolar disorder and well-controlled seizures on carbamazepine tells you in clinic she's started oral contraceptive pills. Because carbamazepine is a potent CYP3A4 inducer, you know it accelerates metabolism of ethinyl estradiol and progestins, dropping contraceptive levels and risking unintended pregnancy. You counsel her to use a backup or non-hormonal method, or consider switching her mood stabilizer to a non-inducing agent like lamotrigine or valproate (with its own pregnancy caveats). This same induction explains failed OCPs with oxcarbazepine, phenytoin, and topiramate. Bottom line: Enzyme-inducing antiepileptics like carbamazepine undermine hormonal contraception, so always pair them with reliable backup contraception counseling.",
+    "score": 9
+  },
+  {
+    "id": "2024-0077",
+    "year": "2024",
+    "q_index": 77,
+    "category": "Clinical Neurosciences",
+    "stem": "A 43-year-old male patient who has been treated for depression for several years has begun to have odd facial grimaces and has become very clumsy, knocking over dishes and stacks of books. The patient's father developed similar symptoms at the age of 59 while his 23-year-old daughter has no psychiatric or medical problems. Which of the following statements regarding the patient's genetic disorder is true?",
+    "scenario": "A 43-year-old man treated for depression develops facial grimacing and clumsiness; his father had similar symptoms at 59. You recognize Huntington disease, an autosomal-dominant CAG trinucleotide repeat disorder on chromosome 4 that shows anticipation. Because this patient presented earlier than his father, you understand he likely carries more CAG repeats, the molecular basis of anticipation, especially with paternal transmission. This reframes the workup: you avoid mislabeling his movements as tardive dyskinesia, refer for genetic counseling, and counsel that his asymptomatic 23-year-old daughter is at 50% risk but not a guaranteed carrier. Bottom line: Huntington disease shows anticipation, so earlier or more severe onset across generations reflects expanding CAG repeats.",
+    "score": 9
+  },
+  {
+    "id": "2024-0081",
+    "year": "2024",
+    "q_index": 81,
+    "category": "Somatic Tx & Psychopharmacology",
+    "stem": "An 82-year-old patient presents with severe memory loss, impaired social judgment, restricted interests, and inability to perform activities of daily living independently. The best combination therapy to reduce decline in attention and global functioning would be donepezil plus a medication with which mechanism of action?",
+    "scenario": "An 82-year-old with moderate-to-severe Alzheimer dementia is already on donepezil but continues to decline in attention and daily functioning. You add memantine, an NMDA-receptor antagonist that modulates glutamate transmission, because combining a cholinesterase inhibitor with memantine targets a complementary mechanism and is supported for moderate-to-severe disease. You counsel the family that this won't reverse dementia but may slow decline in global functioning and cognition, and you monitor for tolerability. Recognizing memantine's mechanism also reminds you it's better suited to later stages than mild disease. Bottom line: For moderate-to-severe Alzheimer dementia, pairing donepezil with the glutamate-modulating agent memantine targets complementary pathways to slow functional decline.",
+    "score": 9
+  },
+  {
+    "id": "2024-0099",
+    "year": "2024",
+    "q_index": 99,
+    "category": "Somatic Tx & Psychopharmacology",
+    "stem": "A 25-year-old patient with obsessive-compulsive disorder presents for follow-up 6 weeks after increasing fluoxetine to 80 mg. The patient reports significant improvement in obsessive thoughts and compulsive behaviors but has been bothered by worsening left-sided jaw pain that started a few weeks after the dose increase. The pain is persistent, achy, and worse in the mornings. Addition of which of the following medications is most likely to attenuate this side effect?",
+    "scenario": "A 25-year-old with OCD finally responds to fluoxetine 80 mg but now complains of persistent achy left jaw pain, worse in the mornings. Rather than refer straight to dental, you recognize SSRI-induced bruxism, nocturnal jaw clenching driven by serotonergic effects on dopaminergic pathways. Because abandoning an effective high-dose SSRI for hard-won OCD control is undesirable, you add low-dose buspirone, which augments and reliably attenuates SSRI-induced bruxism. The jaw pain resolves while the OCD remains controlled. Knowing this specific antidote lets you preserve the patient's response instead of dose-reducing and risking relapse. Bottom line: SSRI-induced bruxism presents as morning jaw pain and responds to adding buspirone.",
+    "score": 9
+  },
+  {
+    "id": "2024-0102",
+    "year": "2024",
+    "q_index": 102,
+    "category": "Clinical Neurosciences",
+    "stem": "An 84-year-old patient is prescribed a selective serotonin reuptake inhibitor for the treatment of depression. Two weeks later the patient's family reports that the patient is more lethargic, confused, has headaches, and an unsteady gait. Which of the following laboratory values is most likely to be abnormal in this patient?",
+    "scenario": "Two weeks after you start an 84-year-old on an SSRI for depression, her family reports new lethargy, confusion, headache, and an unsteady gait. Before assuming worsening depression or early dementia, you remember that SSRIs commonly cause SIADH and hyponatremia, especially in the elderly, and the timing fits. You order a basic metabolic panel and find serum sodium of 124. You hold the SSRI, restrict fluids, and correct the sodium slowly to avoid osmotic demyelination, then choose an agent with lower hyponatremia risk going forward. Checking the sodium turns a vague mental-status change into a treatable, reversible diagnosis. Bottom line: New confusion or gait instability soon after starting an SSRI in an elderly patient should prompt a serum sodium check for hyponatremia.",
+    "score": 9
+  },
+  {
+    "id": "2024-0103",
+    "year": "2024",
+    "q_index": 103,
+    "category": "Development & Lifespan",
+    "stem": "Egocentrism is most associated with which stage of development?",
+    "scenario": "In a child psychiatry clinic you evaluate a 4-year-old whose mother is frustrated that he covers his own eyes during hide-and-seek and assumes she can see what he sees. Rather than pathologizing this, you recognize preoperational egocentrism: he genuinely cannot yet take another's perspective. You reassure the family this is developmentally normal Piagetian thinking, not selfishness or oppositionality, and you reframe behavior expectations accordingly. You also use it clinically when assessing whether a 5-year-old can grasp another person's distress or intent, which matters for trauma history-taking and custody evaluations. Bottom line: preoperational children (ages 2-7) are normally egocentric, so calibrate expectations and interview techniques to that stage.",
+    "score": 9
+  },
+  {
+    "id": "2024-0111",
+    "year": "2024",
+    "q_index": 111,
+    "category": "Psychopathology & Disorders",
+    "stem": "Which factor is associated with an increased vulnerability to developing schizophrenia?",
+    "scenario": "In a first-episode psychosis clinic you assess a 19-year-old with prodromal symptoms and a heavy daily cannabis habit. Counseling the family on risk, you emphasize that cannabis use, especially high-potency early and frequent use, is a modifiable factor associated with increased vulnerability to schizophrenia, distinct from non-modifiable risks like family history. This makes cannabis cessation a concrete, evidence-aligned intervention you can offer, and you frame motivational interviewing around it rather than dismissing the substance as harmless. Bottom line: cannabis use is an established modifiable risk factor for schizophrenia, making cessation a meaningful preventive target.",
+    "score": 9
+  },
+  {
+    "id": "2024-0131",
+    "year": "2024",
+    "q_index": 131,
+    "category": "Psychopathology & Disorders",
+    "stem": "An 18-year-old patient is evaluated for excessive skin-picking, resulting in multiple facial sores. The parents report that the patient spends up to one hour every day in the bathroom examining and washing the facial skin. On interview, the patient reports frustration with severe acne and discoloration of the facial skin. On examination, there are a few small pimples and no visible discoloration. The facial skin is most notable for excoriations. Which of the following is the most likely diagnosis?",
+    "scenario": "An 18-year-old is referred for facial skin-picking, but on interview the driving concern is a preoccupation with perceived severe acne and discoloration, spending an hour daily inspecting and washing the skin, while exam shows only minor pimples and no discoloration. You recognize that the picking is secondary to a distorted preoccupation with a slight or imagined defect, making this body dysmorphic disorder rather than primary excoriation disorder. You screen for insight and suicide risk, set realistic expectations, and start an SSRI plus CBT rather than dermatologic reassurance. Identifying the core preoccupation changes the whole treatment plan. Bottom line: when skin-picking is driven by preoccupation with a minimal or imagined appearance flaw, the diagnosis is body dysmorphic disorder.",
+    "score": 9
+  },
+  {
+    "id": "2024-0133",
+    "year": "2024",
+    "q_index": 133,
+    "category": "Clinical Neurosciences",
+    "stem": "A 53-year-old patient with no prior psychiatric history develops personality changes and impulsive, disinhibited behavior. Structural brain imaging shows no evidence of a lesion. Which of the following findings is likely to be evident on positron emission tomography imaging for this patient?",
+    "scenario": "A 53-year-old with no psychiatric history develops progressive personality change and impulsive, disinhibited behavior, and structural MRI shows no lesion. You suspect behavioral-variant frontotemporal dementia and recall that functional imaging often reveals hypoperfusion or hypometabolism in the frontal and bilateral lateral temporal lobes even when structure looks normal. You order FDG-PET or perfusion imaging to support the diagnosis, counsel the family about prognosis and safety (finances, driving), and avoid mislabeling this as late-onset primary psychiatric illness. Functional imaging catches what structural scans miss. Bottom line: new-onset disinhibition with normal structural imaging suggests frontotemporal dementia, with PET showing reduced bilateral lateral temporal perfusion.",
+    "score": 9
+  },
+  {
+    "id": "2024-0136",
+    "year": "2024",
+    "q_index": 136,
+    "category": "Clinical Neurosciences",
+    "stem": "In combination with growth hormone, which of the following is required to initiate the adolescent growth spurt?",
+    "scenario": "In your child and adolescent clinic, a 14-year-old on a stimulant for ADHD has parents worried his growth has stalled. As you plot his growth chart, you recall the adolescent growth spurt requires gonadal hormones (sex steroids) acting together with growth hormone; GH alone is insufficient before puberty. This frames your assessment: is he simply pre-pubertal with delayed Tanner staging, or is the stimulant suppressing appetite and weight velocity? You check pubertal status, weight trajectory, and consider a stimulant holiday or pediatric referral if growth truly lags. Bottom line: The pubertal growth spurt depends on gonadal hormones plus GH, which helps you distinguish normal developmental timing from medication-related growth concerns.",
+    "score": 9
+  },
+  {
+    "id": "2024-0137",
+    "year": "2024",
+    "q_index": 137,
+    "category": "Psychopathology & Disorders",
+    "stem": "Which of the following statements best describes current thinking about the relationship between attention-deficit hyperactivity disorder (ADHD) in children and adults?",
+    "scenario": "A 28-year-old presents to your outpatient clinic asking to be evaluated for ADHD after struggling at work. Rather than dismissing it as adult-onset or attention-seeking, you remember that a significant proportion of children with ADHD carry symptoms into adulthood, so adult ADHD is real and usually a continuation. You take a careful developmental history, asking about childhood inattention, old report cards, and prior teacher concerns, because DSM-5 requires several symptoms before age 12. Confirming a childhood onset supports the diagnosis and justifies treatment, while a truly de novo adult presentation should prompt you to look for mood, anxiety, or substance causes. Bottom line: Adult ADHD is largely childhood ADHD that persisted, so anchor the diagnosis in documented childhood symptoms.",
+    "score": 9
+  },
+  {
+    "id": "2024-0142",
+    "year": "2024",
+    "q_index": 142,
+    "category": "Development & Lifespan",
+    "stem": "The ability of preschool children to regulate their emotions is most strongly enhanced by the development of:",
+    "scenario": "A worried parent in clinic describes their 4-year-old's frequent tantrums and asks if something is wrong. Drawing on development, you explain that emotion regulation in preschoolers is most strongly advanced by the emergence of language: putting feelings into words lets a child label, delay, and self-soothe rather than act out. This reframes the meltdowns as expected for a child whose verbal skills are still catching up, and it directs your guidance, encourage emotion labeling, narrate feelings, and consider a speech evaluation if language is delayed, since delays can amplify dysregulation. It also tempers premature diagnostic labeling. Bottom line: Language development is the engine of preschool emotion regulation, so support verbal expression before pathologizing normal tantrums.",
+    "score": 9
+  },
+  {
+    "id": "2024-0143",
+    "year": "2024",
+    "q_index": 143,
+    "category": "Clinical Neurology",
+    "stem": "A previously healthy 9 yo boy is brought in by his parents with two weeks of significant behavioral changes, including social withdrawal, poor sleep, and paranoia. Their neurologic examination is notable for muscle rigidity and hyperreflexia. If present, which of the following additional features should increase the psychiatrist's concern for NMDA encephalitis? (Select three.)",
+    "scenario": "You're consulted on a previously healthy 9-year-old admitted for two weeks of new psychosis, social withdrawal, and insomnia, now with rigidity and hyperreflexia. Before anchoring on primary psychiatric illness, you screen for anti-NMDA receptor encephalitis. Three features should heighten your concern: seizures, generalized chorea, and oro-lingual-facial dyskinesia, the classic abnormal movements of this autoimmune process. Recognizing them changes everything: you push for LP with NMDA-receptor antibodies, MRI, EEG, and neurology involvement rather than simply starting an antipsychotic, which can worsen these patients. Early immunotherapy and tumor (teratoma) search are time-sensitive. Bottom line: New-onset child psychosis with seizures, chorea, or orofacial dyskinesia screams NMDA encephalitis, so work it up before treating it as primary psychiatric disease.",
+    "score": 9
+  },
+  {
+    "id": "2024-0154",
+    "year": "2024",
+    "q_index": 154,
+    "category": "Psychopathology & Disorders",
+    "stem": "A 30-year-old law student with no past psychiatric history presents to the emergency room with anxiety, tinnitus, and diarrhea. On exam, the patient appears euphoric and has facial flushing, rambling speech, and psychomotor agitation. They report not sleeping for two days due to the stress of upcoming exams. Electrocardiogram shows sinus tachycardia with frequent premature ventricular contractions. Urine toxicology is negative. This presentation is most consistent with which of the following diagnoses?",
+    "scenario": "On ED consult you see a 30-year-old law student during finals with anxiety, tinnitus, diarrhea, flushing, rambling speech, agitation, and two days without sleep. The ECG shows sinus tachycardia with frequent PVCs and the urine tox is negative. Before reaching for a mood-disorder or stimulant-abuse label, you ask about energy drinks and coffee: the student admits to massive caffeine loading to stay awake. Caffeine intoxication explains the tinnitus, GI upset, flushing, and cardiac ectopy. You manage supportively, hold caffeine, monitor the rhythm, and avoid unnecessary antipsychotics or a bipolar diagnosis. Bottom line: Tinnitus, diarrhea, flushing, and PVCs in a sleep-deprived student scream caffeine intoxication, not mania.",
+    "score": 9
+  },
+  {
+    "id": "2024-0155",
+    "year": "2024",
+    "q_index": 155,
+    "category": "Clinical Neurology",
+    "stem": "A 59-year-old patient develops migraines characterized by a unilateral headache associated with nausea and vomiting. Past medical history is significant for coronary artery disease and renal insufficiency. Which of the following would be the most appropriate abortive treatment?",
+    "scenario": "A C-L colleague asks you to weigh in on a 59-year-old with migraine plus coronary artery disease and renal insufficiency, asking what to give acutely. You reason through contraindications: triptans and ergots (dihydroergotamine) are vasoconstrictors and contraindicated in CAD; NSAIDs like naproxen are risky in renal insufficiency; opioids are inappropriate for routine migraine abortion. That leaves a CGRP antagonist, rimegepant, which lacks vasoconstrictive activity and is suitable here. The resident learns to screen every migraine abortive against cardiac and renal status before prescribing. Bottom line: In migraine with cardiovascular disease, skip triptans and ergots and reach for a gepant like rimegepant.",
+    "score": 9
+  },
+  {
+    "id": "2024-0162",
+    "year": "2024",
+    "q_index": 162,
+    "category": "Clinical Neurology",
+    "stem": "A 35-year-old is seen by a chiropractor for treatment of mild neck discomfort. The patient undergoes manipulation of the neck and shortly after develops dysarthric speech, gait ataxia, and numbness over the right body. In addition, the patient complains of increased severity of neck pain radiating to the occiput. The likely etiology of this patient's symptoms is:",
+    "scenario": "A 35-year-old comes to the ED minutes after chiropractic neck manipulation with dysarthria, gait ataxia, right-sided numbness, and severe neck pain radiating to the occiput. You connect the mechanical neck trauma to a posterior-circulation syndrome and suspect vertebral artery dissection causing brainstem or cerebellar ischemia. This drives immediate stroke-protocol activation, CT or MR angiography of the neck vessels, and neurology and vascular consultation rather than treating it as benign musculoskeletal pain or migraine. Bottom line: Brainstem-cerebellar signs with neck pain after neck manipulation mean vertebral artery dissection until proven otherwise, so image the vessels urgently.",
+    "score": 9
+  },
+  {
+    "id": "2024-0165",
+    "year": "2024",
+    "q_index": 165,
+    "category": "Consultation & Collaborative Care",
+    "stem": "The consultation-liaison psychiatrist evaluates a 54-year-old patient with end-stage breast cancer. The patient was previously very optimistic and energetic but has recently been told that the treatment protocol had failed and only palliative care was recommended. Since that time the patient has appeared depressed, and the team is concerned that she is suicidal. On interview, the patient is initially pleasant and able to amiably discuss neutral topics. When the subject shifts to her illness, the patient becomes tearful and expresses a crushing feeling of hopelessness about the future. She denies any plan to hurt herself, saying, \"What's the point? I'm going to die soon anyway, but I would rather God just took me and didn't draw this out.\" Which of the following would be the best initial approach to this patient?",
+    "scenario": "As the C-L psychiatrist you see a 54-year-old with end-stage breast cancer who became tearful and hopeless after learning treatment failed; the team fears she is suicidal. On interview she denies any plan and says she wishes God would simply take her without prolonging things, a passive wish reflecting demoralization rather than major depression or active suicidality. Your best first move is to validate her grief as a normal, expectable response to an overwhelming loss, building alliance before assessing whether a treatable depressive syndrome is also present. You avoid a knee-jerk locked-unit transfer or premature medication. Bottom line: Demoralization at end of life calls first for empathic validation, not reflexive hospitalization or diagnosis of major depression.",
+    "score": 9
+  },
+  {
+    "id": "2024-0181",
+    "year": "2024",
+    "q_index": 181,
+    "category": "Psychopathology & Disorders",
+    "stem": "A 75-year-old patient presents with progressive gait Imbalance, recurrent falls, and cognitive decline over the last several years. A computed tomography scan of the brain is shown below. Which of the following interventions is most likely to slow further progression of the disease process?",
+    "scenario": "A 75-year-old is referred to your geriatric clinic for cognitive decline, and the family is also describing a magnetic, shuffling gait and new urinary incontinence, with recurrent falls. CT shows enlarged ventricles out of proportion to atrophy. You recognize the triad of normal pressure hydrocephalus, gait, cognition, urinary, and crucially, this dementia is potentially reversible. Instead of just starting a cholinesterase inhibitor, you refer for a large-volume lumbar puncture (tap test) and neurosurgical evaluation for a CSF ventriculoperitoneal shunt, which can slow or reverse progression. Bottom line: The NPH triad warrants a tap test and CSF shunt, treatable dementia.",
+    "score": 9
+  },
+  {
+    "id": "2024-0188",
+    "year": "2024",
+    "q_index": 188,
+    "category": "Clinical Neurology",
+    "stem": "A 50-year-old patient has a bilateral hand tremor, which worsens with arm extension and eating. It improves at rest and after drinking alcohol. These features are characteristic of which of the following types of tremor?",
+    "scenario": "A 50-year-old asks you about a hand tremor that makes soup and coffee a mess. On exam it appears with arm extension and during action like eating, eases at rest, and notably calms after a glass of wine. That pattern, often with a family history, points to essential tremor rather than Parkinson's, whose tremor is present at rest. The alcohol responsiveness and postural-kinetic quality are the giveaway, and they steer treatment toward propranolol or primidone rather than dopaminergic agents. You also caution against self-treating with alcohol. Distinguishing the two prevents a misdiagnosis and the wrong prescription. Bottom line: An action and postural tremor that improves with alcohol and at rest is essential tremor; treat with propranolol or primidone.",
+    "score": 9
+  },
+  {
+    "id": "2024-0217",
+    "year": "2024",
+    "q_index": 217,
+    "category": "Uncategorized",
+    "stem": "Which of the following is the leading cause of death in persons with severe mental illness?",
+    "scenario": "On your community psychiatry rotation you see a 48-year-old with schizophrenia on olanzapine: BMI 38, A1c 8.1, smoker, never had a lipid panel. It's easy to fixate on suicide risk and forget that people with severe mental illness die 15-20 years early, mostly from cardiovascular disease. That fact should reshape your visit. You order metabolic labs, start a statin and metformin conversation, refer to smoking cessation, and reconsider the metabolically harsh antipsychotic. Psychiatrists are often these patients' only medical contact, so monitoring weight, glucose, lipids, and blood pressure is your job, not just the PCP's. Bottom line: Cardiovascular disease, not suicide, kills most people with severe mental illness, so screen and treat metabolic risk aggressively.",
+    "score": 9
+  },
+  {
+    "id": "2024-0232",
+    "year": "2024",
+    "q_index": 232,
+    "category": "Uncategorized",
+    "stem": "Which of the following can be a normal neurological exam finding in older adults?",
+    "scenario": "An 80-year-old comes to clinic worried she's developing neuropathy because her feet feel 'less buzzy.' On exam you find absent vibratory sense at the great toes but intact proprioception, normal strength, symmetric reflexes, and no sensory level. Knowing that diminished distal vibratory sensation is an expected aging change, you avoid an unnecessary alarm and a costly workup, while still documenting that the rest of the exam is reassuringly normal. You counsel her on fall prevention and footwear instead. Contrast this with ankle clonus, a sensory level, or asymmetric weakness, which are never normal and demand investigation. Bottom line: isolated loss of vibration at the toes is a normal finding in older adults, not automatic evidence of disease.",
+    "score": 9
+  },
+  {
+    "id": "2024-0233",
+    "year": "2024",
+    "q_index": 233,
+    "category": "Psychopathology & Disorders",
+    "stem": "Vindictiveness and arguing with authority figures are important characteristics of which of the following childhood disorders?",
+    "scenario": "In your child clinic, parents bring an 8-year-old who is 'always fighting.' You probe the pattern: he loses his temper, deliberately annoys siblings, blames others, and is spiteful and vindictive, but he does not steal, harm animals, or violate others' basic rights. That distinction matters. Recognizing the angry, argumentative, vindictive triad as oppositional defiant disorder rather than conduct disorder steers you toward parent management training and away from a harsher prognosis. You screen for comorbid ADHD and mood symptoms, which frequently co-travel. Documenting the absence of rights-violating behavior also protects the child from a premature conduct disorder label. Bottom line: vindictiveness plus arguing with authority defines ODD, distinguishing it from the rights-violating behavior of conduct disorder.",
+    "score": 9
+  },
+  {
+    "id": "2024-0239",
+    "year": "2024",
+    "q_index": 239,
+    "category": "Clinical Neurology",
+    "stem": "A 72-year-old patient with two days of confusion and fever Is evaluated in the emergency department for new-onset seizure. Magnetic resonance imaging of the brain demonstrates hemorrhage and swelling In the temporal lobes. Cerebrospinal fluid shows increased lymphocytes and protein. Which of the following medications is most likely to be effective in treating the patient's condition?",
+    "scenario": "The ED calls you about a 72-year-old with two days of fever, confusion, a new seizure, and MRI showing hemorrhagic temporal lobe involvement with a lymphocytic, high-protein CSF. You immediately recognize the signature of herpes simplex encephalitis. The teaching point you act on: do not wait for PCR confirmation. Empiric IV acyclovir started early dramatically reduces mortality and morbidity, and delay is the main driver of bad outcomes. You ensure acyclovir is hung now, send HSV PCR, and avoid being distracted toward bacterial or fungal coverage as the primary fix. Bottom line: temporal lobe hemorrhage with fever and seizures is HSV encephalitis until proven otherwise, so start acyclovir empirically and immediately.",
+    "score": 9
+  },
+  {
+    "id": "2024-0240",
+    "year": "2024",
+    "q_index": 240,
+    "category": "Somatic Tx & Psychopharmacology",
+    "stem": "The psychiatrist is considering prescribing donepezil for an 87-year-old patient. Which of the following medications would most significantly interfere with its efficacy?",
+    "scenario": "Before starting donepezil for an 87-year-old with Alzheimer's, you reconcile her medication list and notice she takes oxybutynin for urge incontinence. You flag it: oxybutynin is a potent anticholinergic that directly opposes the pro-cholinergic mechanism of a cholinesterase inhibitor, blunting cognitive benefit and worsening confusion. Rather than layering drugs that cancel each other out, you coordinate with her PCP to switch to a non-anticholinergic bladder agent like mirabegron. You also scan for other hidden anticholinergics such as diphenhydramine and certain antispasmodics. This single catch protects both efficacy and cognition. Bottom line: anticholinergics like oxybutynin antagonize donepezil's effect, so deprescribe them before blaming the cholinesterase inhibitor for poor response.",
+    "score": 9
+  },
+  {
+    "id": "2024-0244",
+    "year": "2024",
+    "q_index": 244,
+    "category": "Psychopathology & Disorders",
+    "stem": "A 19-year-old college student who has \"always been overweight\" complains that she is unable to lose weight despite exercising for an hour, four times a week, over the last year. She describes college as \"very stressful,\" admitting that she sometimes eats a whole pizza or a gallon of ice cream when feeling overwhelmed; this eating pattern is occurring four or five times a week recently. Afterward, she feels remorseful and vomits. She is concerned that she will always be overweight and plans to increase her exercise to two hours a day, six times a week. Which of the following laboratory findings is most likely?",
+    "scenario": "A 19-year-old of normal-to-high weight describes recurrent binges several times weekly followed by self-induced vomiting and compensatory over-exercise, with intense body-image distress. You diagnose bulimia nervosa. Anticipating complications, you order labs and explain why elevated serum amylase is the expected finding, reflecting salivary gland stimulation from repeated vomiting. You also check electrolytes for the dangerous hypokalemia and metabolic alkalosis purging causes, examine for Russell's sign and dental erosion, and start an SSRI plus CBT. The amylase elevation is a useful objective marker that can corroborate covert purging when a patient minimizes. Bottom line: recurrent purging in bulimia classically elevates serum amylase, a clue that can confirm vomiting and prompts you to monitor electrolytes closely.",
+    "score": 9
+  },
+  {
+    "id": "2024-0247",
+    "year": "2024",
+    "q_index": 247,
+    "category": "Development & Lifespan",
+    "stem": "Which of the following terms describes the relevance of understanding temperament in working with parent-child relational problems?",
+    "scenario": "In your child clinic, a mother brings her 3-year-old who screams at every transition. She's exhausted and blames herself, asking if she's a bad parent. Rather than pathologizing the toddler or the mother, you frame the friction as a mismatch between the child's high-intensity, slow-to-warm temperament and the family's fast-paced, change-heavy routine. You teach her about goodness of fit: the same temperament thrives in one environment and struggles in another. Together you build predictable warnings before transitions and lower the daily change load. This reframes guilt into actionable parenting strategy and guides the relational intervention. Bottom line: Goodness of fit explains parent-child friction as a temperament-environment match, not a defect in either party.",
+    "score": 9
+  },
+  {
+    "id": "2024-0259",
+    "year": "2024",
+    "q_index": 259,
+    "category": "Clinical Neurology",
+    "stem": "Which of the following degenerative disorders is associated with atrophy of the caudate nucleus?",
+    "scenario": "A 40-year-old with new chorea, irritability, and a father who died of a movement disorder comes to clinic. You order MRI and note caudate nucleus atrophy with boxcar ventricles, classic for Huntington disease, and pursue confirmatory CAG repeat testing with genetic counseling. Recognizing the caudate-atrophy signature shifts your differential away from Parkinson or Alzheimer pathology and changes management toward chorea treatment, psychiatric monitoring for depression and suicide risk, and family planning discussions. The structural clue ties the motor, cognitive, and psychiatric picture together. Bottom line: Caudate nucleus atrophy points to Huntington disease, prompting genetic confirmation and psychiatric risk monitoring.",
+    "score": 9
+  },
+  {
+    "id": "2024-0268",
+    "year": "2024",
+    "q_index": 268,
+    "category": "Psychopathology & Disorders",
+    "stem": "A 24-year-old female seeks her primary care doctors' advice about breast tenderness, bloating, and mood swings. She reports that this happens \"like clockwork\" every month, a week prior to menses. During this week, she occasionally misses work. Which of the following is the most likely diagnosis?",
+    "scenario": "A 24-year-old in your clinic describes breast tenderness, bloating, and mood swings that arrive like clockwork the week before her period and occasionally make her miss work. You have her keep a two-month symptom diary confirming the luteal timing and symptom-free follicular phase. The mix of physical and mild mood symptoms causing some impairment, without the severe affective criteria, fits premenstrual syndrome rather than the more disabling PMDD. You start with lifestyle measures, calcium, and NSAIDs, reserving SSRIs for PMDD-level severity. Distinguishing PMS from PMDD and from premenstrual exacerbation of a mood disorder steers you to proportionate treatment. Bottom line: Cyclical luteal-phase physical and mild mood symptoms with limited impairment indicate premenstrual syndrome, not PMDD.",
+    "score": 9
+  },
+  {
+    "id": "2024-0272",
+    "year": "2024",
+    "q_index": 272,
+    "category": "Uncategorized",
+    "stem": "Although physical health and cognitive function may decline in older age, which of the following aspects of life often increases in older age?",
+    "scenario": "An 80-year-old in your geriatric clinic has worsening arthritis and mild memory slips yet reports feeling more content and at peace than in midlife. Instead of assuming decline equals misery, you recall that subjective well-being and emotional regulation often increase in older age, a phenomenon described in socioemotional selectivity theory. This reframes your assessment: a sudden drop in well-being or pervasive hopelessness is not normal aging and should prompt a depression workup rather than being dismissed as expected. Knowing that contentment commonly rises helps you separate healthy aging from treatable late-life depression. Bottom line: Sense of well-being often increases with age, so pervasive low mood signals pathology, not normal aging.",
+    "score": 9
+  },
+  {
+    "id": "2024-0279",
+    "year": "2024",
+    "q_index": 279,
+    "category": "Psychotherapy & Psychosocial",
+    "stem": "In addition to engagement in mental health treatment, which of the following interventions has been demonstrated to lower the risk of completed suicide?",
+    "scenario": "A 40-year-old man with depression and passive suicidal thoughts is being discharged from your ED. You start an antidepressant and arrange follow-up, but before he leaves you ask specifically about firearms at home. He owns two. You spend ten minutes coaching the family on locking the guns at a relative's house and removing extra medications. That conversation, not the no-harm contract some teams still scribble, is the piece with actual evidence behind reducing completed suicide. Means restriction works because most suicidal crises are brief and impulsive; putting time and distance between intent and a lethal method saves lives. Document the lethal-means counseling you provided. Bottom line: For every at-risk patient, counsel on restricting access to lethal means.",
+    "score": 9
+  },
+  {
+    "id": "2024-0281",
+    "year": "2024",
+    "q_index": 281,
+    "category": "Psychopathology & Disorders",
+    "stem": "A 17-year patient who experienced childhood adversity has a twin diagnosed with schizophrenia. The patient has been having a decline in school performance and has been isolating over the last six months. During the psychiatric examination, there was no evidence of apparent delusions; however, the patient has been experiencing distressing fleeting auditory hallucinations once a week but exhibits intact reality testing. In which time frame will the patient most likely convert from prodrome presentation to first episode psychosis?",
+    "scenario": "In your early-psychosis clinic a 17-year-old with childhood adversity and a co-twin with schizophrenia is brought in for declining grades and six months of social withdrawal. He has brief, distressing voices about once weekly but knows they are not real, with no fixed delusions. This is an attenuated psychosis (clinical high-risk) syndrome, and you counsel the family that conversion to frank psychosis, when it happens, is heaviest in the first 1-2 years. That timeline drives your plan: close monitoring, avoiding cannabis, treating the mood and anxiety symptoms, and rapid access if symptoms escalate, rather than reflexively starting an antipsychotic now. Bottom line: Clinical high-risk patients convert to first-episode psychosis mostly within the first two years, so monitor intensively early.",
+    "score": 9
+  },
+  {
+    "id": "2024-0287",
+    "year": "2024",
+    "q_index": 287,
+    "category": "Uncategorized",
+    "stem": "Age-related changes in sexual function in older men include a decrease in:",
+    "scenario": "A 68-year-old man in your clinic is distressed that his erections are softer and he needs more direct stimulation than in his youth. Before reaching for medication or assuming pathology, you normalize the expected age-related changes: decreased penile rigidity, a longer time to achieve erection and orgasm, and a prolonged refractory period. Knowing the baseline lets you distinguish normal aging from a treatable problem, and prompts you to screen for the things that actually drive ED at his age, vascular disease, diabetes, and medications including SSRIs. Bottom line: In aging men, decreased penile rigidity and slower arousal are normal, so distinguish them from treatable causes before intervening.",
+    "score": 9
+  },
+  {
+    "id": "2024-0298",
+    "year": "2024",
+    "q_index": 298,
+    "category": "Development & Lifespan",
+    "stem": "The typical physical and developmental features of Fetal Alcohol Syndrome include: (Select three.)",
+    "scenario": "In your child clinic, a 6-year-old with hyperactivity, learning problems, and a foster placement history is referred. While examining him you deliberately inspect the face: you note microcephaly, a thin vermilion upper lip, and a smooth, poorly developed philtrum. These dysmorphic features, combined with growth restriction and neurodevelopmental impairment, prompt you to ask the agency about prenatal alcohol exposure and pursue a fetal alcohol spectrum evaluation rather than stopping at an ADHD label. Recognizing the triad reframes prognosis, guides school accommodations, and prompts counseling for the birth mother and future pregnancies. Bottom line: Microcephaly, thin upper lip, and a smooth philtrum are the classic facial triad of fetal alcohol syndrome, so look at the face before settling on ADHD alone.",
+    "score": 9
+  },
+  {
+    "id": "2024-0300",
+    "year": "2024",
+    "q_index": 300,
+    "category": "Somatic Tx & Psychopharmacology",
+    "stem": "A 26-year-old presents for treatment of major depression. On interview, the patient meets criteria for prior manic episodes. Which of the following medications have the best evidence for monotherapy treatment of this patient's bipolar depression? (Select three.)",
+    "scenario": "A 26-year-old presents with depression but on careful history meets criteria for past mania, so this is bipolar depression, not unipolar. You resist the reflex to start an SSRI or bupropion, which risk switching and have weak evidence here. Instead you select an agent with proven monotherapy efficacy for the bipolar depressive pole: quetiapine, lurasidone, or olanzapine-fluoxetine combination. You weigh metabolic burden, picking lurasidone for a weight-conscious patient and counseling on quetiapine sedation. This evidence-based choice treats the current episode while respecting mood-cycle risk. Bottom line: Quetiapine, lurasidone, and olanzapine-fluoxetine have the best monotherapy evidence for bipolar depression, so reach for these before antidepressants.",
+    "score": 9
+  },
+  {
+    "id": "2023-0002",
+    "year": "2023",
+    "q_index": 2,
+    "category": "Clinical Neurosciences",
+    "stem": "Which of the following neurodevelopmental processes predominantly occurs during adolescence and young adulthood?",
+    "scenario": "A worried parent in clinic asks why her impulsive 17-year-old 'still acts without thinking.' You explain adolescent brain development: during adolescence and young adulthood the brain undergoes synaptic pruning, eliminating excess connections, alongside continued myelination, while gray matter volume actually decreases. The prefrontal cortex matures last. This neurodevelopmental reality grounds your guidance about expecting improving judgment with age, and it informs how you weigh risk-taking, capacity, and prognosis in adolescent patients. Framing impulsivity as a maturational process rather than a fixed trait shapes both your reassurance and your treatment expectations. Bottom line: Synaptic pruning predominates during adolescence and young adulthood as the brain refines its circuitry.",
+    "score": 9
+  }
+]
