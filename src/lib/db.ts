@@ -331,6 +331,26 @@ export async function regenerateWeeklyTeams(assignments: Record<string, string>)
   return null;
 }
 
+/** Admin: move one person within this week's mixer pairing (or add them back
+    after they were taken off). This only changes weekly_teams; their profile,
+    approval status, and ability to sign in are untouched. */
+export async function setWeeklyTeam(profileId: string, teamName: string): Promise<boolean> {
+  if (!supabase) return false;
+  const { error } = await supabase
+    .from("weekly_teams")
+    .upsert({ profile_id: profileId, team_name: teamName }, { onConflict: "profile_id" });
+  if (error) { console.warn("setWeeklyTeam", error.message); return false; }
+  return true;
+}
+
+/** Admin: omit one person from this week's pairing without changing access. */
+export async function removeWeeklyTeam(profileId: string): Promise<boolean> {
+  if (!supabase) return false;
+  const { error } = await supabase.from("weekly_teams").delete().eq("profile_id", profileId);
+  if (error) { console.warn("removeWeeklyTeam", error.message); return false; }
+  return true;
+}
+
 /** Per-question vote breakdown, snapshotted when a presenter marks a live
     poll session as an official class review. */
 export type QuestionStat = {

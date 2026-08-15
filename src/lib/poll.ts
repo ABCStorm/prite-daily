@@ -25,12 +25,12 @@ export function makePollCode(len = 4): string {
 export const channelName = (code: string) => `poll-${code.toUpperCase()}`;
 
 // A team's standing across all revealed questions in the poll. Ranked by
-// team accuracy — the share of ALL answers the team submitted that were
-// correct (`correct`/`answered`) — so a bigger team can't win just by
-// fielding more bodies. The host can toggle the ranking to raw total
-// correct instead (see PollState.rankBy). `score` is always the total
-// correct count; `answered` is total votes cast; `answerers` is unique
-// members who voted — all kept raw so either ranking can be displayed.
+// team accuracy across every question that closed while the team was active.
+// A non-answer contributes 0/1, so teams cannot protect their percentage by
+// sitting out. The host can toggle the ranking to raw total correct instead
+// (see PollState.rankBy). `score` is always the total correct count;
+// `answered` is the number of closed team-question opportunities (kept for
+// wire/backward compatibility); `answerers` is unique members who voted.
 export type TeamStanding = { team: string; score: number; members: number; correct: number; answerers: number; answered: number };
 
 // A single participant's standing across all revealed questions — for the
@@ -121,6 +121,97 @@ export type PollState = {
     single-select, where both arrays are always length 1. */
 export function pickIsCorrect(pick: string[], correct: string[]): boolean {
   return pick.length > 0 && pick.length === correct.length && pick.every((l) => correct.includes(l));
+}
+
+/** Prefer a single account per person when the same name has signed in with
+    more than one email. Institutional addresses win; leftover same-name
+    accounts still show in the editor so an admin can drop the extra. */
+export function pickOneProfilePerPerson<T extends { full_name: string | null; email: string }>(people: T[]): T[] {
+  const unnamed: T[] = [];
+  const byName = new Map<string, T[]>();
+  for (const p of people) {
+    const key = p.full_name?.trim().toLocaleLowerCase();
+    if (!key) { unnamed.push(p); continue; }
+    const list = byName.get(key) ?? [];
+    list.push(p);
+    byName.set(key, list);
+  }
+  const emailRank = (email: string) => (email.toLowerCase().endsWith(".edu") ? 0 : 1);
+  const picked: T[] = [...unnamed];
+  for (const group of byName.values()) {
+    group.sort((a, b) => emailRank(a.email) - emailRank(b.email) || a.email.localeCompare(b.email));
+    picked.push(group[0]);
+  }
+  return picked;
+}
+
+/** Host-side gate for inbound Realtime votes. Broadcast is permissive; only
+    the current, started, still-open question may change the result. */
+export function shouldAcceptPollVote(opts: {
+  started: boolean; finished: boolean; voteQid: string; currentQid: string; closed: ReadonlySet<string>;
+}): boolean {
+  return opts.started && !opts.finished && !!opts.voteQid && opts.voteQid === opts.currentQid && !opts.closed.has(opts.voteQid);
+}
+
+/** Pure team standings. A team that was active when a question closed and
+    submitted nothing gets 0/1 for that question. */
+export function computeTeamStandings(input: {
+  sessionMembers: Map<string, Set<string>>;
+  closedTeams: Map<string, Set<string>>;
+  correctByQ: Map<string, string[]>;
+  votesByQ: Map<string, Map<string, string[]>>;
+  voteTeamsByQ: Map<string, Map<string, string>>;
+  rankByTotal: boolean;
+}): TeamStanding[] {
+  const { sessionMembers, closedTeams, correctByQ, votesByQ, voteTeamsByQ, rankByTotal } = input;
+  const correctCount = new Map<string, number>();
+  const answeredCount = new Map<string, number>();
+  const answerers = new Map<string, Set<string>>();
+  const members = new Map<string, Set<string>>(
+    [...sessionMembers].map(([team, voters]) => [team, new Set(voters)]),
+  );
+  for (const teams of closedTeams.values()) {
+    for (const team of teams) {
+      if (!members.has(team)) members.set(team, new Set());
+      if (!answerers.has(team)) answerers.set(team, new Set());
+      if (!correctCount.has(team)) correctCount.set(team, 0);
+      if (!answeredCount.has(team)) answeredCount.set(team, 0);
+    }
+  }
+  for (const [qId, correct] of correctByQ) {
+    const activeTeams = closedTeams.get(qId) ?? new Set<string>();
+    for (const team of activeTeams) {
+      answeredCount.set(team, (answeredCount.get(team) ?? 0) + 1);
+    }
+    const m = votesByQ.get(qId);
+    if (!m) continue;
+    const perTeam = new Map<string, { right: number; voted: number }>();
+    for (const [vId, choice] of m) {
+      const team = voteTeamsByQ.get(qId)?.get(vId);
+      if (!team) continue;
+      if (!answerers.has(team)) answerers.set(team, new Set());
+      answerers.get(team)!.add(vId);
+      const agg = perTeam.get(team) ?? { right: 0, voted: 0 };
+      agg.voted += 1;
+      if (pickIsCorrect(choice, correct)) agg.right += 1;
+      perTeam.set(team, agg);
+    }
+    for (const [team, agg] of perTeam) {
+      correctCount.set(team, (correctCount.get(team) ?? 0) + agg.right / agg.voted);
+    }
+  }
+  const pct = (t: TeamStanding) => (t.answered > 0 ? t.correct / t.answered : 0);
+  return [...members.keys()]
+    .map((team) => {
+      const n = answerers.get(team)?.size ?? 0;
+      const c = correctCount.get(team) ?? 0;
+      return { team, score: c, members: members.get(team)?.size ?? 0, correct: c, answerers: n, answered: answeredCount.get(team) ?? 0 };
+    })
+    .filter((team) => team.answered > 0)
+    .sort((a, b) =>
+      rankByTotal
+        ? b.correct - a.correct || pct(b) - pct(a) || a.team.localeCompare(b.team)
+        : pct(b) - pct(a) || b.correct - a.correct || a.team.localeCompare(b.team));
 }
 
 // Participant → host. `team` is optional — a voter may compete solo. `level`

@@ -54,7 +54,7 @@ export function exportPollTeams(
     [`Through question ${meta.index} of ${meta.total}`],
     [`Rows follow the on-screen leaderboard order (team accuracy % by default)`],
     [],
-    ["Rank", "Team", "Players", "Answers cast", "Correct", "Accuracy %", "Total points"],
+    ["Rank", "Team", "Players", "Questions counted", "Correct", "Accuracy %", "Total points"],
     ...standings.map((t, i) => [
       i + 1, t.team, t.members, t.answered ?? t.answerers, t.correct,
       (t.answered ?? 0) > 0 ? Math.round((t.correct / t.answered!) * 100) : "",

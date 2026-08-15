@@ -47,11 +47,11 @@ const teamDetail = (t: { members: number; answerers: number; correct: number; an
    The host's copy mentions the ranking switch; the participant's doesn't,
    since only the host can flip it. */
 const SCORING_RULE =
-  "Each question counts once per team, however many members answer it — if they split, the team gets the fraction that were right.";
+  "Each closed question counts once per active team; no answer is wrong, and a split team gets the fraction that was right.";
 const SCORING_NOTE =
-  `${SCORING_RULE} Teams are ranked by accuracy (correct ÷ answered) so a short-handed team isn't punished for it — use the button above to rank by raw points instead.`;
+  `${SCORING_RULE} Teams are ranked by accuracy (correct ÷ questions) — use the button above to rank by raw points instead.`;
 const SCORING_NOTE_PARTICIPANT =
-  `${SCORING_RULE} Teams are ranked by accuracy (correct ÷ answered), so a smaller team can still win.`;
+  `${SCORING_RULE} Teams are ranked by accuracy (correct ÷ questions).`;
 
 /* When you open/advance a question you are often scrolled deep into the prior
    explanation. This pins the white question card just under the sticky chrome
@@ -131,6 +131,7 @@ import { dueAiDisclaimerStage, markAiDisclaimerShown } from "./lib/aiDisclaimerP
 import { isAutoReminderActive, guessedExamDate } from "./lib/reminderWindow";
 import {
   makePollCode, channelName, pollJoinUrl, pollCodeFromUrl, clearPollParam, assignBalancedTeams, stableTeamLevel, pickIsCorrect,
+  pickOneProfilePerPerson, shouldAcceptPollVote, computeTeamStandings,
   POLL_EVENTS, REVEAL_DELAY_MS, type PollState, type PollVote, type PollHello, type PollAssign, type TeamStanding, type IndividualStanding, type TeamMode,
 } from "./lib/poll";
 import { ImmersiveScene, ImmersiveFlash } from "./ImmersiveScene";
@@ -147,7 +148,7 @@ import {
   listProfiles, updateProfile, declineAccess, type DeclineVariant, setTrainingLevel, getStableTeams, regenerateStableTeams, setStableTeam, removeStableTeam,
   listRosterNames, addRosterName, removeRosterName, type RosterName,
   listStudyGuideCreators, setStudyGuideCreator,
-  getWeeklyTeams, regenerateWeeklyTeams,
+  getWeeklyTeams, regenerateWeeklyTeams, setWeeklyTeam, removeWeeklyTeam,
   getQuestionStats, getLeaderboard,
   getMySettings, saveSettings,
   getAllMyNotes, getAllGroupNotes,
@@ -1127,7 +1128,7 @@ export default function App() {
   const [hostFromTests, setHostFromTests] = useState(false); // hosting was launched from the saved-tests panel — reopen it when the poll (or the team-mode prompt) closes
   const [teamMode, setTeamMode] = useState<TeamMode>("self");      // how teams get formed for the session about to start
   const [teamModePrompt, setTeamModePrompt] = useState<RawQuestion[] | null | false>(false); // pending "Host poll" click, awaiting the team-mode choice (false = not prompting; null/array = the set to host once chosen)
-  const [showTeamEditor, setShowTeamEditor] = useState(false); // admin hand-editing of the season rosters
+  const [showTeamEditor, setShowTeamEditor] = useState<"stable" | "weekly" | null>(null); // admin hand-editing of a saved roster
   const [stableTeams, setStableTeams] = useState<Record<string, string>>({}); // profile_id -> team name, the season-long roster
   const [weeklyTeams, setWeeklyTeams] = useState<Record<string, string>>({}); // profile_id -> team name, this week's admin-randomized mixer pairing
   const [weeklyGeneratedAt, setWeeklyGeneratedAt] = useState<string | null>(null);
@@ -1161,15 +1162,19 @@ export default function App() {
   // Returns null on success, or an error message to show in the modal.
   const runGenerateWeeklyTeams = async (): Promise<string | null> => {
     const all = await listProfiles();
-    const entries = all
-      .filter((p) => p.status === "approved" && !p.is_education_chief && p.role !== "alumni" && p.role !== "test")
+    // Same person with two emails (Alex Fowler / Adam Quinn) would otherwise
+    // land on two teams. Keep one account per name; the leftover still appears
+    // in the editor so an admin can drop the extra without touching access.
+    const unique = pickOneProfilePerPerson(all.filter((p) =>
+      p.status === "approved" && !p.is_education_chief && p.role !== "alumni" && p.role !== "test"));
+    const entries = unique
       .map((p) => ({ voter: p.id, level: stableTeamLevel(p.training_level) }))
       .filter((e): e is { voter: string; level: string } => e.level !== null);
     if (!entries.length) return all.length ? "No approved residents with a PGY year set" : "Couldn't load the resident list";
     const err = await regenerateWeeklyTeams(assignBalancedTeams(entries));
     if (!err) {
-      const { teams, generatedAt, generatedBy } = await getWeeklyTeams();
-      setWeeklyTeams(teams); setWeeklyGeneratedAt(generatedAt); setWeeklyGeneratedBy(generatedBy);
+      await refreshWeeklyTeams();
+      setRosterEpoch((n) => n + 1);
     }
     return err;
   };
@@ -1180,10 +1185,18 @@ export default function App() {
     if (!Object.keys(teams).length) return null;
     const all = await listProfiles();
     const byId = new Map(all.map((p) => [p.id, p]));
+    const nameCounts = new Map<string, number>();
+    for (const pid of Object.keys(teams)) {
+      const key = byId.get(pid)?.full_name?.trim().toLocaleLowerCase();
+      if (key) nameCounts.set(key, (nameCounts.get(key) ?? 0) + 1);
+    }
     const grouped = new Map<string, { name: string; level: string | null }[]>();
     for (const [pid, teamName] of Object.entries(teams)) {
       const p = byId.get(pid);
-      const name = p?.full_name || p?.email || "Unknown";
+      const key = p?.full_name?.trim().toLocaleLowerCase();
+      const name = p?.full_name && key && (nameCounts.get(key) ?? 0) > 1
+        ? `${p.full_name} (${p.email})`
+        : (p?.full_name || p?.email || "Unknown");
       if (!grouped.has(teamName)) grouped.set(teamName, []);
       grouped.get(teamName)!.push({ name, level: p?.training_level ?? null });
     }
@@ -1591,10 +1604,18 @@ export default function App() {
 
   // This week's mixer pairing: participants look up their own team when a
   // "weekly" poll starts; admins see/copy/re-roll it from the host modal.
+  // Re-fetch when hosting, joining, or opening Polls & Teams so an edit on
+  // another device isn't overwritten by a stale in-memory roster.
+  const refreshWeeklyTeams = async () => {
+    const { teams, generatedAt, generatedBy } = await getWeeklyTeams();
+    setWeeklyTeams(teams); setWeeklyGeneratedAt(generatedAt); setWeeklyGeneratedBy(generatedBy);
+    return teams;
+  };
+  const [rosterEpoch, setRosterEpoch] = useState(0);
   useEffect(() => {
     if (!(isConfigured && signedIn && approved)) return;
-    getWeeklyTeams().then(({ teams, generatedAt, generatedBy }) => { setWeeklyTeams(teams); setWeeklyGeneratedAt(generatedAt); setWeeklyGeneratedBy(generatedBy); });
-  }, [isConfigured, signedIn, approved]);
+    void refreshWeeklyTeams();
+  }, [isConfigured, signedIn, approved, teamModePrompt !== false, !!joinCode, showOfficialResults]); // eslint-disable-line
 
   // Load bug reports: admins get everyone's (triage panel + open-count badge),
   // regular members get their own (RLS-scoped) so they can see admin replies.
@@ -2750,7 +2771,7 @@ export default function App() {
                   </button>
                 )}
                 {isAdmin && (
-                  <button style={s.approveBtn} className="topActBtn" onClick={() => setShowOfficialResults(true)} title="Official poll results & season team rosters">
+                  <button style={s.approveBtn} className="topActBtn" onClick={() => setShowOfficialResults(true)} title="Official poll results, this week's pairings, and season team rosters">
                     <Archive size={13} strokeWidth={2.3} /> <span className="btnTxt">Polls & Teams</span>
                   </button>
                 )}
@@ -3936,7 +3957,8 @@ export default function App() {
           results={officialResults}
           onClose={() => setShowOfficialResults(false)}
           onCleared={() => listOfficialPollResults().then(setOfficialResults)}
-          onEditTeams={() => setShowTeamEditor(true)}
+          onEditTeams={() => setShowTeamEditor("stable")}
+          onEditWeekly={() => setShowTeamEditor("weekly")}
         />
       )}
 
@@ -4153,18 +4175,29 @@ export default function App() {
           isAdmin={isAdmin}
           stableCount={Object.keys(stableTeams).length}
           onGenerate={runGenerateStableTeams}
-          onEditRosters={() => setShowTeamEditor(true)}
+          onEditRosters={() => setShowTeamEditor("stable")}
           weeklyCount={Object.keys(weeklyTeams).length}
           weeklyGeneratedAt={weeklyGeneratedAt}
           weeklyGeneratedBy={weeklyGeneratedBy}
           onGenerateWeekly={runGenerateWeeklyTeams}
+          onEditWeekly={() => setShowTeamEditor("weekly")}
           onCopyWeekly={weeklyPairingsText}
           onCopyStable={stableRosterText}
+          rosterEpoch={rosterEpoch}
         />
       )}
       {showTeamEditor && (
         <TeamRosterEditor
-          onClose={async () => { setShowTeamEditor(false); setStableTeams(await getStableTeams()); }}
+          kind={showTeamEditor}
+          onClose={async () => {
+            const edited = showTeamEditor;
+            setShowTeamEditor(null);
+            if (edited === "stable") setStableTeams(await getStableTeams());
+            else {
+              await refreshWeeklyTeams();
+              setRosterEpoch((n) => n + 1);
+            }
+          }}
         />
       )}
       {hostCode && (
@@ -4242,13 +4275,14 @@ export default function App() {
 
 // Asked the instant "Host poll" is clicked, before the room code is even
 // generated — how should teams be formed for this session?
-function TeamModeModal({ onChoose, onClose, isAdmin, stableCount, onGenerate, onEditRosters, weeklyCount, weeklyGeneratedAt, weeklyGeneratedBy, onGenerateWeekly, onCopyWeekly, onCopyStable }: {
+function TeamModeModal({ onChoose, onClose, isAdmin, stableCount, onGenerate, onEditRosters, weeklyCount, weeklyGeneratedAt, weeklyGeneratedBy, onGenerateWeekly, onEditWeekly, onCopyWeekly, onCopyStable, rosterEpoch }: {
   onChoose: (mode: TeamMode) => void; onClose: () => void;
   isAdmin: boolean; stableCount: number; onGenerate: () => Promise<boolean>;
   onEditRosters: () => void;
   weeklyCount: number; weeklyGeneratedAt: string | null; weeklyGeneratedBy: string | null;
-  onGenerateWeekly: () => Promise<string | null>; onCopyWeekly: () => Promise<string | null>;
+  onGenerateWeekly: () => Promise<string | null>; onEditWeekly: () => void; onCopyWeekly: () => Promise<string | null>;
   onCopyStable: () => Promise<string | null>;
+  rosterEpoch: number;
 }) {
   const [busy, setBusy] = useState(false);
   const [weeklyBusy, setWeeklyBusy] = useState(false);
@@ -4268,6 +4302,12 @@ function TeamModeModal({ onChoose, onClose, isAdmin, stableCount, onGenerate, on
   const weeklyDisabled = !hasWeekly && !isAdmin;
 
   const [weeklyErr, setWeeklyErr] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pairingsText) return;
+    let alive = true;
+    onCopyWeekly().then((text) => { if (alive && text) { setPairingsText(text); setPairingsCopied(false); } });
+    return () => { alive = false; };
+  }, [rosterEpoch]); // eslint-disable-line
   const chooseWeekly = async () => {
     if (busy || weeklyBusy || weeklyDisabled) return;
     if (hasWeekly) { onChoose("weekly"); return; }
@@ -4427,6 +4467,11 @@ function TeamModeModal({ onChoose, onClose, isAdmin, stableCount, onGenerate, on
                   <Repeat size={11} strokeWidth={2.4} /> {hasWeekly ? "Randomize new pairings (next week)" : "Randomize pairings"}
                 </button>
                 {hasWeekly && (
+                  <button style={s.teamModeRegen} onClick={onEditWeekly} disabled={weeklyBusy}>
+                    <Pencil size={11} strokeWidth={2.4} /> Edit pairings (move / add / remove people)
+                  </button>
+                )}
+                {hasWeekly && (
                   <button style={s.teamModeRegen} onClick={revealPairings} disabled={weeklyBusy} title="Show the team list and copy it to paste into the didactics email">
                     <Copy size={11} strokeWidth={2.4} /> {pairingsCopied ? "Copied!" : pairingsText ? "Copy again" : "Copy short-term pairings list"}
                   </button>
@@ -4508,13 +4553,12 @@ function TeamModeModal({ onChoose, onClose, isAdmin, stableCount, onGenerate, on
   );
 }
 
-/** Admin: hand-edit the season-long poll rosters — move members between
-    teams, pull them off entirely, or add any approved member who isn't
-    placed yet. Each action writes to stable_teams immediately (one row per
-    person; RLS restricts writes to admins), so there's no save step and a
-    dropped connection can't half-apply a batch. */
+/** Admin: hand-edit either saved poll roster — move members between teams,
+    pull them off entirely, or add any approved member who isn't placed yet.
+    Each action writes one row immediately (RLS restricts writes to admins),
+    so there's no save step and a dropped connection can't half-apply a batch. */
 const LEVEL_ORDER: Record<string, number> = { R1: 1, R2: 2, R3: 3, R4: 4, F1: 5, F2: 6 };
-function TeamRosterEditor({ onClose }: { onClose: () => void }) {
+function TeamRosterEditor({ kind, onClose }: { kind: "stable" | "weekly"; onClose: () => void }) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [teams, setTeams] = useState<Record<string, string>>({}); // profile_id -> team name
   const [extraTeams, setExtraTeams] = useState<string[]>([]);     // empty teams added this session (exist only until someone joins)
@@ -4563,14 +4607,17 @@ function TeamRosterEditor({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     (async () => {
-      const [ps, st] = await Promise.all([listProfiles(), getStableTeams()]);
+      const [ps, saved] = await Promise.all([
+        listProfiles(),
+        kind === "stable" ? getStableTeams() : getWeeklyTeams().then((r) => r.teams),
+      ]);
       // test accounts (duplicate sign-ins, demo Googles) never belong on
       // review-poll teams — keep them out of the editor entirely
       setProfiles(ps.filter((p) => p.status === "approved" && p.role !== "test"));
-      setTeams(st);
+      setTeams(saved);
       setLoading(false);
     })();
-  }, []);
+  }, [kind]);
 
   const teamNames = useMemo(() => {
     const names = new Set<string>([...Object.values(teams), ...extraTeams]);
@@ -4612,14 +4659,14 @@ function TeamRosterEditor({ onClose }: { onClose: () => void }) {
   const move = async (pid: string, team: string) => {
     if (!team || teams[pid] === team) return;
     setBusyId(pid); setFailedId(null);
-    const ok = await setStableTeam(pid, team);
+    const ok = kind === "stable" ? await setStableTeam(pid, team) : await setWeeklyTeam(pid, team);
     if (ok) setTeams((t) => ({ ...t, [pid]: team }));
     else setFailedId(pid);
     setBusyId(null);
   };
   const remove = async (pid: string) => {
     setBusyId(pid); setFailedId(null);
-    const ok = await removeStableTeam(pid);
+    const ok = kind === "stable" ? await removeStableTeam(pid) : await removeWeeklyTeam(pid);
     if (ok) setTeams((t) => { const next = { ...t }; delete next[pid]; return next; });
     else setFailedId(pid);
     setBusyId(null);
@@ -4629,7 +4676,18 @@ function TeamRosterEditor({ onClose }: { onClose: () => void }) {
     setExtraTeams((x) => [...x, `Team ${(nums.length ? Math.max(...nums) : 0) + 1}`]);
   };
 
-  const label = (p: Profile) => p.full_name || p.email;
+  const duplicateNames = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const p of profiles) {
+      const name = p.full_name?.trim().toLocaleLowerCase();
+      if (name) counts.set(name, (counts.get(name) ?? 0) + 1);
+    }
+    return new Set([...counts].filter(([, count]) => count > 1).map(([name]) => name));
+  }, [profiles]);
+  const label = (p: Profile) => {
+    if (!p.full_name) return p.email;
+    return duplicateNames.has(p.full_name.trim().toLocaleLowerCase()) ? `${p.full_name} · ${p.email}` : p.full_name;
+  };
   const tag = (p: Profile) => p.training_level ?? p.role;
 
   return (
@@ -4637,14 +4695,14 @@ function TeamRosterEditor({ onClose }: { onClose: () => void }) {
       <div style={{ ...s.apPanel, maxWidth: 560 }} onClick={(e) => e.stopPropagation()} className="rise">
         <div style={s.apHead}>
           <div>
-            <div style={s.apEyebrow}>Season poll teams</div>
-            <div style={s.apTitle}>Edit rosters</div>
+            <div style={s.apEyebrow}>{kind === "stable" ? "Season poll teams" : "This week's mixer teams"}</div>
+            <div style={s.apTitle}>{kind === "stable" ? "Edit rosters" : "Edit pairings"}</div>
           </div>
           <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
         </div>
         <div style={s.apBody}>
           <p style={{ ...s.apEmpty, marginBottom: 14 }}>
-            Changes save instantly. Drag someone onto a team (or pick one from their dropdown) to move them; ✕ — or dragging them onto the "not on a team" list — takes them off the roster.
+            Changes save instantly. Drag someone onto a team (or pick one from their dropdown) to move them; ✕ — or dragging them onto the "not on a team" list — takes them off {kind === "stable" ? "the season roster" : "this week's pairing"} without changing their account access. Duplicate names show their email so you can remove the right profile.
           </p>
           {loading ? (
             <p style={s.apEmpty}>Loading rosters…</p>
@@ -4668,7 +4726,7 @@ function TeamRosterEditor({ onClose }: { onClose: () => void }) {
                       >
                         {teamNames.map((t) => <option key={t} value={t}>{t}</option>)}
                       </select>
-                      <button style={s.teamEdRemove} onClick={() => remove(p.id)} disabled={busyId === p.id} title="Remove from the season roster">
+                      <button style={s.teamEdRemove} onClick={() => remove(p.id)} disabled={busyId === p.id} title={kind === "stable" ? "Remove from the season roster" : "Remove from this week's pairing (keeps account access)"}>
                         <X size={13} strokeWidth={2.6} />
                       </button>
                     </div>
@@ -4766,10 +4824,11 @@ function TeamRosterEditor({ onClose }: { onClose: () => void }) {
 
    Numbers follow the real scoring rule: a question counts once per team
    however many members answer it, so a split team earns the fraction that were
-   right — hence the .25/.5/.75s. Smaller teams also carry a lower `answered`
-   count, because with 2 people there are more questions nobody on the team
-   got to. This data is chosen so the two ranking metrics genuinely disagree:
-   the 2-player Team 4 tops the accuracy board but sits 3rd on raw points. */
+   right — hence the .25/.5/.75s. Every question after a team joins counts,
+   including questions where nobody answers; the few lower `answered` totals
+   represent teams that joined the session late, not skipped answers. This data
+   is chosen so the two ranking metrics genuinely disagree: the late-arriving
+   2-player Team 4 tops the accuracy board but sits 3rd on raw points. */
 const DEMO_STANDINGS: TeamStanding[] = [
   { team: "Team 1", members: 4, answerers: 4, answered: 30, correct: 21.5, score: 21.5 },
   { team: "Team 2", members: 4, answerers: 4, answered: 30, correct: 20, score: 20 },
@@ -4866,7 +4925,13 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
   // Bumps on each Finish so React remounts the <img> and the gif restarts from
   // frame 0. Keeps the URL stable so the prefetched browser cache still hits.
   const [drumrollKey, setDrumrollKey] = useState(0);
+  const closeQuestionRef = useRef<() => void>(() => {});
   const finishPoll = () => {
+    // Finish is also a hard close for the live question. Lock it before the
+    // drumroll so delayed/replayed Realtime messages cannot change the result.
+    closeQuestionRef.current();
+    setRevealAt(null);
+    setRevealed(true);
     setDrumrollReady(false);
     setDrumrollKey((k) => k + 1);
     setDrumrollGif(nextPollDrumrollGif());
@@ -4934,14 +4999,25 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
   const [qr, setQr] = useState<string | null>(null); // join-URL QR as a data URL
   const [qrBig, setQrBig] = useState(false);          // enlarged QR overlay
   const votesRef = useRef<Map<string, Map<string, string[]>>>(new Map()); // qid -> voter -> choice(s)
+  // The team attached to each accepted vote is snapshotted with that vote. A
+  // later roster/team change must not move an already-closed answer between
+  // teams or rewrite prior standings.
+  const voteTeamsRef = useRef<Map<string, Map<string, string>>>(new Map()); // qid -> voter -> team at vote time
   const teamRef = useRef<Map<string, string>>(new Map());   // voter -> team name
   const levelRef = useRef<Map<string, string>>(new Map());  // voter -> PGY year (R1–R4), if known
   const nameRef = useRef<Map<string, string>>(new Map());   // voter -> display name, for the individual leaderboard
   const joinedRef = useRef<Set<string>>(new Set());  // every voter who has said hello or voted
-  const correctRef = useRef<Map<string, string[]>>(new Map()); // qid -> correct letters (recorded on reveal)
+  const correctRef = useRef<Map<string, string[]>>(new Map()); // CLOSED qid -> correct letters
   // Historical context per qid — prefetched so guests get the Context chip
   // after reveal without needing approved DB access of their own.
   const contextRef = useRef<Map<string, string>>(new Map());
+  const closedTeamsRef = useRef<Map<string, Set<string>>>(new Map()); // qid -> teams active when it closed
+  const closedRef = useRef<Set<string>>(new Set()); // authoritative immutable-question boundary
+  const sessionMembersRef = useRef<Map<string, Set<string>>>(new Map()); // team -> people ever assigned during session
+  const currentQidRef = useRef("");
+  const currentCorrectRef = useRef<string[]>([]);
+  const startedRef = useRef(false);
+  const finishedRef = useRef(false);
   const chanRef = useRef<ReturnType<NonNullable<typeof supabase>["channel"]> | null>(null);
 
   // Cumulative team leaderboard. The whole team scores as one entity —
@@ -4952,52 +5028,15 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
   // wins. The host can toggle to the raw total-correct ranking (rankByTotal).
   // Derived fresh from the raw vote log each call, so it's idempotent
   // (re-reveals and re-renders never double-count).
-  const computeStandings = (): TeamStanding[] => {
-    const correctCount = new Map<string, number>();
-    const answeredCount = new Map<string, number>();
-    const answerers = new Map<string, Set<string>>();
-    const members = new Map<string, Set<string>>();
-    for (const [vId, team] of teamRef.current) {
-      if (!team) continue;
-      if (!members.has(team)) { members.set(team, new Set()); answerers.set(team, new Set()); correctCount.set(team, 0); answeredCount.set(team, 0); }
-      members.get(team)!.add(vId);
-    }
-    // Score per QUESTION, not per vote. Counting each member's vote separately
-    // made a 2-person team on a 30-question poll read "59/60", which looks like
-    // a 60-question poll and makes teams of different sizes incomparable. Each
-    // question is worth exactly 1 to a team however many members answered it;
-    // when they disagree the team gets the fraction that were right, so the
-    // same poll reads "29.5/30".
-    for (const [qId, correct] of correctRef.current) {
-      const m = votesRef.current.get(qId);
-      if (!m) continue;
-      const perTeam = new Map<string, { right: number; voted: number }>();
-      for (const [vId, choice] of m) {
-        const team = teamRef.current.get(vId);
-        if (!team) continue;
-        answerers.get(team)?.add(vId);
-        const agg = perTeam.get(team) ?? { right: 0, voted: 0 };
-        agg.voted += 1;
-        if (pickIsCorrect(choice, correct)) agg.right += 1;
-        perTeam.set(team, agg);
-      }
-      for (const [team, agg] of perTeam) {
-        answeredCount.set(team, (answeredCount.get(team) ?? 0) + 1);
-        correctCount.set(team, (correctCount.get(team) ?? 0) + agg.right / agg.voted);
-      }
-    }
-    const pct = (t: TeamStanding) => (t.answered > 0 ? t.correct / t.answered : 0);
-    return [...members.keys()]
-      .map((team) => {
-        const n = answerers.get(team)?.size ?? 0;
-        const c = correctCount.get(team) ?? 0;
-        return { team, score: c, members: members.get(team)?.size ?? 0, correct: c, answerers: n, answered: answeredCount.get(team) ?? 0 };
-      })
-      .sort((a, b) =>
-        rankByTotal
-          ? b.correct - a.correct || pct(b) - pct(a) || a.team.localeCompare(b.team)
-          : pct(b) - pct(a) || b.correct - a.correct || a.team.localeCompare(b.team));
-  };
+  const computeStandings = (): TeamStanding[] =>
+    computeTeamStandings({
+      sessionMembers: sessionMembersRef.current,
+      closedTeams: closedTeamsRef.current,
+      correctByQ: correctRef.current,
+      votesByQ: votesRef.current,
+      voteTeamsByQ: voteTeamsRef.current,
+      rankByTotal,
+    });
 
   // Cumulative individual leaderboard: per participant, how many revealed
   // questions they got right (score) out of how many they answered. Derived
@@ -5036,17 +5075,35 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
   const total = set.length;
   const correctSet = q ? (q.answer_letters?.length ? q.answer_letters : q.answer_letter ? [q.answer_letter] : []) : [];
   const qid = q ? questionId(q.year, q.q_index) : "";
+  currentQidRef.current = qid;
+  currentCorrectRef.current = correctSet;
+  startedRef.current = started;
+  finishedRef.current = finished;
 
-  // Lock in each question's correct answers as soon as we're on it (not
-  // gated on "revealed") so a vote still counts even if the presenter clicks
-  // Next without ever clicking Reveal — otherwise those votes are stranded:
-  // recorded in votesRef but never credited because correctRef never learned
-  // the answer key for that qid.
-  if (qid) correctRef.current.set(qid, correctSet);
+  const rememberTeam = (voter: string, team?: string) => {
+    if (!team) return;
+    teamRef.current.set(voter, team);
+    const members = sessionMembersRef.current.get(team) ?? new Set<string>();
+    members.add(voter);
+    sessionMembersRef.current.set(team, members);
+  };
+
+  // This is the authoritative close, not merely a disabled button on phones.
+  // It snapshots the active teams for the no-answer denominator and makes the
+  // qid immutable before React state/broadcasts have time to settle.
+  closeQuestionRef.current = () => {
+    const closingQid = currentQidRef.current;
+    if (!closingQid || closedRef.current.has(closingQid)) return;
+    const voteTeams = voteTeamsRef.current.get(closingQid);
+    const activeTeams = new Set<string>([...teamRef.current.values()].filter(Boolean));
+    for (const team of voteTeams?.values() ?? []) if (team) activeTeams.add(team);
+    closedTeamsRef.current.set(closingQid, activeTeams);
+    correctRef.current.set(closingQid, [...currentCorrectRef.current]);
+    closedRef.current.add(closingQid);
+  };
 
   const broadcastRef = useRef<() => void>(() => {});
   broadcastRef.current = () => {
-    if (qid) correctRef.current.set(qid, correctSet);
     const payload: PollState = {
       qid, year: q?.year ?? "", qIndex: q?.q_index ?? 0,
       nOptions: q?.options.length ?? 0,
@@ -5089,11 +5146,21 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
     ch.on("broadcast", { event: POLL_EVENTS.vote }, ({ payload }: { payload: PollVote }) => {
       const v = payload;
       if (!v?.qid || !v?.choice?.length || !v?.voter) return;
+      // Realtime Broadcast is intentionally permissive; the host owns the
+      // result. Only the current, started, still-open question may mutate.
+      if (!shouldAcceptPollVote({
+        started: startedRef.current, finished: finishedRef.current,
+        voteQid: v.qid, currentQid: currentQidRef.current, closed: closedRef.current,
+      })) return;
       let m = votesRef.current.get(v.qid);
       if (!m) { m = new Map(); votesRef.current.set(v.qid, m); }
       m.set(v.voter, v.choice);
+      let voteTeams = voteTeamsRef.current.get(v.qid);
+      if (!voteTeams) { voteTeams = new Map(); voteTeamsRef.current.set(v.qid, voteTeams); }
+      const voteTeam = v.team || teamRef.current.get(v.voter);
+      if (voteTeam) voteTeams.set(v.voter, voteTeam);
       joinedRef.current.add(v.voter);
-      if (v.team) teamRef.current.set(v.voter, v.team);
+      rememberTeam(v.voter, voteTeam);
       if (v.level) levelRef.current.set(v.voter, v.level);
       if (v.name) nameRef.current.set(v.voter, v.name);
       force((n) => n + 1);
@@ -5102,7 +5169,14 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
     ch.on("broadcast", { event: POLL_EVENTS.hello }, ({ payload }: { payload: PollHello }) => {
       if (payload?.voter) {
         joinedRef.current.add(payload.voter);
-        if (payload.team) teamRef.current.set(payload.voter, payload.team);
+        rememberTeam(payload.voter, payload.team);
+        // A team change while the current question is still open moves that
+        // person's current answer too. Once closed, neither can rewrite it.
+        if (payload.team && !closedRef.current.has(currentQidRef.current) && votesRef.current.get(currentQidRef.current)?.has(payload.voter)) {
+          let voteTeams = voteTeamsRef.current.get(currentQidRef.current);
+          if (!voteTeams) { voteTeams = new Map(); voteTeamsRef.current.set(currentQidRef.current, voteTeams); }
+          voteTeams.set(payload.voter, payload.team);
+        }
         if (payload.level) levelRef.current.set(payload.voter, payload.level);
         if (payload.name) nameRef.current.set(payload.voter, payload.name);
         force((n) => n + 1);
@@ -5147,7 +5221,11 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
   useEffect(() => {
     if (!revealAt) return;
     const ms = Math.max(0, revealAt - Date.now());
-    const t = setTimeout(() => { setRevealed(true); setRevealAt(null); }, ms);
+    const t = setTimeout(() => {
+      closeQuestionRef.current();
+      setRevealed(true);
+      setRevealAt(null);
+    }, ms);
     return () => clearTimeout(t);
   }, [revealAt]);
   // Ticks the host's "Revealing in N…" button text while the countdown runs.
@@ -5167,7 +5245,14 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
   const standings = computeStandings();
   const individuals = computeIndividualStandings();
   const isIndividualMode = teamMode === "individual";
-  const goTo = (i: number) => { setRevealed(false); setRevealAt(null); setShowExpl(false); setPeekStandings(false); setIndex(Math.max(0, Math.min(i, total - 1))); };
+  const goTo = (i: number) => {
+    closeQuestionRef.current();
+    const nextIndex = Math.max(0, Math.min(i, total - 1));
+    const next = set[nextIndex];
+    const nextQid = next ? questionId(next.year, next.q_index) : "";
+    setRevealed(closedRef.current.has(nextQid));
+    setRevealAt(null); setShowExpl(false); setPeekStandings(false); setIndex(nextIndex);
+  };
   // Nudge the running countdown (and the baseline used for every question
   // after this one) up or down — the default one-minute timer isn't right
   // for every question, and there was previously no way to change it mid-poll.
@@ -5185,7 +5270,7 @@ function PollPresenter({ code, set, startIndex, timerSecs, onTimerSecsChange, te
     const entries = [...joinedRef.current].map((voter) => ({ voter, level: levelRef.current.get(voter) }));
     if (!entries.length) return;
     const assignments = assignBalancedTeams(entries);
-    for (const [voter, team] of Object.entries(assignments)) teamRef.current.set(voter, team);
+    for (const [voter, team] of Object.entries(assignments)) rememberTeam(voter, team);
     chanRef.current?.send({ type: "broadcast", event: POLL_EVENTS.assign, payload: { assignments } as PollAssign });
     force((n) => n + 1);
     broadcastRef.current();
@@ -6093,6 +6178,13 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
     return () => clearInterval(id);
   }, [remote?.revealAt, remote?.revealed]);
 
+  // Treat the host-announced cutoff as closed locally even if the follow-up
+  // `revealed` broadcast is still in flight. The host enforces this too; this
+  // guard keeps the phone from optimistically displaying a rejected change.
+  const votingClosed = !!remote && (
+    remote.revealed || (!!remote.revealAt && Date.now() >= remote.revealAt)
+  );
+
   // Set/clear my team and tell the host right away so it can roster me even
   // before I vote.
   const saveTeam = (name: string) => {
@@ -6110,6 +6202,13 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
     if (!supabase) { setStatus("error"); return; }
     const ch = supabase.channel(channelName(code), { config: { broadcast: { self: false } } });
     ch.on("broadcast", { event: POLL_EVENTS.state }, ({ payload }: { payload: PollState }) => {
+      // Reset synchronously before processing a newly-arrived qid. This matters
+      // when the host revisits an already-closed question: the vote from the
+      // question we just left must never be recorded against the old one.
+      if (payload.qid !== lastQid.current) {
+        lastQid.current = payload.qid;
+        setMyVote(null); myVoteRef.current = null; setPendingPicks([]); setReviewQid(null);
+      }
       if (payload.revealed && payload.qid) {
         const prev = historyRef.current.get(payload.qid);
         // Keep the first myChoice we snapshotted for this qid (re-broadcasts
@@ -6167,7 +6266,6 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
         }
       }
       setRemote(payload);
-      if (payload.qid !== lastQid.current) { lastQid.current = payload.qid; setMyVote(null); myVoteRef.current = null; setPendingPicks([]); setReviewQid(null); }
     });
     // Host ran the auto-assign shuffle — take the team it picked for me, unless
     // I've already got one (either from a prior shuffle or my own rename).
@@ -6184,12 +6282,28 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
   }, [code, voter]); // eslint-disable-line
 
   // Stable/weekly modes: always use the saved roster's pick for me, not
-  // whatever I last typed in for a self/auto session.
+  // whatever I last typed in for a self/auto session. Fetch live so an
+  // admin edit (or being taken off this week's list) wins over a stale
+  // prop / leftover localStorage team.
+  const [liveWeekly, setLiveWeekly] = useState<string | null | undefined>(undefined);
+  const [liveStable, setLiveStable] = useState<string | null | undefined>(undefined);
   useEffect(() => {
-    if (guest) return; // guests have no saved roster entry — they pick a team by hand
-    const rostered = remote?.teamMode === "stable" ? stableTeam : remote?.teamMode === "weekly" ? weeklyTeam : null;
+    if (guest) return;
+    let alive = true;
+    getWeeklyTeams().then((r) => { if (alive) setLiveWeekly(r.teams[voter] ?? null); });
+    getStableTeams().then((r) => { if (alive) setLiveStable(r[voter] ?? null); });
+    return () => { alive = false; };
+  }, [guest, voter]);
+  useEffect(() => {
+    if (guest) return;
+    const mode = remote?.teamMode;
+    if (mode !== "stable" && mode !== "weekly") return;
+    const live = mode === "weekly" ? liveWeekly : liveStable;
+    const fallback = mode === "weekly" ? weeklyTeam : stableTeam;
+    const rostered = live !== undefined ? live : fallback;
     if (rostered && team !== rostered) saveTeam(rostered);
-  }, [remote?.teamMode, stableTeam, weeklyTeam]); // eslint-disable-line
+    else if (live === null && team) saveTeam("");
+  }, [remote?.teamMode, liveWeekly, liveStable, stableTeam, weeklyTeam]); // eslint-disable-line
 
   // Drop lingering tap focus when the live question changes. The option
   // <button>s are keyed by letter, so React reuses the same element across
@@ -6205,7 +6319,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
   // directly with one letter each time; multi-select submits the whole
   // pending set at once via submitPending() below.
   const castVote = (letters: string[]) => {
-    if (!remote || remote.revealed || !letters.length) return;
+    if (!remote || remote.revealed || (!!remote.revealAt && Date.now() >= remote.revealAt) || !letters.length) return;
     setMyVote(letters);
     myVoteRef.current = letters;
     chanRef.current?.send({ type: "broadcast", event: POLL_EVENTS.vote, payload: { qid: remote.qid, choice: letters, voter, team: team || undefined, level: trainingLevel || undefined, name: displayName || undefined } });
@@ -6217,7 +6331,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
   // sent until Submit, mirroring the "choose all that apply, then Submit"
   // flow from the personal practice quiz.
   const togglePending = (letter: string) => {
-    if (!remote || remote.revealed || myVote) return;
+    if (!remote || votingClosed || myVote) return;
     setPendingPicks((cur) => (cur.includes(letter) ? cur.filter((l) => l !== letter) : [...cur, letter]));
   };
   const submitPending = () => {
@@ -6500,7 +6614,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                       : myVote?.[0] === o.letter;
                     const correct = remote.revealed && remote.correct.includes(o.letter);
                     const wrong = remote.revealed && mine && !correct;
-                    const locked = remote.revealed || (remote.multiSelect && !!myVote);
+                    const locked = votingClosed || (remote.multiSelect && !!myVote);
                     return (
                       <button
                         key={o.letter}
@@ -6516,7 +6630,7 @@ function PollParticipant({ code, voter, trainingLevel, stableTeam, weeklyTeam, b
                   })}
                 </div>
                 )}
-                {!remote.finished && remote.multiSelect && !remote.revealed && !myVote && (
+                {!remote.finished && remote.multiSelect && !votingClosed && !myVote && (
                   <>
                     <p
                       style={{ ...s.joinState, margin: "12px 0 0", ...(remote.requiredSelections && pendingPicks.length > remote.requiredSelections ? { color: "#f1a38f" } : {}) }}
@@ -7252,11 +7366,12 @@ function BugReportsPanel({ reports, byId, isAdmin, onAct, onReply, onClose }: {
 // Admin archive of "Mark as official" poll submissions — download everything
 // as one CSV, or wipe the archive (e.g. once a year's group-review sessions
 // are all done and safely downloaded).
-function OfficialResultsPanel({ results, onClose, onCleared, onEditTeams }: {
+function OfficialResultsPanel({ results, onClose, onCleared, onEditTeams, onEditWeekly }: {
   results: OfficialPollResult[];
   onClose: () => void;
   onCleared: () => void;
   onEditTeams: () => void;
+  onEditWeekly: () => void;
 }) {
   const [clearStage, setClearStage] = useState<"idle" | "confirm" | "clearing">("idle");
   const doClear = async () => {
@@ -7277,6 +7392,10 @@ function OfficialResultsPanel({ results, onClose, onCleared, onEditTeams }: {
         </div>
         <div style={s.apBody}>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+            <button style={s.apApprove} onClick={onEditWeekly}>
+              <Shuffle size={13} strokeWidth={2.4} style={{ marginRight: 5, verticalAlign: "-2px" }} />
+              Edit this week's pairings
+            </button>
             <button style={s.apApprove} onClick={onEditTeams}>
               <Users size={13} strokeWidth={2.4} style={{ marginRight: 5, verticalAlign: "-2px" }} />
               Edit season team rosters
