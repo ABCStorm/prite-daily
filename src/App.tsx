@@ -3348,25 +3348,34 @@ export default function App() {
           : s.well
       }>
         {psychMode === "neuro" && !examActive && (
-          <div style={{ fontSize: 13, color: T.muted, margin: "0 0 10px", lineHeight: 1.45 }}>
-            Practice questions from <b style={{ color: T.text, fontWeight: 650 }}>Kaufman’s Clinical Neurology for Psychiatrists</b>, 9th ed.
-            Explanations are the book’s own. Open the Kaufman tab after you answer to read the surrounding pages.
+          <div style={s.bankBanner}>
+            <span style={s.bankBannerIcon} aria-hidden>
+              <Brain size={16} strokeWidth={2.2} />
+            </span>
+            <div>
+              <div style={s.bankBannerTitle}>Kaufman · Clinical Neurology for Psychiatrists, 9th ed.</div>
+              <div style={s.bankBannerHint}>
+                Practice questions from the book; explanations are the book’s own. After you answer, open the Kaufman tab to read the surrounding pages.
+              </div>
+            </div>
           </div>
         )}
         {psychMode === "therapy" && !examActive && (
-          <div style={{ fontSize: 13, color: T.muted, margin: "0 0 10px", lineHeight: 1.45 }}>
-            Psychotherapy practice questions — Quizapine decks plus Bienenfeld psychodynamic theory.
-            After you answer a Bienenfeld item, the cited page and the rest of that chapter open below.
-            {" "}
-            <a
-              href="/bienenfeld/"
-              target="_blank"
-              rel="noreferrer"
-              style={{ color: T.text, fontWeight: 650, textUnderlineOffset: 2 }}
-            >
-              Read the book
-            </a>
-            {" "}in the full-page reader.
+          <div style={s.bankBanner}>
+            <span style={s.bankBannerIcon} aria-hidden>
+              <Sofa size={16} strokeWidth={2.2} />
+            </span>
+            <div>
+              <div style={s.bankBannerTitle}>Psychotherapy · Quizapine and Bienenfeld</div>
+              <div style={s.bankBannerHint}>
+                After you answer a Bienenfeld item, the cited page and chapter open below.
+                {" "}
+                <a href="/bienenfeld/" target="_blank" rel="noreferrer" style={s.bankBannerLink}>
+                  Read the book
+                </a>
+                {" "}in the full-page reader.
+              </div>
+            </div>
           </div>
         )}
         {/* Navigation / filter row */}
@@ -12360,6 +12369,45 @@ const s: Record<string, React.CSSProperties> = {
   // position/zIndex lift the question column above the fixed
   // ClosingPlasmaBackground canvas, which paints at z-index 0.
   well: { position: "relative", zIndex: 1, maxWidth: 740, margin: "0 auto", padding: "20px 22px 90px" },
+  bankBanner: {
+    display: "flex",
+    gap: 12,
+    alignItems: "flex-start",
+    margin: "0 0 14px",
+    padding: "11px 13px",
+    borderRadius: 12,
+    background: "rgba(250, 247, 241, 0.94)",
+    border: `1px solid ${T.paperEdge}`,
+    boxShadow: "0 10px 28px -18px rgba(0,0,0,.45)",
+  } as React.CSSProperties,
+  bankBannerIcon: {
+    display: "grid",
+    placeItems: "center",
+    width: 30,
+    height: 30,
+    flexShrink: 0,
+    borderRadius: 8,
+    background: T.tealSoft,
+    color: T.tealDeep,
+  } as React.CSSProperties,
+  bankBannerTitle: {
+    fontSize: 13.5,
+    fontWeight: 700,
+    letterSpacing: "-0.01em",
+    color: T.text,
+    lineHeight: 1.3,
+  } as React.CSSProperties,
+  bankBannerHint: {
+    marginTop: 3,
+    fontSize: 12.5,
+    lineHeight: 1.45,
+    color: T.muted,
+  } as React.CSSProperties,
+  bankBannerLink: {
+    color: T.tealDeep,
+    fontWeight: 650,
+    textUnderlineOffset: 2,
+  } as React.CSSProperties,
 
   nav: { display: "flex", alignItems: "center", gap: 12, marginBottom: 16, flexWrap: "wrap" },
   sel: { background: T.inkSoft, color: "#e7eaf0", border: `1px solid ${T.inkLine}`, borderRadius: 9, padding: "8px 11px", fontSize: 13, cursor: "pointer" },
