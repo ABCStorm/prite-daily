@@ -2638,6 +2638,10 @@ export default function App() {
     : undefined;
   const owl = q ? owlStats[questionId(q.year, q.q_index)] : undefined;
   const dyn = q ? dynPearls[questionId(q.year, q.q_index)] : undefined;
+  // Mascot tabs are post-answer study aids. Keeping them out of the answering
+  // state prevents even a small visual hint/distraction before the learner commits.
+  const showOwlAid = showAnswer && !!owl;
+  const showDynAid = showAnswer && !!dyn;
   const sections: [string, string, string, React.ReactNode][] = [
     ["explanation", "Explanation", "Why this answer is correct", <Layers size={17} strokeWidth={2.1} />],
     ...(kaplan
@@ -3430,7 +3434,7 @@ export default function App() {
             <span aria-hidden style={{ ...s.qcard, position: "absolute", inset: 0, padding: 0 }} />
           )}
         <section data-qcard className={nextLaunching ? "pageFold" : undefined} style={examActive ? { ...s.qcard, marginTop: 30, padding: "36px 38px 30px" } : s.qcard}>
-          {!examActive && dyn && (
+          {showDynAid && (
             <MascotTab
               side="left"
               tone="brown"
@@ -3441,7 +3445,7 @@ export default function App() {
               hideTitle="Hide Dynamic Dawg"
             />
           )}
-          {!examActive && owl && (
+          {showOwlAid && (
             <MascotTab
               side="right"
               tone="orange"
@@ -3452,8 +3456,8 @@ export default function App() {
               hideTitle="Hide Stat Cat"
             />
           )}
-          {dyn && foxOn && !examActive && <AnalystFox qid={qid} pearl={dyn} theme={T} />}
-          {owl && owlOn && !examActive && <WiseOwl qid={qid} stat={owl} theme={T} />}
+          {showDynAid && foxOn && <AnalystFox qid={qid} pearl={dyn} theme={T} />}
+          {showOwlAid && owlOn && <WiseOwl qid={qid} stat={owl} theme={T} />}
           {(q.kaufman?.stem_figures ?? []).map((fig) => (
             <KaufmanFigure
               key={fig.file}
@@ -3465,7 +3469,7 @@ export default function App() {
           ))}
           {q.figure_images.filter((p) => imgSrc(p)).length > 0 && (
             <>
-              <div style={{ ...s.figRow, ...((owlOn || foxOn) && !examActive ? { paddingRight: owl && owlOn ? 78 : 0, paddingLeft: dyn && foxOn ? 84 : 0 } : {}) }}>
+              <div style={{ ...s.figRow, ...((showOwlAid && owlOn) || (showDynAid && foxOn) ? { paddingRight: showOwlAid && owlOn ? 78 : 0, paddingLeft: showDynAid && foxOn ? 84 : 0 } : {}) }}>
                 {q.figure_images.filter((p) => imgSrc(p)).map((p, i) => (
                   <AuditedQuestionImage
                     key={i}
@@ -3492,7 +3496,7 @@ export default function App() {
             ranges={highlights.filter((h) => h.field === "stem")}
             editable={persist}
             onChange={updateHighlights}
-            style={{ ...s.stem, marginBottom: 18, ...(examActive ? { fontSize: 23, lineHeight: 1.58 } : {}), ...((owlOn || foxOn) && !examActive ? { paddingRight: owl && owlOn ? 78 : undefined, paddingLeft: dyn && foxOn ? 84 : undefined } : {}) }}
+            style={{ ...s.stem, marginBottom: 18, ...(examActive ? { fontSize: 23, lineHeight: 1.58 } : {}), ...((showOwlAid && owlOn) || (showDynAid && foxOn) ? { paddingRight: showOwlAid && owlOn ? 78 : undefined, paddingLeft: showDynAid && foxOn ? 84 : undefined } : {}) }}
           />
 
           {q.multi_select && !revealed && (
