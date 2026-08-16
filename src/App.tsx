@@ -3122,7 +3122,7 @@ export default function App() {
             </span>
             {persist ? (
               <span style={s.who} className="topActions mobExtra">
-                <span style={s.navSegRow} className="topActBtn" title="PRITE, CAPITE, Kaufman neurology, or psychotherapy">
+                <span style={s.navSegRow} className="topActBtn" title="PRITE, child psych, Kaufman neurology, or psychotherapy">
                   <button
                     style={{ ...s.navSegBtn, ...(psychMode === "general" ? s.navSegOn : {}) }}
                     onClick={() => { setShowCapite(false); setPsychMode("general"); setYear("all"); setModalityFilter("all"); setQi(0); }}
@@ -8082,13 +8082,13 @@ function CapiteComingSoon({ onClose }: { onClose: () => void }) {
             <span className="penguinDance" style={{ fontSize: 52, animationDelay: "0.15s" }}>🐧</span>
             <span className="penguinDance" style={{ fontSize: 52, animationDelay: "0.3s" }}>🐧</span>
           </div>
-          <div style={{ fontWeight: 800, fontSize: 19, marginBottom: 10, color: T.text }}>CAPITE questions are coming!</div>
+          <div style={{ fontWeight: 800, fontSize: 19, marginBottom: 10, color: T.text }}>Child psych questions coming soon</div>
           <p style={{ fontSize: 14.5, color: T.muted, lineHeight: 1.6, margin: "0 0 22px" }}>
             Pending and in process — please contact <b style={{ color: T.text }}>Dr. Tyler Yorgason</b> via
             email if you'd like to help make this happen!
           </p>
           <a
-            href="mailto:tyler.yorgason@wright.edu?subject=Helping%20build%20the%20CAPITE%20question%20bank"
+            href="mailto:tyler.yorgason@wright.edu?subject=Helping%20build%20the%20child%20psych%20question%20bank"
             style={{ ...s.primarySm, textDecoration: "none", justifyContent: "center" }}
           >
             <Mail size={14} strokeWidth={2.3} /> Email Dr. Yorgason
