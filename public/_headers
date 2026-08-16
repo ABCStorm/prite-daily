@@ -1,2 +1,5 @@
 /data/*
   Cache-Control: no-store
+
+/bienenfeld/pages/*
+  Cache-Control: public, max-age=86400

@@ -1,0 +1,1834 @@
+[
+  {
+    "id": "front",
+    "number": null,
+    "title": "Front matter",
+    "kind": "front",
+    "start": null,
+    "pages": [
+      {
+        "tag": "part1_s01_a",
+        "printed_page": null,
+        "printed_int": null,
+        "image": "pages/001_part1_s01_a.jpg",
+        "ocr": "ocr/001_part1_s01_a.txt",
+        "char_count": 60
+      },
+      {
+        "tag": "part1_s02_a",
+        "printed_page": "5",
+        "printed_int": null,
+        "image": "pages/226_part1_s02_a.jpg",
+        "ocr": "ocr/226_part1_s02_a.txt",
+        "char_count": 80
+      },
+      {
+        "tag": "part1_s03_b",
+        "printed_page": "2",
+        "printed_int": null,
+        "image": "pages/004_part1_s03_b.jpg",
+        "ocr": "ocr/004_part1_s03_b.txt",
+        "char_count": 100
+      },
+      {
+        "tag": "part1_s04_b",
+        "printed_page": "4",
+        "printed_int": null,
+        "image": "pages/006_part1_s04_b.jpg",
+        "ocr": "ocr/006_part1_s04_b.txt",
+        "char_count": 213
+      },
+      {
+        "tag": "part1_s05_b",
+        "printed_page": "3",
+        "printed_int": null,
+        "image": "pages/008_part1_s05_b.jpg",
+        "ocr": "ocr/008_part1_s05_b.txt",
+        "char_count": 285
+      },
+      {
+        "tag": "part1_s06_a",
+        "printed_page": null,
+        "printed_int": null,
+        "image": "pages/009_part1_s06_a.jpg",
+        "ocr": "ocr/009_part1_s06_a.txt",
+        "char_count": 3164
+      },
+      {
+        "tag": "part1_s06_b",
+        "printed_page": null,
+        "printed_int": null,
+        "image": "pages/010_part1_s06_b.jpg",
+        "ocr": "ocr/010_part1_s06_b.txt",
+        "char_count": 630
+      },
+      {
+        "tag": "part1_s07_a",
+        "printed_page": null,
+        "printed_int": null,
+        "image": "pages/227_part1_s07_a.jpg",
+        "ocr": "ocr/227_part1_s07_a.txt",
+        "char_count": 191
+      },
+      {
+        "tag": "part1_s07_b",
+        "printed_page": "4",
+        "printed_int": null,
+        "image": "pages/228_part1_s07_b.jpg",
+        "ocr": "ocr/228_part1_s07_b.txt",
+        "char_count": 141
+      },
+      {
+        "tag": "part1_s08_a",
+        "printed_page": null,
+        "printed_int": null,
+        "image": "pages/013_part1_s08_a.jpg",
+        "ocr": "ocr/013_part1_s08_a.txt",
+        "char_count": 173
+      },
+      {
+        "tag": "part1_s08_b",
+        "printed_page": null,
+        "printed_int": null,
+        "image": "pages/014_part1_s08_b.jpg",
+        "ocr": "ocr/014_part1_s08_b.txt",
+        "char_count": 1519
+      },
+      {
+        "tag": "part1_s09_a",
+        "printed_page": "4",
+        "printed_int": null,
+        "image": "pages/015_part1_s09_a.jpg",
+        "ocr": "ocr/015_part1_s09_a.txt",
+        "char_count": 2626
+      },
+      {
+        "tag": "part1_s09_b",
+        "printed_page": "4",
+        "printed_int": null,
+        "image": "pages/016_part1_s09_b.jpg",
+        "ocr": "ocr/016_part1_s09_b.txt",
+        "char_count": 1431
+      },
+      {
+        "tag": "part1_s10_a",
+        "printed_page": "3",
+        "printed_int": null,
+        "image": "pages/017_part1_s10_a.jpg",
+        "ocr": "ocr/017_part1_s10_a.txt",
+        "char_count": 2427
+      },
+      {
+        "tag": "part1_s10_b",
+        "printed_page": "xiii",
+        "printed_int": null,
+        "image": "pages/018_part1_s10_b.jpg",
+        "ocr": "ocr/018_part1_s10_b.txt",
+        "char_count": 791
+      },
+      {
+        "tag": "part1_s11_b",
+        "printed_page": "xv",
+        "printed_int": null,
+        "image": "pages/020_part1_s11_b.jpg",
+        "ocr": "ocr/020_part1_s11_b.txt",
+        "char_count": 664
+      }
+    ]
+  },
+  {
+    "id": "cases",
+    "number": null,
+    "title": "Cases",
+    "kind": "front",
+    "start": 1,
+    "pages": [
+      {
+        "tag": "part1_s12_b",
+        "printed_page": "1",
+        "printed_int": 1,
+        "image": "pages/022_part1_s12_b.jpg",
+        "ocr": "ocr/022_part1_s12_b.txt",
+        "char_count": 2046
+      },
+      {
+        "tag": "part1_s13_a",
+        "printed_page": "2",
+        "printed_int": 2,
+        "image": "pages/023_part1_s13_a.jpg",
+        "ocr": "ocr/023_part1_s13_a.txt",
+        "char_count": 2852
+      },
+      {
+        "tag": "part1_s13_b",
+        "printed_page": "3",
+        "printed_int": 3,
+        "image": "pages/024_part1_s13_b.jpg",
+        "ocr": "ocr/024_part1_s13_b.txt",
+        "char_count": 2292
+      },
+      {
+        "tag": "part1_s14_a",
+        "printed_page": "4",
+        "printed_int": 4,
+        "image": "pages/025_part1_s14_a.jpg",
+        "ocr": "ocr/025_part1_s14_a.txt",
+        "char_count": 1283
+      }
+    ]
+  },
+  {
+    "id": "ch1",
+    "number": "1",
+    "title": "1  Drive Psychology",
+    "kind": "chapter",
+    "start": 5,
+    "pages": [
+      {
+        "tag": "part1_s14_b",
+        "printed_page": "5",
+        "printed_int": 5,
+        "image": "pages/026_part1_s14_b.jpg",
+        "ocr": "ocr/026_part1_s14_b.txt",
+        "char_count": 985
+      },
+      {
+        "tag": "part1_s15_a",
+        "printed_page": "6",
+        "printed_int": 6,
+        "image": "pages/027_part1_s15_a.jpg",
+        "ocr": "ocr/027_part1_s15_a.txt",
+        "char_count": 2638
+      },
+      {
+        "tag": "part1_s15_b",
+        "printed_page": "7",
+        "printed_int": 7,
+        "image": "pages/028_part1_s15_b.jpg",
+        "ocr": "ocr/028_part1_s15_b.txt",
+        "char_count": 2064
+      },
+      {
+        "tag": "part1_s16_a",
+        "printed_page": "8",
+        "printed_int": 8,
+        "image": "pages/029_part1_s16_a.jpg",
+        "ocr": "ocr/029_part1_s16_a.txt",
+        "char_count": 2426
+      },
+      {
+        "tag": "part1_s16_b",
+        "printed_page": "9",
+        "printed_int": 9,
+        "image": "pages/030_part1_s16_b.jpg",
+        "ocr": "ocr/030_part1_s16_b.txt",
+        "char_count": 2063
+      },
+      {
+        "tag": "part1_s17_a",
+        "printed_page": "10",
+        "printed_int": 10,
+        "image": "pages/031_part1_s17_a.jpg",
+        "ocr": "ocr/031_part1_s17_a.txt",
+        "char_count": 2270
+      },
+      {
+        "tag": "part1_s17_b",
+        "printed_page": "11",
+        "printed_int": 11,
+        "image": "pages/032_part1_s17_b.jpg",
+        "ocr": "ocr/032_part1_s17_b.txt",
+        "char_count": 2465
+      },
+      {
+        "tag": "part1_s18_a",
+        "printed_page": "12",
+        "printed_int": 12,
+        "image": "pages/033_part1_s18_a.jpg",
+        "ocr": "ocr/033_part1_s18_a.txt",
+        "char_count": 1835
+      },
+      {
+        "tag": "part1_s18_b",
+        "printed_page": "13",
+        "printed_int": 13,
+        "image": "pages/034_part1_s18_b.jpg",
+        "ocr": "ocr/034_part1_s18_b.txt",
+        "char_count": 2256
+      },
+      {
+        "tag": "part1_s19_a",
+        "printed_page": "14",
+        "printed_int": 14,
+        "image": "pages/035_part1_s19_a.jpg",
+        "ocr": "ocr/035_part1_s19_a.txt",
+        "char_count": 2242
+      },
+      {
+        "tag": "part1_s19_b",
+        "printed_page": "15",
+        "printed_int": 15,
+        "image": "pages/036_part1_s19_b.jpg",
+        "ocr": "ocr/036_part1_s19_b.txt",
+        "char_count": 2457
+      },
+      {
+        "tag": "part1_s20_a",
+        "printed_page": "16",
+        "printed_int": 16,
+        "image": "pages/037_part1_s20_a.jpg",
+        "ocr": "ocr/037_part1_s20_a.txt",
+        "char_count": 2291
+      },
+      {
+        "tag": "part1_s20_b",
+        "printed_page": "17",
+        "printed_int": 17,
+        "image": "pages/038_part1_s20_b.jpg",
+        "ocr": "ocr/038_part1_s20_b.txt",
+        "char_count": 2399
+      },
+      {
+        "tag": "part1_s21_a",
+        "printed_page": "18",
+        "printed_int": 18,
+        "image": "pages/039_part1_s21_a.jpg",
+        "ocr": "ocr/039_part1_s21_a.txt",
+        "char_count": 2508
+      },
+      {
+        "tag": "part1_s21_b",
+        "printed_page": "19",
+        "printed_int": 19,
+        "image": "pages/040_part1_s21_b.jpg",
+        "ocr": "ocr/040_part1_s21_b.txt",
+        "char_count": 2650
+      },
+      {
+        "tag": "part1_s22_a",
+        "printed_page": "20",
+        "printed_int": 20,
+        "image": "pages/041_part1_s22_a.jpg",
+        "ocr": "ocr/041_part1_s22_a.txt",
+        "char_count": 1376
+      },
+      {
+        "tag": "part1_s22_b",
+        "printed_page": "21",
+        "printed_int": 21,
+        "image": "pages/042_part1_s22_b.jpg",
+        "ocr": "ocr/042_part1_s22_b.txt",
+        "char_count": 2305
+      },
+      {
+        "tag": "part1_s23_a",
+        "printed_page": "22",
+        "printed_int": 22,
+        "image": "pages/043_part1_s23_a.jpg",
+        "ocr": "ocr/043_part1_s23_a.txt",
+        "char_count": 2355
+      },
+      {
+        "tag": "part1_s23_b",
+        "printed_page": "23",
+        "printed_int": 23,
+        "image": "pages/044_part1_s23_b.jpg",
+        "ocr": "ocr/044_part1_s23_b.txt",
+        "char_count": 2485
+      },
+      {
+        "tag": "part1_s24_a",
+        "printed_page": "24",
+        "printed_int": 24,
+        "image": "pages/045_part1_s24_a.jpg",
+        "ocr": "ocr/045_part1_s24_a.txt",
+        "char_count": 2441
+      },
+      {
+        "tag": "part1_s24_b",
+        "printed_page": "25",
+        "printed_int": 25,
+        "image": "pages/046_part1_s24_b.jpg",
+        "ocr": "ocr/046_part1_s24_b.txt",
+        "char_count": 1546
+      }
+    ]
+  },
+  {
+    "id": "ch2",
+    "number": "2",
+    "title": "2  Dissent: Alfred Adler and Carl Jung",
+    "kind": "chapter",
+    "start": 27,
+    "pages": [
+      {
+        "tag": "part2_s01_b",
+        "printed_page": "27",
+        "printed_int": 27,
+        "image": "pages/048_part2_s01_b.jpg",
+        "ocr": "ocr/048_part2_s01_b.txt",
+        "char_count": 943
+      },
+      {
+        "tag": "part2_s02_a",
+        "printed_page": "28",
+        "printed_int": 28,
+        "image": "pages/049_part2_s02_a.jpg",
+        "ocr": "ocr/049_part2_s02_a.txt",
+        "char_count": 2481
+      },
+      {
+        "tag": "part2_s02_b",
+        "printed_page": "29",
+        "printed_int": 29,
+        "image": "pages/050_part2_s02_b.jpg",
+        "ocr": "ocr/050_part2_s02_b.txt",
+        "char_count": 2387
+      },
+      {
+        "tag": "part2_s03_a",
+        "printed_page": "30",
+        "printed_int": 30,
+        "image": "pages/051_part2_s03_a.jpg",
+        "ocr": "ocr/051_part2_s03_a.txt",
+        "char_count": 2488
+      },
+      {
+        "tag": "part2_s03_b",
+        "printed_page": "31",
+        "printed_int": 31,
+        "image": "pages/052_part2_s03_b.jpg",
+        "ocr": "ocr/052_part2_s03_b.txt",
+        "char_count": 2516
+      },
+      {
+        "tag": "part2_s04_a",
+        "printed_page": "32",
+        "printed_int": 32,
+        "image": "pages/053_part2_s04_a.jpg",
+        "ocr": "ocr/053_part2_s04_a.txt",
+        "char_count": 2249
+      },
+      {
+        "tag": "part2_s04_b",
+        "printed_page": "33",
+        "printed_int": 33,
+        "image": "pages/054_part2_s04_b.jpg",
+        "ocr": "ocr/054_part2_s04_b.txt",
+        "char_count": 2436
+      },
+      {
+        "tag": "part2_s05_a",
+        "printed_page": "34",
+        "printed_int": 34,
+        "image": "pages/055_part2_s05_a.jpg",
+        "ocr": "ocr/055_part2_s05_a.txt",
+        "char_count": 2617
+      },
+      {
+        "tag": "part2_s05_b",
+        "printed_page": "35",
+        "printed_int": 35,
+        "image": "pages/056_part2_s05_b.jpg",
+        "ocr": "ocr/056_part2_s05_b.txt",
+        "char_count": 2607
+      },
+      {
+        "tag": "part2_s06_a",
+        "printed_page": "36",
+        "printed_int": 36,
+        "image": "pages/057_part2_s06_a.jpg",
+        "ocr": "ocr/057_part2_s06_a.txt",
+        "char_count": 2442
+      },
+      {
+        "tag": "part2_s06_b",
+        "printed_page": "37",
+        "printed_int": 37,
+        "image": "pages/058_part2_s06_b.jpg",
+        "ocr": "ocr/058_part2_s06_b.txt",
+        "char_count": 2253
+      },
+      {
+        "tag": "part2_s07_a",
+        "printed_page": "38",
+        "printed_int": 38,
+        "image": "pages/059_part2_s07_a.jpg",
+        "ocr": "ocr/059_part2_s07_a.txt",
+        "char_count": 2626
+      },
+      {
+        "tag": "part2_s07_b",
+        "printed_page": "39",
+        "printed_int": 39,
+        "image": "pages/060_part2_s07_b.jpg",
+        "ocr": "ocr/060_part2_s07_b.txt",
+        "char_count": 2290
+      },
+      {
+        "tag": "part2_s08_a",
+        "printed_page": "40",
+        "printed_int": 40,
+        "image": "pages/061_part2_s08_a.jpg",
+        "ocr": "ocr/061_part2_s08_a.txt",
+        "char_count": 2331
+      },
+      {
+        "tag": "part2_s08_b",
+        "printed_page": "41",
+        "printed_int": 41,
+        "image": "pages/062_part2_s08_b.jpg",
+        "ocr": "ocr/062_part2_s08_b.txt",
+        "char_count": 2232
+      },
+      {
+        "tag": "part2_s09_a",
+        "printed_page": "42",
+        "printed_int": 42,
+        "image": "pages/063_part2_s09_a.jpg",
+        "ocr": "ocr/063_part2_s09_a.txt",
+        "char_count": 1861
+      },
+      {
+        "tag": "part2_s09_b",
+        "printed_page": "43",
+        "printed_int": 43,
+        "image": "pages/064_part2_s09_b.jpg",
+        "ocr": "ocr/064_part2_s09_b.txt",
+        "char_count": 2416
+      },
+      {
+        "tag": "part2_s10_a",
+        "printed_page": "44",
+        "printed_int": 44,
+        "image": "pages/065_part2_s10_a.jpg",
+        "ocr": "ocr/065_part2_s10_a.txt",
+        "char_count": 2353
+      },
+      {
+        "tag": "part2_s10_b",
+        "printed_page": "45",
+        "printed_int": 45,
+        "image": "pages/066_part2_s10_b.jpg",
+        "ocr": "ocr/066_part2_s10_b.txt",
+        "char_count": 2381
+      },
+      {
+        "tag": "part2_s11_a",
+        "printed_page": "46",
+        "printed_int": 46,
+        "image": "pages/067_part2_s11_a.jpg",
+        "ocr": "ocr/067_part2_s11_a.txt",
+        "char_count": 2002
+      },
+      {
+        "tag": "part2_s11_b",
+        "printed_page": "47",
+        "printed_int": 47,
+        "image": "pages/068_part2_s11_b.jpg",
+        "ocr": "ocr/068_part2_s11_b.txt",
+        "char_count": 1205
+      }
+    ]
+  },
+  {
+    "id": "ch3",
+    "number": "3",
+    "title": "3  Ego Psychology",
+    "kind": "chapter",
+    "start": 49,
+    "pages": [
+      {
+        "tag": "part2_s12_b",
+        "printed_page": "49",
+        "printed_int": 49,
+        "image": "pages/070_part2_s12_b.jpg",
+        "ocr": "ocr/070_part2_s12_b.txt",
+        "char_count": 1097
+      },
+      {
+        "tag": "part2_s13_a",
+        "printed_page": "50",
+        "printed_int": 50,
+        "image": "pages/071_part2_s13_a.jpg",
+        "ocr": "ocr/071_part2_s13_a.txt",
+        "char_count": 2260
+      },
+      {
+        "tag": "part2_s13_b",
+        "printed_page": "51",
+        "printed_int": 51,
+        "image": "pages/072_part2_s13_b.jpg",
+        "ocr": "ocr/072_part2_s13_b.txt",
+        "char_count": 1623
+      },
+      {
+        "tag": "part2_s14_a",
+        "printed_page": "52",
+        "printed_int": 52,
+        "image": "pages/073_part2_s14_a.jpg",
+        "ocr": "ocr/073_part2_s14_a.txt",
+        "char_count": 1651
+      },
+      {
+        "tag": "part2_s14_b",
+        "printed_page": "53",
+        "printed_int": 53,
+        "image": "pages/074_part2_s14_b.jpg",
+        "ocr": "ocr/074_part2_s14_b.txt",
+        "char_count": 1561
+      },
+      {
+        "tag": "part2_s15_a",
+        "printed_page": "54",
+        "printed_int": 54,
+        "image": "pages/075_part2_s15_a.jpg",
+        "ocr": "ocr/075_part2_s15_a.txt",
+        "char_count": 2698
+      },
+      {
+        "tag": "part2_s15_b",
+        "printed_page": "55",
+        "printed_int": 55,
+        "image": "pages/076_part2_s15_b.jpg",
+        "ocr": "ocr/076_part2_s15_b.txt",
+        "char_count": 773
+      },
+      {
+        "tag": "part2_s16_a",
+        "printed_page": "56",
+        "printed_int": 56,
+        "image": "pages/077_part2_s16_a.jpg",
+        "ocr": "ocr/077_part2_s16_a.txt",
+        "char_count": 2459
+      },
+      {
+        "tag": "part2_s16_b",
+        "printed_page": "57",
+        "printed_int": 57,
+        "image": "pages/078_part2_s16_b.jpg",
+        "ocr": "ocr/078_part2_s16_b.txt",
+        "char_count": 2479
+      },
+      {
+        "tag": "part2_s17_a",
+        "printed_page": "58",
+        "printed_int": 58,
+        "image": "pages/079_part2_s17_a.jpg",
+        "ocr": "ocr/079_part2_s17_a.txt",
+        "char_count": 2178
+      },
+      {
+        "tag": "part2_s17_b",
+        "printed_page": "59",
+        "printed_int": 59,
+        "image": "pages/080_part2_s17_b.jpg",
+        "ocr": "ocr/080_part2_s17_b.txt",
+        "char_count": 1840
+      },
+      {
+        "tag": "part2_s18_a",
+        "printed_page": "60",
+        "printed_int": 60,
+        "image": "pages/081_part2_s18_a.jpg",
+        "ocr": "ocr/081_part2_s18_a.txt",
+        "char_count": 2403
+      },
+      {
+        "tag": "part2_s18_b",
+        "printed_page": "61",
+        "printed_int": 61,
+        "image": "pages/082_part2_s18_b.jpg",
+        "ocr": "ocr/082_part2_s18_b.txt",
+        "char_count": 2376
+      },
+      {
+        "tag": "part2_s19_a",
+        "printed_page": "62",
+        "printed_int": 62,
+        "image": "pages/083_part2_s19_a.jpg",
+        "ocr": "ocr/083_part2_s19_a.txt",
+        "char_count": 2262
+      },
+      {
+        "tag": "part2_s19_b",
+        "printed_page": "63",
+        "printed_int": 63,
+        "image": "pages/084_part2_s19_b.jpg",
+        "ocr": "ocr/084_part2_s19_b.txt",
+        "char_count": 2303
+      },
+      {
+        "tag": "part2_s20_a",
+        "printed_page": "64",
+        "printed_int": 64,
+        "image": "pages/085_part2_s20_a.jpg",
+        "ocr": "ocr/085_part2_s20_a.txt",
+        "char_count": 2068
+      }
+    ]
+  },
+  {
+    "id": "ch4",
+    "number": "4",
+    "title": "4  Interpersonal Psychoanalysis",
+    "kind": "chapter",
+    "start": 65,
+    "pages": [
+      {
+        "tag": "part2_s20_b",
+        "printed_page": "65",
+        "printed_int": 65,
+        "image": "pages/086_part2_s20_b.jpg",
+        "ocr": "ocr/086_part2_s20_b.txt",
+        "char_count": 1352
+      },
+      {
+        "tag": "part2_s21_a",
+        "printed_page": "66",
+        "printed_int": 66,
+        "image": "pages/087_part2_s21_a.jpg",
+        "ocr": "ocr/087_part2_s21_a.txt",
+        "char_count": 2452
+      },
+      {
+        "tag": "part2_s21_b",
+        "printed_page": "67",
+        "printed_int": 67,
+        "image": "pages/088_part2_s21_b.jpg",
+        "ocr": "ocr/088_part2_s21_b.txt",
+        "char_count": 2412
+      },
+      {
+        "tag": "part2_s22_a",
+        "printed_page": "68",
+        "printed_int": 68,
+        "image": "pages/089_part2_s22_a.jpg",
+        "ocr": "ocr/089_part2_s22_a.txt",
+        "char_count": 2395
+      },
+      {
+        "tag": "part2_s22_b",
+        "printed_page": "69",
+        "printed_int": 69,
+        "image": "pages/090_part2_s22_b.jpg",
+        "ocr": "ocr/090_part2_s22_b.txt",
+        "char_count": 1981
+      },
+      {
+        "tag": "part2_s23_a",
+        "printed_page": "70",
+        "printed_int": 70,
+        "image": "pages/091_part2_s23_a.jpg",
+        "ocr": "ocr/091_part2_s23_a.txt",
+        "char_count": 2375
+      },
+      {
+        "tag": "part2_s23_b",
+        "printed_page": "71",
+        "printed_int": 71,
+        "image": "pages/092_part2_s23_b.jpg",
+        "ocr": "ocr/092_part2_s23_b.txt",
+        "char_count": 2119
+      }
+    ]
+  },
+  {
+    "id": "ch5",
+    "number": "5",
+    "title": "5  Object Relations Theory",
+    "kind": "chapter",
+    "start": 73,
+    "pages": [
+      {
+        "tag": "part2_s24_b",
+        "printed_page": "73",
+        "printed_int": 73,
+        "image": "pages/094_part2_s24_b.jpg",
+        "ocr": "ocr/094_part2_s24_b.txt",
+        "char_count": 1190
+      },
+      {
+        "tag": "part3_s01_a",
+        "printed_page": "74",
+        "printed_int": 74,
+        "image": "pages/095_part3_s01_a.jpg",
+        "ocr": "ocr/095_part3_s01_a.txt",
+        "char_count": 2569
+      },
+      {
+        "tag": "part3_s01_b",
+        "printed_page": "75",
+        "printed_int": 75,
+        "image": "pages/096_part3_s01_b.jpg",
+        "ocr": "ocr/096_part3_s01_b.txt",
+        "char_count": 2404
+      },
+      {
+        "tag": "part3_s02_a",
+        "printed_page": "76",
+        "printed_int": 76,
+        "image": "pages/097_part3_s02_a.jpg",
+        "ocr": "ocr/097_part3_s02_a.txt",
+        "char_count": 2661
+      },
+      {
+        "tag": "part3_s02_b",
+        "printed_page": "77",
+        "printed_int": 77,
+        "image": "pages/098_part3_s02_b.jpg",
+        "ocr": "ocr/098_part3_s02_b.txt",
+        "char_count": 2147
+      },
+      {
+        "tag": "part3_s03_a",
+        "printed_page": "78",
+        "printed_int": 78,
+        "image": "pages/099_part3_s03_a.jpg",
+        "ocr": "ocr/099_part3_s03_a.txt",
+        "char_count": 2280
+      },
+      {
+        "tag": "part3_s03_b",
+        "printed_page": "79",
+        "printed_int": 79,
+        "image": "pages/100_part3_s03_b.jpg",
+        "ocr": "ocr/100_part3_s03_b.txt",
+        "char_count": 2162
+      },
+      {
+        "tag": "part3_s04_a",
+        "printed_page": "80",
+        "printed_int": 80,
+        "image": "pages/101_part3_s04_a.jpg",
+        "ocr": "ocr/101_part3_s04_a.txt",
+        "char_count": 2475
+      },
+      {
+        "tag": "part3_s04_b",
+        "printed_page": "81",
+        "printed_int": 81,
+        "image": "pages/102_part3_s04_b.jpg",
+        "ocr": "ocr/102_part3_s04_b.txt",
+        "char_count": 2317
+      },
+      {
+        "tag": "part3_s05_a",
+        "printed_page": "82",
+        "printed_int": 82,
+        "image": "pages/103_part3_s05_a.jpg",
+        "ocr": "ocr/103_part3_s05_a.txt",
+        "char_count": 2512
+      },
+      {
+        "tag": "part3_s05_b",
+        "printed_page": "83",
+        "printed_int": 83,
+        "image": "pages/104_part3_s05_b.jpg",
+        "ocr": "ocr/104_part3_s05_b.txt",
+        "char_count": 2302
+      },
+      {
+        "tag": "part3_s06_a",
+        "printed_page": "84",
+        "printed_int": 84,
+        "image": "pages/105_part3_s06_a.jpg",
+        "ocr": "ocr/105_part3_s06_a.txt",
+        "char_count": 2437
+      },
+      {
+        "tag": "part3_s06_b",
+        "printed_page": "85",
+        "printed_int": 85,
+        "image": "pages/106_part3_s06_b.jpg",
+        "ocr": "ocr/106_part3_s06_b.txt",
+        "char_count": 1263
+      },
+      {
+        "tag": "part3_s07_a",
+        "printed_page": "86",
+        "printed_int": 86,
+        "image": "pages/107_part3_s07_a.jpg",
+        "ocr": "ocr/107_part3_s07_a.txt",
+        "char_count": 2530
+      },
+      {
+        "tag": "part3_s07_b",
+        "printed_page": "87",
+        "printed_int": 87,
+        "image": "pages/108_part3_s07_b.jpg",
+        "ocr": "ocr/108_part3_s07_b.txt",
+        "char_count": 1236
+      }
+    ]
+  },
+  {
+    "id": "ch6",
+    "number": "6",
+    "title": "6  Self Psychology",
+    "kind": "chapter",
+    "start": 89,
+    "pages": [
+      {
+        "tag": "part3_s08_b",
+        "printed_page": "89",
+        "printed_int": 89,
+        "image": "pages/110_part3_s08_b.jpg",
+        "ocr": "ocr/110_part3_s08_b.txt",
+        "char_count": 1174
+      },
+      {
+        "tag": "part3_s09_a",
+        "printed_page": "90",
+        "printed_int": 90,
+        "image": "pages/111_part3_s09_a.jpg",
+        "ocr": "ocr/111_part3_s09_a.txt",
+        "char_count": 2505
+      },
+      {
+        "tag": "part3_s09_b",
+        "printed_page": "91",
+        "printed_int": 91,
+        "image": "pages/112_part3_s09_b.jpg",
+        "ocr": "ocr/112_part3_s09_b.txt",
+        "char_count": 1647
+      },
+      {
+        "tag": "part3_s10_a",
+        "printed_page": "92",
+        "printed_int": 92,
+        "image": "pages/113_part3_s10_a.jpg",
+        "ocr": "ocr/113_part3_s10_a.txt",
+        "char_count": 1182
+      },
+      {
+        "tag": "part3_s10_b",
+        "printed_page": "93",
+        "printed_int": 93,
+        "image": "pages/114_part3_s10_b.jpg",
+        "ocr": "ocr/114_part3_s10_b.txt",
+        "char_count": 1955
+      },
+      {
+        "tag": "part3_s11_a",
+        "printed_page": "94",
+        "printed_int": 94,
+        "image": "pages/115_part3_s11_a.jpg",
+        "ocr": "ocr/115_part3_s11_a.txt",
+        "char_count": 2207
+      },
+      {
+        "tag": "part3_s11_b",
+        "printed_page": "95",
+        "printed_int": 95,
+        "image": "pages/116_part3_s11_b.jpg",
+        "ocr": "ocr/116_part3_s11_b.txt",
+        "char_count": 2559
+      },
+      {
+        "tag": "part3_s12_a",
+        "printed_page": "96",
+        "printed_int": 96,
+        "image": "pages/117_part3_s12_a.jpg",
+        "ocr": "ocr/117_part3_s12_a.txt",
+        "char_count": 1326
+      }
+    ]
+  },
+  {
+    "id": "ch7",
+    "number": "7",
+    "title": "7  Affect and Psychopathology",
+    "kind": "chapter",
+    "start": 97,
+    "pages": [
+      {
+        "tag": "part3_s12_b",
+        "printed_page": "97",
+        "printed_int": 97,
+        "image": "pages/118_part3_s12_b.jpg",
+        "ocr": "ocr/118_part3_s12_b.txt",
+        "char_count": 1081
+      },
+      {
+        "tag": "part3_s13_a",
+        "printed_page": "98",
+        "printed_int": 98,
+        "image": "pages/119_part3_s13_a.jpg",
+        "ocr": "ocr/119_part3_s13_a.txt",
+        "char_count": 2394
+      },
+      {
+        "tag": "part3_s13_b",
+        "printed_page": "99",
+        "printed_int": 99,
+        "image": "pages/120_part3_s13_b.jpg",
+        "ocr": "ocr/120_part3_s13_b.txt",
+        "char_count": 2448
+      },
+      {
+        "tag": "part3_s14_a",
+        "printed_page": "100",
+        "printed_int": 100,
+        "image": "pages/121_part3_s14_a.jpg",
+        "ocr": "ocr/121_part3_s14_a.txt",
+        "char_count": 2395
+      },
+      {
+        "tag": "part3_s14_b",
+        "printed_page": "101",
+        "printed_int": 101,
+        "image": "pages/122_part3_s14_b.jpg",
+        "ocr": "ocr/122_part3_s14_b.txt",
+        "char_count": 2603
+      },
+      {
+        "tag": "part3_s15_a",
+        "printed_page": "102",
+        "printed_int": 102,
+        "image": "pages/123_part3_s15_a.jpg",
+        "ocr": "ocr/123_part3_s15_a.txt",
+        "char_count": 1465
+      },
+      {
+        "tag": "part3_s15_b",
+        "printed_page": "103",
+        "printed_int": 103,
+        "image": "pages/124_part3_s15_b.jpg",
+        "ocr": "ocr/124_part3_s15_b.txt",
+        "char_count": 2454
+      },
+      {
+        "tag": "part3_s16_a",
+        "printed_page": "104",
+        "printed_int": 104,
+        "image": "pages/125_part3_s16_a.jpg",
+        "ocr": "ocr/125_part3_s16_a.txt",
+        "char_count": 2350
+      },
+      {
+        "tag": "part3_s16_b",
+        "printed_page": "105",
+        "printed_int": 105,
+        "image": "pages/126_part3_s16_b.jpg",
+        "ocr": "ocr/126_part3_s16_b.txt",
+        "char_count": 2557
+      },
+      {
+        "tag": "part3_s17_a",
+        "printed_page": "106",
+        "printed_int": 106,
+        "image": "pages/127_part3_s17_a.jpg",
+        "ocr": "ocr/127_part3_s17_a.txt",
+        "char_count": 2333
+      },
+      {
+        "tag": "part3_s17_b",
+        "printed_page": "107",
+        "printed_int": 107,
+        "image": "pages/128_part3_s17_b.jpg",
+        "ocr": "ocr/128_part3_s17_b.txt",
+        "char_count": 2483
+      },
+      {
+        "tag": "part3_s18_a",
+        "printed_page": "108",
+        "printed_int": 108,
+        "image": "pages/129_part3_s18_a.jpg",
+        "ocr": "ocr/129_part3_s18_a.txt",
+        "char_count": 2425
+      },
+      {
+        "tag": "part3_s18_b",
+        "printed_page": "109",
+        "printed_int": 109,
+        "image": "pages/130_part3_s18_b.jpg",
+        "ocr": "ocr/130_part3_s18_b.txt",
+        "char_count": 2075
+      },
+      {
+        "tag": "part3_s19_a",
+        "printed_page": "110",
+        "printed_int": 110,
+        "image": "pages/131_part3_s19_a.jpg",
+        "ocr": "ocr/131_part3_s19_a.txt",
+        "char_count": 2429
+      },
+      {
+        "tag": "part3_s19_b",
+        "printed_page": "111",
+        "printed_int": 111,
+        "image": "pages/132_part3_s19_b.jpg",
+        "ocr": "ocr/132_part3_s19_b.txt",
+        "char_count": 2692
+      },
+      {
+        "tag": "part3_s20_a",
+        "printed_page": "112",
+        "printed_int": 112,
+        "image": "pages/133_part3_s20_a.jpg",
+        "ocr": "ocr/133_part3_s20_a.txt",
+        "char_count": 2212
+      },
+      {
+        "tag": "part3_s20_b",
+        "printed_page": "113",
+        "printed_int": 113,
+        "image": "pages/134_part3_s20_b.jpg",
+        "ocr": "ocr/134_part3_s20_b.txt",
+        "char_count": 2680
+      },
+      {
+        "tag": "part3_s21_a",
+        "printed_page": "114",
+        "printed_int": 114,
+        "image": "pages/135_part3_s21_a.jpg",
+        "ocr": "ocr/135_part3_s21_a.txt",
+        "char_count": 2400
+      },
+      {
+        "tag": "part3_s21_b",
+        "printed_page": "115",
+        "printed_int": 115,
+        "image": "pages/136_part3_s21_b.jpg",
+        "ocr": "ocr/136_part3_s21_b.txt",
+        "char_count": 1193
+      }
+    ]
+  },
+  {
+    "id": "ch8",
+    "number": "8",
+    "title": "8  Therapy and Cure I: Drive and Ego Psychologies",
+    "kind": "chapter",
+    "start": 117,
+    "pages": [
+      {
+        "tag": "part3_s22_b",
+        "printed_page": "117",
+        "printed_int": 117,
+        "image": "pages/138_part3_s22_b.jpg",
+        "ocr": "ocr/138_part3_s22_b.txt",
+        "char_count": 1054
+      },
+      {
+        "tag": "part3_s23_a",
+        "printed_page": "118",
+        "printed_int": 118,
+        "image": "pages/139_part3_s23_a.jpg",
+        "ocr": "ocr/139_part3_s23_a.txt",
+        "char_count": 2509
+      },
+      {
+        "tag": "part3_s23_b",
+        "printed_page": "119",
+        "printed_int": 119,
+        "image": "pages/140_part3_s23_b.jpg",
+        "ocr": "ocr/140_part3_s23_b.txt",
+        "char_count": 2207
+      },
+      {
+        "tag": "part3_s24_a",
+        "printed_page": "120",
+        "printed_int": 120,
+        "image": "pages/141_part3_s24_a.jpg",
+        "ocr": "ocr/141_part3_s24_a.txt",
+        "char_count": 2902
+      },
+      {
+        "tag": "part3_s24_b",
+        "printed_page": "121",
+        "printed_int": 121,
+        "image": "pages/142_part3_s24_b.jpg",
+        "ocr": "ocr/142_part3_s24_b.txt",
+        "char_count": 2531
+      },
+      {
+        "tag": "part4_s01_a",
+        "printed_page": "122",
+        "printed_int": 122,
+        "image": "pages/143_part4_s01_a.jpg",
+        "ocr": "ocr/143_part4_s01_a.txt",
+        "char_count": 2427
+      },
+      {
+        "tag": "part4_s01_b",
+        "printed_page": "123",
+        "printed_int": 123,
+        "image": "pages/144_part4_s01_b.jpg",
+        "ocr": "ocr/144_part4_s01_b.txt",
+        "char_count": 2801
+      },
+      {
+        "tag": "part4_s02_a",
+        "printed_page": "124",
+        "printed_int": 124,
+        "image": "pages/145_part4_s02_a.jpg",
+        "ocr": "ocr/145_part4_s02_a.txt",
+        "char_count": 2421
+      },
+      {
+        "tag": "part4_s02_b",
+        "printed_page": "125",
+        "printed_int": 125,
+        "image": "pages/146_part4_s02_b.jpg",
+        "ocr": "ocr/146_part4_s02_b.txt",
+        "char_count": 2245
+      },
+      {
+        "tag": "part4_s03_a",
+        "printed_page": "126",
+        "printed_int": 126,
+        "image": "pages/147_part4_s03_a.jpg",
+        "ocr": "ocr/147_part4_s03_a.txt",
+        "char_count": 2629
+      },
+      {
+        "tag": "part4_s03_b",
+        "printed_page": "127",
+        "printed_int": 127,
+        "image": "pages/148_part4_s03_b.jpg",
+        "ocr": "ocr/148_part4_s03_b.txt",
+        "char_count": 2569
+      },
+      {
+        "tag": "part4_s04_a",
+        "printed_page": "128",
+        "printed_int": 128,
+        "image": "pages/149_part4_s04_a.jpg",
+        "ocr": "ocr/149_part4_s04_a.txt",
+        "char_count": 2663
+      },
+      {
+        "tag": "part4_s04_b",
+        "printed_page": "129",
+        "printed_int": 129,
+        "image": "pages/150_part4_s04_b.jpg",
+        "ocr": "ocr/150_part4_s04_b.txt",
+        "char_count": 1452
+      }
+    ]
+  },
+  {
+    "id": "ch9",
+    "number": "9",
+    "title": "9  Therapy and Cure II: The Relational Psychologies",
+    "kind": "chapter",
+    "start": 131,
+    "pages": [
+      {
+        "tag": "part4_s05_b",
+        "printed_page": "131",
+        "printed_int": 131,
+        "image": "pages/152_part4_s05_b.jpg",
+        "ocr": "ocr/152_part4_s05_b.txt",
+        "char_count": 1125
+      },
+      {
+        "tag": "part4_s06_a",
+        "printed_page": "132",
+        "printed_int": 132,
+        "image": "pages/153_part4_s06_a.jpg",
+        "ocr": "ocr/153_part4_s06_a.txt",
+        "char_count": 2579
+      },
+      {
+        "tag": "part4_s06_b",
+        "printed_page": "133",
+        "printed_int": 133,
+        "image": "pages/154_part4_s06_b.jpg",
+        "ocr": "ocr/154_part4_s06_b.txt",
+        "char_count": 1925
+      },
+      {
+        "tag": "part4_s07_a",
+        "printed_page": "134",
+        "printed_int": 134,
+        "image": "pages/155_part4_s07_a.jpg",
+        "ocr": "ocr/155_part4_s07_a.txt",
+        "char_count": 2004
+      },
+      {
+        "tag": "part4_s07_b",
+        "printed_page": "135",
+        "printed_int": 135,
+        "image": "pages/156_part4_s07_b.jpg",
+        "ocr": "ocr/156_part4_s07_b.txt",
+        "char_count": 1574
+      },
+      {
+        "tag": "part4_s08_a",
+        "printed_page": "136",
+        "printed_int": 136,
+        "image": "pages/157_part4_s08_a.jpg",
+        "ocr": "ocr/157_part4_s08_a.txt",
+        "char_count": 2842
+      },
+      {
+        "tag": "part4_s08_b",
+        "printed_page": "137",
+        "printed_int": 137,
+        "image": "pages/158_part4_s08_b.jpg",
+        "ocr": "ocr/158_part4_s08_b.txt",
+        "char_count": 2457
+      },
+      {
+        "tag": "part4_s09_a",
+        "printed_page": "138",
+        "printed_int": 138,
+        "image": "pages/159_part4_s09_a.jpg",
+        "ocr": "ocr/159_part4_s09_a.txt",
+        "char_count": 2584
+      },
+      {
+        "tag": "part4_s09_b",
+        "printed_page": "139",
+        "printed_int": 139,
+        "image": "pages/160_part4_s09_b.jpg",
+        "ocr": "ocr/160_part4_s09_b.txt",
+        "char_count": 2519
+      },
+      {
+        "tag": "part4_s10_a",
+        "printed_page": "140",
+        "printed_int": 140,
+        "image": "pages/161_part4_s10_a.jpg",
+        "ocr": "ocr/161_part4_s10_a.txt",
+        "char_count": 2594
+      },
+      {
+        "tag": "part4_s10_b",
+        "printed_page": "141",
+        "printed_int": 141,
+        "image": "pages/162_part4_s10_b.jpg",
+        "ocr": "ocr/162_part4_s10_b.txt",
+        "char_count": 2461
+      },
+      {
+        "tag": "part4_s11_a",
+        "printed_page": "142",
+        "printed_int": 142,
+        "image": "pages/163_part4_s11_a.jpg",
+        "ocr": "ocr/163_part4_s11_a.txt",
+        "char_count": 2499
+      },
+      {
+        "tag": "part4_s11_b",
+        "printed_page": "143",
+        "printed_int": 143,
+        "image": "pages/164_part4_s11_b.jpg",
+        "ocr": "ocr/164_part4_s11_b.txt",
+        "char_count": 2605
+      },
+      {
+        "tag": "part4_s12_a",
+        "printed_page": "144",
+        "printed_int": 144,
+        "image": "pages/165_part4_s12_a.jpg",
+        "ocr": "ocr/165_part4_s12_a.txt",
+        "char_count": 2577
+      },
+      {
+        "tag": "part4_s12_b",
+        "printed_page": "145",
+        "printed_int": 145,
+        "image": "pages/166_part4_s12_b.jpg",
+        "ocr": "ocr/166_part4_s12_b.txt",
+        "char_count": 2694
+      },
+      {
+        "tag": "part4_s13_a",
+        "printed_page": "146",
+        "printed_int": 146,
+        "image": "pages/167_part4_s13_a.jpg",
+        "ocr": "ocr/167_part4_s13_a.txt",
+        "char_count": 2883
+      },
+      {
+        "tag": "part4_s13_b",
+        "printed_page": "147",
+        "printed_int": 147,
+        "image": "pages/168_part4_s13_b.jpg",
+        "ocr": "ocr/168_part4_s13_b.txt",
+        "char_count": 2533
+      },
+      {
+        "tag": "part4_s14_a",
+        "printed_page": "148",
+        "printed_int": 148,
+        "image": "pages/169_part4_s14_a.jpg",
+        "ocr": "ocr/169_part4_s14_a.txt",
+        "char_count": 2270
+      },
+      {
+        "tag": "part4_s14_b",
+        "printed_page": "149",
+        "printed_int": 149,
+        "image": "pages/170_part4_s14_b.jpg",
+        "ocr": "ocr/170_part4_s14_b.txt",
+        "char_count": 2808
+      },
+      {
+        "tag": "part4_s15_a",
+        "printed_page": "150",
+        "printed_int": 150,
+        "image": "pages/171_part4_s15_a.jpg",
+        "ocr": "ocr/171_part4_s15_a.txt",
+        "char_count": 1705
+      }
+    ]
+  },
+  {
+    "id": "appa",
+    "number": "A",
+    "title": "A  Glossary of Psychodynamic Terminology",
+    "kind": "appendix",
+    "start": 151,
+    "pages": [
+      {
+        "tag": "part4_s15_b",
+        "printed_page": "151",
+        "printed_int": 151,
+        "image": "pages/172_part4_s15_b.jpg",
+        "ocr": "ocr/172_part4_s15_b.txt",
+        "char_count": 1908
+      },
+      {
+        "tag": "part4_s16_a",
+        "printed_page": "152",
+        "printed_int": 152,
+        "image": "pages/173_part4_s16_a.jpg",
+        "ocr": "ocr/173_part4_s16_a.txt",
+        "char_count": 2783
+      },
+      {
+        "tag": "part4_s16_b",
+        "printed_page": "153",
+        "printed_int": 153,
+        "image": "pages/174_part4_s16_b.jpg",
+        "ocr": "ocr/174_part4_s16_b.txt",
+        "char_count": 2767
+      },
+      {
+        "tag": "part4_s17_a",
+        "printed_page": "154",
+        "printed_int": 154,
+        "image": "pages/175_part4_s17_a.jpg",
+        "ocr": "ocr/175_part4_s17_a.txt",
+        "char_count": 2167
+      }
+    ]
+  },
+  {
+    "id": "appb",
+    "number": "B",
+    "title": "B  Chronology of Major Contributors to Psychodynamic Theory",
+    "kind": "appendix",
+    "start": 155,
+    "pages": [
+      {
+        "tag": "part4_s17_b",
+        "printed_page": "155",
+        "printed_int": 155,
+        "image": "pages/176_part4_s17_b.jpg",
+        "ocr": "ocr/176_part4_s17_b.txt",
+        "char_count": 109
+      },
+      {
+        "tag": "part4_s18_a",
+        "printed_page": "156",
+        "printed_int": 156,
+        "image": "pages/177_part4_s18_a.jpg",
+        "ocr": "ocr/177_part4_s18_a.txt",
+        "char_count": 618
+      },
+      {
+        "tag": "part4_s18_b",
+        "printed_page": "157",
+        "printed_int": 157,
+        "image": "pages/178_part4_s18_b.jpg",
+        "ocr": "ocr/178_part4_s18_b.txt",
+        "char_count": 812
+      },
+      {
+        "tag": "part4_s19_a",
+        "printed_page": "158",
+        "printed_int": 158,
+        "image": "pages/179_part4_s19_a.jpg",
+        "ocr": "ocr/179_part4_s19_a.txt",
+        "char_count": 446
+      }
+    ]
+  },
+  {
+    "id": "appc",
+    "number": "C",
+    "title": "C  An Outline for Comprehensive Psychodynamic Formulation",
+    "kind": "appendix",
+    "start": 159,
+    "pages": [
+      {
+        "tag": "part4_s19_b",
+        "printed_page": "159",
+        "printed_int": 159,
+        "image": "pages/180_part4_s19_b.jpg",
+        "ocr": "ocr/180_part4_s19_b.txt",
+        "char_count": 1515
+      },
+      {
+        "tag": "part4_s20_a",
+        "printed_page": "160",
+        "printed_int": 160,
+        "image": "pages/181_part4_s20_a.jpg",
+        "ocr": "ocr/181_part4_s20_a.txt",
+        "char_count": 2438
+      },
+      {
+        "tag": "part4_s20_b",
+        "printed_page": "161",
+        "printed_int": 161,
+        "image": "pages/182_part4_s20_b.jpg",
+        "ocr": "ocr/182_part4_s20_b.txt",
+        "char_count": 2459
+      },
+      {
+        "tag": "part4_s21_a",
+        "printed_page": "162",
+        "printed_int": 162,
+        "image": "pages/183_part4_s21_a.jpg",
+        "ocr": "ocr/183_part4_s21_a.txt",
+        "char_count": 2325
+      },
+      {
+        "tag": "part4_s21_b",
+        "printed_page": "163",
+        "printed_int": 163,
+        "image": "pages/184_part4_s21_b.jpg",
+        "ocr": "ocr/184_part4_s21_b.txt",
+        "char_count": 2317
+      },
+      {
+        "tag": "part4_s22_a",
+        "printed_page": "164",
+        "printed_int": 164,
+        "image": "pages/185_part4_s22_a.jpg",
+        "ocr": "ocr/185_part4_s22_a.txt",
+        "char_count": 728
+      },
+      {
+        "tag": "part4_s22_b",
+        "printed_page": "165",
+        "printed_int": 165,
+        "image": "pages/186_part4_s22_b.jpg",
+        "ocr": "ocr/186_part4_s22_b.txt",
+        "char_count": 609
+      },
+      {
+        "tag": "part4_s23_a",
+        "printed_page": "166",
+        "printed_int": 166,
+        "image": "pages/187_part4_s23_a.jpg",
+        "ocr": "ocr/187_part4_s23_a.txt",
+        "char_count": 684
+      },
+      {
+        "tag": "part4_s24_a",
+        "printed_page": "168",
+        "printed_int": 168,
+        "image": "pages/189_part4_s24_a.jpg",
+        "ocr": "ocr/189_part4_s24_a.txt",
+        "char_count": 493
+      },
+      {
+        "tag": "part4_s24_b",
+        "printed_page": "169",
+        "printed_int": 169,
+        "image": "pages/190_part4_s24_b.jpg",
+        "ocr": "ocr/190_part4_s24_b.txt",
+        "char_count": 595
+      },
+      {
+        "tag": "part5_s01_a",
+        "printed_page": "170",
+        "printed_int": 170,
+        "image": "pages/191_part5_s01_a.jpg",
+        "ocr": "ocr/191_part5_s01_a.txt",
+        "char_count": 800
+      },
+      {
+        "tag": "part5_s01_b",
+        "printed_page": "171",
+        "printed_int": 171,
+        "image": "pages/192_part5_s01_b.jpg",
+        "ocr": "ocr/192_part5_s01_b.txt",
+        "char_count": 2352
+      },
+      {
+        "tag": "part5_s02_a",
+        "printed_page": "172",
+        "printed_int": 172,
+        "image": "pages/193_part5_s02_a.jpg",
+        "ocr": "ocr/193_part5_s02_a.txt",
+        "char_count": 2640
+      },
+      {
+        "tag": "part5_s02_b",
+        "printed_page": "173",
+        "printed_int": 173,
+        "image": "pages/194_part5_s02_b.jpg",
+        "ocr": "ocr/194_part5_s02_b.txt",
+        "char_count": 1313
+      },
+      {
+        "tag": "part5_s03_a",
+        "printed_page": "174",
+        "printed_int": 174,
+        "image": "pages/195_part5_s03_a.jpg",
+        "ocr": "ocr/195_part5_s03_a.txt",
+        "char_count": 2655
+      },
+      {
+        "tag": "part5_s03_b",
+        "printed_page": "175",
+        "printed_int": 175,
+        "image": "pages/196_part5_s03_b.jpg",
+        "ocr": "ocr/196_part5_s03_b.txt",
+        "char_count": 2239
+      },
+      {
+        "tag": "part5_s04_a",
+        "printed_page": "176",
+        "printed_int": 176,
+        "image": "pages/197_part5_s04_a.jpg",
+        "ocr": "ocr/197_part5_s04_a.txt",
+        "char_count": 2851
+      },
+      {
+        "tag": "part5_s04_b",
+        "printed_page": "177",
+        "printed_int": 177,
+        "image": "pages/198_part5_s04_b.jpg",
+        "ocr": "ocr/198_part5_s04_b.txt",
+        "char_count": 1450
+      },
+      {
+        "tag": "part5_s05_a",
+        "printed_page": "178",
+        "printed_int": 178,
+        "image": "pages/199_part5_s05_a.jpg",
+        "ocr": "ocr/199_part5_s05_a.txt",
+        "char_count": 2602
+      },
+      {
+        "tag": "part5_s05_b",
+        "printed_page": "179",
+        "printed_int": 179,
+        "image": "pages/200_part5_s05_b.jpg",
+        "ocr": "ocr/200_part5_s05_b.txt",
+        "char_count": 2658
+      },
+      {
+        "tag": "part5_s06_a",
+        "printed_page": "180",
+        "printed_int": 180,
+        "image": "pages/201_part5_s06_a.jpg",
+        "ocr": "ocr/201_part5_s06_a.txt",
+        "char_count": 2649
+      },
+      {
+        "tag": "part5_s06_b",
+        "printed_page": "181",
+        "printed_int": 181,
+        "image": "pages/202_part5_s06_b.jpg",
+        "ocr": "ocr/202_part5_s06_b.txt",
+        "char_count": 2675
+      },
+      {
+        "tag": "part5_s07_a",
+        "printed_page": "182",
+        "printed_int": 182,
+        "image": "pages/203_part5_s07_a.jpg",
+        "ocr": "ocr/203_part5_s07_a.txt",
+        "char_count": 1190
+      },
+      {
+        "tag": "part5_s07_b",
+        "printed_page": "183",
+        "printed_int": 183,
+        "image": "pages/204_part5_s07_b.jpg",
+        "ocr": "ocr/204_part5_s07_b.txt",
+        "char_count": 654
+      },
+      {
+        "tag": "part5_s08_a",
+        "printed_page": "184",
+        "printed_int": 184,
+        "image": "pages/205_part5_s08_a.jpg",
+        "ocr": "ocr/205_part5_s08_a.txt",
+        "char_count": 492
+      },
+      {
+        "tag": "part5_s08_b",
+        "printed_page": "185",
+        "printed_int": 185,
+        "image": "pages/206_part5_s08_b.jpg",
+        "ocr": "ocr/206_part5_s08_b.txt",
+        "char_count": 1432
+      },
+      {
+        "tag": "part5_s09_a",
+        "printed_page": "186",
+        "printed_int": 186,
+        "image": "pages/207_part5_s09_a.jpg",
+        "ocr": "ocr/207_part5_s09_a.txt",
+        "char_count": 1770
+      },
+      {
+        "tag": "part5_s09_b",
+        "printed_page": "187",
+        "printed_int": 187,
+        "image": "pages/208_part5_s09_b.jpg",
+        "ocr": "ocr/208_part5_s09_b.txt",
+        "char_count": 1854
+      },
+      {
+        "tag": "part5_s10_a",
+        "printed_page": "188",
+        "printed_int": 188,
+        "image": "pages/209_part5_s10_a.jpg",
+        "ocr": "ocr/209_part5_s10_a.txt",
+        "char_count": 1690
+      },
+      {
+        "tag": "part5_s10_b",
+        "printed_page": "189",
+        "printed_int": 189,
+        "image": "pages/210_part5_s10_b.jpg",
+        "ocr": "ocr/210_part5_s10_b.txt",
+        "char_count": 1969
+      },
+      {
+        "tag": "part5_s11_a",
+        "printed_page": "190",
+        "printed_int": 190,
+        "image": "pages/211_part5_s11_a.jpg",
+        "ocr": "ocr/211_part5_s11_a.txt",
+        "char_count": 293
+      },
+      {
+        "tag": "part5_s11_b",
+        "printed_page": "191",
+        "printed_int": 191,
+        "image": "pages/212_part5_s11_b.jpg",
+        "ocr": "ocr/212_part5_s11_b.txt",
+        "char_count": 951
+      },
+      {
+        "tag": "part5_s12_a",
+        "printed_page": "192",
+        "printed_int": 192,
+        "image": "pages/213_part5_s12_a.jpg",
+        "ocr": "ocr/213_part5_s12_a.txt",
+        "char_count": 906
+      },
+      {
+        "tag": "part5_s12_b",
+        "printed_page": "193",
+        "printed_int": 193,
+        "image": "pages/214_part5_s12_b.jpg",
+        "ocr": "ocr/214_part5_s12_b.txt",
+        "char_count": 2128
+      }
+    ]
+  },
+  {
+    "id": "appd",
+    "number": "D",
+    "title": "D  Comparison of Psychodynamic and Cognitive Models",
+    "kind": "appendix",
+    "start": 195,
+    "pages": [
+      {
+        "tag": "part5_s13_b",
+        "printed_page": "195",
+        "printed_int": 195,
+        "image": "pages/216_part5_s13_b.jpg",
+        "ocr": "ocr/216_part5_s13_b.txt",
+        "char_count": 57
+      },
+      {
+        "tag": "part5_s14_a",
+        "printed_page": "196",
+        "printed_int": 196,
+        "image": "pages/217_part5_s14_a.jpg",
+        "ocr": "ocr/217_part5_s14_a.txt",
+        "char_count": 946
+      },
+      {
+        "tag": "part5_s14_b",
+        "printed_page": "197",
+        "printed_int": 197,
+        "image": "pages/218_part5_s14_b.jpg",
+        "ocr": "ocr/218_part5_s14_b.txt",
+        "char_count": 1130
+      }
+    ]
+  },
+  {
+    "id": "index",
+    "number": null,
+    "title": "Index",
+    "kind": "index",
+    "start": 199,
+    "pages": [
+      {
+        "tag": "part5_s15_b",
+        "printed_page": "199",
+        "printed_int": 199,
+        "image": "pages/220_part5_s15_b.jpg",
+        "ocr": "ocr/220_part5_s15_b.txt",
+        "char_count": 2196
+      },
+      {
+        "tag": "part5_s16_a",
+        "printed_page": "200",
+        "printed_int": 200,
+        "image": "pages/221_part5_s16_a.jpg",
+        "ocr": "ocr/221_part5_s16_a.txt",
+        "char_count": 2142
+      },
+      {
+        "tag": "part5_s16_b",
+        "printed_page": "201",
+        "printed_int": 201,
+        "image": "pages/222_part5_s16_b.jpg",
+        "ocr": "ocr/222_part5_s16_b.txt",
+        "char_count": 2028
+      },
+      {
+        "tag": "part5_s17_a",
+        "printed_page": "202",
+        "printed_int": 202,
+        "image": "pages/223_part5_s17_a.jpg",
+        "ocr": "ocr/223_part5_s17_a.txt",
+        "char_count": 2202
+      },
+      {
+        "tag": "part5_s17_b",
+        "printed_page": "203",
+        "printed_int": 203,
+        "image": "pages/224_part5_s17_b.jpg",
+        "ocr": "ocr/224_part5_s17_b.txt",
+        "char_count": 1429
+      },
+      {
+        "tag": "part5_s18_a",
+        "printed_page": "204",
+        "printed_int": 204,
+        "image": "pages/225_part5_s18_a.jpg",
+        "ocr": "ocr/225_part5_s18_a.txt",
+        "char_count": 783
+      }
+    ]
+  }
+]

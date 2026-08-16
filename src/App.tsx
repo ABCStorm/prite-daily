@@ -23,6 +23,8 @@ import { loadDsmRefs, type DsmRef } from "./lib/dsmRefs";
 import { KaufmanPanel, KaufmanFigure } from "./lib/kaufmanPanel";
 import { loadKaufmanRefs, loadKaufmanQuestions, type KaufmanRef } from "./lib/kaufmanRefs";
 import { loadTherapyQuestions } from "./lib/therapyQuestions";
+import { BienenfeldPanel } from "./lib/bienenfeldPanel";
+import { bienenfeldYearRank, loadBienenfeldQuestions, type BienenfeldLoc } from "./lib/bienenfeldRefs";
 import {
   enrichBankQuestion, furtherReadingFor, autoFlashcard, podcastKeysFor,
   neuroChapter, therapyModality, neuroYearRank, neuroTopicLabel,
@@ -298,6 +300,8 @@ type RawQuestion = {
     difficulty?: string;
     sources?: string[];
   };
+  /** Present on Bienenfeld psychodynamic-theory items. */
+  bienenfeld?: BienenfeldLoc;
   /** Optional sidecar story for Neuro/Therapy items (not the PRITE context table). */
   context?: string;
 };
@@ -1060,7 +1064,7 @@ function writePref(key: string, value: unknown) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* best-effort */ }
 }
 const LEARNING_SECTION_IDS = new Set([
-  "explanation", "textbook", "dsm", "anking", "sketchy", "practice", "mnemonic", "context",
+  "explanation", "textbook", "dsm", "kaufman", "bienenfeld", "anking", "sketchy", "practice", "mnemonic", "context",
   "diagram", "video", "mine", "group", "flash", "research",
 ]);
 function readLearningOpenPref(): Set<string> {
@@ -1870,14 +1874,27 @@ export default function App() {
     return () => { alive = false; };
   }, [psychMode, signedIn, approved, kaufmanAll]);
 
-  // Quizapine psychotherapy bank — fetched when the Therapy toggle is on.
+  // Quizapine psychotherapy bank + Bienenfeld psychodynamic items — fetched
+  // when the Therapy toggle is on. Kept as two files so other people can edit
+  // therapy_questions.json without colliding with this book bank.
   useEffect(() => {
     if (psychMode !== "therapy") return;
     if (isConfigured && !(signedIn && approved)) return;
     if (therapyAll) return;
     let alive = true;
-    loadTherapyQuestions()
-      .then((data) => { if (alive) { setTherapyAll((data as RawQuestion[]).map(enrichBankQuestion)); setTherapyBankErr(null); } })
+    Promise.all([
+      loadTherapyQuestions(),
+      loadBienenfeldQuestions().catch((e) => {
+        console.warn("[bienenfeld] practice bank failed to load:", e);
+        return [] as unknown[];
+      }),
+    ])
+      .then(([quizapine, bienenfeld]) => {
+        if (!alive) return;
+        const merged = [...quizapine, ...bienenfeld].map((row) => enrichBankQuestion(row as RawQuestion));
+        setTherapyAll(merged);
+        setTherapyBankErr(null);
+      })
       .catch((e) => {
         if (alive) setTherapyBankErr(String(e?.message ?? e));
         console.warn("[therapy] practice bank failed to load:", e);
@@ -1925,7 +1942,17 @@ export default function App() {
     if (psychMode === "therapy") {
       const modality = (y: string) => all.find((q) => q.year === y)?.quizapine?.modality || "";
       const filtered = modalityFilter === "all" ? ys : ys.filter((y) => modality(y) === modalityFilter);
-      return filtered.sort((a, b) => modality(a).localeCompare(modality(b)) || a.localeCompare(b));
+      return filtered.sort((a, b) => {
+        const ma = modality(a);
+        const mb = modality(b);
+        if (ma !== mb) {
+          if (ma === "Bienenfeld") return 1;
+          if (mb === "Bienenfeld") return -1;
+          return ma.localeCompare(mb);
+        }
+        if (ma === "Bienenfeld") return bienenfeldYearRank(a) - bienenfeldYearRank(b);
+        return a.localeCompare(b);
+      });
     }
     return ys.sort();
   }, [all, psychMode, modalityFilter]);
@@ -2009,7 +2036,9 @@ export default function App() {
   // open or close normally stay temporary; only the explicit "Keep open"
   // control changes this set for future questions and future sign-ins.
   useEffect(() => {
-    setOpenSections(new Set(preferredOpenSectionsRef.current)); setDraft(""); setStats(null); setCard(null); setEditCard(null); setContext(null); setCrossed([]);
+    const next = new Set(preferredOpenSectionsRef.current);
+    if (q?.bienenfeld) next.add("bienenfeld");
+    setOpenSections(next); setDraft(""); setStats(null); setCard(null); setEditCard(null); setContext(null); setCrossed([]);
     helpSectionCursorRef.current = { qid: navQid, lastId: null };
     setAskOpen(false); setAskText("");
     if (navQid && persist) {
@@ -2653,6 +2682,9 @@ export default function App() {
     ...(kaufman
       ? ([["kaufman", "Kaufman", "Clinical neurology for psychiatrists", <Brain size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
       : []),
+    ...(q?.bienenfeld
+      ? ([["bienenfeld", "Bienenfeld", "Psychodynamic theory for clinicians", <BookOpen size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
+      : []),
     ...(ankingImgs.length
       ? ([["anking", "AnKing", "AnKing / AnkiHub diagrams", <ImageIcon size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
       : []),
@@ -3146,7 +3178,7 @@ export default function App() {
       <main style={
         examActive ? { ...s.well, maxWidth: 880 }
           // Textbook pages are large screenshots — give them most of the screen width.
-          : (openSections.has("textbook") || openSections.has("dsm") || openSections.has("kaufman")) && showAnswer ? { ...s.well, maxWidth: 1100 }
+          : (openSections.has("textbook") || openSections.has("dsm") || openSections.has("kaufman") || openSections.has("bienenfeld")) && showAnswer ? { ...s.well, maxWidth: 1100 }
           : s.well
       }>
         {psychMode === "neuro" && !examActive && (
@@ -3157,7 +3189,18 @@ export default function App() {
         )}
         {psychMode === "therapy" && !examActive && (
           <div style={{ fontSize: 13, color: T.muted, margin: "0 0 10px", lineHeight: 1.45 }}>
-            Psychotherapy practice questions — psychodynamic, CBT, DBT, MI, and the other talking-therapy decks.
+            Psychotherapy practice questions — Quizapine decks plus Bienenfeld psychodynamic theory.
+            After you answer a Bienenfeld item, the cited page and the rest of that chapter open below.
+            {" "}
+            <a
+              href="/bienenfeld/"
+              target="_blank"
+              rel="noreferrer"
+              style={{ color: T.text, fontWeight: 650, textUnderlineOffset: 2 }}
+            >
+              Read the book
+            </a>
+            {" "}in the full-page reader.
           </div>
         )}
         {/* Navigation / filter row */}
@@ -3193,6 +3236,17 @@ export default function App() {
           <button style={s.deckBtn} onClick={() => setShowDeck(true)} title="Filter questions by topic, year, or your own history — the ones you missed, or the ones you've never tried">
             <Search size={13} strokeWidth={2.4} /> Filter
           </button>
+          {psychMode === "therapy" && (
+            <a
+              href="/bienenfeld/"
+              target="_blank"
+              rel="noreferrer"
+              style={{ ...s.deckBtn, textDecoration: "none", color: "inherit" }}
+              title="Read Bienenfeld chapter by chapter"
+            >
+              <BookOpen size={13} strokeWidth={2.4} /> Read Bienenfeld
+            </a>
+          )}
           <button style={s.deckBtn} className="mobExtra" onClick={() => setShowAudioDrills(true)} title="Listen to active-recall questions by topic">
             <Volume2 size={13} strokeWidth={2.4} /> Listen
           </button>
@@ -3403,6 +3457,8 @@ export default function App() {
           <span style={s.qeyebrow}>
             {q.kaufman
               ? <>Kaufman · {q.year} · Q{q.kaufman.book_number ?? q.q_index}{q.prite_label ? <span style={{ color: T.faint }}> · {q.prite_label.replace(/^Chapter \d+:\s*/, "")}</span> : null}</>
+              : q.bienenfeld
+                ? <>Bienenfeld · {q.year} · Q{q.q_index}{q.bienenfeld.page != null ? <span style={{ color: T.faint }}> · p. {q.bienenfeld.page}</span> : null}</>
               : q.quizapine
                 ? <>Therapy · {q.quizapine.modality || "Psychotherapy"} · Q{q.q_index}{q.year ? <span style={{ color: T.faint }}> · {q.year}</span> : null}</>
                 : <>{q.year} · Q{q.q_index} <span style={{ color: T.faint }}>(slide {q.slide_number})</span></>}
@@ -3854,6 +3910,12 @@ export default function App() {
               {id === "kaufman" && kaufman && (
                 <div className="fade">
                   <KaufmanPanel data={kaufman} theme={T} onZoom={setZoomImg} />
+                </div>
+              )}
+
+              {id === "bienenfeld" && q.bienenfeld && (
+                <div className="fade">
+                  <BienenfeldPanel loc={q.bienenfeld} theme={T} onZoom={setZoomImg} />
                 </div>
               )}
 

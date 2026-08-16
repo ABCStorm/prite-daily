@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bienenfeld — Psychodynamic Theory for Clinicians</title>
+<style>
+  :root {
+    --ink: #1b1a17;
+    --paper: #f6f1e8;
+    --card: #fffdf8;
+    --line: #d9d0c1;
+    --accent: #9a3412;
+    --ok: #166534;
+    --bad: #991b1b;
+    --muted: #6b6258;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.5 "Iowan Old Style", "Palatino Linotype", Palatino, serif; }
+  header {
+    position: sticky; top: 0; z-index: 5;
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+    padding: 12px 18px; background: #2b2118; color: #f6f1e8;
+  }
+  header h1 { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: .02em; }
+  header p { margin: 0; font-size: 12px; opacity: .75; }
+  nav { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+  button, select {
+    font: 13px/1.2 ui-sans-serif, system-ui, sans-serif;
+    border: 1px solid var(--line); background: var(--card); color: var(--ink);
+    padding: 6px 10px; border-radius: 6px; cursor: pointer;
+  }
+  header button, header select { background: #3d3126; color: #f6f1e8; border-color: #5a4a3a; }
+  .wrap { display: grid; grid-template-columns: 280px 1fr; min-height: calc(100vh - 58px); }
+  aside { border-right: 1px solid var(--line); padding: 12px; overflow: auto; background: #efe7d8; }
+  aside h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 16px 0 6px; }
+  aside a { display: flex; gap: 8px; align-items: baseline; padding: 5px 8px; border-radius: 5px; color: inherit; text-decoration: none; font-size: 14px; }
+  aside a:hover, aside a.active { background: #e0d3bb; }
+  .chnum {
+    flex: 0 0 1.6em; font: 700 15px/1.2 ui-sans-serif, system-ui, sans-serif;
+    color: #9a3412; text-align: center;
+  }
+  .chtitle { flex: 1; }
+  main { padding: 20px 24px 80px; max-width: 980px; }
+  .page-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .page-head h2 { margin: 0 0 8px; font-size: 22px; }
+  .meta { color: var(--muted); font-size: 13px; font-family: ui-sans-serif, system-ui, sans-serif; }
+  img.page { width: 100%; max-width: 720px; border: 1px solid var(--line); border-radius: 4px; background: #fff; }
+  .ocr { white-space: pre-wrap; font-size: 15px; background: var(--card); border: 1px solid var(--line); padding: 16px 18px; border-radius: 6px; }
+  .q { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; margin: 14px 0; }
+  .q .stem { font-weight: 600; margin-bottom: 8px; }
+  .opt { display: block; width: 100%; text-align: left; margin: 4px 0; padding: 8px 10px; }
+  .opt.correct { background: #dcfce7; border-color: #86efac; }
+  .opt.wrong { background: #fee2e2; border-color: #fca5a5; }
+  .expl { display: none; margin-top: 10px; font-size: 14.5px; color: #3f3a33; }
+  .expl.show { display: block; }
+  .quote { font-size: 13px; color: var(--muted); border-left: 3px solid var(--accent); padding-left: 10px; margin-top: 8px; }
+  .toolbar { display: flex; gap: 8px; margin: 12px 0 18px; }
+  @media (max-width: 800px) {
+    .wrap { grid-template-columns: 1fr; }
+    aside { display: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Psychodynamic Theory for Clinicians</h1>
+    <p>David Bienenfeld · Psychotherapy in Clinical Practice ·
+      <a href="/" style="color:#f0d9b5">Back to PRITE Daily</a>
+    </p>
+  </div>
+  <nav>
+    <select id="mode">
+      <option value="read">Read chapter</option>
+      <option value="quiz">Quiz this page</option>
+      <option value="quiz-ch">Quiz this chapter</option>
+    </select>
+    <button id="prev">← Prev</button>
+    <button id="next">Next →</button>
+  </nav>
+</header>
+<div class="wrap">
+  <aside id="toc"></aside>
+  <main id="main">Loading…</main>
+</div>
+<script>
+const state = { chapters: [], pages: [], questions: [], ch: 0, page: 0, mode: "read" };
+
+async function load() {
+  const [ch, pg, qs] = await Promise.all([
+    fetch("chapters.json").then(r => r.json()).catch(() => []),
+    fetch("pages.json").then(r => r.json()).catch(() => []),
+    fetch("questions/all.json").then(r => r.json()).catch(() => []),
+  ]);
+  state.chapters = ch;
+  state.pages = pg;
+  state.questions = qs;
+  applyLocation(ch, pg, qs);
+  renderToc();
+  render();
+}
+
+function applyLocation(ch, pg, qs) {
+  const raw = location.hash.replace(/^#/, "");
+  if (!raw) return;
+  const params = raw.includes("=") ? new URLSearchParams(raw) : null;
+  const chId = params?.get("ch");
+  const qid = params?.get("q");
+  const pageKey = params?.get("p") || (!params ? raw : "");
+  if (qid) {
+    const item = qs.find(q => q.id === qid);
+    const printed = item?.bienenfeld?.page;
+    const i = printed != null ? pg.findIndex(p => p.printed_int === printed) : -1;
+    if (i >= 0) {
+      state.page = i;
+      state.ch = Math.max(0, ch.findIndex(c => c.id === pg[i].chapter_id));
+      return;
+    }
+  }
+  if (chId) {
+    const ci = ch.findIndex(c => c.id === chId || String(c.number) === chId);
+    if (ci >= 0) {
+      state.ch = ci;
+      const first = pg.findIndex(p => p.chapter_id === ch[ci].id);
+      if (first >= 0) state.page = first;
+      return;
+    }
+  }
+  if (pageKey) {
+    const i = pg.findIndex(p => String(p.printed_int) === pageKey || p.tag === pageKey);
+    if (i >= 0) {
+      state.page = i;
+      state.ch = Math.max(0, ch.findIndex(c => c.id === pg[i].chapter_id));
+    }
+  }
+}
+
+function pagesOf(ch) {
+  const id = state.chapters[ch]?.id;
+  return state.pages.map((p, i) => ({p, i})).filter(x => x.p.chapter_id === id);
+}
+
+function renderToc() {
+  const el = document.getElementById("toc");
+  el.innerHTML = state.chapters.map((c, i) => {
+    const n = (c.pages || []).length;
+    const num = c.number ? `<span class="chnum">${c.number}</span>` : "";
+    return `<h2>${c.kind}</h2><a href="#" data-ch="${i}" class="${i===state.ch?"active":""}">${num}<span class="chtitle">${c.title.replace(/^[0-9A-D]\s+/, "")}</span> <span class="meta">(${n})</span></a>`;
+  }).join("");
+  el.querySelectorAll("a").forEach(a => a.onclick = (e) => {
+    e.preventDefault();
+    state.ch = +a.dataset.ch;
+    const first = state.pages.findIndex(p => p.chapter_id === state.chapters[state.ch].id);
+    state.page = first < 0 ? state.page : first;
+    renderToc(); render();
+  });
+}
+
+function qsFor(filter) {
+  return state.questions.filter(filter);
+}
+
+function renderQuiz(items) {
+  if (!items.length) return `<p class="meta">No questions written for this selection yet.</p>`;
+  return items.map((q, qi) => {
+    const opts = (q.options || []).map(o =>
+      `<button class="opt" data-qi="${qi}" data-letter="${o.letter}">${o.letter}. ${o.text}</button>`
+    ).join("");
+    const quote = q.bienenfeld?.quote ? `<div class="quote">p. ${q.bienenfeld.page}: ${q.bienenfeld.quote}</div>` : "";
+    return `<article class="q" id="q${qi}">
+      <div class="stem">${qi+1}. ${q.stem}</div>
+      ${opts}
+      <div class="expl">${q.explanation_text || ""}${quote}</div>
+    </article>`;
+  }).join("");
+}
+
+function render() {
+  const main = document.getElementById("main");
+  const p = state.pages[state.page];
+  if (!p) { main.innerHTML = "<p>No pages assembled yet. Run assemble_book.py.</p>"; return; }
+  const mode = document.getElementById("mode").value;
+  state.mode = mode;
+  const label = p.printed_page || p.tag;
+  const head = `<div class="page-head"><h2>${p.chapter_title || ""}</h2>
+    <div class="meta">Printed page ${label} · ${p.tag}</div></div>
+    <div class="toolbar"><span class="meta">${state.page+1} / ${state.pages.length}</span></div>`;
+
+  if (mode === "quiz") {
+    const items = qsFor(q => q.bienenfeld && String(q.bienenfeld.page) === String(p.printed_int || p.printed_page));
+    main.innerHTML = head + renderQuiz(items);
+  } else if (mode === "quiz-ch") {
+    const items = qsFor(q => q.bienenfeld && q.bienenfeld.chapter_id === p.chapter_id);
+    main.innerHTML = head + `<p class="meta">${items.length} items in this chapter.</p>` + renderQuiz(items);
+  } else {
+    const img = p.image ? `<p><img class="page" src="${p.image}" alt="page ${label}"></p>` : "";
+    const text = (p.text || "").replace(/[<>]/g, s => ({"<":"&lt;",">":"&gt;"}[s]));
+    // show the rest of the chapter
+    const rest = state.pages.filter(x => x.chapter_id === p.chapter_id);
+    const chapter = rest.map(x => {
+      const lab = x.printed_page || x.tag;
+      const im = x.image ? `<img class="page" src="${x.image}" alt="page ${lab}">` : "";
+      const tx = (x.text || "").replace(/[<>]/g, s => ({"<":"&lt;",">":"&gt;"}[s]));
+      return `<section id="p${lab}">
+        <div class="page-head"><h3>Page ${lab}</h3></div>
+        ${im}
+        <details><summary>OCR text</summary><div class="ocr">${tx}</div></details>
+      </section>`;
+    }).join("<hr>");
+    main.innerHTML = head + `<p class="meta">Full chapter · ${rest.length} pages. Expand OCR under each page.</p>` + chapter;
+    const here = document.getElementById("p" + label);
+    if (here) here.scrollIntoView({behavior:"smooth", block:"start"});
+  }
+  bindQuiz();
+  location.hash = p.printed_int || p.tag;
+}
+
+function bindQuiz() {
+  document.querySelectorAll(".opt").forEach(btn => {
+    btn.onclick = () => {
+      const qi = +btn.dataset.qi;
+      const mode = state.mode;
+      const p = state.pages[state.page];
+      const items = mode === "quiz-ch"
+        ? qsFor(q => q.bienenfeld && q.bienenfeld.chapter_id === p.chapter_id)
+        : qsFor(q => q.bienenfeld && String(q.bienenfeld.page) === String(p.printed_int || p.printed_page));
+      const q = items[qi];
+      const card = btn.closest(".q");
+      card.querySelectorAll(".opt").forEach(b => {
+        b.classList.remove("correct","wrong");
+        if (b.dataset.letter === q.answer_letter) b.classList.add("correct");
+      });
+      if (btn.dataset.letter !== q.answer_letter) btn.classList.add("wrong");
+      card.querySelector(".expl").classList.add("show");
+    };
+  });
+}
+
+window.addEventListener("hashchange", () => {
+  applyLocation(state.chapters, state.pages, state.questions);
+  renderToc();
+  render();
+});
+document.getElementById("mode").onchange = render;
+document.getElementById("prev").onclick = () => {
+  if (state.mode === "read") {
+    const list = pagesOf(state.ch);
+    const idx = list.findIndex(x => x.i === state.page);
+    if (idx > 0) state.page = list[idx-1].i;
+    else if (state.ch > 0) {
+      state.ch -= 1;
+      const prev = pagesOf(state.ch);
+      if (prev.length) state.page = prev[prev.length-1].i;
+    }
+  } else {
+    state.page = Math.max(0, state.page-1);
+    state.ch = Math.max(0, state.chapters.findIndex(c => c.id === state.pages[state.page].chapter_id));
+  }
+  renderToc(); render();
+};
+document.getElementById("next").onclick = () => {
+  if (state.mode === "read") {
+    const list = pagesOf(state.ch);
+    const idx = list.findIndex(x => x.i === state.page);
+    if (idx < list.length-1) state.page = list[idx+1].i;
+    else if (state.ch < state.chapters.length-1) {
+      state.ch += 1;
+      const nxt = pagesOf(state.ch);
+      if (nxt.length) state.page = nxt[0].i;
+    }
+  } else {
+    state.page = Math.min(state.pages.length-1, state.page+1);
+    state.ch = Math.max(0, state.chapters.findIndex(c => c.id === state.pages[state.page].chapter_id));
+  }
+  renderToc(); render();
+};
+load();
+</script>
+</body>
+</html>
