@@ -25,12 +25,14 @@ export function WiseOwl({
   stat: OwlStat;
   theme?: Theme;
 }) {
-  const [open, setOpen] = useState(false);
+  // The tag mounts this component, so one click reveals the mascot and fact.
+  // The mascot remains clickable for people who want to tuck only the fact away.
+  const [open, setOpen] = useState(true);
   const [frame, setFrame] = useState<Frame>("idle");
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    setOpen(false);
+    setOpen(true);
     setFrame("idle");
   }, [qid]);
 

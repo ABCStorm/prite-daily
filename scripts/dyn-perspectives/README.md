@@ -1,13 +1,15 @@
 # Psychodynamic perspectives
 
-A fox analyst on the top-left of every question card offers one **sourced**
-psychodynamic formulation and links the public source.
+A dog analyst on the top-left of clinically relevant question cards offers a
+psychodynamic formulation. Pure statistics, research methods, receptor science,
+neuroanatomy, genetics, and other biomedical recall questions without a real
+patient-care scenario are deliberately omitted; see `eligibility.mjs`.
 
 Formulations come from `canonical.py` only. The builder assigns the best match
 and writes a unique spoken sentence.
 
 ```sh
-python3 scripts/dyn-perspectives/build-dyn-perspectives.py
+npm run dyn:stats
 npx supabase functions deploy generate-dyn-stat
 node --env-file=supabase/.temp/audio-batch.env \
   scripts/dyn-perspectives/render-dyn-audio.mjs --sample 3

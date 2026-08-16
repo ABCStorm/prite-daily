@@ -24,12 +24,14 @@ export function AnalystFox({
   pearl: DynPearl;
   theme?: Theme;
 }) {
-  const [open, setOpen] = useState(false);
+  // The tag mounts this component, so start with both mascot and note visible.
+  // The mascot remains clickable for people who want to tuck only the note away.
+  const [open, setOpen] = useState(true);
   const [frame, setFrame] = useState<Frame>("idle");
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    setOpen(false);
+    setOpen(true);
     setFrame("idle");
   }, [qid]);
 
