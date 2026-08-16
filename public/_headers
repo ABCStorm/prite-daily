@@ -3,3 +3,6 @@
 
 /bienenfeld/pages/*
   Cache-Control: public, max-age=86400
+
+/bienenfeld/words.json
+  Cache-Control: public, max-age=86400

@@ -31,6 +31,42 @@
     padding: 6px 10px; border-radius: 6px; cursor: pointer;
   }
   header button, header select { background: #3d3126; color: #f6f1e8; border-color: #5a4a3a; }
+  .search {
+    display: flex; align-items: center; gap: 6px;
+    background: #3d3126; border: 1px solid #5a4a3a; border-radius: 8px;
+    padding: 3px 6px 3px 8px;
+  }
+  .search input {
+    width: min(42vw, 240px); border: 0; background: transparent; color: #f6f1e8;
+    font: 13px/1.2 ui-sans-serif, system-ui, sans-serif; padding: 5px 4px; outline: none;
+  }
+  .search input::placeholder { color: #c4b4a2; }
+  .search-count {
+    font: 12px/1 ui-sans-serif, system-ui, sans-serif; color: #e8d5bf; min-width: 4.5em; text-align: right;
+  }
+  .search button { padding: 4px 8px; min-width: 32px; }
+  .search button:disabled { opacity: .4; cursor: default; }
+  .page-frame {
+    position: relative; display: inline-block; width: 100%; max-width: 720px;
+  }
+  .page-frame img.page { display: block; width: 100%; max-width: 720px; }
+  .hit-layer { position: absolute; inset: 0; pointer-events: none; }
+  .hitbox {
+    position: absolute;
+    background: rgba(250, 204, 21, 0.38);
+    outline: 2px solid rgba(202, 138, 4, 0.9);
+    border-radius: 2px;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.35) inset;
+    scroll-margin-top: 90px;
+  }
+  .hitbox.current {
+    background: rgba(249, 115, 22, 0.42);
+    outline: 2px solid #c2410c;
+    box-shadow: 0 0 0 3px rgba(194, 65, 12, 0.28);
+  }
+  .ocr mark { background: #fde68a; color: inherit; padding: 0 1px; border-radius: 2px; }
+  .ocr mark.current { background: #fdba74; outline: 1px solid #c2410c; scroll-margin-top: 90px; }
+  .page-sec { scroll-margin-top: 80px; }
   .wrap { display: grid; grid-template-columns: 280px 1fr; min-height: calc(100vh - 58px); }
   aside { border-right: 1px solid var(--line); padding: 12px; overflow: auto; background: #efe7d8; }
   aside h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 16px 0 6px; }
@@ -67,10 +103,16 @@
   <div>
     <h1>Psychodynamic Theory for Clinicians</h1>
     <p>David Bienenfeld · Psychotherapy in Clinical Practice ·
-      <a href="/" style="color:#f0d9b5">Back to PRITE Daily</a>
+      <a id="back" href="/?bank=therapy" style="color:#f0d9b5">Back to PRITE Daily</a>
     </p>
   </div>
   <nav>
+    <form id="search-form" class="search" role="search" autocomplete="off">
+      <input id="q" type="search" placeholder="Search the book…" enterkeyhint="search" />
+      <span id="search-count" class="search-count"></span>
+      <button type="button" id="hit-prev" title="Previous match (Shift+Enter)" disabled>↑</button>
+      <button type="button" id="hit-next" title="Next match (Enter)" disabled>↓</button>
+    </form>
     <select id="mode">
       <option value="read">Read chapter</option>
       <option value="quiz">Quiz this page</option>
@@ -85,9 +127,41 @@
   <main id="main">Loading…</main>
 </div>
 <script>
-const state = { chapters: [], pages: [], questions: [], ch: 0, page: 0, mode: "read" };
+const state = {
+  chapters: [], pages: [], questions: [], ch: 0, page: 0, mode: "read",
+  words: null, wordsPromise: null,
+  search: { q: "", hits: [], i: 0, status: "" },
+  applyingHash: false,
+};
+
+function backHref() {
+  const p = new URLSearchParams(location.search);
+  const bank = p.get("bank") || "therapy";
+  let qid = p.get("qid") || "";
+  let view = p.get("view") || "";
+  if (!qid) {
+    try {
+      const saved = JSON.parse(localStorage.getItem("pd_therapy_return") || "null");
+      if (saved && saved.qid) {
+        qid = String(saved.qid);
+        if (!view && saved.view) view = String(saved.view);
+      }
+    } catch (e) { /* ignore */ }
+  }
+  const out = new URLSearchParams();
+  out.set("bank", bank);
+  if (qid) out.set("qid", qid);
+  if (view) out.set("view", view);
+  return "/?" + out.toString();
+}
+
+function bindBackLink() {
+  const a = document.getElementById("back");
+  if (a) a.setAttribute("href", backHref());
+}
 
 async function load() {
+  bindBackLink();
   const [ch, pg, qs] = await Promise.all([
     fetch("chapters.json").then(r => r.json()).catch(() => []),
     fetch("pages.json").then(r => r.json()).catch(() => []),
@@ -99,6 +173,13 @@ async function load() {
   applyLocation(ch, pg, qs);
   renderToc();
   render();
+  if (state.search.pending) {
+    const q = state.search.pending;
+    state.search.pending = "";
+    const box = document.getElementById("q");
+    if (box) box.value = q;
+    await runSearch(q);
+  }
 }
 
 function applyLocation(ch, pg, qs) {
@@ -124,7 +205,6 @@ function applyLocation(ch, pg, qs) {
       state.ch = ci;
       const first = pg.findIndex(p => p.chapter_id === ch[ci].id);
       if (first >= 0) state.page = first;
-      return;
     }
   }
   if (pageKey) {
@@ -134,11 +214,27 @@ function applyLocation(ch, pg, qs) {
       state.ch = Math.max(0, ch.findIndex(c => c.id === pg[i].chapter_id));
     }
   }
+  const searchQ = params?.get("search");
+  if (searchQ) state.search.pending = searchQ;
 }
 
 function pagesOf(ch) {
   const id = state.chapters[ch]?.id;
   return state.pages.map((p, i) => ({p, i})).filter(x => x.p.chapter_id === id);
+}
+
+function escapeHtml(s) {
+  return String(s || "").replace(/[&<>"']/g, ch => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[ch]));
+}
+
+function escapeRe(s) {
+  return String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function normToken(s) {
+  return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
 function renderToc() {
@@ -176,7 +272,254 @@ function renderQuiz(items) {
   }).join("");
 }
 
-function render() {
+function markOcr(text, query, currentNth) {
+  const raw = String(text || "");
+  const re = textRe(query);
+  if (!re) return escapeHtml(raw);
+  let n = 0;
+  let out = "";
+  let last = 0;
+  let m;
+  while ((m = re.exec(raw))) {
+    out += escapeHtml(raw.slice(last, m.index));
+    const cls = n++ === currentNth ? ' class="current"' : "";
+    out += `<mark${cls}>${escapeHtml(m[0])}</mark>`;
+    last = m.index + m[0].length;
+    if (m[0].length === 0) re.lastIndex++;
+  }
+  out += escapeHtml(raw.slice(last));
+  return out;
+}
+
+function mergeBoxes(rows) {
+  const items = rows.map(w => ({ x: w[1], y: w[2], w: w[3], h: w[4] }))
+    .sort((a, b) => a.y - b.y || a.x - b.x);
+  const lines = [];
+  for (const it of items) {
+    const line = lines.find(L => Math.abs(L.y - it.y) < Math.max(L.h, it.h) * 0.55);
+    if (!line) {
+      lines.push({ ...it });
+      continue;
+    }
+    const r = Math.max(line.x + line.w, it.x + it.w);
+    const b = Math.max(line.y + line.h, it.y + it.h);
+    line.x = Math.min(line.x, it.x);
+    line.y = Math.min(line.y, it.y);
+    line.w = r - line.x;
+    line.h = b - line.y;
+  }
+  return lines;
+}
+
+function textRe(query) {
+  const q = String(query || "").trim();
+  if (!q) return null;
+  if (q.length <= 3 && !/\s/.test(q)) return new RegExp(`\\b${escapeRe(q)}\\b`, "ig");
+  return new RegExp(escapeRe(q), "ig");
+}
+
+function findBoxHits(words, query) {
+  const qn = normToken(query);
+  if (!qn || !words?.length) return [];
+  const short = qn.length <= 3 && !/\s/.test(String(query || "").trim());
+  let joined = "";
+  const spans = [];
+  for (let i = 0; i < words.length; i++) {
+    const n = normToken(words[i][0]);
+    if (!n) continue;
+    const start = joined.length;
+    joined += n;
+    spans.push({ start, end: joined.length, i });
+  }
+  const hits = [];
+  let from = 0;
+  while (from <= joined.length - qn.length) {
+    const at = joined.indexOf(qn, from);
+    if (at < 0) break;
+    const end = at + qn.length;
+    const atWordStart = spans.some(s => s.start === at);
+    if (short && !atWordStart) {
+      from = at + 1;
+      continue;
+    }
+    const idxs = spans.filter(s => s.end > at && s.start < end).map(s => s.i);
+    if (idxs.length) hits.push(mergeBoxes(idxs.map(i => words[i])));
+    from = at + Math.max(1, qn.length);
+  }
+  return hits;
+}
+
+function countTextMatches(text, query) {
+  const re = textRe(query);
+  if (!re) return 0;
+  return (String(text || "").match(re) || []).length;
+}
+
+function buildHits(query) {
+  const q = String(query || "").trim();
+  if (q.length < 2) return [];
+  const hits = [];
+  const wordsRoot = state.words?.pages || {};
+  for (let i = 0; i < state.pages.length; i++) {
+    const p = state.pages[i];
+    const words = wordsRoot[p.image]?.words || [];
+    const boxes = findBoxHits(words, q);
+    if (boxes.length) {
+      boxes.forEach((boxSet, nth) => hits.push({ page: i, boxes: boxSet, textNth: nth }));
+      continue;
+    }
+    const n = countTextMatches(p.text || "", q);
+    for (let nth = 0; nth < n; nth++) hits.push({ page: i, boxes: [], textNth: nth });
+  }
+  return hits;
+}
+
+function ensureWords() {
+  if (state.words) return Promise.resolve(state.words);
+  if (state.wordsPromise) return state.wordsPromise;
+  state.wordsPromise = fetch("words.json")
+    .then(r => r.ok ? r.json() : { pages: {} })
+    .catch(() => ({ pages: {} }))
+    .then(data => { state.words = data || { pages: {} }; return state.words; });
+  return state.wordsPromise;
+}
+
+function updateSearchChrome() {
+  const count = document.getElementById("search-count");
+  const prev = document.getElementById("hit-prev");
+  const next = document.getElementById("hit-next");
+  const { q, hits, i, status } = state.search;
+  if (status) {
+    count.textContent = status;
+    prev.disabled = true;
+    next.disabled = true;
+    return;
+  }
+  if (!q) {
+    count.textContent = "";
+    prev.disabled = true;
+    next.disabled = true;
+    return;
+  }
+  if (!hits.length) {
+    count.textContent = "0 matches";
+    prev.disabled = true;
+    next.disabled = true;
+    return;
+  }
+  count.textContent = `${i + 1} / ${hits.length}`;
+  prev.disabled = false;
+  next.disabled = false;
+}
+
+function currentHitOnPage(pageIndex) {
+  const { hits, i } = state.search;
+  const cur = hits[i];
+  if (!cur || cur.page !== pageIndex) return -1;
+  return cur.textNth;
+}
+
+function paintHits() {
+  const q = state.search.q;
+  const hits = state.search.hits;
+  const cur = hits[state.search.i];
+  document.querySelectorAll(".page-sec").forEach(sec => {
+    const tag = sec.dataset.tag;
+    const pageIndex = state.pages.findIndex(p => p.tag === tag);
+    const layer = sec.querySelector(".hit-layer");
+    if (layer) {
+      const mine = hits.filter(h => h.page === pageIndex);
+      layer.innerHTML = mine.flatMap(h => h.boxes.map(box => {
+        const on = h === cur ? " current" : "";
+        return `<i class="hitbox${on}" style="left:${box.x*100}%;top:${box.y*100}%;width:${box.w*100}%;height:${box.h*100}%"></i>`;
+      })).join("");
+    }
+    const details = sec.querySelector("details");
+    const ocr = sec.querySelector(".ocr");
+    if (ocr) {
+      const p = state.pages[pageIndex];
+      ocr.innerHTML = markOcr(p?.text || "", q, currentHitOnPage(pageIndex));
+      if (details && q && mineHasText(hits, pageIndex)) details.open = true;
+    }
+  });
+}
+
+function mineHasText(hits, pageIndex) {
+  return hits.some(h => h.page === pageIndex);
+}
+
+function scrollToCurrentHit() {
+  const curBox = document.querySelector(".hitbox.current");
+  if (curBox) {
+    curBox.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+  const mark = document.querySelector(".ocr mark.current");
+  if (mark) {
+    mark.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+  const p = state.pages[state.page];
+  const here = p && document.getElementById("pg-" + p.tag);
+  if (here) here.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function goToHit(index, opts = {}) {
+  const hits = state.search.hits;
+  if (!hits.length) { updateSearchChrome(); return; }
+  state.search.i = ((index % hits.length) + hits.length) % hits.length;
+  const hit = hits[state.search.i];
+  const p = state.pages[hit.page];
+  const modeEl = document.getElementById("mode");
+  const needRender = state.mode !== "read"
+    || !document.querySelector(`.page-sec[data-tag="${p.tag}"]`);
+  state.page = hit.page;
+  state.ch = Math.max(0, state.chapters.findIndex(c => c.id === p.chapter_id));
+  if (modeEl) modeEl.value = "read";
+  if (needRender) {
+    renderToc();
+    render({ scroll: false });
+  } else {
+    renderToc();
+    setHash(p);
+    paintHits();
+  }
+  updateSearchChrome();
+  if (opts.scroll !== false) requestAnimationFrame(() => scrollToCurrentHit());
+}
+
+async function runSearch(query, opts = {}) {
+  const q = String(query || "").trim();
+  state.search.q = q;
+  if (q.length < 2) {
+    state.search.hits = [];
+    state.search.i = 0;
+    state.search.status = "";
+    updateSearchChrome();
+    paintHits();
+    return;
+  }
+  state.search.status = "Searching…";
+  updateSearchChrome();
+  await ensureWords();
+  if (state.search.q !== q) return;
+  state.search.hits = buildHits(q);
+  state.search.status = "";
+  if (!state.search.hits.length) {
+    state.search.i = 0;
+    updateSearchChrome();
+    paintHits();
+    return;
+  }
+  if (opts.stay && state.search.hits[state.search.i]?.page === state.page) {
+    goToHit(state.search.i);
+    return;
+  }
+  const fromHere = state.search.hits.findIndex(h => h.page >= state.page);
+  goToHit(fromHere >= 0 ? fromHere : 0);
+}
+
+function render(opts = {}) {
   const main = document.getElementById("main");
   const p = state.pages[state.page];
   if (!p) { main.innerHTML = "<p>No pages assembled yet. Run assemble_book.py.</p>"; return; }
@@ -194,26 +537,41 @@ function render() {
     const items = qsFor(q => q.bienenfeld && q.bienenfeld.chapter_id === p.chapter_id);
     main.innerHTML = head + `<p class="meta">${items.length} items in this chapter.</p>` + renderQuiz(items);
   } else {
-    const img = p.image ? `<p><img class="page" src="${p.image}" alt="page ${label}"></p>` : "";
-    const text = (p.text || "").replace(/[<>]/g, s => ({"<":"&lt;",">":"&gt;"}[s]));
-    // show the rest of the chapter
     const rest = state.pages.filter(x => x.chapter_id === p.chapter_id);
+    const q = state.search.q;
     const chapter = rest.map(x => {
       const lab = x.printed_page || x.tag;
+      const pageIndex = state.pages.indexOf(x);
       const im = x.image ? `<img class="page" src="${x.image}" alt="page ${lab}">` : "";
-      const tx = (x.text || "").replace(/[<>]/g, s => ({"<":"&lt;",">":"&gt;"}[s]));
-      return `<section id="p${lab}">
+      const tx = markOcr(x.text || "", q, currentHitOnPage(pageIndex));
+      const open = q && mineHasText(state.search.hits, pageIndex) ? " open" : "";
+      return `<section class="page-sec" id="pg-${escapeHtml(x.tag)}" data-tag="${escapeHtml(x.tag)}">
         <div class="page-head"><h3>Page ${lab}</h3></div>
-        ${im}
-        <details><summary>OCR text</summary><div class="ocr">${tx}</div></details>
+        <div class="page-frame">${im}<div class="hit-layer"></div></div>
+        <details${open}><summary>OCR text</summary><div class="ocr">${tx}</div></details>
       </section>`;
     }).join("<hr>");
-    main.innerHTML = head + `<p class="meta">Full chapter · ${rest.length} pages. Expand OCR under each page.</p>` + chapter;
-    const here = document.getElementById("p" + label);
-    if (here) here.scrollIntoView({behavior:"smooth", block:"start"});
+    const hint = state.search.q
+      ? `Search “${escapeHtml(state.search.q)}” — highlights are on the page image; use ↑ ↓ to jump.`
+      : `Full chapter · ${rest.length} pages. Search the book from the header, or expand OCR under each page.`;
+    main.innerHTML = head + `<p class="meta">${hint}</p>` + chapter;
+    paintHits();
+    if (opts.scroll !== false) {
+      const here = document.getElementById("pg-" + p.tag);
+      if (here) here.scrollIntoView({behavior:"smooth", block:"start"});
+    }
   }
   bindQuiz();
-  location.hash = p.printed_int || p.tag;
+  setHash(p);
+}
+
+function setHash(p) {
+  const next = String(p.printed_int || p.printed_page || p.tag);
+  const cur = location.hash.replace(/^#/, "");
+  if (cur === next) return;
+  state.applyingHash = true;
+  location.hash = next;
+  queueMicrotask(() => { state.applyingHash = false; });
 }
 
 function bindQuiz() {
@@ -238,6 +596,7 @@ function bindQuiz() {
 }
 
 window.addEventListener("hashchange", () => {
+  if (state.applyingHash) return;
   applyLocation(state.chapters, state.pages, state.questions);
   renderToc();
   render();
@@ -275,6 +634,49 @@ document.getElementById("next").onclick = () => {
   }
   renderToc(); render();
 };
+
+const searchInput = document.getElementById("q");
+let searchTimer = 0;
+searchInput.addEventListener("input", () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => runSearch(searchInput.value), 180);
+});
+document.getElementById("search-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (state.search.hits.length) goToHit(state.search.i + 1);
+  else runSearch(searchInput.value);
+});
+document.getElementById("hit-next").onclick = () => goToHit(state.search.i + 1);
+document.getElementById("hit-prev").onclick = () => goToHit(state.search.i - 1);
+
+document.addEventListener("keydown", (e) => {
+  const inField = e.target.matches("input, textarea, select");
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "f") {
+    e.preventDefault();
+    searchInput.focus();
+    searchInput.select();
+    return;
+  }
+  if (e.key === "Escape" && document.activeElement === searchInput) {
+    searchInput.value = "";
+    runSearch("");
+    searchInput.blur();
+    return;
+  }
+  if (e.key === "Enter" && document.activeElement === searchInput) {
+    e.preventDefault();
+    if (state.search.hits.length) goToHit(state.search.i + (e.shiftKey ? -1 : 1));
+    else runSearch(searchInput.value);
+    return;
+  }
+  if ((e.key === "F3" || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "g")) && state.search.hits.length) {
+    e.preventDefault();
+    goToHit(state.search.i + (e.shiftKey ? -1 : 1));
+    return;
+  }
+  if (inField) return;
+});
+
 load();
 </script>
 </body>

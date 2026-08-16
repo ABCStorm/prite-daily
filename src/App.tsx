@@ -24,7 +24,18 @@ import { KaufmanPanel, KaufmanFigure } from "./lib/kaufmanPanel";
 import { loadKaufmanRefs, loadKaufmanQuestions, type KaufmanRef } from "./lib/kaufmanRefs";
 import { loadTherapyQuestions } from "./lib/therapyQuestions";
 import { BienenfeldPanel } from "./lib/bienenfeldPanel";
-import { bienenfeldChapterLabel, bienenfeldYearRank, loadBienenfeldQuestions, type BienenfeldLoc } from "./lib/bienenfeldRefs";
+import {
+  bienenfeldChapterLabel,
+  bienenfeldReaderHref,
+  bienenfeldReturnFromSearch,
+  bienenfeldYearRank,
+  clearBienenfeldReturnParams,
+  loadBienenfeldQuestions,
+  readTherapyReturn,
+  writeTherapyReturn,
+  type BienenfeldLoc,
+  type BienenfeldReturn,
+} from "./lib/bienenfeldRefs";
 import {
   annotateTherapySequences,
   expandTherapySequences,
@@ -1245,6 +1256,23 @@ function readLearningOpenPref(): Set<string> {
   return new Set(readPref<string[]>("pd_learning_open_sections", ["explanation"])
     .filter((id) => LEARNING_SECTION_IDS.has(id)));
 }
+
+function initialPsychMode(): "general" | "child" | "neuro" | "therapy" {
+  const ret = bienenfeldReturnFromSearch();
+  if (ret?.bank === "therapy" || ret?.bank === "neuro" || ret?.bank === "general") return ret.bank;
+  return "general";
+}
+
+function initialTherapyJump(): { qid: string; view: BienenfeldReturn["view"] } | null {
+  const ret = bienenfeldReturnFromSearch();
+  if (ret?.bank && ret.bank !== "therapy") return null;
+  if (ret?.qid) return { qid: ret.qid, view: ret.view };
+  if (ret?.bank === "therapy") {
+    const saved = readTherapyReturn();
+    if (saved?.qid) return { qid: saved.qid, view: saved.view };
+  }
+  return null;
+}
 function fmtTime(s: number) {
   const m = Math.floor(s / 60), sec = s % 60;
   return `${m}:${String(sec).padStart(2, "0")}`;
@@ -1269,7 +1297,7 @@ export default function App() {
   const [kaufmanBankErr, setKaufmanBankErr] = useState<string | null>(null);
   const [therapyAll, setTherapyAll] = useState<RawQuestion[] | null>(null);
   const [therapyBankErr, setTherapyBankErr] = useState<string | null>(null);
-  const [psychMode, setPsychMode] = useState<"general" | "child" | "neuro" | "therapy">("general");
+  const [psychMode, setPsychMode] = useState<"general" | "child" | "neuro" | "therapy">(initialPsychMode);
   const all = psychMode === "neuro" ? kaufmanAll : psychMode === "therapy" ? therapyAll : priteAll;
   const [loadErr, setLoadErr] = useState<string | null>(null);
   // question id -> supporting Kaplan & Sadock passage(s); empty until loaded
@@ -1292,6 +1320,7 @@ export default function App() {
   const [year, setYear] = useState<string>("all");
   const [modalityFilter, setModalityFilter] = useState<string>("all");
   const [qi, setQi] = useState(0);
+  const therapyJumpRef = useRef(initialTherapyJump());
 
   const [picked, setPicked] = useState<string[]>([]);
   const [crossed, setCrossed] = useState<string[]>([]); // options crossed out (right-click), per question
@@ -1904,7 +1933,7 @@ export default function App() {
           setTodayQueue(expandTherapySequences(restored, all));
           setBonusRound(snap.bonusRound || 0);
           setReviewMode(!!snap.reviewMode);
-          if (typeof snap.qi === "number") setQi(Math.max(0, Math.min(snap.qi, restored.length - 1)));
+          if (typeof snap.qi === "number" && !therapyJumpRef.current) setQi(Math.max(0, Math.min(snap.qi, restored.length - 1)));
         }
       } else {
         buildToday(false);
@@ -1922,13 +1951,55 @@ export default function App() {
         setCustomLabel(custom.label || "");
         let lastMode = "today";
         try { lastMode = localStorage.getItem(`pd_practice_mode_${uid}`) || "today"; } catch { /* ignore */ }
-        if (lastMode === "custom") {
+        if (lastMode === "custom" && !therapyJumpRef.current) {
           setMode("custom");
           setQi(Math.max(0, Math.min(custom.qi ?? 0, restoredCustom.length - 1)));
         }
       }
     }
   }, [persist, answersLoaded, all, buildToday, profile?.id, session?.user?.id]);
+
+  // Coming back from the Bienenfeld reader: land on Therapy and the question
+  // that was on screen when they opened the book.
+  useEffect(() => {
+    const pending = therapyJumpRef.current;
+    if (!pending?.qid || psychMode !== "therapy" || !all) return;
+    if (persist && !answersLoaded) return;
+
+    const idOf = (qq: RawQuestion) => questionId(qq.year, qq.q_index);
+    const todayIdx = todayQueue.findIndex((qq) => idOf(qq) === pending.qid);
+    const customIdx = customQueue.findIndex((qq) => idOf(qq) === pending.qid);
+    const allIdx = all.findIndex((qq) => idOf(qq) === pending.qid);
+
+    if ((pending.view === "today" || !pending.view) && todayIdx >= 0) {
+      if (mode !== "today") setMode("today");
+      setYear("all");
+      setModalityFilter("all");
+      setQi(todayIdx);
+      therapyJumpRef.current = null;
+      clearBienenfeldReturnParams();
+      return;
+    }
+    if ((pending.view === "custom" || !pending.view) && customIdx >= 0) {
+      setMode("custom");
+      setQi(customIdx);
+      therapyJumpRef.current = null;
+      clearBienenfeldReturnParams();
+      return;
+    }
+    if (pending.view === "today" && persist && todayQueue.length === 0) return;
+    if (allIdx < 0) {
+      therapyJumpRef.current = null;
+      clearBienenfeldReturnParams();
+      return;
+    }
+    setMode("browse");
+    setYear("all");
+    setModalityFilter("all");
+    setQi(allIdx);
+    therapyJumpRef.current = null;
+    clearBienenfeldReturnParams();
+  }, [psychMode, all, persist, answersLoaded, todayQueue, customQueue, mode]);
 
   // Keep the current index (and custom set) on disk so a tab close mid-set
   // comes back on the same question, not question 1 of an empty-looking set.
@@ -2241,6 +2312,15 @@ export default function App() {
   // stable id of the on-screen question — effects key on THIS (not qi/mode) so
   // per-question state always resets, even when the set changes under an index
   const navQid = q ? questionId(q.year, q.q_index) : null;
+  const bookReturn: BienenfeldReturn = {
+    bank: "therapy",
+    qid: psychMode === "therapy" ? navQid : null,
+    view: psychMode === "therapy" ? mode : null,
+  };
+  useEffect(() => {
+    if (psychMode !== "therapy" || !navQid) return;
+    writeTherapyReturn({ bank: "therapy", qid: navQid, view: mode });
+  }, [psychMode, navQid, mode]);
   // explanations stay hidden while answering an exam-mode set (until review)
   const examActive = examMode && inPractice && !examReview;
   const showAnswer = revealed && !examActive;
@@ -2896,7 +2976,7 @@ export default function App() {
       ? ([["kaufman", "Kaufman", "Clinical neurology for psychiatrists", <Brain size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
       : []),
     ...(q?.bienenfeld
-      ? ([["bienenfeld", "Bienenfeld", "Psychodynamic theory for clinicians", <BookOpen size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
+      ? ([["bienenfeld", "Bienenfeld", showAnswer ? "Psychodynamic theory for clinicians" : "Review the vignette and cited pages", <BookOpen size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
       : []),
     ...(ankingImgs.length
       ? ([["anking", "AnKing", "AnKing / AnkiHub diagrams", <ImageIcon size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
@@ -2989,7 +3069,13 @@ export default function App() {
     }
 
     if (e.key === "h" || e.key === "H") {
-      if (!showAnswer) return;
+      if (!showAnswer) {
+        if (!q.bienenfeld) return;
+        e.preventDefault();
+        if (!openSections.has("bienenfeld")) setOpenSections((current) => new Set(current).add("bienenfeld"));
+        requestAnimationFrame(() => scrollToSection("bienenfeld"));
+        return;
+      }
       e.preventDefault();
       advanceHelpSection();
       return;
@@ -3392,7 +3478,7 @@ export default function App() {
       <main style={
         examActive ? { ...s.well, maxWidth: 880 }
           // Textbook pages are large screenshots — give them most of the screen width.
-          : (openSections.has("textbook") || openSections.has("dsm") || openSections.has("kaufman") || openSections.has("bienenfeld")) && showAnswer ? { ...s.well, maxWidth: 1100 }
+          : (openSections.has("textbook") || openSections.has("dsm") || openSections.has("kaufman") || openSections.has("bienenfeld")) && (showAnswer || !!q?.bienenfeld) ? { ...s.well, maxWidth: 1100 }
           : s.well
       }>
         {psychMode === "neuro" && !examActive && (
@@ -3416,9 +3502,9 @@ export default function App() {
             <div>
               <div style={s.bankBannerTitle}>Psychotherapy · Quizapine and Bienenfeld</div>
               <div style={s.bankBannerHint}>
-                After you answer a Bienenfeld item, the cited page and chapter open below.
+                On Bienenfeld items the cited pages open below the question so you can review the vignette before you answer.
                 {" "}
-                <a href="/bienenfeld/" target="_blank" rel="noreferrer" style={s.bankBannerLink}>
+                <a href={bienenfeldReaderHref({ returnTo: bookReturn })} target="_blank" rel="noreferrer" style={s.bankBannerLink}>
                   Read the book
                 </a>
                 {" "}in the full-page reader.
@@ -3461,7 +3547,7 @@ export default function App() {
           </button>
           {psychMode === "therapy" && (
             <a
-              href="/bienenfeld/"
+              href={bienenfeldReaderHref({ returnTo: bookReturn })}
               target="_blank"
               rel="noreferrer"
               style={{ ...s.deckBtn, textDecoration: "none", color: "inherit" }}
@@ -4007,26 +4093,36 @@ export default function App() {
         )}
 
         {/* Scrollable learning stack — all of the answer's supporting material
-            stays visible as a table of contents instead of disappearing behind tabs. */}
-        {showAnswer && (
+            stays visible as a table of contents instead of disappearing behind tabs.
+            Bienenfeld pages also appear before the answer so the vignette can be
+            reread while the question is still open. */}
+        {(showAnswer || (!examActive && q.bienenfeld)) && (
           <section style={s.below}>
             {/* No "Learning guide / Build out the answer" heading: the cards
                 below say what they are, and the title + hint pushed the
                 explanation an extra ~70px down the page. Just the controls. */}
             <div style={s.learningHead} className="learningHead">
               <div style={s.learningActions} className="learningActions">
-                <button
-                  style={s.learningAction}
-                  onClick={() => setOpenSections(new Set(sections.map(([id]) => id)))}
-                >
-                  Expand all
-                </button>
-                <button style={s.learningAction} onClick={() => setOpenSections(new Set())}>Collapse all</button>
+                {showAnswer ? (
+                  <>
+                    <button
+                      style={s.learningAction}
+                      onClick={() => setOpenSections(new Set(sections.map(([id]) => id)))}
+                    >
+                      Expand all
+                    </button>
+                    <button style={s.learningAction} onClick={() => setOpenSections(new Set())}>Collapse all</button>
+                  </>
+                ) : (
+                  <span style={{ fontSize: 13, color: T.muted, lineHeight: 1.45 }}>
+                    Cited pages are here so you can review the vignette before you answer.
+                  </span>
+                )}
               </div>
             </div>
 
             <div style={s.learningStack}>
-              {pairNoteCards(sections.map(([id, label, summary, icon], sectionIndex) => {
+              {pairNoteCards((showAnswer ? sections : sections.filter(([id]) => id === "bienenfeld")).map(([id, label, summary, icon], sectionIndex) => {
                 const isOpen = openSections.has(id);
                 const isKeptOpen = preferredOpenSections.has(id);
                 const bodyId = `learning-${q.year}-${q.q_index}-${id}`;
@@ -4138,7 +4234,7 @@ export default function App() {
 
               {id === "bienenfeld" && q.bienenfeld && (
                 <div className="fade">
-                  <BienenfeldPanel loc={q.bienenfeld} theme={T} onZoom={setZoomImg} />
+                  <BienenfeldPanel loc={q.bienenfeld} theme={T} onZoom={setZoomImg} returnTo={bookReturn} showQuote={showAnswer} />
                 </div>
               )}
 

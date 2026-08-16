@@ -8,6 +8,7 @@ import {
   type BienenfeldChapter,
   type BienenfeldChapterPage,
   type BienenfeldLoc,
+  type BienenfeldReturn,
 } from "./bienenfeldRefs";
 
 type Theme = {
@@ -77,10 +78,14 @@ export function BienenfeldPanel({
   loc,
   theme: T,
   onZoom,
+  returnTo,
+  showQuote = true,
 }: {
   loc: BienenfeldLoc;
   theme: Theme;
   onZoom?: (u: string) => void;
+  returnTo?: BienenfeldReturn | null;
+  showQuote?: boolean;
 }) {
   const zoom = onZoom ?? (() => {});
   const [chapters, setChapters] = useState<BienenfeldChapter[] | null>(null);
@@ -151,7 +156,12 @@ export function BienenfeldPanel({
     ? `Chapter ${number}: ${bienenfeldChapterLabel(title)}`
     : bienenfeldChapterLabel(title);
   const readerPage = page?.printed_int ?? loc.page ?? null;
-  const chapterHref = bienenfeldReaderHref({ page: readerPage, chapterId: chapter?.id || loc.chapter_id });
+  const chapterHref = bienenfeldReaderHref({
+    page: readerPage,
+    chapterId: chapter?.id || loc.chapter_id,
+    returnTo,
+  });
+  const readerHref = bienenfeldReaderHref({ returnTo });
   const narrow = width > 0 && width < 480;
   const atLo = cur <= 0;
   const atHi = cur >= pages.length - 1;
@@ -208,7 +218,7 @@ export function BienenfeldPanel({
         </div>
       </div>
 
-      {loc.quote ? (
+      {showQuote && loc.quote ? (
         <blockquote
           style={{
             margin: "12px 0 0",
@@ -349,7 +359,7 @@ export function BienenfeldPanel({
           Read this chapter in the book
         </a>
         <a
-          href="/bienenfeld/"
+          href={readerHref}
           target="_blank"
           rel="noreferrer"
           style={{ fontSize: 13, color: T.muted, textUnderlineOffset: 2 }}

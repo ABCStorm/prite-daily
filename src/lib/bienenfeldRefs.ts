@@ -120,8 +120,82 @@ export function bienenfeldPageSrc(image?: string | null): string | null {
   return `/bienenfeld/${image.replace(/^\.\//, "")}`;
 }
 
-export function bienenfeldReaderHref(opts: { page?: number | null; chapterId?: string | null }): string {
-  if (opts.page != null && Number.isFinite(Number(opts.page))) return `/bienenfeld/#${opts.page}`;
-  if (opts.chapterId) return `/bienenfeld/#ch=${encodeURIComponent(opts.chapterId)}`;
-  return "/bienenfeld/";
+export type BienenfeldReturn = {
+  bank?: "therapy" | "neuro" | "general";
+  qid?: string | null;
+  view?: "today" | "browse" | "custom" | null;
+};
+
+export const THERAPY_RETURN_KEY = "pd_therapy_return";
+
+export function readTherapyReturn(): BienenfeldReturn | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(THERAPY_RETURN_KEY) || "null") as BienenfeldReturn | null;
+    if (!v || typeof v !== "object") return null;
+    return {
+      bank: "therapy",
+      qid: typeof v.qid === "string" && v.qid ? v.qid : null,
+      view: v.view === "today" || v.view === "browse" || v.view === "custom" ? v.view : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function writeTherapyReturn(ret: BienenfeldReturn | null) {
+  try {
+    if (!ret?.qid) return;
+    localStorage.setItem(THERAPY_RETURN_KEY, JSON.stringify({
+      bank: "therapy",
+      qid: ret.qid,
+      view: ret.view || null,
+    }));
+  } catch { /* private mode */ }
+}
+
+export function bienenfeldReturnFromSearch(search?: string): BienenfeldReturn | null {
+  try {
+    const p = new URLSearchParams(search ?? window.location.search);
+    const bankRaw = p.get("bank");
+    const qid = p.get("qid");
+    const view = p.get("view");
+    if (!bankRaw && !qid) return null;
+    const bank = bankRaw === "therapy" || bankRaw === "neuro" || bankRaw === "general" ? bankRaw : "therapy";
+    return {
+      bank,
+      qid: qid || null,
+      view: view === "today" || view === "browse" || view === "custom" ? view : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function clearBienenfeldReturnParams() {
+  try {
+    const u = new URL(window.location.href);
+    if (!u.searchParams.has("bank") && !u.searchParams.has("qid") && !u.searchParams.has("view")) return;
+    u.searchParams.delete("bank");
+    u.searchParams.delete("qid");
+    u.searchParams.delete("view");
+    const next = `${u.pathname}${u.search}${u.hash}`;
+    window.history.replaceState({}, "", next);
+  } catch { /* no-op */ }
+}
+
+export function bienenfeldReaderHref(opts: {
+  page?: number | null;
+  chapterId?: string | null;
+  returnTo?: BienenfeldReturn | null;
+} = {}): string {
+  const params = new URLSearchParams();
+  const ret = opts.returnTo;
+  if (ret?.bank) params.set("bank", ret.bank);
+  if (ret?.qid) params.set("qid", ret.qid);
+  if (ret?.view) params.set("view", ret.view);
+  const qs = params.toString();
+  const path = qs ? `/bienenfeld/?${qs}` : "/bienenfeld/";
+  if (opts.page != null && Number.isFinite(Number(opts.page))) return `${path}#${opts.page}`;
+  if (opts.chapterId) return `${path}#ch=${encodeURIComponent(opts.chapterId)}`;
+  return path;
 }
