@@ -642,17 +642,13 @@ function yearRank(year: string): number {
   return i !== -1 ? i : 4 + (2025 - (Number(year) || 0));
 }
 
-/* ---- What comes first: the daily-set ordering model ----------------------
-   Residents want different things out of a daily set at different points in
-   the year — early on, sweep the newest exams; a month out, drill the sections
-   you keep missing. Rather than guess, the order is a ranked list the user
-   arranges themselves.
+/* ---- What comes first: the daily-set mix ---------------------------------
+   Today's set is a quota mix, not a hard wall. Rank 1 gets the largest slice,
+   rank 2 a smaller one, rank 3 the rest. Change DAILY_QUOTA_SHARES to retune
+   every bank (PRITE, Neuro, Therapy) at once. Shares are parts-per-set and
+   scale to whatever the daily goal is (5, 10, 20…).
 
-   Each rule scores a question (LOWER sorts earlier). The set is sorted by the
-   rules in the user's chosen order, lexicographically: the first rule that
-   distinguishes two questions decides, the rest break ties. That composition
-   is what makes an arbitrary arrangement produce a sensible result instead of
-   needing a special case per combination. */
+   Within each slice, the old lexicographic comparator still breaks ties. */
 type OrderRuleId = "missed" | "weak" | "highyield" | "unseen" | "year";
 
 const ORDER_RULES: { id: OrderRuleId; label: string; hint: string }[] = [
@@ -703,6 +699,95 @@ function practiceSortOrder(kind: "prite" | "neuro" | "therapy" | undefined, orde
   if (!isPracticeBank(kind)) return order;
   if (isStockDailyOrder(order)) return replaceVisibleOrder(order, PRACTICE_DEFAULT_VISIBLE, kind);
   return order;
+}
+
+/** Parts of each daily set for ranks 1, 2, 3. Edit this to change the mix. */
+const DAILY_QUOTA_SHARES = [6, 3, 1] as const;
+const HIGHYIELD_MIN_REPEATS = 2;
+
+function allocateQuota(total: number, shares: readonly number[] = DAILY_QUOTA_SHARES): number[] {
+  if (total <= 0) return shares.map(() => 0);
+  const used = shares.slice(0, Math.min(shares.length, total));
+  const sum = used.reduce((a, b) => a + b, 0) || 1;
+  const raw = used.map((s) => (s / sum) * total);
+  const floors = raw.map(Math.floor);
+  let left = total - floors.reduce((a, b) => a + b, 0);
+  const byFrac = raw
+    .map((v, i) => ({ i, frac: v - Math.floor(v) }))
+    .sort((a, b) => b.frac - a.frac);
+  const out = floors.slice();
+  for (let k = 0; k < left; k++) out[byFrac[k % byFrac.length].i] += 1;
+  return out;
+}
+
+function preferredYearSet(yearFocus: string[], candidates: RawQuestion[]): Set<string> {
+  if (yearFocus.length) return new Set(yearFocus);
+  let best: string | null = null;
+  let bestRank = Infinity;
+  for (const q of candidates) {
+    const r = yearRank(q.year);
+    if (r < bestRank) {
+      bestRank = r;
+      best = q.year;
+    }
+  }
+  return best ? new Set([best]) : new Set();
+}
+
+function matchesQuotaRule(
+  q: RawQuestion,
+  rule: OrderRuleId,
+  ctx: {
+    answers: Record<string, AnswerRow>;
+    missedIds: Set<string>;
+    weakCats: Set<string>;
+    preferredYears: Set<string>;
+  },
+): boolean {
+  switch (rule) {
+    case "unseen": return !ctx.answers[questionId(q.year, q.q_index)];
+    case "missed": return ctx.missedIds.has(questionId(q.year, q.q_index));
+    case "weak": return ctx.weakCats.has(q.prite_category ?? "");
+    case "highyield": return (q.repeat_count ?? 1) >= HIGHYIELD_MIN_REPEATS;
+    case "year": return ctx.preferredYears.has(q.year);
+  }
+}
+
+/** Pull a mixed daily set from due + fresh candidates using the ranked quotas. */
+function pickDailyQuotaSet(opts: {
+  candidates: RawQuestion[];
+  total: number;
+  rules: OrderRuleId[];
+  cmp: (a: RawQuestion, b: RawQuestion) => number;
+  answers: Record<string, AnswerRow>;
+  missedIds: Set<string>;
+  weakCats: Set<string>;
+  yearFocus: string[];
+}): RawQuestion[] {
+  const { candidates, total, rules, cmp, answers, missedIds, weakCats, yearFocus } = opts;
+  if (total <= 0 || !candidates.length) return [];
+  const sorted = candidates.slice().sort(cmp);
+  const preferredYears = preferredYearSet(yearFocus, sorted);
+  const ctx = { answers, missedIds, weakCats, preferredYears };
+  const quotas = allocateQuota(total);
+  const used = new Set<string>();
+  const take = (n: number, pred: (q: RawQuestion) => boolean) => {
+    const out: RawQuestion[] = [];
+    for (const q of sorted) {
+      if (out.length >= n) break;
+      const id = questionId(q.year, q.q_index);
+      if (used.has(id) || !pred(q)) continue;
+      used.add(id);
+      out.push(q);
+    }
+    return out;
+  };
+  const picked: RawQuestion[] = [];
+  rules.slice(0, quotas.length).forEach((rule, i) => {
+    picked.push(...take(quotas[i], (q) => matchesQuotaRule(q, rule, ctx)));
+  });
+  if (picked.length < total) picked.push(...take(total - picked.length, () => true));
+  return picked;
 }
 
 // Newest exams first unless the resident has rearranged "What comes first".
@@ -1576,25 +1661,44 @@ export default function App() {
      are applied later by buildToday. */
   const orderPreview = useMemo(() => {
     if (!all) return [];
-    const pool = all.filter((q) => {
-      const row = answers[questionId(q.year, q.q_index)];
-      return !row || (!row.correct && !row.cleared);
+    const recycle = settings?.recycle_missed ?? true;
+    const afterMs = (settings?.recycle_after_days ?? 14) * 86400000;
+    const now = Date.now();
+    const due: RawQuestion[] = [];
+    const fresh: RawQuestion[] = [];
+    for (const qq of all) {
+      const row = answers[questionId(qq.year, qq.q_index)];
+      if (!row) fresh.push(qq);
+      else if (recycle && !row.correct && !row.cleared && now - Date.parse(row.updated_at) >= afterMs) due.push(qq);
+    }
+    const missedIds = new Set(due.map((qq) => questionId(qq.year, qq.q_index)));
+    const sortOrder = practiceSortOrder(bankKind, dailyOrder);
+    const weakCats = new Set(weakAreasForOrder.map((w) => w.cat));
+    const cmp = orderComparator({
+      order: sortOrder,
+      yearFocus,
+      weakCats,
+      missedIds,
+      answers,
+      kind: bankKind,
     });
-    const missed = new Set(
-      pool.filter((q) => answers[questionId(q.year, q.q_index)]).map((q) => questionId(q.year, q.q_index)),
-    );
-    const ordered = pool
-      .slice()
-      .sort(orderComparator({
-        order: practiceSortOrder(bankKind, dailyOrder),
-        yearFocus,
-        weakCats: new Set(weakAreasForOrder.map((w) => w.cat)),
-        missedIds: missed,
+    const uniqueDue = uniqueQuestionGroups(due);
+    const uniqueFresh = uniqueQuestionGroups(fresh, new Set(uniqueDue.map(questionGroupKey)));
+    const previewN = Math.min(8, settings?.regimen ?? 10);
+    return expandTherapySequences(
+      pickDailyQuotaSet({
+        candidates: [...uniqueDue, ...uniqueFresh],
+        total: previewN,
+        rules: visibleOrderRules(bankKind, sortOrder),
+        cmp,
         answers,
-        kind: bankKind,
-      }));
-    return expandTherapySequences(uniqueQuestionGroups(ordered).slice(0, 8), all);
-  }, [all, answers, dailyOrder, yearFocus, weakAreasForOrder, bankKind]);
+        missedIds,
+        weakCats,
+        yearFocus,
+      }),
+      all,
+    );
+  }, [all, answers, dailyOrder, yearFocus, weakAreasForOrder, bankKind, settings]);
   /* Every year in the bank, built from the data so a newly published exam
      appears without a code change. Sorted plain newest-first, NOT by yearRank:
      that ranking is the app's internal serving preference, and showing a picker
@@ -1632,7 +1736,6 @@ export default function App() {
     if (!all) return;
     const regimen = settings?.regimen ?? 10;
     const recycle = settings?.recycle_missed ?? true;
-    const reviewCap = settings?.review_per_day ?? 3;
     const afterMs = (settings?.recycle_after_days ?? 14) * 86400000;
     const now = Date.now();
     const a = answersRef.current;
@@ -1658,43 +1761,36 @@ export default function App() {
       // window, at the front of Today) even after it was re-answered right.
       else if (recycle && !row.correct && !row.cleared && now - Date.parse(row.updated_at) >= afterMs) due.push(qq);
     }
-    // Order by whatever the resident arranged in "What comes first". The sort
-    // is stable, so questions the rules can't tell apart keep their natural
-    // order within a year.
     const missedIds = new Set(due.map((qq) => questionId(qq.year, qq.q_index)));
     const sortOrder = practiceSortOrder(bankKind, dailyOrder);
+    const weakCats = new Set(weakCategories(all, a).map((w) => w.cat));
     const cmp = orderComparator({
       order: sortOrder,
       yearFocus,
-      weakCats: new Set(weakCategories(all, a).map((w) => w.cat)),
+      weakCats,
       missedIds,
       answers: a,
       highYieldMixSeed,
       recentlyAnsweredGroups,
       kind: bankKind,
     });
-    fresh.sort(cmp);
-    due.sort(cmp);
-    // Sorting first means the preferred exam year wins as the group's single
-    // representative. Other year-copies remain eligible for a later set, where
-    // the recent-repeat badge gives the resident the right context.
     const uniqueDue = uniqueQuestionGroups(due);
     const uniqueFresh = uniqueQuestionGroups(
       fresh,
       new Set(uniqueDue.map(questionGroupKey)),
     );
-    // include up to `reviewCap` due-review questions, fill the rest with new.
-    // The cap still applies however the rules are arranged — a resident with a
-    // long miss list shouldn't get a set that is nothing but repeats.
-    const reviewCount = Math.min(reviewCap, uniqueDue.length, remaining);
-    const fresher = uniqueFresh.slice(0, Math.max(0, remaining - reviewCount));
     setReviewMode(false);
-    // "Questions I got wrong" ranked first keeps the historical behaviour of
-    // leading with them; ranked lower, they fall in among the fresh ones.
     const picked = expandTherapySequences(
-      sortOrder.indexOf("missed") > 0
-        ? [...uniqueDue.slice(0, reviewCount), ...fresher].sort(cmp)
-        : [...uniqueDue.slice(0, reviewCount), ...fresher],
+      pickDailyQuotaSet({
+        candidates: [...uniqueDue, ...uniqueFresh],
+        total: remaining,
+        rules: visibleOrderRules(bankKind, sortOrder),
+        cmp,
+        answers: a,
+        missedIds,
+        weakCats,
+        yearFocus,
+      }),
       all,
     );
     const uid = profile?.id ?? session?.user?.id ?? "local";
@@ -4698,6 +4794,7 @@ export default function App() {
           years={bankYears}
           preview={orderPreview}
           weakAreas={weakAreasForOrder}
+          setSize={settings?.regimen ?? 10}
           onChange={applyOrder}
           onReset={resetOrder}
           onClose={() => setShowOrder(false)}
@@ -8469,7 +8566,7 @@ function Approvals({
    also moves with the keyboard (and on touch, where HTML5 drag is unreliable)
    via its own up/down buttons. */
 function DailyOrderPanel({
-  kind = "prite", order, yearFocus, years, preview, weakAreas, onChange, onReset, onClose,
+  kind = "prite", order, yearFocus, years, preview, weakAreas, setSize = 10, onChange, onReset, onClose,
 }: {
   kind?: "prite" | "neuro" | "therapy";
   order: OrderRuleId[];
@@ -8477,6 +8574,7 @@ function DailyOrderPanel({
   years: string[];
   preview: RawQuestion[];
   weakAreas: { cat: string; acc: number; tried: number }[];
+  setSize?: number;
   onChange: (next: { order?: OrderRuleId[]; yearFocus?: string[] }) => void;
   onReset: () => void;
   onClose: () => void;
@@ -8485,6 +8583,7 @@ function DailyOrderPanel({
   const [overId, setOverId] = useState<OrderRuleId | null>(null);
   const shown = visibleOrderRules(kind, order);
   const catalog = kind === "therapy" ? THERAPY_ORDER_RULES : kind === "neuro" ? NEURO_ORDER_RULES : ORDER_RULES;
+  const quotaCounts = allocateQuota(setSize);
 
   const move = (id: OrderRuleId, delta: number) => {
     const from = shown.indexOf(id);
@@ -8520,11 +8619,13 @@ function DailyOrderPanel({
         </div>
         <div style={{ ...s.apBody, padding: "4px 22px 22px" }}>
           <p style={s.orderIntro}>
+            Drag to rank how today’s set is mixed. Rank 1 gets most of the set, rank 2 a smaller slice, rank 3 the rest
             {kind === "therapy"
-              ? "Drag to rank these. Your daily therapy set is sorted by the first one that tells two questions apart — there are no exam years in this bank."
+              ? " — there are no exam years in this bank."
               : kind === "neuro"
-                ? "Drag to rank these. Your daily Kaufman set is sorted by the first one that tells two questions apart — these are book questions, not exam years."
-              : "Drag to rank these. Your daily set is sorted by the first one that tells two questions apart, then the next, and so on."}
+                ? " — these are Kaufman book questions, not exam years."
+                : "."}
+            {" "}If a slice runs short, leftover spots fill from the next ranks.
           </p>
 
           <ol style={s.orderList}>
@@ -8548,7 +8649,14 @@ function DailyOrderPanel({
                   <span style={s.orderGrip} aria-hidden><GripVertical size={15} strokeWidth={2.2} /></span>
                   <span style={s.orderRank}>{i + 1}</span>
                   <span style={{ minWidth: 0, flex: 1 }}>
-                    <span style={s.orderLabel}>{rule.label}</span>
+                    <span style={s.orderLabel}>
+                      {rule.label}
+                      {i < quotaCounts.length && quotaCounts[i] > 0 && (
+                        <span style={{ ...s.orderHint, marginLeft: 8, fontWeight: 650, color: T.tealDeep }}>
+                          ~{quotaCounts[i]} of {setSize}
+                        </span>
+                      )}
+                    </span>
                     <span style={s.orderHint}>
                       {dim ? "Needs a bit more history before this can rank anything" : rule.hint}
                     </span>
@@ -8595,8 +8703,8 @@ function DailyOrderPanel({
             </div>
             <div style={s.setHint}>
               {yearFocus.length
-                ? `Serving ${yearFocus.join(", then ")} ahead of everything else, as far as the rules above allow.`
-                : "Nothing pinned — Exam year falls back to newest first. Tap years in the order you want them."}
+                ? `The exam-year slice prefers ${yearFocus.join(", then ")}.`
+                : "Nothing pinned — the exam-year slice uses the newest exam year."}
             </div>
           </div>
           )}
