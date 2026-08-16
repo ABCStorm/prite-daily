@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from "react";
 import {
   ShieldCheck, Trophy, NotebookPen, Users, User, Layers, Stethoscope,
   Check, X, Image as ImageIcon, Trash2, Download, Flame, ArrowRight, Monitor,
@@ -1984,6 +1984,20 @@ export default function App() {
   const inPractice = inToday || inCustom; // exam mode + timer apply only here
   const set = inToday ? todayQueue : inCustom ? customQueue : browseSet;
   const q = set[qi];
+  // Switching banks/filters or restoring a saved set can briefly leave the old
+  // numeric index outside the new queue. Repair it before paint so the whole
+  // app cannot get trapped behind the generic empty-filter screen.
+  useLayoutEffect(() => {
+    if (set.length > 0 && (qi < 0 || qi >= set.length)) {
+      setQi(0);
+      return;
+    }
+    if (set.length === 0 && mode !== "today" && (year !== "all" || modalityFilter !== "all")) {
+      setYear("all");
+      setModalityFilter("all");
+      setQi(0);
+    }
+  }, [set.length, qi, mode, year, modalityFilter]);
   // stable id of the on-screen question — effects key on THIS (not qi/mode) so
   // per-question state always resets, even when the set changes under an index
   const navQid = q ? questionId(q.year, q.q_index) : null;
