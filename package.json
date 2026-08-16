@@ -11,7 +11,7 @@
     "owl:stats": "python3 scripts/owl-stats/prune-owl-stats.py",
     "owl:build:prite": "python3 scripts/owl-stats/build-owl-stats.py && python3 scripts/owl-stats/prune-owl-stats.py",
     "owl:prune": "python3 scripts/owl-stats/prune-owl-stats.py",
-    "owl:test": "python3 scripts/owl-stats/eligibility_test.py",
+    "owl:test": "python3 scripts/owl-stats/eligibility_test.py && python3 scripts/owl-stats/candidate_checker_test.py && python3 scripts/owl-stats/therapy_evidence_test.py",
     "owl:render": "node scripts/owl-stats/render-owl-audio.mjs",
     "dyn:stats": "python3 scripts/dyn-perspectives/build-dyn-perspectives.py && node scripts/dyn-perspectives/prune-dyn-perspectives.mjs",
     "dyn:gen": "node scripts/dyn-perspectives/generate-question-takes.mjs",

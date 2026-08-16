@@ -2,7 +2,7 @@
 
 import unittest
 
-from eligibility import assignment_eligible, meaningful_number
+from eligibility import assignment_eligible, meaningful_number, well_formed
 
 
 LITHIUM = {
@@ -55,6 +55,9 @@ class EligibilityTests(unittest.TestCase):
             "kaufman": {"chapter": "Cranial Nerve Impairments"},
         }
         self.assertFalse(assignment_eligible(q, row, CANONICAL)[0])
+
+    def test_rejects_truncated_paper_statistic(self):
+        self.assertFalse(well_formed("Overall, appendectomy was linked to a 16 percent lower risk (OR = 0."))
 
 
 if __name__ == "__main__":

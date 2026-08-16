@@ -8,6 +8,9 @@ dist
 
 *.tsbuildinfo
 
+# Rebuildable Stat Cat research caches and adjudication reports.
+work/
+
 # context-generation scratch (keep the .mjs scripts + the canonical
 # extraction/output/question_context.json, drop the per-batch intermediates)
 extraction/context_gen/in/

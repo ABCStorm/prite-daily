@@ -13,7 +13,7 @@ export type OwlStat = {
 };
 
 let refsPromise: Promise<Record<string, OwlStat>> | null = null;
-const OWL_STATS_VERSION = "2026-08-16-curated-v1";
+const OWL_STATS_VERSION = "2026-08-16-expanded-v2";
 
 export function loadOwlStats(): Promise<Record<string, OwlStat>> {
   if (!refsPromise) {
