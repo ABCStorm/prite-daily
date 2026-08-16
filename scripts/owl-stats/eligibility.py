@@ -55,6 +55,16 @@ META_NUMBER_RE = re.compile(
     r"\b(?:half|quarter|percent|%)\b.*\b(?:questions?|test\s+items?|exam\s+items?)\b",
     re.I,
 )
+ANIMAL_STAT_RE = re.compile(r"(?i)\b(?:mice|mouse|rats?|murine|ovine|monkeys?)\b")
+PAPER_METHOD_ONLY_RE = re.compile(
+    r"(?i)^association studies of up to\b|"
+    r"^the database currently comprises\b|"
+    r"^by developing methods to integrate\b|"
+    r"^randomi[sz]ed controlled trials\b.*\b(?:applied|had)\b|"
+    r"^a total of \d[\d,]* patients were included\b|"
+    r"\bwere measured\b.*\b(?:samples?|drawn)\b|"
+    r"\bplasma samples drawn\b"
+)
 
 STOPWORDS = {
     "a", "an", "and", "are", "as", "at", "be", "been", "but", "by", "for",
@@ -112,6 +122,8 @@ def well_formed(sentence: str) -> bool:
     if re.search(r"\b(?:and|or|versus|vs\.?)\s+\d+(?:\.\d+)?\.?$", sentence, re.I):
         return False
     if re.search(r"\b(?:OR|RR|HR|SMD)\s*=\s*-?\d*\.?\d*\.?$", sentence):
+        return False
+    if re.search(r",\s*\d+\.$|\bin\s+\d+\.$|\bmedian of\s+\d+\.$", sentence, re.I):
         return False
     if re.search(r"\bP\s+Results\b|^Selection criteria\b|^Methods?\b|^Participants?\b", sentence, re.I):
         return False
@@ -223,6 +235,10 @@ def assignment_eligible(question: dict, row: dict, canonical_by_id: dict[str, di
     if stat_id.startswith("pmid-"):
         if not well_formed(sentence):
             return False, "paper statistic is not a complete sentence"
+        if ANIMAL_STAT_RE.search(sentence):
+            return False, "animal experiment is not a real-world clinical statistic"
+        if PAPER_METHOD_ONLY_RE.search(sentence):
+            return False, "study-design number is not a useful finding"
         return paper_relevant(question, sentence, str(row.get("source_title") or ""))
 
     stat = canonical_by_id.get(stat_id)
