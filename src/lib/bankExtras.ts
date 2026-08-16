@@ -78,6 +78,28 @@ export function therapyModality(q: { quizapine?: { modality?: string }; prite_la
   return q.quizapine?.modality || q.prite_label || "Psychotherapy";
 }
 
+/** Curriculum order for Therapy chips — not raw count, not exam-year order. */
+export const THERAPY_MODALITY_ORDER = [
+  "Psychodynamic",
+  "Bienenfeld",
+  "CBT",
+  "DBT",
+  "MI",
+  "ACT",
+  "IPT",
+  "MBT",
+  "TFP & Supportive",
+  "Trauma-focused",
+  "Group, family & couples",
+  "Integration",
+  "Psychosocial",
+];
+
+export function therapyModalityRank(name: string): number {
+  const i = THERAPY_MODALITY_ORDER.findIndex((m) => m.toLowerCase() === String(name || "").toLowerCase());
+  return i === -1 ? 80 + String(name || "").charCodeAt(0) : i;
+}
+
 /** Fill empty practice / video / context / tag fields from what the bank already has. */
 export function enrichBankQuestion<T extends Record<string, unknown>>(raw: T): T {
   const q = raw as T & {

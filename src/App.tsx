@@ -24,10 +24,10 @@ import { KaufmanPanel, KaufmanFigure } from "./lib/kaufmanPanel";
 import { loadKaufmanRefs, loadKaufmanQuestions, type KaufmanRef } from "./lib/kaufmanRefs";
 import { loadTherapyQuestions } from "./lib/therapyQuestions";
 import { BienenfeldPanel } from "./lib/bienenfeldPanel";
-import { bienenfeldYearRank, loadBienenfeldQuestions, type BienenfeldLoc } from "./lib/bienenfeldRefs";
+import { bienenfeldChapterLabel, bienenfeldYearRank, loadBienenfeldQuestions, type BienenfeldLoc } from "./lib/bienenfeldRefs";
 import {
   enrichBankQuestion, furtherReadingFor, autoFlashcard, podcastKeysFor,
-  neuroChapter, therapyModality, neuroYearRank, neuroTopicLabel,
+  neuroChapter, therapyModality, therapyModalityRank, neuroYearRank, neuroTopicLabel,
   neuroChapterOptionLabel, slug, loadBankContext,
 } from "./lib/bankExtras";
 import { WiseOwl } from "./lib/WiseOwl";
@@ -654,6 +654,25 @@ const ORDER_RULES: { id: OrderRuleId; label: string; hint: string }[] = [
   { id: "year",      label: "Exam year",              hint: "Newest exams first, unless you pin years below" },
 ];
 
+const THERAPY_ORDER_RULES: { id: OrderRuleId; label: string; hint: string }[] = [
+  { id: "missed", label: "Questions I got wrong", hint: "Ones you've missed before come back around first" },
+  { id: "weak", label: "My weakest modalities", hint: "Modalities you score below your own average in" },
+  { id: "unseen", label: "Questions I've never seen", hint: "Fresh material ahead of anything you've attempted" },
+];
+
+const THERAPY_HIDDEN_ORDER = new Set<OrderRuleId>(["year", "highyield"]);
+
+function visibleOrderRules(kind: "prite" | "neuro" | "therapy", order: OrderRuleId[]): OrderRuleId[] {
+  if (kind !== "therapy") return order;
+  return order.filter((id) => !THERAPY_HIDDEN_ORDER.has(id));
+}
+
+function replaceVisibleOrder(full: OrderRuleId[], nextVisible: OrderRuleId[], kind: "prite" | "neuro" | "therapy"): OrderRuleId[] {
+  if (kind !== "therapy") return nextVisible;
+  let i = 0;
+  return full.map((id) => (THERAPY_HIDDEN_ORDER.has(id) ? id : nextVisible[i++]));
+}
+
 // Newest exams first unless the resident has rearranged "What comes first".
 const DEFAULT_ORDER: OrderRuleId[] = [...DEFAULT_DAILY_ORDER];
 
@@ -708,12 +727,15 @@ function orderComparator(opts: {
   answers: Record<string, AnswerRow>;
   highYieldMixSeed?: string;
   recentlyAnsweredGroups?: Set<string>;
+  kind?: "prite" | "neuro" | "therapy";
 }) {
   const {
     order, yearFocus, weakCats, missedIds, answers,
     highYieldMixSeed = ymd(), recentlyAnsweredGroups = new Set<string>(),
+    kind = "prite",
   } = opts;
   const score = (q: RawQuestion, rule: OrderRuleId): number => {
+    if (kind === "therapy" && THERAPY_HIDDEN_ORDER.has(rule)) return 0;
     switch (rule) {
       case "missed": return missedIds.has(questionId(q.year, q.q_index)) ? 0 : 1;
       case "weak": return weakCats.has(q.prite_category ?? "") ? 0 : 1;
@@ -1509,8 +1531,11 @@ export default function App() {
     } else { setAnswers({}); setAnswersLoaded(false); setSettings(null); setSrsDue([]); setSavedTests([]); setPrefsSynced(false); setPollAnsweredIds([]); }
   }, [persist]); // eslint-disable-line
 
-  const orderCustomized =
-    dailyOrder.join() !== DEFAULT_ORDER.join() || yearFocus.length > 0;
+  const bankKind: "prite" | "neuro" | "therapy" =
+    psychMode === "neuro" ? "neuro" : psychMode === "therapy" ? "therapy" : "prite";
+  const orderCustomized = bankKind === "therapy"
+    ? visibleOrderRules("therapy", dailyOrder).join() !== visibleOrderRules("therapy", DEFAULT_ORDER).join()
+    : dailyOrder.join() !== DEFAULT_ORDER.join() || yearFocus.length > 0;
   const weakAreasForOrder = useMemo(() => weakCategories(all ?? [], answers), [all, answers]);
   /* The panel's live preview. Runs the same comparator over the same candidate
      pool buildToday draws from — everything unanswered, plus anything missed —
@@ -1534,9 +1559,10 @@ export default function App() {
         weakCats: new Set(weakAreasForOrder.map((w) => w.cat)),
         missedIds: missed,
         answers,
+        kind: bankKind,
       }));
     return uniqueQuestionGroups(ordered).slice(0, 8);
-  }, [all, answers, dailyOrder, yearFocus, weakAreasForOrder]);
+  }, [all, answers, dailyOrder, yearFocus, weakAreasForOrder, bankKind]);
   /* Every year in the bank, built from the data so a newly published exam
      appears without a code change. Sorted plain newest-first, NOT by yearRank:
      that ranking is the app's internal serving preference, and showing a picker
@@ -1556,7 +1582,13 @@ export default function App() {
     }
     schedulePrefsPush();
   };
-  const resetOrder = () => applyOrder({ order: DEFAULT_ORDER, yearFocus: [] });
+  const resetOrder = () => {
+    if (bankKind === "therapy") {
+      applyOrder({ order: replaceVisibleOrder(dailyOrder, visibleOrderRules("therapy", DEFAULT_ORDER), "therapy") });
+      return;
+    }
+    applyOrder({ order: DEFAULT_ORDER, yearFocus: [] });
+  };
 
   // build today's set: due-review (missed, past the recycle interval) first,
   // then new unanswered, capped at the regimen. Built from an answers snapshot
@@ -1606,6 +1638,7 @@ export default function App() {
       answers: a,
       highYieldMixSeed,
       recentlyAnsweredGroups,
+      kind: bankKind,
     });
     fresh.sort(cmp);
     due.sort(cmp);
@@ -1641,7 +1674,7 @@ export default function App() {
       });
       return nextBonus;
     });
-  }, [all, settings, dailyOrder, yearFocus, profile?.id, session?.user?.id]);
+  }, [all, settings, dailyOrder, yearFocus, profile?.id, session?.user?.id, bankKind]);
 
   // build a review-only set from every currently-missed question, presented
   // fresh (answer hidden) for a second attempt
@@ -1945,11 +1978,8 @@ export default function App() {
       return filtered.sort((a, b) => {
         const ma = modality(a);
         const mb = modality(b);
-        if (ma !== mb) {
-          if (ma === "Bienenfeld") return 1;
-          if (mb === "Bienenfeld") return -1;
-          return ma.localeCompare(mb);
-        }
+        const mr = therapyModalityRank(ma) - therapyModalityRank(mb);
+        if (mr) return mr;
         if (ma === "Bienenfeld") return bienenfeldYearRank(a) - bienenfeldYearRank(b);
         return a.localeCompare(b);
       });
@@ -3210,7 +3240,7 @@ export default function App() {
               <button style={{ ...s.modeBtn, ...(mode === "today" ? s.modeOn : {}) }} onClick={() => switchMode("today")}>
                 <Sparkles size={13} strokeWidth={2.2} /> Today
               </button>
-              <button style={{ ...s.modeBtn, ...(mode === "custom" ? s.modeOn : {}) }} onClick={goCustom} title="Build a study set by topic, year, drug or diagnosis">
+              <button style={{ ...s.modeBtn, ...(mode === "custom" ? s.modeOn : {}) }} onClick={goCustom} title={psychMode === "therapy" ? "Build a study set by modality, chapter, or what you've already tried" : psychMode === "neuro" ? "Build a study set by chapter or what you've already tried" : "Build a study set by topic, year, drug or diagnosis"}>
                 <Target size={13} strokeWidth={2.2} /> Custom
               </button>
               <button style={{ ...s.modeBtn, ...(mode === "browse" ? s.modeOn : {}) }} onClick={() => switchMode("browse")}>
@@ -3224,7 +3254,7 @@ export default function App() {
             <button
               style={{ ...s.deckBtn, ...(orderCustomized ? s.deckBtnOn : {}) }}
               onClick={() => setShowOrder(true)}
-              title="Choose what shows up first in your daily questions"
+              title={psychMode === "therapy" ? "Choose what shows up first in your daily therapy set" : "Choose what shows up first in your daily questions"}
             >
               <GripVertical size={13} strokeWidth={2.3} /> What comes first
               {orderCustomized && <span style={s.deckDot} />}
@@ -3233,7 +3263,7 @@ export default function App() {
           {/* Not behind the mobile Menu: this is the one control that answers
               "give me my wrong ones" / "give me ones I haven't done", and a
               resident asked for it because they couldn't find it on a phone. */}
-          <button style={s.deckBtn} onClick={() => setShowDeck(true)} title="Filter questions by topic, year, or your own history — the ones you missed, or the ones you've never tried">
+          <button style={s.deckBtn} onClick={() => setShowDeck(true)} title={psychMode === "therapy" ? "Filter by modality, chapter, or your history — missed, unseen, or already right" : "Filter questions by topic, year, or your own history — the ones you missed, or the ones you've never tried"}>
             <Search size={13} strokeWidth={2.4} /> Filter
           </button>
           {psychMode === "therapy" && (
@@ -4622,6 +4652,7 @@ export default function App() {
 
       {showOrder && (
         <DailyOrderPanel
+          kind={bankKind}
           order={dailyOrder}
           yearFocus={yearFocus}
           years={bankYears}
@@ -7966,7 +7997,7 @@ function BankTopicFilters({
       const m = therapyModality(q);
       counts.set(m, (counts.get(m) || 0) + 1);
     }
-    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    return [...counts.entries()].sort((a, b) => therapyModalityRank(a[0]) - therapyModalityRank(b[0]) || a[0].localeCompare(b[0]));
   }, [all]);
   const neuroChips = useMemo(() => {
     const counts = new Map<string, { label: string; n: number; year: string }>();
@@ -8398,8 +8429,9 @@ function Approvals({
    also moves with the keyboard (and on touch, where HTML5 drag is unreliable)
    via its own up/down buttons. */
 function DailyOrderPanel({
-  order, yearFocus, years, preview, weakAreas, onChange, onReset, onClose,
+  kind = "prite", order, yearFocus, years, preview, weakAreas, onChange, onReset, onClose,
 }: {
+  kind?: "prite" | "neuro" | "therapy";
   order: OrderRuleId[];
   yearFocus: string[];
   years: string[];
@@ -8411,47 +8443,51 @@ function DailyOrderPanel({
 }) {
   const [dragId, setDragId] = useState<OrderRuleId | null>(null);
   const [overId, setOverId] = useState<OrderRuleId | null>(null);
+  const shown = visibleOrderRules(kind, order);
+  const catalog = kind === "therapy" ? THERAPY_ORDER_RULES : ORDER_RULES;
 
   const move = (id: OrderRuleId, delta: number) => {
-    const from = order.indexOf(id);
-    const to = Math.max(0, Math.min(order.length - 1, from + delta));
+    const from = shown.indexOf(id);
+    const to = Math.max(0, Math.min(shown.length - 1, from + delta));
     if (from === to) return;
-    const next = order.slice();
-    next.splice(to, 0, ...next.splice(from, 1));
-    onChange({ order: next });
+    const nextVisible = shown.slice();
+    nextVisible.splice(to, 0, ...nextVisible.splice(from, 1));
+    onChange({ order: replaceVisibleOrder(order, nextVisible, kind) });
   };
   const dropOn = (target: OrderRuleId) => {
     if (!dragId || dragId === target) return;
-    const next = order.filter((id) => id !== dragId);
-    next.splice(order.indexOf(target), 0, dragId);
-    onChange({ order: next });
+    const nextVisible = shown.filter((id) => id !== dragId);
+    nextVisible.splice(shown.indexOf(target), 0, dragId);
+    onChange({ order: replaceVisibleOrder(order, nextVisible, kind) });
   };
   const toggleYear = (y: string) => {
     onChange({ yearFocus: yearFocus.includes(y) ? yearFocus.filter((v) => v !== y) : [...yearFocus, y] });
   };
 
-  const isDefault =
-    order.join() === DEFAULT_ORDER.join() && yearFocus.length === 0;
+  const isDefault = kind === "therapy"
+    ? shown.join() === visibleOrderRules("therapy", DEFAULT_ORDER).join()
+    : order.join() === DEFAULT_ORDER.join() && yearFocus.length === 0;
 
   return (
     <div data-scrim style={s.scrim} onClick={onClose}>
       <div style={{ ...s.apPanel, maxWidth: 560 }} onClick={(e) => e.stopPropagation()} className="rise">
         <div style={s.apHead}>
           <div>
-            <div style={s.apEyebrow}>Daily questions</div>
+            <div style={s.apEyebrow}>{kind === "therapy" ? "Therapy daily set" : "Daily questions"}</div>
             <div style={s.apTitle}>What comes first</div>
           </div>
           <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
         </div>
         <div style={{ ...s.apBody, padding: "4px 22px 22px" }}>
           <p style={s.orderIntro}>
-            Drag to rank these. Your daily set is sorted by the first one that tells two
-            questions apart, then the next, and so on.
+            {kind === "therapy"
+              ? "Drag to rank these. Your daily therapy set is sorted by the first one that tells two questions apart — there are no exam years in this bank."
+              : "Drag to rank these. Your daily set is sorted by the first one that tells two questions apart, then the next, and so on."}
           </p>
 
           <ol style={s.orderList}>
-            {order.map((id, i) => {
-              const rule = ORDER_RULES.find((r) => r.id === id)!;
+            {shown.map((id, i) => {
+              const rule = catalog.find((r) => r.id === id) || ORDER_RULES.find((r) => r.id === id)!;
               const dim = id === "weak" && weakAreas.length === 0;
               return (
                 <li
@@ -8486,7 +8522,7 @@ function DailyOrderPanel({
                     <button
                       style={s.orderMoveBtn}
                       onClick={() => move(id, 1)}
-                      disabled={i === order.length - 1}
+                      disabled={i === shown.length - 1}
                       aria-label={`Move ${rule.label} down`}
                       title="Move down"
                     ><ChevronDown size={14} strokeWidth={2.6} /></button>
@@ -8496,6 +8532,7 @@ function DailyOrderPanel({
             })}
           </ol>
 
+          {kind !== "therapy" && (
           <div style={s.setBlock}>
             <div style={s.setLbl}>Pin exam years to the front</div>
             <div style={s.orderYearRow}>
@@ -8520,6 +8557,7 @@ function DailyOrderPanel({
                 : "Nothing pinned — Exam year falls back to newest first. Tap years in the order you want them."}
             </div>
           </div>
+          )}
 
           <div style={s.setBlock}>
             <div style={s.setLbl}>Your next questions, in this order</div>
@@ -8527,16 +8565,27 @@ function DailyOrderPanel({
               <div style={s.setHint}>Nothing queued right now — finish today's set or add more questions.</div>
             ) : (
               <ol style={s.orderPreview}>
-                {preview.map((q, i) => (
+                {preview.map((q, i) => {
+                  const therapyTopic = q.bienenfeld
+                    ? bienenfeldChapterLabel(q.year)
+                    : q.year;
+                  return (
                   <li key={questionId(q.year, q.q_index)} style={s.orderPreviewRow}>
                     <span style={s.orderPreviewNum}>{i + 1}</span>
-                    <span style={s.orderPreviewYear}>{q.year}</span>
-                    <span style={s.orderPreviewCat}>{q.prite_label || q.prite_category || "Uncategorized"}</span>
-                    {(q.repeat_count ?? 1) > 1 && (
+                    <span style={s.orderPreviewYear}>
+                      {kind === "therapy" ? (q.quizapine?.modality || "Therapy") : q.year}
+                    </span>
+                    <span style={s.orderPreviewCat}>
+                      {kind === "therapy"
+                        ? (q.bienenfeld?.page != null ? `${therapyTopic} · p. ${q.bienenfeld.page}` : therapyTopic)
+                        : (q.prite_label || q.prite_category || "Uncategorized")}
+                    </span>
+                    {kind !== "therapy" && (q.repeat_count ?? 1) > 1 && (
                       <span style={s.orderPreviewTag}><Repeat size={9} strokeWidth={2.6} /> {q.repeat_count}×</span>
                     )}
                   </li>
-                ))}
+                  );
+                })}
               </ol>
             )}
           </div>
@@ -9426,7 +9475,7 @@ function DeckBuilder({
   // On by default: collapse cross-year repeats to one, and drop questions
   // already handed out in a saved test — so a generated set doesn't repeat
   // last week's or double up the same item. Uncheck to see everything.
-  const [avoidDup, setAvoidDup] = useState(true);
+  const [avoidDup, setAvoidDup] = useState(kind !== "therapy");
   // Restrict to the categories this resident scores worst in (see weakAreas).
   const [weakOnly, setWeakOnly] = useState(false);
   // The nine dropdowns start folded: most people want a preset and a "go".
@@ -9440,6 +9489,18 @@ function DeckBuilder({
   const years = useMemo(() => {
     const ys = Array.from(new Set(all.map((q) => q.year)));
     if (kind === "neuro") return ys.sort((a, b) => neuroYearRank(a) - neuroYearRank(b));
+    if (kind === "therapy") {
+      return ys.sort((a, b) => {
+        const qa = all.find((q) => q.year === a);
+        const qb = all.find((q) => q.year === b);
+        const ma = qa ? therapyModality(qa) : "";
+        const mb = qb ? therapyModality(qb) : "";
+        const mr = therapyModalityRank(ma) - therapyModalityRank(mb);
+        if (mr) return mr;
+        if (ma === "Bienenfeld") return bienenfeldYearRank(a) - bienenfeldYearRank(b);
+        return a.localeCompare(b);
+      });
+    }
     return ys.sort((a, b) => a.localeCompare(b));
   }, [all, kind]);
   const cats = useMemo(() => {
@@ -9708,6 +9769,7 @@ function DeckBuilder({
               reusing, and the sections you personally score worst in. */}
           <div style={s.quickRow}>
             <span style={s.quickLabel} className="quickLabel">Targeted</span>
+            {kind !== "therapy" && (
             <button
               style={{ ...s.quickBtn, ...(repeatMin === "3" && sortBy === "repeats" && !weakOnly ? s.quickBtnOn : {}) }}
               onClick={applyHighYield}
@@ -9716,17 +9778,18 @@ function DeckBuilder({
               <Repeat size={13} strokeWidth={2.3} /> High-yield repeats{" "}
               <b style={{ fontWeight: 700 }}>{presetCounts.highYield.toLocaleString()}</b>
             </button>
+            )}
             <button
               style={{ ...s.quickBtn, ...(weakOnly ? s.quickBtnOn : {}), ...(weakAreas.length ? {} : { opacity: 0.45, cursor: "not-allowed" }) }}
               onClick={() => weakAreas.length && applyWeakAreas()}
               disabled={!weakAreas.length}
               title={
                 weakAreas.length
-                  ? `Your lowest-scoring categories: ${weakAreas.map((w) => catLabel.get(w.cat) ?? w.cat).join(", ")}`
+                  ? `Your lowest-scoring ${kind === "therapy" ? "modalities" : "categories"}: ${weakAreas.map((w) => catLabel.get(w.cat) ?? w.cat).join(", ")}`
                   : "Answer a few more questions first — this needs some history before it can tell which sections are giving you trouble"
               }
             >
-              <Target size={13} strokeWidth={2.3} /> Areas I&rsquo;m weakest in{" "}
+              <Target size={13} strokeWidth={2.3} /> {kind === "therapy" ? "Modalities I’m weakest in" : "Areas I\u2019m weakest in"}{" "}
               <b style={{ fontWeight: 700 }}>{weakAreas.length ? presetCounts.weak.toLocaleString() : "—"}</b>
             </button>
           </div>
@@ -9761,12 +9824,12 @@ function DeckBuilder({
             )}
           </p>
           <div style={s.deckSearchRow}>
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search for a word (e.g. fluoxetine)" style={{ ...s.deckSearch, marginBottom: 0, flex: 1 }} />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={kind === "therapy" ? "Search (e.g. transference, Kohut, exposure)" : "Search for a word (e.g. fluoxetine)"} style={{ ...s.deckSearch, marginBottom: 0, flex: 1 }} />
             <button
               style={{ ...s.moreBtn, ...(showAdvanced || activeFilterCount > 0 ? s.moreBtnOn : {}) }}
               onClick={() => setShowAdvanced((v) => !v)}
               aria-expanded={showAdvanced}
-              title="Year, category, topic, medication, diagnosis, repeats, textbook citations, and sort order"
+              title={kind === "therapy" ? "Modality, chapter or topic, and how you've done" : "Year, category, topic, medication, diagnosis, repeats, textbook citations, and sort order"}
             >
               {showAdvanced ? <ChevronUp size={14} strokeWidth={2.4} /> : <ChevronDown size={14} strokeWidth={2.4} />}
               More filters
@@ -9808,14 +9871,29 @@ function DeckBuilder({
                     </select>
                   )}
                   <select value={year} onChange={(e) => setYear(e.target.value)} style={{ ...s.cohortSel, ...(year !== "all" ? s.cohortSelOn : {}) }}>
-                    <option value="all">{kind === "neuro" ? "Any chapter" : kind === "therapy" ? "Any topic" : "Any year"}</option>
-                    {years.map((y) => {
+                    <option value="all">{kind === "neuro" ? "Any chapter" : kind === "therapy" ? "Any chapter or topic" : "Any year"}</option>
+                    {kind === "therapy"
+                      ? years.reduce<{ mod: string; items: string[] }[]>((groups, y) => {
+                          const sample = all.find((q) => q.year === y);
+                          const mod = sample ? therapyModality(sample) : "Other";
+                          const last = groups[groups.length - 1];
+                          if (last && last.mod === mod) last.items.push(y);
+                          else groups.push({ mod, items: [y] });
+                          return groups;
+                        }, []).map((g) => (
+                          <optgroup key={g.mod} label={g.mod}>
+                            {g.items.map((y) => (
+                              <option key={y} value={y}>
+                                {g.mod === "Bienenfeld" ? bienenfeldChapterLabel(y) : y}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))
+                      : years.map((y) => {
                       const sample = all.find((q) => q.year === y);
                       const label = kind === "neuro" && sample
                         ? neuroChapterOptionLabel(y, neuroChapter(sample))
-                        : kind === "therapy" && sample
-                          ? (therapyModality(sample) && therapyModality(sample) !== y ? `${therapyModality(sample)} · ${y}` : y)
-                          : y;
+                        : y;
                       return <option key={y} value={y}>{label}</option>;
                     })}
                   </select>
@@ -9823,7 +9901,7 @@ function DeckBuilder({
               </div>
 
               <div style={s.advGroup}>
-                <span style={s.advLabel}>How you&rsquo;ve done &amp; how high-yield</span>
+                <span style={s.advLabel}>{kind === "therapy" ? "How you’ve done" : "How you’ve done & how high-yield"}</span>
                 <div style={s.deckSelRow}>
                   <select
                     value={progress}
@@ -9836,12 +9914,15 @@ function DeckBuilder({
                     <option value="missed">I got wrong ({progressCounts.missed.toLocaleString()})</option>
                     <option value="correct">I got right ({progressCounts.correct.toLocaleString()})</option>
                   </select>
+                  {kind !== "therapy" && (
                   <select value={repeatMin} onChange={(e) => setRepeatMin(e.target.value)} style={{ ...s.cohortSel, ...(repeatMin !== "all" ? s.cohortSelOn : {}) }} title="Questions reused (verbatim or near-verbatim) across multiple years">
                     <option value="all">Any (repeat or not)</option>
                     <option value="2">Repeated 2+ years</option>
                     <option value="3">Repeated 3+ years</option>
                     <option value="4">Repeated 4+ years</option>
                   </select>
+                  )}
+                  {kind !== "therapy" && (
                   <select
                     value={kaplan}
                     onChange={(e) => setKaplan(e.target.value as "all" | "with" | "without")}
@@ -9857,6 +9938,7 @@ function DeckBuilder({
                     <option value="with">Has textbook citation{kaplanCount ? ` (${kaplanCount})` : ""}</option>
                     <option value="without">No textbook citation</option>
                   </select>
+                  )}
                 </div>
               </div>
 
@@ -9870,14 +9952,16 @@ function DeckBuilder({
                       </button>
                     ))}
                   </div>
+                  {kind !== "therapy" && (
                   <select value={sortBy} onChange={(e) => setSortBy(e.target.value as "default" | "repeats")} style={{ ...s.cohortSel, ...(sortBy !== "default" ? s.cohortSelOn : {}) }} title="Order the results below">
                     <option value="default">Sort: default order</option>
                     <option value="repeats">Sort: most repeated first</option>
                   </select>
+                  )}
                 </div>
               </div>
 
-              {kaplanErr && (
+              {kind !== "therapy" && kaplanErr && (
                 <span style={{ fontSize: 12, color: T.wrongText, background: T.wrongBg,
                                border: `1px solid ${T.wrongLine}33`, borderRadius: 8,
                                padding: "6px 10px", alignSelf: "center", maxWidth: 460 }}>
@@ -9888,12 +9972,14 @@ function DeckBuilder({
           )}
           <div style={s.deckCount}>
             <span><b style={{ color: T.text }}>{matches.length}</b> match · <b style={{ color: T.teal }}>{selected.size}</b> selected</span>
+            {kind !== "therapy" && (
             <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, color: T.muted, cursor: "pointer", marginLeft: 14 }}
               title="Skip cross-year repeats of the same question and any question already in one of your saved tests — so a generated set doesn't reuse last week's or double up an item">
               <input type="checkbox" checked={avoidDup} onChange={(e) => setAvoidDup(e.target.checked)} />
               Avoid repeats &amp; already-used
               {avoidDup && dupHidden > 0 && <span style={{ color: T.faint }}>({dupHidden} hidden)</span>}
             </label>
+            )}
             <span style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
               <input
                 type="number" min={1} max={Math.max(1, matches.length)}
@@ -9940,8 +10026,10 @@ function DeckBuilder({
                     >
                       {st === "missed" ? "Missed" : st === "correct" ? "Correct" : "New"}
                     </span>
-                    {q.year} · Q{q.q_index} · {q.prite_label}
-                    {(q.repeat_count ?? 1) > 1 && (
+                    {kind === "therapy"
+                      ? `${q.quizapine?.modality || q.prite_label || "Therapy"} · ${q.bienenfeld ? bienenfeldChapterLabel(q.year) : q.year}${q.bienenfeld?.page != null ? ` · p. ${q.bienenfeld.page}` : ""}`
+                      : `${q.year} · Q${q.q_index} · ${q.prite_label}`}
+                    {kind !== "therapy" && (q.repeat_count ?? 1) > 1 && (
                       <span style={s.repeatBadge} title={`Also appears in ${q.repeat_years?.filter((y) => y !== q.year).join(", ")}`}>
                         <Repeat size={10} strokeWidth={2.4} /> {q.repeat_count}×
                       </span>
