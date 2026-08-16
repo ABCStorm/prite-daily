@@ -701,9 +701,18 @@ function practiceSortOrder(kind: "prite" | "neuro" | "therapy" | undefined, orde
   return order;
 }
 
-/** Parts of each daily set for ranks 1, 2, 3. Edit this to change the mix. */
+/** Default parts of each daily set for ranks 1, 2, 3. Residents can retune
+ *  this in What comes first; those edits are stored as the same kind of parts
+ *  list and scaled to whatever the daily goal is. */
 const DAILY_QUOTA_SHARES = [6, 3, 1] as const;
 const HIGHYIELD_MIN_REPEATS = 2;
+
+function normalizeQuotaShares(raw: unknown): number[] {
+  if (!Array.isArray(raw)) return [...DAILY_QUOTA_SHARES];
+  const nums = raw.slice(0, DAILY_QUOTA_SHARES.length).map((n) => Math.max(0, Math.round(Number(n)) || 0));
+  while (nums.length < DAILY_QUOTA_SHARES.length) nums.push(0);
+  return nums.every((n) => n === 0) ? [...DAILY_QUOTA_SHARES] : nums;
+}
 
 function allocateQuota(total: number, shares: readonly number[] = DAILY_QUOTA_SHARES): number[] {
   if (total <= 0) return shares.map(() => 0);
@@ -718,6 +727,29 @@ function allocateQuota(total: number, shares: readonly number[] = DAILY_QUOTA_SH
   const out = floors.slice();
   for (let k = 0; k < left; k++) out[byFrac[k % byFrac.length].i] += 1;
   return out;
+}
+
+/** Move one question from another slice onto `index` (or the reverse). */
+function nudgeQuotaShares(shares: readonly number[], index: number, delta: number, total: number): number[] {
+  const next = allocateQuota(total, shares);
+  if (delta === 0 || index < 0 || index >= next.length) return next;
+  const step = delta > 0 ? 1 : -1;
+  const steps = Math.abs(delta);
+  for (let n = 0; n < steps; n++) {
+    if (step > 0 && next[index] >= total) break;
+    if (step < 0 && next[index] <= 0) break;
+    const donors = next
+      .map((count, i) => i)
+      .filter((i) => i !== index)
+      .reverse();
+    const donor = step > 0
+      ? donors.find((i) => next[i] > 0)
+      : donors[0];
+    if (donor == null) break;
+    next[index] += step;
+    next[donor] -= step;
+  }
+  return next;
 }
 
 function preferredYearSet(yearFocus: string[], candidates: RawQuestion[]): Set<string> {
@@ -763,13 +795,14 @@ function pickDailyQuotaSet(opts: {
   missedIds: Set<string>;
   weakCats: Set<string>;
   yearFocus: string[];
+  shares?: readonly number[];
 }): RawQuestion[] {
-  const { candidates, total, rules, cmp, answers, missedIds, weakCats, yearFocus } = opts;
+  const { candidates, total, rules, cmp, answers, missedIds, weakCats, yearFocus, shares } = opts;
   if (total <= 0 || !candidates.length) return [];
   const sorted = candidates.slice().sort(cmp);
   const preferredYears = preferredYearSet(yearFocus, sorted);
   const ctx = { answers, missedIds, weakCats, preferredYears };
-  const quotas = allocateQuota(total);
+  const quotas = allocateQuota(total, shares ?? DAILY_QUOTA_SHARES);
   const used = new Set<string>();
   const take = (n: number, pred: (q: RawQuestion) => boolean) => {
     const out: RawQuestion[] = [];
@@ -1544,6 +1577,10 @@ export default function App() {
       return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
     } catch { return []; }
   });
+  const [quotaShares, setQuotaShares] = useState<number[]>(() => {
+    try { return normalizeQuotaShares(JSON.parse(localStorage.getItem("pd_daily_quota") || "null")); }
+    catch { return [...DAILY_QUOTA_SHARES]; }
+  });
   const [todayQueue, setTodayQueue] = useState<RawQuestion[]>([]);
   // Incremented for every newly built queue. This gives equally high-yield
   // concepts a fresh, stable mix while keeping each individual sort valid.
@@ -1632,6 +1669,7 @@ export default function App() {
           setSeenGuideIds(new Set(merged.seen_study_guides));
           // normalizeOrder fills in any rule the stored copy predates.
           setDailyOrder(normalizeOrder(merged.daily_order));
+          if (merged.daily_quota) setQuotaShares(normalizeQuotaShares(merged.daily_quota));
           setYearFocus(merged.year_focus ?? []);
           setOwlOn(merged.owl_on === true);
           setFoxOn(merged.fox_on === true);
@@ -1650,9 +1688,10 @@ export default function App() {
 
   const bankKind: "prite" | "neuro" | "therapy" =
     psychMode === "neuro" ? "neuro" : psychMode === "therapy" ? "therapy" : "prite";
-  const orderCustomized = isPracticeBank(bankKind)
+  const quotaCustomized = allocateQuota(10, quotaShares).join() !== allocateQuota(10, DAILY_QUOTA_SHARES).join();
+  const orderCustomized = (isPracticeBank(bankKind)
     ? visibleOrderRules(bankKind, dailyOrder).join() !== PRACTICE_DEFAULT_VISIBLE.join()
-    : dailyOrder.join() !== DEFAULT_ORDER.join() || yearFocus.length > 0;
+    : dailyOrder.join() !== DEFAULT_ORDER.join() || yearFocus.length > 0) || quotaCustomized;
   const weakAreasForOrder = useMemo(() => weakCategories(all ?? [], answers), [all, answers]);
   /* The panel's live preview. Runs the same comparator over the same candidate
      pool buildToday draws from — everything unanswered, plus anything missed —
@@ -1695,10 +1734,11 @@ export default function App() {
         missedIds,
         weakCats,
         yearFocus,
+        shares: quotaShares,
       }),
       all,
     );
-  }, [all, answers, dailyOrder, yearFocus, weakAreasForOrder, bankKind, settings]);
+  }, [all, answers, dailyOrder, yearFocus, weakAreasForOrder, bankKind, settings, quotaShares]);
   /* Every year in the bank, built from the data so a newly published exam
      appears without a code change. Sorted plain newest-first, NOT by yearRank:
      that ranking is the app's internal serving preference, and showing a picker
@@ -1707,7 +1747,7 @@ export default function App() {
     () => [...new Set((all ?? []).map((q) => q.year))].sort((a, b) => (Number(b) || 0) - (Number(a) || 0)),
     [all],
   );
-  const applyOrder = (patch: { order?: OrderRuleId[]; yearFocus?: string[] }) => {
+  const applyOrder = (patch: { order?: OrderRuleId[]; yearFocus?: string[]; quota?: number[] }) => {
     if (patch.order) {
       setDailyOrder(patch.order);
       try { localStorage.setItem("pd_daily_order", JSON.stringify(patch.order)); } catch { /* private mode */ }
@@ -1716,14 +1756,19 @@ export default function App() {
       setYearFocus(patch.yearFocus);
       try { localStorage.setItem("pd_year_focus", JSON.stringify(patch.yearFocus)); } catch { /* private mode */ }
     }
+    if (patch.quota) {
+      const next = normalizeQuotaShares(patch.quota);
+      setQuotaShares(next);
+      try { localStorage.setItem("pd_daily_quota", JSON.stringify(next)); } catch { /* private mode */ }
+    }
     schedulePrefsPush();
   };
   const resetOrder = () => {
     if (isPracticeBank(bankKind)) {
-      applyOrder({ order: replaceVisibleOrder(dailyOrder, PRACTICE_DEFAULT_VISIBLE, bankKind) });
+      applyOrder({ order: replaceVisibleOrder(dailyOrder, PRACTICE_DEFAULT_VISIBLE, bankKind), quota: [...DAILY_QUOTA_SHARES] });
       return;
     }
-    applyOrder({ order: DEFAULT_ORDER, yearFocus: [] });
+    applyOrder({ order: DEFAULT_ORDER, yearFocus: [], quota: [...DAILY_QUOTA_SHARES] });
   };
 
   // build today's set: due-review (missed, past the recycle interval) first,
@@ -1790,6 +1835,7 @@ export default function App() {
         missedIds,
         weakCats,
         yearFocus,
+        shares: quotaShares,
       }),
       all,
     );
@@ -1807,7 +1853,7 @@ export default function App() {
       });
       return nextBonus;
     });
-  }, [all, settings, dailyOrder, yearFocus, profile?.id, session?.user?.id, bankKind]);
+  }, [all, settings, dailyOrder, yearFocus, quotaShares, profile?.id, session?.user?.id, bankKind]);
 
   // build a review-only set from every currently-missed question, presented
   // fresh (answer hidden) for a second attempt
@@ -4804,6 +4850,7 @@ export default function App() {
           preview={orderPreview}
           weakAreas={weakAreasForOrder}
           setSize={settings?.regimen ?? 10}
+          quotaShares={quotaShares}
           onChange={applyOrder}
           onReset={resetOrder}
           onClose={() => setShowOrder(false)}
@@ -8575,7 +8622,7 @@ function Approvals({
    also moves with the keyboard (and on touch, where HTML5 drag is unreliable)
    via its own up/down buttons. */
 function DailyOrderPanel({
-  kind = "prite", order, yearFocus, years, preview, weakAreas, setSize = 10, onChange, onReset, onClose,
+  kind = "prite", order, yearFocus, years, preview, weakAreas, setSize = 10, quotaShares, onChange, onReset, onClose,
 }: {
   kind?: "prite" | "neuro" | "therapy";
   order: OrderRuleId[];
@@ -8584,7 +8631,8 @@ function DailyOrderPanel({
   preview: RawQuestion[];
   weakAreas: { cat: string; acc: number; tried: number }[];
   setSize?: number;
-  onChange: (next: { order?: OrderRuleId[]; yearFocus?: string[] }) => void;
+  quotaShares: number[];
+  onChange: (next: { order?: OrderRuleId[]; yearFocus?: string[]; quota?: number[] }) => void;
   onReset: () => void;
   onClose: () => void;
 }) {
@@ -8592,7 +8640,7 @@ function DailyOrderPanel({
   const [overId, setOverId] = useState<OrderRuleId | null>(null);
   const shown = visibleOrderRules(kind, order);
   const catalog = kind === "therapy" ? THERAPY_ORDER_RULES : kind === "neuro" ? NEURO_ORDER_RULES : ORDER_RULES;
-  const quotaCounts = allocateQuota(setSize);
+  const quotaCounts = allocateQuota(setSize, quotaShares);
 
   const move = (id: OrderRuleId, delta: number) => {
     const from = shown.indexOf(id);
@@ -8612,9 +8660,10 @@ function DailyOrderPanel({
     onChange({ yearFocus: yearFocus.includes(y) ? yearFocus.filter((v) => v !== y) : [...yearFocus, y] });
   };
 
-  const isDefault = isPracticeBank(kind)
+  const quotaDefault = allocateQuota(setSize, DAILY_QUOTA_SHARES).join() === quotaCounts.join();
+  const isDefault = (isPracticeBank(kind)
     ? shown.join() === PRACTICE_DEFAULT_VISIBLE.join()
-    : order.join() === DEFAULT_ORDER.join() && yearFocus.length === 0;
+    : order.join() === DEFAULT_ORDER.join() && yearFocus.length === 0) && quotaDefault;
 
   return (
     <div data-scrim style={s.scrim} onClick={onClose}>
@@ -8628,7 +8677,7 @@ function DailyOrderPanel({
         </div>
         <div style={{ ...s.apBody, padding: "4px 22px 22px" }}>
           <p style={s.orderIntro}>
-            Drag to rank how today’s set is mixed. Rank 1 gets most of the set, rank 2 a smaller slice, rank 3 the rest
+            Drag to rank the mix, then set how many of today’s {setSize} go to each rank.
             {kind === "therapy"
               ? " — there are no exam years in this bank."
               : kind === "neuro"
@@ -8658,18 +8707,44 @@ function DailyOrderPanel({
                   <span style={s.orderGrip} aria-hidden><GripVertical size={15} strokeWidth={2.2} /></span>
                   <span style={s.orderRank}>{i + 1}</span>
                   <span style={{ minWidth: 0, flex: 1 }}>
-                    <span style={s.orderLabel}>
-                      {rule.label}
-                      {i < quotaCounts.length && quotaCounts[i] > 0 && (
-                        <span style={{ ...s.orderHint, marginLeft: 8, fontWeight: 650, color: T.tealDeep }}>
-                          ~{quotaCounts[i]} of {setSize}
-                        </span>
-                      )}
-                    </span>
+                    <span style={s.orderLabel}>{rule.label}</span>
                     <span style={s.orderHint}>
                       {dim ? "Needs a bit more history before this can rank anything" : rule.hint}
                     </span>
                   </span>
+                  {i < quotaCounts.length && (
+                    <span style={s.quotaSteer} onPointerDown={(e) => e.stopPropagation()}>
+                      <button
+                        style={s.orderMoveBtn}
+                        onClick={() => onChange({ quota: nudgeQuotaShares(quotaShares, i, -1, setSize) })}
+                        disabled={quotaCounts[i] <= 0}
+                        aria-label={`Fewer ${rule.label}`}
+                        title="Fewer in this slice"
+                      ><Minus size={13} strokeWidth={2.6} /></button>
+                      <label style={s.quotaSteerValue}>
+                        <input
+                          type="number"
+                          min={0}
+                          max={setSize}
+                          value={quotaCounts[i]}
+                          onChange={(e) => {
+                            const want = Math.max(0, Math.min(setSize, parseInt(e.target.value || "0", 10) || 0));
+                            onChange({ quota: nudgeQuotaShares(quotaShares, i, want - quotaCounts[i], setSize) });
+                          }}
+                          aria-label={`${rule.label} count`}
+                          style={s.quotaSteerInput}
+                        />
+                        <span>of {setSize}</span>
+                      </label>
+                      <button
+                        style={s.orderMoveBtn}
+                        onClick={() => onChange({ quota: nudgeQuotaShares(quotaShares, i, 1, setSize) })}
+                        disabled={quotaCounts[i] >= setSize}
+                        aria-label={`More ${rule.label}`}
+                        title="More in this slice"
+                      ><Plus size={13} strokeWidth={2.6} /></button>
+                    </span>
+                  )}
                   <span style={s.orderMoves}>
                     <button
                       style={s.orderMoveBtn}
@@ -12461,6 +12536,15 @@ const s: Record<string, React.CSSProperties> = {
   orderLabel: { display: "block", fontSize: 13.5, fontWeight: 600, color: T.text },
   orderHint: { display: "block", fontSize: 11.5, color: T.muted, lineHeight: 1.4, marginTop: 1 },
   orderMoves: { display: "flex", flexDirection: "column", gap: 2, flex: "none" },
+  quotaSteer: { display: "inline-flex", alignItems: "center", gap: 5, flex: "none" },
+  quotaSteerValue: {
+    display: "inline-flex", alignItems: "center", gap: 4,
+    fontSize: 12, fontWeight: 650, color: T.tealDeep, fontVariantNumeric: "tabular-nums",
+  },
+  quotaSteerInput: {
+    width: 38, border: `1px solid ${T.paperEdge}`, borderRadius: 6, padding: "3px 4px",
+    textAlign: "center", fontSize: 13, fontWeight: 700, color: T.tealDeep, background: T.tealSoft,
+  },
   orderMoveBtn: {
     display: "grid", placeItems: "center", width: 22, height: 17, padding: 0,
     background: "transparent", border: `1px solid ${T.paperEdge}`, borderRadius: 5,

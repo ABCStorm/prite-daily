@@ -40,6 +40,7 @@ type Blob = {
       years. Deliberate selections, so the account copy wins outright. */
   daily_order?: string[];
   year_focus?: string[];
+  daily_quota?: number[];
   owl_on?: boolean;
   fox_on?: boolean;
 };
@@ -91,6 +92,9 @@ function snapshot(uid: string): Blob {
     learning_open_sections: learningSectionList(readJson("pd_learning_open_sections", ["explanation"])),
     daily_order: strList(readJson("pd_daily_order", [])),
     year_focus: strList(readJson("pd_year_focus", [])),
+    daily_quota: Array.isArray(readJson("pd_daily_quota", null))
+      ? (readJson<number[]>("pd_daily_quota", [])).map((n) => Math.max(0, Math.round(Number(n)) || 0)).slice(0, 3)
+      : undefined,
     owl_on: readJson<boolean>("pd_stat_on", false) === true,
     fox_on: readJson<boolean>("pd_dyn_on", false) === true,
   };
@@ -128,6 +132,9 @@ export function syncClientPrefs(uid: string, remoteRaw: Record<string, unknown> 
     // default is treated as unset so the year-first default can take over.
     daily_order: pickDailyOrder(l.daily_order, r.daily_order),
     year_focus: Array.isArray(r.year_focus) ? strList(r.year_focus) : l.year_focus,
+    daily_quota: Array.isArray(r.daily_quota)
+      ? r.daily_quota.map((n) => Math.max(0, Math.round(Number(n)) || 0)).slice(0, 3)
+      : l.daily_quota,
     owl_on: typeof r.owl_on === "boolean" ? r.owl_on : l.owl_on,
     fox_on: typeof r.fox_on === "boolean" ? r.fox_on : l.fox_on,
   };
@@ -149,6 +156,7 @@ export function syncClientPrefs(uid: string, remoteRaw: Record<string, unknown> 
   writeJson("pd_learning_open_sections", merged.learning_open_sections);
   writeJson("pd_daily_order", merged.daily_order ?? []);
   writeJson("pd_year_focus", merged.year_focus ?? []);
+  if (merged.daily_quota?.length) writeJson("pd_daily_quota", merged.daily_quota);
   writeJson("pd_stat_on", merged.owl_on === true);
   writeJson("pd_dyn_on", merged.fox_on === true);
 
