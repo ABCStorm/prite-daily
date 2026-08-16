@@ -1,20 +1,35 @@
 # Wise owl statistics
 
-A perched owl on every question card speaks one **verified** statistic about
-the current item and links the public source.
+A perched owl appears only when there is a **verified quantitative fact** that
+is specifically relevant to the current question and links the public source.
 
-Numbers are never invented. `canonical.py` is the only place a figure may be
-introduced, and every entry has a `source_url`. The builder only *assigns*
-those facts and writes a unique spoken sentence.
+Numbers are never invented. Canonical figures live in `canonical.py`; MEDLINE
+figures retain their PubMed source. `eligibility.py` is the shared final gate:
+it rejects numberless claims, exam-meta trivia, and assignments without strong
+question-specific overlap. No Stat Cat is better than an irrelevant statistic.
 
-## Rebuild the 5,100 sentences
+## Audit and validate the current bundle
 
 ```sh
-python3 scripts/owl-stats/build-owl-stats.py
+npm run owl:stats
+npm run owl:test
 ```
 
-Writes `public/data/owl_stats.json` (the client bundle) and
-`public/data/owl_stats.report.json` (coverage).
+The audit rewrites `public/data/owl_stats.json` and its matching gzip using the
+PRITE and Therapy banks available in the checkout. Assignments from an absent
+private bank are preserved. To regenerate canonical PRITE assignments first,
+run `npm run owl:build:prite`; it also writes
+`extraction/output/owl_stats.report.json`.
+
+To audit the combined PRITE, Therapy, and private Kaufman Neuro banks, supply
+the Neuro bank explicitly and require every assignment to resolve:
+
+```sh
+python3 scripts/owl-stats/prune-owl-stats.py \
+  --neuro /secure/path/kaufman-questions.json --require-known
+```
+
+The pruning command writes byte-matched `.json` and `.json.gz` assets.
 
 ## Render Fish audio (elderly statesman, `s2.1-pro-free`)
 

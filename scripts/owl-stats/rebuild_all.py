@@ -13,11 +13,14 @@ Covers PRITE + Kaufman Neuro + Quizapine Therapy.
 from __future__ import annotations
 
 import importlib.util
+import gzip
 import json
 import re
 import sys
 from collections import Counter
 from pathlib import Path
+
+from eligibility import audit, clean_sentence
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
@@ -327,13 +330,20 @@ def main() -> int:
 
     harvested = harvest_leftovers(questions, out)
 
-    OUT.write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")))
+    for row in out.values():
+        if str(row.get("stat_id") or "").startswith("pmid-"):
+            row["sentence"] = clean_sentence(str(row.get("sentence") or ""))
+    out, removal_reasons, _unknown = audit(out, questions, {stat["id"]: stat for stat in STATS})
+    raw = json.dumps(out, ensure_ascii=False, separators=(",", ":")).encode()
+    OUT.write_bytes(raw)
+    OUT.with_suffix(OUT.suffix + ".gz").write_bytes(gzip.compress(raw, compresslevel=9, mtime=0))
     paper_n = sum(1 for v in out.values() if str(v.get("stat_id") or "").startswith("pmid-"))
     print(f"wrote {len(out)} -> {OUT}")
     print(f"first-pass paper-derived {from_paper} (unique PMID {unique_paper})")
     print(f"harvested leftovers {harvested}")
     print(f"total paper-derived {paper_n}")
     print(f"canonical leftovers {len(out) - paper_n}")
+    print(f"eligibility removals {sum(removal_reasons.values())}: {removal_reasons.most_common()}")
     reuse = Counter(v["stat_id"] for v in out.values() if not str(v["stat_id"]).startswith("pmid-"))
     print("canonical reuse:", reuse.most_common(8))
     return 0
