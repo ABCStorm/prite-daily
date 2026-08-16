@@ -7,13 +7,16 @@ export type DynPearl = {
 };
 
 let refsPromise: Promise<Record<string, DynPearl>> | null = null;
+const DYN_DATA_VERSION = "clinical-3972";
 
 export function loadDynPerspectives(): Promise<Record<string, DynPearl>> {
   if (!refsPromise) {
     refsPromise = (async () => {
       let r: Response;
       try {
-        r = await fetch("/data/dyn_perspectives.json", { cache: "force-cache" });
+        // Version the curated dataset and revalidate it so an already-open
+        // browser cannot keep pre-curation insights after a deployment.
+        r = await fetch(`/data/dyn_perspectives.json?v=${DYN_DATA_VERSION}`, { cache: "no-cache" });
       } catch (e) {
         throw new Error(`can't reach /data/dyn_perspectives.json: ${String(e)}`);
       }
