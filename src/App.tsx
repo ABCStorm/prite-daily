@@ -655,26 +655,32 @@ const ORDER_RULES: { id: OrderRuleId; label: string; hint: string }[] = [
 ];
 
 const THERAPY_ORDER_RULES: { id: OrderRuleId; label: string; hint: string }[] = [
+  { id: "unseen", label: "Questions I've never seen", hint: "Fresh material ahead of anything you've attempted" },
   { id: "missed", label: "Questions I got wrong", hint: "Ones you've missed before come back around first" },
   { id: "weak", label: "My weakest modalities", hint: "Modalities you score below your own average in" },
-  { id: "unseen", label: "Questions I've never seen", hint: "Fresh material ahead of anything you've attempted" },
 ];
 
 const NEURO_ORDER_RULES: { id: OrderRuleId; label: string; hint: string }[] = [
+  { id: "unseen", label: "Questions I've never seen", hint: "Fresh material ahead of anything you've attempted" },
   { id: "missed", label: "Questions I got wrong", hint: "Ones you've missed before come back around first" },
   { id: "weak", label: "My weakest chapters", hint: "Chapters you score below your own average in" },
-  { id: "unseen", label: "Questions I've never seen", hint: "Fresh material ahead of anything you've attempted" },
 ];
 
 /** Exam-year / PRITE-repeat ranking only belongs on the main PRITE bank. */
 const PRACTICE_HIDDEN_ORDER = new Set<OrderRuleId>(["year", "highyield"]);
+const PRACTICE_DEFAULT_VISIBLE: OrderRuleId[] = ["unseen", "missed", "weak"];
 
 function isPracticeBank(kind: "prite" | "neuro" | "therapy" | undefined): kind is "neuro" | "therapy" {
   return kind === "neuro" || kind === "therapy";
 }
 
+function isStockDailyOrder(order: OrderRuleId[]): boolean {
+  return order.join() === DEFAULT_DAILY_ORDER.join();
+}
+
 function visibleOrderRules(kind: "prite" | "neuro" | "therapy", order: OrderRuleId[]): OrderRuleId[] {
   if (!isPracticeBank(kind)) return order;
+  if (isStockDailyOrder(order)) return [...PRACTICE_DEFAULT_VISIBLE];
   return order.filter((id) => !PRACTICE_HIDDEN_ORDER.has(id));
 }
 
@@ -682,6 +688,12 @@ function replaceVisibleOrder(full: OrderRuleId[], nextVisible: OrderRuleId[], ki
   if (!isPracticeBank(kind)) return nextVisible;
   let i = 0;
   return full.map((id) => (PRACTICE_HIDDEN_ORDER.has(id) ? id : nextVisible[i++]));
+}
+
+function practiceSortOrder(kind: "prite" | "neuro" | "therapy" | undefined, order: OrderRuleId[]): OrderRuleId[] {
+  if (!isPracticeBank(kind)) return order;
+  if (isStockDailyOrder(order)) return replaceVisibleOrder(order, PRACTICE_DEFAULT_VISIBLE, kind);
+  return order;
 }
 
 // Newest exams first unless the resident has rearranged "What comes first".
@@ -1545,7 +1557,7 @@ export default function App() {
   const bankKind: "prite" | "neuro" | "therapy" =
     psychMode === "neuro" ? "neuro" : psychMode === "therapy" ? "therapy" : "prite";
   const orderCustomized = isPracticeBank(bankKind)
-    ? visibleOrderRules(bankKind, dailyOrder).join() !== visibleOrderRules(bankKind, DEFAULT_ORDER).join()
+    ? visibleOrderRules(bankKind, dailyOrder).join() !== PRACTICE_DEFAULT_VISIBLE.join()
     : dailyOrder.join() !== DEFAULT_ORDER.join() || yearFocus.length > 0;
   const weakAreasForOrder = useMemo(() => weakCategories(all ?? [], answers), [all, answers]);
   /* The panel's live preview. Runs the same comparator over the same candidate
@@ -1565,7 +1577,7 @@ export default function App() {
     const ordered = pool
       .slice()
       .sort(orderComparator({
-        order: dailyOrder,
+        order: practiceSortOrder(bankKind, dailyOrder),
         yearFocus,
         weakCats: new Set(weakAreasForOrder.map((w) => w.cat)),
         missedIds: missed,
@@ -1595,7 +1607,7 @@ export default function App() {
   };
   const resetOrder = () => {
     if (isPracticeBank(bankKind)) {
-      applyOrder({ order: replaceVisibleOrder(dailyOrder, visibleOrderRules(bankKind, DEFAULT_ORDER), bankKind) });
+      applyOrder({ order: replaceVisibleOrder(dailyOrder, PRACTICE_DEFAULT_VISIBLE, bankKind) });
       return;
     }
     applyOrder({ order: DEFAULT_ORDER, yearFocus: [] });
@@ -1641,8 +1653,9 @@ export default function App() {
     // is stable, so questions the rules can't tell apart keep their natural
     // order within a year.
     const missedIds = new Set(due.map((qq) => questionId(qq.year, qq.q_index)));
+    const sortOrder = practiceSortOrder(bankKind, dailyOrder);
     const cmp = orderComparator({
-      order: dailyOrder,
+      order: sortOrder,
       yearFocus,
       weakCats: new Set(weakCategories(all, a).map((w) => w.cat)),
       missedIds,
@@ -1670,7 +1683,7 @@ export default function App() {
     // "Questions I got wrong" ranked first keeps the historical behaviour of
     // leading with them; ranked lower, they fall in among the fresh ones.
     const picked = [...uniqueDue.slice(0, reviewCount), ...fresher];
-    if (dailyOrder.indexOf("missed") > 0) picked.sort(cmp);
+    if (sortOrder.indexOf("missed") > 0) picked.sort(cmp);
     const uid = profile?.id ?? session?.user?.id ?? "local";
     setTodayQueue(picked);
     setBonusRound((prev) => {
@@ -8476,7 +8489,7 @@ function DailyOrderPanel({
   };
 
   const isDefault = isPracticeBank(kind)
-    ? shown.join() === visibleOrderRules(kind, DEFAULT_ORDER).join()
+    ? shown.join() === PRACTICE_DEFAULT_VISIBLE.join()
     : order.join() === DEFAULT_ORDER.join() && yearFocus.length === 0;
 
   return (
