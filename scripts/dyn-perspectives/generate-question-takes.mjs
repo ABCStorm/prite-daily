@@ -15,6 +15,7 @@ import { createGzip } from "node:zlib";
 import { createWriteStream } from "node:fs";
 import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
+import { isDynPerspectiveEligible } from "./eligibility.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const BANK = join(ROOT, "extraction/output/questions_all.json");
@@ -260,7 +261,7 @@ async function main() {
   await mkdir(CACHE, { recursive: true });
   const questions = JSON.parse(await readFile(BANK, "utf8"));
   const byId = new Map(questions.map((q) => [qidOf(q), q]));
-  let ids = questions.map(qidOf);
+  let ids = questions.filter(isDynPerspectiveEligible).map(qidOf);
   if (ONLY.size) ids = ids.filter((id) => ONLY.has(id));
   if (SAMPLE > 0) {
     // Keep the screenshot item in small samples so we can judge relevance.
@@ -319,9 +320,16 @@ async function main() {
 
 async function flush(state, byId) {
   const existing = await loadJson(OUT, {});
-  const out = { ...existing };
+  const out = Object.fromEntries(
+    Object.entries(existing).filter(([id]) => {
+      const question = byId.get(id);
+      return question && isDynPerspectiveEligible(question);
+    }),
+  );
   for (const [id, row] of Object.entries(state)) {
     if (!row?.take) continue;
+    const question = byId.get(id);
+    if (!question || !isDynPerspectiveEligible(question)) continue;
     out[id] = {
       pearl_id: `gen-${id}`,
       sentence: row.take,
