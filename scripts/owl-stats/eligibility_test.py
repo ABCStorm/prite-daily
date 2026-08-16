@@ -58,6 +58,29 @@ class EligibilityTests(unittest.TestCase):
 
     def test_rejects_truncated_paper_statistic(self):
         self.assertFalse(well_formed("Overall, appendectomy was linked to a 16 percent lower risk (OR = 0."))
+        self.assertFalse(well_formed("The positive family history rate had a median of 8."))
+
+    def test_rejects_animal_experiment(self):
+        row = {
+            "stat_id": "pmid-1",
+            "sentence": "In adult mice, kisspeptin depolarized more than 90 percent of GnRH neurons.",
+        }
+        q = {
+            "year": 2025, "q_index": 1,
+            "stem": "Which hormone stimulates GnRH neurons?", "answer_text": "Kisspeptin",
+        }
+        self.assertFalse(assignment_eligible(q, row, CANONICAL)[0])
+
+    def test_rejects_study_design_number(self):
+        row = {
+            "stat_id": "pmid-2",
+            "sentence": "A total of 9131 patients were included, of whom 886 (9.7%) were exposed to naltrexone.",
+        }
+        q = {
+            "year": 2025, "q_index": 2,
+            "stem": "Which medication treats alcohol use disorder?", "answer_text": "Naltrexone",
+        }
+        self.assertFalse(assignment_eligible(q, row, CANONICAL)[0])
 
 
 if __name__ == "__main__":
