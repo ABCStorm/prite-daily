@@ -644,7 +644,7 @@ function yearRank(year: string): number {
 
 /* ---- What comes first: the daily-set mix ---------------------------------
    Today's set is a quota mix, not a hard wall. Rank 1 gets the largest slice,
-   rank 2 a smaller one, rank 3 the rest. Change DAILY_QUOTA_SHARES to retune
+   then smaller slices for ranks 2–4. Change DAILY_QUOTA_SHARES to retune
    every bank (PRITE, Neuro, Therapy) at once. Shares are parts-per-set and
    scale to whatever the daily goal is (5, 10, 20…).
 
@@ -701,15 +701,17 @@ function practiceSortOrder(kind: "prite" | "neuro" | "therapy" | undefined, orde
   return order;
 }
 
-/** Default parts of each daily set for ranks 1, 2, 3. Residents can retune
- *  this in What comes first; those edits are stored as the same kind of parts
- *  list and scaled to whatever the daily goal is. */
-const DAILY_QUOTA_SHARES = [6, 3, 1] as const;
+/** Default parts of each daily set for ranks 1–4 (e.g. 40 / 5 / 3 / 2 of 50).
+ *  Residents can retune this in What comes first; those edits scale to
+ *  whatever the daily goal is. */
+const DAILY_QUOTA_SHARES = [40, 5, 3, 2] as const;
+const LEGACY_QUOTA_SHARES = [6, 3, 1];
 const HIGHYIELD_MIN_REPEATS = 2;
 
 function normalizeQuotaShares(raw: unknown): number[] {
   if (!Array.isArray(raw)) return [...DAILY_QUOTA_SHARES];
   const nums = raw.slice(0, DAILY_QUOTA_SHARES.length).map((n) => Math.max(0, Math.round(Number(n)) || 0));
+  if (nums.join() === LEGACY_QUOTA_SHARES.join()) return [...DAILY_QUOTA_SHARES];
   while (nums.length < DAILY_QUOTA_SHARES.length) nums.push(0);
   return nums.every((n) => n === 0) ? [...DAILY_QUOTA_SHARES] : nums;
 }
@@ -8641,6 +8643,7 @@ function DailyOrderPanel({
   const shown = visibleOrderRules(kind, order);
   const catalog = kind === "therapy" ? THERAPY_ORDER_RULES : kind === "neuro" ? NEURO_ORDER_RULES : ORDER_RULES;
   const quotaCounts = allocateQuota(setSize, quotaShares);
+  const leftoverQuota = quotaCounts.slice(shown.length).reduce((a, b) => a + b, 0);
 
   const move = (id: OrderRuleId, delta: number) => {
     const from = shown.indexOf(id);
@@ -8677,7 +8680,7 @@ function DailyOrderPanel({
         </div>
         <div style={{ ...s.apBody, padding: "4px 22px 22px" }}>
           <p style={s.orderIntro}>
-            Drag to rank the mix, then set how many of today’s {setSize} go to each rank.
+            Drag to rank the mix, then set how many of today’s {setSize} go to each rank. Default is 40 / 5 / 3 / 2 of 50.
             {kind === "therapy"
               ? " — there are no exam years in this bank."
               : kind === "neuro"
@@ -8765,6 +8768,9 @@ function DailyOrderPanel({
               );
             })}
           </ol>
+          {leftoverQuota > 0 && (
+            <div style={s.setHint}>{leftoverQuota} of {setSize} fill from whatever is left if a higher slice runs short.</div>
+          )}
 
           {!isPracticeBank(kind) && (
           <div style={s.setBlock}>

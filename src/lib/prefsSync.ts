@@ -93,7 +93,7 @@ function snapshot(uid: string): Blob {
     daily_order: strList(readJson("pd_daily_order", [])),
     year_focus: strList(readJson("pd_year_focus", [])),
     daily_quota: Array.isArray(readJson("pd_daily_quota", null))
-      ? (readJson<number[]>("pd_daily_quota", [])).map((n) => Math.max(0, Math.round(Number(n)) || 0)).slice(0, 3)
+      ? (readJson<number[]>("pd_daily_quota", [])).map((n) => Math.max(0, Math.round(Number(n)) || 0)).slice(0, 4)
       : undefined,
     owl_on: readJson<boolean>("pd_stat_on", false) === true,
     fox_on: readJson<boolean>("pd_dyn_on", false) === true,
@@ -133,7 +133,7 @@ export function syncClientPrefs(uid: string, remoteRaw: Record<string, unknown> 
     daily_order: pickDailyOrder(l.daily_order, r.daily_order),
     year_focus: Array.isArray(r.year_focus) ? strList(r.year_focus) : l.year_focus,
     daily_quota: Array.isArray(r.daily_quota)
-      ? r.daily_quota.map((n) => Math.max(0, Math.round(Number(n)) || 0)).slice(0, 3)
+      ? r.daily_quota.map((n) => Math.max(0, Math.round(Number(n)) || 0)).slice(0, 4)
       : l.daily_quota,
     owl_on: typeof r.owl_on === "boolean" ? r.owl_on : l.owl_on,
     fox_on: typeof r.fox_on === "boolean" ? r.fox_on : l.fox_on,
