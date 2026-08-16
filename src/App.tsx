@@ -26,6 +26,13 @@ import { loadTherapyQuestions } from "./lib/therapyQuestions";
 import { BienenfeldPanel } from "./lib/bienenfeldPanel";
 import { bienenfeldChapterLabel, bienenfeldYearRank, loadBienenfeldQuestions, type BienenfeldLoc } from "./lib/bienenfeldRefs";
 import {
+  annotateTherapySequences,
+  expandTherapySequences,
+  keepTherapySequencesTogether,
+  shuffleKeepingTherapySequences,
+  type TherapySeq,
+} from "./lib/therapySequences";
+import {
   enrichBankQuestion, furtherReadingFor, autoFlashcard, podcastKeysFor,
   neuroChapter, therapyModality, therapyModalityRank, neuroYearRank, neuroTopicLabel,
   neuroChapterOptionLabel, slug, loadBankContext,
@@ -302,6 +309,8 @@ type RawQuestion = {
   };
   /** Present on Bienenfeld psychodynamic-theory items. */
   bienenfeld?: BienenfeldLoc;
+  /** Quizapine vignette chain: keep these neighbors adjacent in practice. */
+  therapy_seq?: TherapySeq;
   /** Optional sidecar story for Neuro/Therapy items (not the PRITE context table). */
   context?: string;
 };
@@ -1584,7 +1593,7 @@ export default function App() {
         answers,
         kind: bankKind,
       }));
-    return uniqueQuestionGroups(ordered).slice(0, 8);
+    return expandTherapySequences(uniqueQuestionGroups(ordered).slice(0, 8), all);
   }, [all, answers, dailyOrder, yearFocus, weakAreasForOrder, bankKind]);
   /* Every year in the bank, built from the data so a newly published exam
      appears without a code change. Sorted plain newest-first, NOT by yearRank:
@@ -1682,8 +1691,12 @@ export default function App() {
     setReviewMode(false);
     // "Questions I got wrong" ranked first keeps the historical behaviour of
     // leading with them; ranked lower, they fall in among the fresh ones.
-    const picked = [...uniqueDue.slice(0, reviewCount), ...fresher];
-    if (sortOrder.indexOf("missed") > 0) picked.sort(cmp);
+    const picked = expandTherapySequences(
+      sortOrder.indexOf("missed") > 0
+        ? [...uniqueDue.slice(0, reviewCount), ...fresher].sort(cmp)
+        : [...uniqueDue.slice(0, reviewCount), ...fresher],
+      all,
+    );
     const uid = profile?.id ?? session?.user?.id ?? "local";
     setTodayQueue(picked);
     setBonusRound((prev) => {
@@ -1744,7 +1757,7 @@ export default function App() {
         if (repaired.length < restored.length) {
           buildToday(snap.extra, snap.extra ? snap.ids.length : undefined);
         } else {
-          setTodayQueue(restored);
+          setTodayQueue(expandTherapySequences(restored, all));
           setBonusRound(snap.bonusRound || 0);
           setReviewMode(!!snap.reviewMode);
           if (typeof snap.qi === "number") setQi(Math.max(0, Math.min(snap.qi, restored.length - 1)));
@@ -1948,7 +1961,9 @@ export default function App() {
     ])
       .then(([quizapine, bienenfeld]) => {
         if (!alive) return;
-        const merged = [...quizapine, ...bienenfeld].map((row) => enrichBankQuestion(row as RawQuestion));
+        const merged = annotateTherapySequences(
+          [...quizapine, ...bienenfeld].map((row) => enrichBankQuestion(row as RawQuestion)),
+        );
         setTherapyAll(merged);
         setTherapyBankErr(null);
       })
@@ -2920,7 +2935,8 @@ export default function App() {
   // start a custom study session from a hand-picked set (from the Search modal)
   const startCustom = (qs: RawQuestion[], label: string) => {
     if (!qs.length) return;
-    setCustomQueue(qs);
+    const ordered = expandTherapySequences(qs, all ?? qs);
+    setCustomQueue(ordered);
     setCustomLabel(label);
     setMode("custom"); setQi(0); setReviewMode(false);
     setShowDeck(false);
@@ -2929,9 +2945,9 @@ export default function App() {
     writeCustomQueueSnap(uid, {
       label,
       qi: 0,
-      ids: qs.map((qq) => ({ year: String(qq.year), q_index: qq.q_index })),
+      ids: ordered.map((qq) => ({ year: String(qq.year), q_index: qq.q_index })),
     });
-    fire(`Studying ${qs.length} question${qs.length === 1 ? "" : "s"}${label ? ` · ${label}` : ""}`);
+    fire(`Studying ${ordered.length} question${ordered.length === 1 ? "" : "s"}${label ? ` · ${label}` : ""}`);
   };
   // Kick off (or regenerate) the study guide for a saved test. Generation
   // runs server-side in the background — this call returns almost instantly
@@ -9675,7 +9691,8 @@ function DeckBuilder({
   const study = () => {
     let ordered = matches.filter((q) => selected.has(questionId(q.year, q.q_index)));
     if (!ordered.length) return;
-    if (shuffleOrder) ordered = shuffled(ordered);
+    if (shuffleOrder) ordered = shuffleKeepingTherapySequences(ordered, shuffled);
+    else ordered = keepTherapySequencesTogether(expandTherapySequences(ordered, all));
     const parts: string[] = [];
     if (progress !== "all") parts.push(progressLabel[progress]);
     if (cat !== "all") parts.push(cats.find(([k]) => k === cat)?.[1] ?? cat);
@@ -9722,7 +9739,7 @@ function DeckBuilder({
   // randomly select N of the current matches (capped to however many match)
   const pickRandom = () => {
     const n = Math.max(1, Math.min(sampleN, matches.length));
-    const pick = shuffled(matches).slice(0, n);
+    const pick = expandTherapySequences(shuffled(matches).slice(0, n), all);
     setSelected(new Set(pick.map((q) => questionId(q.year, q.q_index))));
   };
 
