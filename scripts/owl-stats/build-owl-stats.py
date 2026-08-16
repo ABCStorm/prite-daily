@@ -16,6 +16,7 @@ from collections import Counter
 from pathlib import Path
 
 from canonical import STATS
+from eligibility import assignment_eligible
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_BANK = ROOT / "extraction/output/questions_all.json"
@@ -222,15 +223,14 @@ def build(bank_path: Path) -> dict:
     out: dict[str, dict] = {}
     assigned = Counter()
     fallbacks = 0
+    canonical_by_id = {stat["id"]: stat for stat in STATS}
     for q in questions:
         qid = question_id(q)
         recent = by_year.setdefault(str(q["year"]), [])
         stat, points, hits = pick(q, recent[-8:])
         if not stat:
             continue
-        recent.append(stat["id"])
-        assigned[stat["id"]] += 1
-        out[qid] = {
+        row = {
             "stat_id": stat["id"],
             "sentence": speak(stat, q),
             "source_label": stat["source_label"],
@@ -238,6 +238,11 @@ def build(bank_path: Path) -> dict:
             "source_year": stat.get("year"),
             "audio_path": f"owl/{qid}/v1.mp3",
         }
+        if not assignment_eligible(q, row, canonical_by_id)[0]:
+            continue
+        recent.append(stat["id"])
+        assigned[stat["id"]] += 1
+        out[qid] = row
     return {
         "count": len(out),
         "canonical": len(STATS),

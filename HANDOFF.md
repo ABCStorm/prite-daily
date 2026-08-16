@@ -72,9 +72,14 @@ npm run typecheck  # tsc
 Live at **https://pritedaily.com** and **https://prite-daily.pages.dev**
 (Cloudflare Pages project `prite-daily`, direct upload of `dist/`).
 ```bash
+# Run from a checkout with .env.local, or explicitly load the trusted env file.
 npm run build
 npx wrangler@3 pages deploy dist --project-name=prite-daily --branch main --commit-dirty=true
 ```
+`vite.config.ts` rejects production builds without the Supabase URL and
+publishable key. Before deploying, confirm the compiled main bundle contains the
+expected Supabase project hostname and smoke-test a fresh signed-in tab. A clean
+worktree normally lacks `.env.local`; never deploy its local-preview fallback.
 The dashboard direct-upload caps at 1,000 files (~1,273 here), so use the CLI.
 `wrangler login` is a one-time interactive browser auth.
 

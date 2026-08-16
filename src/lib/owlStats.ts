@@ -13,13 +13,14 @@ export type OwlStat = {
 };
 
 let refsPromise: Promise<Record<string, OwlStat>> | null = null;
+const OWL_STATS_VERSION = "2026-08-16-curated-v1";
 
 export function loadOwlStats(): Promise<Record<string, OwlStat>> {
   if (!refsPromise) {
     refsPromise = (async () => {
       let r: Response;
       try {
-        r = await fetch("/data/owl_stats.json", { cache: "force-cache" });
+        r = await fetch(`/data/owl_stats.json?v=${OWL_STATS_VERSION}`, { cache: "no-cache" });
       } catch (e) {
         throw new Error(`can't reach /data/owl_stats.json: ${String(e)}`);
       }
