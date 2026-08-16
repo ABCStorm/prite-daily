@@ -31,6 +31,32 @@ python3 scripts/owl-stats/prune-owl-stats.py \
 
 The pruning command writes byte-matched `.json` and `.json.gz` assets.
 
+## Expand from question-matched research
+
+The expansion pipeline mines quantitative findings only from PubMed papers
+already matched to a question. A separate checker then rejects study-design
+numbers, case reports, animal studies, malformed fragments, numeric answer
+spoilers, weak relevance, and claims without a useful clinical magnitude.
+Therapy additions come from a small, sourced modality evidence library and use
+question-level anchors for broad Psychodynamic material rather than assigning
+one generic result to the entire bank.
+
+```sh
+python3 scripts/owl-stats/fetch-pubmed-abstracts.py
+python3 scripts/owl-stats/generate-pubmed-candidates.py \
+  --neuro /secure/path/kaufman-questions.json
+python3 scripts/owl-stats/check-pubmed-candidates.py
+python3 scripts/owl-stats/build-therapy-evidence.py
+python3 scripts/owl-stats/apply-stat-expansion.py \
+  --neuro /secure/path/kaufman-questions.json
+npm run owl:test
+```
+
+The apply step removes any older assignment that fails the strengthened shared
+gate, merges only independently approved additions, audits every assignment
+against all three question banks, and writes deterministic JSON and gzip files.
+Research caches and adjudication reports remain under ignored `work/`.
+
 ## Render Fish audio (elderly statesman, `s2.1-pro-free`)
 
 Deploy `supabase/functions/generate-owl-stat` after setting `FISH_API_KEY`,

@@ -13,7 +13,8 @@ from collections import Counter
 
 WORD_RE = re.compile(r"[a-z][a-z0-9+-]*")
 ABSTRACT_PREFIX_RE = re.compile(
-    r"^(?:background|results?|findings?|objective|importance|evidence synthesis)\s*[:.-]?\s+",
+    r"^(?:authors?'?(?: conclusions?)?|conclusions?(?: and relevance)?|background|main(?: results?)?|results?|findings?|"
+    r"objective|importance|evidence synthesis)\s*[:.-]?\s+",
     re.I,
 )
 NUMBER_WORDS = (
@@ -42,6 +43,7 @@ QUANTITATIVE_PATTERNS = [
                r"children|adolescents?|cases?|deaths?|years?|months?|weeks?|days?|"
                r"times|capacities|abilities|components?|stages?|types?|criteria|symptoms?|episodes?)\b", re.I),
     re.compile(r"\b(?:odds|hazard|risk|rate)\s+ratio\s+(?:of\s+)?\d+(?:\.\d+)?\b", re.I),
+    re.compile(r"\b(?:effect\s+size|standard(?:i|i[sz])ed\s+mean\s+difference|hedges'?\s*g|cohen'?s\s*d|smd|rr|or|hr|nnt)\s*(?:of|[=:])?\s*(?:minus\s+)?-?\d+(?:\.\d+)?\b", re.I),
     re.compile(r"\b(?:more|less|fewer|greater|higher|lower)\s+than\s+\d+(?:\.\d+)?\b", re.I),
     re.compile(r"\b\d+(?:,\d{3})+\b.{0,40}\b(?:patients?|people|cases?|deaths?|participants?)\b", re.I),
     re.compile(r"\b(?:more\s+than\s+|nearly\s+|about\s+)?(?:half|one-third|two-thirds|quarter)\s+of\b", re.I),
@@ -95,13 +97,21 @@ def meaningful_number(sentence: str) -> bool:
 def clean_sentence(sentence: str) -> str:
     """Remove harmless abstract section labels before the text reaches the UI."""
     cleaned = re.sub(r"\s+", " ", sentence or "").strip()
+    cleaned = re.sub(r"(?<=[.!?])(?=[A-Z])", " ", cleaned)
+    # Undo spacing introduced inside initialisms such as C.I. or U.S.
+    for _ in range(3):
+        cleaned = re.sub(r"\b([A-Z])\. (?=[A-Z]\.)", r"\1.", cleaned)
     return ABSTRACT_PREFIX_RE.sub("", cleaned)
 
 
 def well_formed(sentence: str) -> bool:
     if len(sentence) < 35 or sentence[0].islower():
         return False
+    if sentence.count("(") != sentence.count(")") or sentence.count("[") != sentence.count("]"):
+        return False
     if re.search(r"\b(?:and|or|versus|vs\.?)\s+\d+(?:\.\d+)?\.?$", sentence, re.I):
+        return False
+    if re.search(r"\b(?:OR|RR|HR|SMD)\s*=\s*-?\d*\.?\d*\.?$", sentence):
         return False
     if re.search(r"\bP\s+Results\b|^Selection criteria\b|^Methods?\b|^Participants?\b", sentence, re.I):
         return False
@@ -157,13 +167,36 @@ def canonical_relevant(question: dict, stat: dict, sentence: str) -> tuple[bool,
     return False, "no strong canonical anchor"
 
 
-def paper_relevant(question: dict, sentence: str) -> tuple[bool, str]:
+def paper_relevant(question: dict, sentence: str, source_title: str = "") -> tuple[bool, str]:
     surface = question_surface(question)
     stat_text = normalize(sentence)
     answer = normalize(question.get("answer_text") or "")
 
+    modality = normalize((question.get("quizapine") or {}).get("modality") or "").replace("-", " ")
+    modality_terms = {
+        "act": ["acceptance and commitment therapy", " act "],
+        "cbt": ["cognitive behavioral therapy", "cognitive behavioural therapy", " cbt "],
+        "dbt": ["dialectical behavior therapy", "dialectical behaviour therapy", " dbt "],
+        "mi": ["motivational interviewing"],
+        "ipt": ["interpersonal psychotherapy", "interpersonal therapy", " ipt "],
+        "mbt": ["mentalization based", "mentalisation based", " mbt "],
+        "psychodynamic": ["psychodynamic psychotherapy", "psychodynamic therapy"],
+        "trauma focused": ["trauma focused", "prolonged exposure", "cognitive processing therapy"],
+        "group family couples": ["family intervention", "family interventions", "family psychoeducation", "family therapy", "group therapy", "couples therapy"],
+        "tfp supportive": ["transference focused psychotherapy", "supportive therapy", "supportive psychotherapy"],
+        "integration": ["integrative psychotherapy", "psychotherapy for borderline", "psychotherapy reduced borderline", "psychological therapies for borderline"],
+    }
+    if modality:
+        for key, anchors in modality_terms.items():
+            if key in modality and any(has_term(stat_text, anchor.strip()) for anchor in anchors):
+                return True, "therapy modality named in statistic"
+
     if len(answer) >= 5 and answer not in WEAK_CANONICAL_TERMS and has_term(stat_text, answer):
         return True, "answer appears in paper finding"
+
+    for concept in ("alliance", "rupture", "borderline", "bpd"):
+        if has_term(surface, concept) and has_term(stat_text, concept):
+            return True, f"specific therapy concept named in question and statistic: {concept}"
 
     q_all = WORD_RE.findall(surface)
     stat_all = WORD_RE.findall(stat_text)
@@ -175,6 +208,9 @@ def paper_relevant(question: dict, sentence: str) -> tuple[bool, str]:
     shared = set(informative_tokens(surface)) & set(informative_tokens(stat_text))
     if len(shared) >= 3 and any(len(token) >= 8 for token in shared):
         return True, "three clinical concepts overlap"
+    title_tokens = set(informative_tokens(source_title))
+    if shared and set(informative_tokens(surface)) & title_tokens and set(informative_tokens(stat_text)) & title_tokens:
+        return True, "paper title bridges question and finding"
     return False, "paper finding lacks question-specific overlap"
 
 
@@ -187,7 +223,7 @@ def assignment_eligible(question: dict, row: dict, canonical_by_id: dict[str, di
     if stat_id.startswith("pmid-"):
         if not well_formed(sentence):
             return False, "paper statistic is not a complete sentence"
-        return paper_relevant(question, sentence)
+        return paper_relevant(question, sentence, str(row.get("source_title") or ""))
 
     stat = canonical_by_id.get(stat_id)
     if not stat:
