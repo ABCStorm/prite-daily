@@ -8735,6 +8735,7 @@ function DailyOrderPanel({
                             onChange({ quota: nudgeQuotaShares(quotaShares, i, want - quotaCounts[i], setSize) });
                           }}
                           aria-label={`${rule.label} count`}
+                          className="quotaCount"
                           style={s.quotaSteerInput}
                         />
                         <span>of {setSize}</span>
@@ -11870,6 +11871,9 @@ function RewardSheet({ onClose, onBird }: { onClose: () => void; onBird: () => v
 const CSS = `
 * { box-sizing: border-box; }
 button { font-family: inherit; -webkit-appearance: none; appearance: none; }
+.quotaCount { -moz-appearance: textfield; }
+.quotaCount::-webkit-outer-spin-button,
+.quotaCount::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .opt:hover:not(:disabled) { border-color: ${T.teal}33 !important; transform: translateY(-1px); box-shadow: 0 8px 20px -14px rgba(20,24,40,.4); }
 .opt:disabled { cursor: default; }
 .opt { transition: transform .12s cubic-bezier(.2,.7,.3,1), border-color .12s ease, box-shadow .15s ease; }
@@ -12548,8 +12552,9 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 12, fontWeight: 650, color: T.tealDeep, fontVariantNumeric: "tabular-nums",
   },
   quotaSteerInput: {
-    width: 38, border: `1px solid ${T.paperEdge}`, borderRadius: 6, padding: "3px 4px",
+    width: 46, minWidth: 46, border: `1px solid ${T.paperEdge}`, borderRadius: 6, padding: "4px 6px",
     textAlign: "center", fontSize: 13, fontWeight: 700, color: T.tealDeep, background: T.tealSoft,
+    fontVariantNumeric: "tabular-nums", boxSizing: "border-box",
   },
   orderMoveBtn: {
     display: "grid", placeItems: "center", width: 22, height: 17, padding: 0,
