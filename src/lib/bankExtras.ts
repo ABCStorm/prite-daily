@@ -9,10 +9,10 @@ import type { ResearchArticle, ResearchRef } from "./researchRefs";
 
 export type BankKind = "prite" | "neuro" | "therapy" | "meds";
 
-export function bankKindOf(q: { kaufman?: unknown; quizapine?: unknown; carlat?: unknown } | null | undefined): BankKind {
+export function bankKindOf(q: { kaufman?: unknown; quizapine?: unknown; carlat?: unknown; bienenfeld?: unknown } | null | undefined): BankKind {
   if (!q) return "prite";
   if (q.kaufman) return "neuro";
-  if (q.quizapine) return "therapy";
+  if (q.quizapine || q.bienenfeld) return "therapy";
   if (q.carlat) return "meds";
   return "prite";
 }

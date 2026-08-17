@@ -55,7 +55,7 @@ import {
 import {
   enrichBankQuestion, furtherReadingFor, autoFlashcard, podcastKeysFor,
   neuroChapter, therapyModality, therapyModalityRank, neuroYearRank, neuroTopicLabel,
-  neuroChapterOptionLabel, slug, loadBankContext,
+  neuroChapterOptionLabel, slug, loadBankContext, bankKindOf,
 } from "./lib/bankExtras";
 import { WiseOwl } from "./lib/WiseOwl";
 import { loadOwlStats, type OwlStat } from "./lib/owlStats";
@@ -459,12 +459,13 @@ type CustomQueueSnap = {
   qi: number;
   ids: { year: string; q_index: number }[];
 };
-function customQueueKey(uid: string) {
-  return `pd_custom_queue_${uid}`;
+function customQueueKey(uid: string, bank: string) {
+  return bank === "prite" ? `pd_custom_queue_${uid}` : `pd_custom_queue_${uid}_${bank}`;
 }
-function readCustomQueueSnap(uid: string): CustomQueueSnap | null {
+function readCustomQueueSnap(uid: string, bank: string): CustomQueueSnap | null {
   try {
-    const raw = localStorage.getItem(customQueueKey(uid));
+    const raw = localStorage.getItem(customQueueKey(uid, bank))
+      || (bank !== "prite" ? localStorage.getItem(`pd_custom_queue_${uid}`) : null);
     if (!raw) return null;
     const v = JSON.parse(raw) as CustomQueueSnap;
     if (!v || !Array.isArray(v.ids) || v.ids.length === 0) return null;
@@ -473,11 +474,27 @@ function readCustomQueueSnap(uid: string): CustomQueueSnap | null {
     return null;
   }
 }
-function writeCustomQueueSnap(uid: string, snap: CustomQueueSnap | null) {
+function writeCustomQueueSnap(uid: string, bank: string, snap: CustomQueueSnap | null) {
   try {
-    if (!snap) localStorage.removeItem(customQueueKey(uid));
-    else localStorage.setItem(customQueueKey(uid), JSON.stringify(snap));
+    if (!snap) localStorage.removeItem(customQueueKey(uid, bank));
+    else localStorage.setItem(customQueueKey(uid, bank), JSON.stringify(snap));
   } catch { /* private mode */ }
+}
+function practiceModeKey(uid: string, bank: string) {
+  return bank === "prite" ? `pd_practice_mode_${uid}` : `pd_practice_mode_${uid}_${bank}`;
+}
+function readPracticeMode(uid: string, bank: string): "today" | "browse" | "custom" {
+  try {
+    const specific = localStorage.getItem(practiceModeKey(uid, bank));
+    if (specific === "today" || specific === "browse" || specific === "custom") return specific;
+    if (bank !== "prite") return "today";
+    const legacy = localStorage.getItem(`pd_practice_mode_${uid}`);
+    if (legacy === "today" || legacy === "browse" || legacy === "custom") return legacy;
+  } catch { /* private mode */ }
+  return "today";
+}
+function writePracticeMode(uid: string, bank: string, mode: "today" | "browse" | "custom") {
+  try { localStorage.setItem(practiceModeKey(uid, bank), mode); } catch { /* private mode */ }
 }
 function todayQueueKey(uid: string, bank: string) {
   return bank === "prite" ? `pd_today_queue_${uid}` : `pd_today_queue_${uid}_${bank}`;
@@ -1610,11 +1627,6 @@ export default function App() {
   const [showBoard, setShowBoard] = useState(false);
   const [boardClosing, setBoardClosing] = useState(false); // play the summit pull-out before closing the leaderboard
   const [showCapite, setShowCapite] = useState(false); // "coming soon" modal — CAPITE bank isn't built yet
-  const selectChildPsych = () => { setPsychMode("child"); setShowCapite(true); };
-  const selectNeuro = () => { setShowCapite(false); setPsychMode("neuro"); setYear("all"); setModalityFilter("all"); setQi(0); };
-  const selectTherapy = () => { setShowCapite(false); setPsychMode("therapy"); setYear("all"); setModalityFilter("all"); setQi(0); };
-  const selectMeds = () => { setShowCapite(false); setPsychMode("meds"); setYear("all"); setModalityFilter("all"); setQi(0); };
-  const closeCapite = () => { setShowCapite(false); setPsychMode("general"); }; // bounces back — nothing to switch to yet
   const [leaders, setLeaders] = useState<LeaderRow[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -1748,6 +1760,40 @@ export default function App() {
 
   const bankKind: "prite" | "neuro" | "therapy" | "meds" =
     psychMode === "neuro" ? "neuro" : psychMode === "therapy" ? "therapy" : psychMode === "meds" ? "meds" : "prite";
+  const bankKindFor = (tab: "general" | "child" | "neuro" | "therapy" | "meds"): "prite" | "neuro" | "therapy" | "meds" =>
+    tab === "neuro" ? "neuro" : tab === "therapy" ? "therapy" : tab === "meds" ? "meds" : "prite";
+  const switchPsychBank = (next: "general" | "child" | "neuro" | "therapy" | "meds") => {
+    if (next === psychMode) {
+      if (next === "child") setShowCapite(true);
+      return;
+    }
+    const uid = profile?.id ?? session?.user?.id ?? "local";
+    const from = bankKind;
+    const to = bankKindFor(next);
+    writePracticeMode(uid, from, mode);
+    if (customQueue.length > 0 && customQueue.every((qq) => bankKindOf(qq) === from)) {
+      writeCustomQueueSnap(uid, from, {
+        label: customLabel,
+        qi: mode === "custom" ? qi : (readCustomQueueSnap(uid, from)?.qi ?? 0),
+        ids: customQueue.map((qq) => ({ year: String(qq.year), q_index: qq.q_index })),
+      });
+    }
+    setShowCapite(next === "child");
+    setPsychMode(next);
+    setYear("all");
+    setModalityFilter("all");
+    if (from !== to) {
+      setCustomQueue([]);
+      setCustomLabel("");
+      setMode("today");
+    }
+    setQi(0);
+  };
+  const selectChildPsych = () => switchPsychBank("child");
+  const selectNeuro = () => switchPsychBank("neuro");
+  const selectTherapy = () => switchPsychBank("therapy");
+  const selectMeds = () => switchPsychBank("meds");
+  const closeCapite = () => { setShowCapite(false); switchPsychBank("general"); };
   const quotaCustomized = allocateQuota(10, quotaShares).join() !== allocateQuota(10, DAILY_QUOTA_SHARES).join();
   const orderCustomized = (isPracticeBank(bankKind)
     ? visibleOrderRules(bankKind, dailyOrder).join() !== PRACTICE_DEFAULT_VISIBLE.join()
@@ -1930,7 +1976,7 @@ export default function App() {
     setBonusRound(0);
     setTodayQueue(picked);
     setMode("today"); setQi(0);
-    try { localStorage.setItem(`pd_practice_mode_${uid}`, "today"); } catch { /* private mode */ }
+    writePracticeMode(uid, bankKind, "today");
     writeTodayQueueSnap(uid, bankKind, {
       day: ymd(),
       extra: false,
@@ -1970,21 +2016,29 @@ export default function App() {
     } else {
       buildToday(false);
     }
-    const custom = readCustomQueueSnap(uid);
-    if (custom) {
-      const restoredCustom = custom.ids
-        .map((id) => byId.get(questionId(id.year, id.q_index)))
-        .filter((qq): qq is RawQuestion => !!qq);
-      if (restoredCustom.length > 0) {
-        setCustomQueue(restoredCustom);
-        setCustomLabel(custom.label || "");
-        let lastMode = "today";
-        try { lastMode = localStorage.getItem(`pd_practice_mode_${uid}`) || "today"; } catch { /* ignore */ }
-        if (lastMode === "custom" && !therapyJumpRef.current) {
-          setMode("custom");
-          setQi(Math.max(0, Math.min(custom.qi ?? 0, restoredCustom.length - 1)));
-        }
+    const custom = readCustomQueueSnap(uid, bankKind);
+    const restoredCustom = (custom?.ids || [])
+      .map((id) => byId.get(questionId(id.year, id.q_index)))
+      .filter((qq): qq is RawQuestion => !!qq && bankKindOf(qq) === bankKind);
+    if (restoredCustom.length > 0) {
+      setCustomQueue(restoredCustom);
+      setCustomLabel(custom?.label || "");
+      const lastMode = readPracticeMode(uid, bankKind);
+      let unsuffixedMode = "";
+      try { unsuffixedMode = localStorage.getItem(`pd_practice_mode_${uid}`) || ""; } catch { /* ignore */ }
+      const bankModeSaved = (() => {
+        try { return !!localStorage.getItem(practiceModeKey(uid, bankKind)); } catch { return false; }
+      })();
+      const enterCustom = lastMode === "custom" || (!bankModeSaved && unsuffixedMode === "custom");
+      if (enterCustom && !therapyJumpRef.current) {
+        setMode("custom");
+        setQi(Math.max(0, Math.min(custom?.qi ?? 0, restoredCustom.length - 1)));
+        writePracticeMode(uid, bankKind, "custom");
       }
+    } else {
+      setCustomQueue([]);
+      setCustomLabel("");
+      if (readPracticeMode(uid, bankKind) === "custom") writePracticeMode(uid, bankKind, "today");
     }
   }, [persist, answersLoaded, all, buildToday, profile?.id, session?.user?.id, bankKind]);
 
@@ -2039,10 +2093,10 @@ export default function App() {
       const prev = readTodayQueueSnap(uid, bankKind);
       if (prev) writeTodayQueueSnap(uid, bankKind, { ...prev, qi });
     }
-    if (customQueue.length > 0) {
-      writeCustomQueueSnap(uid, {
+    if (customQueue.length > 0 && customQueue.every((qq) => bankKindOf(qq) === bankKind)) {
+      writeCustomQueueSnap(uid, bankKind, {
         label: customLabel,
-        qi: mode === "custom" ? qi : (readCustomQueueSnap(uid)?.qi ?? 0),
+        qi: mode === "custom" ? qi : (readCustomQueueSnap(uid, bankKind)?.qi ?? 0),
         ids: customQueue.map((qq) => ({ year: String(qq.year), q_index: qq.q_index })),
       });
     }
@@ -2352,15 +2406,22 @@ export default function App() {
     return m;
   }, [savedTests, byId]);
   const inToday = persist && mode === "today";
-  // custom sets work signed-out too (e.g. studying a saved test in local mode)
-  const inCustom = mode === "custom" && customQueue.length > 0;
+  // custom sets work signed-out too (e.g. studying a saved test in local mode).
+  // Only this bank's questions — a Therapy custom set must not follow you onto Meds.
+  const customForBank = customQueue.filter((qq) => bankKindOf(qq) === bankKind);
+  const inCustom = mode === "custom" && customForBank.length > 0;
   const inPractice = inToday || inCustom; // exam mode + timer apply only here
-  const set = inToday ? todayQueue : inCustom ? customQueue : browseSet;
+  const set = inToday ? todayQueue : inCustom ? customForBank : browseSet;
   const q = set[qi];
   // Switching banks/filters or restoring a saved set can briefly leave the old
   // numeric index outside the new queue. Repair it before paint so the whole
   // app cannot get trapped behind the generic empty-filter screen.
   useLayoutEffect(() => {
+    if (mode === "custom" && customForBank.length === 0) {
+      setMode("today");
+      setQi(0);
+      return;
+    }
     if (set.length > 0 && (qi < 0 || qi >= set.length)) {
       setQi(0);
       return;
@@ -2370,7 +2431,7 @@ export default function App() {
       setModalityFilter("all");
       setQi(0);
     }
-  }, [set.length, qi, mode, year, modalityFilter]);
+  }, [set.length, qi, mode, year, modalityFilter, customForBank.length]);
   // stable id of the on-screen question — effects key on THIS (not qi/mode) so
   // per-question state always resets, even when the set changes under an index
   const navQid = q ? questionId(q.year, q.q_index) : null;
@@ -3222,7 +3283,7 @@ export default function App() {
   const switchMode = (m: "today" | "browse" | "custom") => {
     setMode(m); setQi(0); setReviewMode(false);
     const uid = profile?.id ?? session?.user?.id ?? "local";
-    try { localStorage.setItem(`pd_practice_mode_${uid}`, m); } catch { /* private mode */ }
+    writePracticeMode(uid, bankKind, m);
   };
 
   // Clicking the PRITE Daily wordmark: back to the home screen — today's set,
@@ -3245,8 +3306,8 @@ export default function App() {
     setMode("custom"); setQi(0); setReviewMode(false);
     setShowDeck(false);
     const uid = profile?.id ?? session?.user?.id ?? "local";
-    try { localStorage.setItem(`pd_practice_mode_${uid}`, "custom"); } catch { /* private mode */ }
-    writeCustomQueueSnap(uid, {
+    writePracticeMode(uid, bankKind, "custom");
+    writeCustomQueueSnap(uid, bankKind, {
       label,
       qi: 0,
       ids: ordered.map((qq) => ({ year: String(qq.year), q_index: qq.q_index })),
@@ -3289,7 +3350,7 @@ export default function App() {
 
   // clicking the Custom toggle: jump back into an existing set, or open the picker
   const goCustom = () => {
-    if (customQueue.length) switchMode("custom");
+    if (customForBank.length) switchMode("custom");
     else setShowDeck(true);
   };
   const saveSettingsNow = async (patch: Partial<Settings>) => {
@@ -3445,7 +3506,7 @@ export default function App() {
                 <span style={s.navSegRow} className="topActBtn" title="PRITE, child psych, Kaufman neurology, or psychotherapy">
                   <button
                     style={{ ...s.navSegBtn, ...(psychMode === "general" ? s.navSegOn : {}) }}
-                    onClick={() => { setShowCapite(false); setPsychMode("general"); setYear("all"); setModalityFilter("all"); setQi(0); }}
+                    onClick={() => switchPsychBank("general")}
                   >
                     <Stethoscope size={12} strokeWidth={2.3} /> <span className="btnTxt">General</span>
                   </button>
