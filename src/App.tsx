@@ -3640,9 +3640,9 @@ export default function App() {
               <Sofa size={16} strokeWidth={2.2} />
             </span>
             <div>
-              <div style={s.bankBannerTitle}>Psychotherapy · AI-created and Bienenfeld</div>
+              <div style={s.bankBannerTitle}>Psychotherapy · AI-created and Dr. David Bienenfeld</div>
               <div style={s.bankBannerHint}>
-                On Bienenfeld items the cited pages open below the question so you can review the vignette before you answer.
+                Dr. David Bienenfeld (our previous residency training director for many years). On his items the cited pages open below the question so you can review the vignette before you answer.
                 {" "}
                 <a href={bienenfeldReaderHref({ returnTo: bookReturn })} target="_blank" rel="noreferrer" style={s.bankBannerLink}>
                   Read the book
