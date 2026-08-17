@@ -716,6 +716,9 @@ const MEDS_ORDER_RULES: { id: OrderRuleId; label: string; hint: string }[] = [
   { id: "weak", label: "My weakest medication classes", hint: "Classes you score below your own average in" },
 ];
 
+/** Flip on to put the Morning Rounds tab back next to Meds. */
+const SHOW_ROUNDS_TAB = false;
+
 /** Exam-year / PRITE-repeat ranking only belongs on the main PRITE bank. */
 const PRACTICE_HIDDEN_ORDER = new Set<OrderRuleId>(["year", "highyield"]);
 const PRACTICE_DEFAULT_VISIBLE: OrderRuleId[] = ["unseen", "missed", "weak"];
@@ -1846,8 +1849,11 @@ export default function App() {
   const selectNeuro = () => switchPsychBank("neuro");
   const selectTherapy = () => switchPsychBank("therapy");
   const selectMeds = () => switchPsychBank("meds");
-  const selectRounds = () => switchPsychBank("rounds");
+  const selectRounds = () => { if (SHOW_ROUNDS_TAB) switchPsychBank("rounds"); };
   const closeCapite = () => { setShowCapite(false); switchPsychBank("general"); };
+  useEffect(() => {
+    if (!SHOW_ROUNDS_TAB && psychMode === "rounds") setPsychMode("general");
+  }, [psychMode]);
   const quotaCustomized = allocateQuota(10, quotaShares).join() !== allocateQuota(10, DAILY_QUOTA_SHARES).join();
   const orderCustomized = (isPracticeBank(bankKind)
     ? visibleOrderRules(bankKind, dailyOrder).join() !== PRACTICE_DEFAULT_VISIBLE.join()
@@ -3565,7 +3571,7 @@ export default function App() {
             </span>
             {persist ? (
               <span style={s.who} className="topActions mobExtra">
-                <span style={s.navSegRow} className="topActBtn" title="PRITE, child psych, Kaufman neurology, psychotherapy, meds, or Morning Rounds">
+                <span style={s.navSegRow} className="topActBtn" title="PRITE, child psych, Kaufman neurology, psychotherapy, or meds">
                   <button
                     style={{ ...s.navSegBtn, ...(psychMode === "general" ? s.navSegOn : {}) }}
                     onClick={() => switchPsychBank("general")}
@@ -3596,12 +3602,14 @@ export default function App() {
                   >
                     <Pill size={12} strokeWidth={2.3} /> <span className="btnTxt">Meds</span>
                   </button>
+                  {SHOW_ROUNDS_TAB && (
                   <button
                     style={{ ...s.navSegBtn, ...(psychMode === "rounds" ? s.navSegOn : {}) }}
                     onClick={selectRounds}
                   >
                     <Newspaper size={12} strokeWidth={2.3} /> <span className="btnTxt">Rounds</span>
                   </button>
+                  )}
                 </span>
                 <button style={s.approveBtn} className="topActBtn" onClick={() => setShowBoard(true)} title="Leaderboard">
                   <Trophy size={13} strokeWidth={2.3} /> <span className="btnTxt">Leaderboard</span>
@@ -3690,7 +3698,7 @@ export default function App() {
           : (openSections.has("textbook") || openSections.has("dsm") || openSections.has("kaufman") || openSections.has("bienenfeld") || openSections.has("carlat")) && (showAnswer || !!q?.bienenfeld || !!q?.carlat) ? { ...s.well, maxWidth: 1100 }
           : s.well
       }>
-        {psychMode === "rounds" && (
+        {SHOW_ROUNDS_TAB && psychMode === "rounds" && (
           <RoundsLanding
             theme={T}
             defaultName={profile?.full_name || ""}
