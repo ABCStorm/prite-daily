@@ -3883,15 +3883,21 @@ export default function App() {
         <div style={s.progressRow} className={examActive ? "examDim" : undefined}>
           <span style={s.qeyebrow}>
             {q.kaufman
-              ? <>Kaufman · {q.year} · Q{q.kaufman.book_number ?? q.q_index}{q.prite_label ? <span style={{ color: T.faint }}> · {q.prite_label.replace(/^Chapter \d+:\s*/, "")}</span> : null}</>
+              ? showAnswer
+                ? <>Kaufman · {q.year} · Q{q.kaufman.book_number ?? q.q_index}{q.prite_label ? <span style={{ color: T.faint }}> · {q.prite_label.replace(/^Chapter \d+:\s*/, "")}</span> : null}</>
+                : <>Kaufman · Q{q.kaufman.book_number ?? q.q_index}</>
               : q.bienenfeld
-                ? <>Bienenfeld · {q.year} · Q{q.q_index}{q.bienenfeld.page != null ? <span style={{ color: T.faint }}> · p. {q.bienenfeld.page}</span> : null}</>
+                ? showAnswer
+                  ? <>Bienenfeld · {q.year} · Q{q.q_index}{q.bienenfeld.page != null ? <span style={{ color: T.faint }}> · p. {q.bienenfeld.page}</span> : null}</>
+                  : <>Bienenfeld · Q{q.q_index}</>
               : q.carlat
                 ? showAnswer
                   ? <>Meds · {q.carlat.medication_title} · Q{q.q_index}{q.carlat.printed_pages?.[0] != null ? <span style={{ color: T.faint }}> · p. {q.carlat.printed_pages[0]}</span> : null}</>
                   : <>Meds · {q.carlat.category.replace(/ Medications$/i, "")} · Q{q.q_index}</>
               : q.quizapine
-                ? <>Therapy · {q.quizapine.modality || "Psychotherapy"} · Q{q.q_index}{q.year ? <span style={{ color: T.faint }}> · {q.year}</span> : null}</>
+                ? showAnswer
+                  ? <>Therapy · {q.quizapine.modality || "Psychotherapy"} · Q{q.q_index}{q.year ? <span style={{ color: T.faint }}> · {q.year}</span> : null}</>
+                  : <>Therapy · {q.quizapine.modality || "Psychotherapy"} · Q{q.q_index}</>
                 : <>{q.year} · Q{q.q_index} <span style={{ color: T.faint }}>(slide {q.slide_number})</span></>}
           </span>
           {reviewMode && <span style={{ ...s.multiTag, color: T.teal, background: T.tealSoft }}><RotateCcw size={12} strokeWidth={2.2} /> Reviewing missed — try again</span>}
