@@ -420,30 +420,6 @@ function ago(iso: string) {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
-/* Pair adjacent learning cards that belong together on one row. Both stay
-   independently expandable; the pair collapses to a single column on narrow
-   screens (see .learningPair). Keyed off the cards' own keys so the section
-   list stays the single source of order. */
-function pairNoteCards(cards: React.ReactElement[]): React.ReactNode[] {
-  const out: React.ReactNode[] = [];
-  for (let i = 0; i < cards.length; i++) {
-    const a = cards[i].key;
-    const b = cards[i + 1]?.key;
-    if ((a === "mine" && b === "group") || (a === "context" && b === "video")) {
-      out.push(
-        <div key={`${String(a)}-${String(b)}-pair`} className="learningPair">
-          {cards[i]}
-          {cards[i + 1]}
-        </div>
-      );
-      i++;
-    } else {
-      out.push(cards[i]);
-    }
-  }
-  return out;
-}
-
 /* Persist the active Today queue so "Another set" / mid-set progress survives
    refresh and re-login. Device-local (same model as timer prefs before sync). */
 type TodayQueueSnap = {
@@ -3167,7 +3143,6 @@ export default function App() {
     ...(mnemonics.length
       ? ([["mnemonic", "Mnemonic", "Quick ways to remember it", <Brain size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
       : []),
-    // Adjacent so pairNoteCards can put Context | Video on one row
     ["context", "Context", "The story behind the concept", <Lightbulb size={17} strokeWidth={2.1} />],
     ["video", "Video and podcasts", "Curated episodes and a focused YouTube search", <Youtube size={17} strokeWidth={2.1} />],
     ...(hasDiagram
@@ -3531,7 +3506,7 @@ export default function App() {
               </span>
             </span>
             <span style={s.brandMark} className="brandFloat">
-              <Stethoscope size={16} strokeWidth={2.4} style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.45))" }} />
+              <Stethoscope size={14} strokeWidth={2.4} style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.45))" }} />
             </span>
             <span style={s.brandName} className="brandFloatSlow">PRITE&nbsp;<span style={{ color: "#cfd6df", fontWeight: 500 }}>Daily</span></span>
           </button>
@@ -4313,8 +4288,8 @@ export default function App() {
               </div>
             </div>
 
-            <div style={s.learningStack}>
-              {pairNoteCards((showAnswer ? sections : sections.filter(([id]) => id === "bienenfeld" || id === "carlat")).map(([id, label, summary, icon], sectionIndex) => {
+            <div style={s.learningStack} className="learningStack">
+              {(showAnswer ? sections : sections.filter(([id]) => id === "bienenfeld" || id === "carlat")).map(([id, label, summary, icon], sectionIndex) => {
                 const isOpen = openSections.has(id);
                 const isKeptOpen = preferredOpenSections.has(id);
                 const bodyId = `learning-${q.year}-${q.q_index}-${id}`;
@@ -4343,7 +4318,7 @@ export default function App() {
                         <span style={{ ...s.learningIcon, ...(isOpen ? s.learningIconOpen : {}) }}>{icon}</span>
                         <span style={s.learningCardText}>
                           <span style={s.learningCardTitle}>{label}</span>
-                          <span style={s.learningCardSummary}>{summary}</span>
+                          <span className="learningCardSummary" style={s.learningCardSummary}>{summary}</span>
                         </span>
                         {id === "group" && groupNotes.length > 0 && <span style={s.learningCount}>{groupNotes.length}</span>}
                         <ChevronDown
@@ -4778,7 +4753,7 @@ export default function App() {
                     </div>
                   </article>
                 );
-              }))}
+              })}
             </div>
 
             {/* The end-of-stack Next button is gone: the floating one sits in
@@ -12258,23 +12233,18 @@ button { font-family: inherit; -webkit-appearance: none; appearance: none; }
 .learningBodyOpen .learningBodyInner { padding-top: 20px !important; padding-bottom: 22px !important; border-top-width: 1px !important; border-top-color: ${T.paperEdge} !important; }
 .learningCardIn { animation: learningCardIn .36s cubic-bezier(.22,.75,.28,1) both; }
 @keyframes learningCardIn { from { opacity: 0; transform: translateY(9px); } }
-/* My notes + Group notes share a row. align-items:start so opening one doesn't
-   stretch the closed one to match; below 760px there isn't room for two note
-   cards side by side, so they stack as before. */
-.learningPair { display: grid; grid-template-columns: 1fr 1fr; align-items: start; gap: 10px; }
-/* Half-width headers wrap, which would give back the height the pairing saves,
-   so while they're side by side these two borrow the phone layout's compaction:
-   no index number or one-line summary, and the Keep-open pill drops to its icon.
-   Below 760px the pair stacks full width again and looks like every other card. */
-/* The paired cards carry no step number at any width — the stack numbers the
-   sections you work through, and these two are a side note to that. */
-.learningPair .learningIndexCell { display: none; }
+/* Closed cards sit two-up. An open card takes the full row so textbook
+   pages and long explanations still have room. */
+.learningStack { display: grid; grid-template-columns: 1fr 1fr; align-items: start; gap: 10px; }
+.learningCardOpen { grid-column: 1 / -1; }
 @media (min-width: 761px) {
-  .learningPair .learningCardButton { grid-template-columns: 42px minmax(0,1fr) auto auto !important; padding: 14px !important; }
-  .learningPair .learningKeep { margin: 0 10px 0 2px !important; width: 34px; height: 34px; padding: 0 !important; justify-content: center; }
-  .learningPair .learningKeepLabel { display: none; }
+  .learningStack .learningCard:not(.learningCardOpen) .learningIndexCell { display: none; }
+  .learningStack .learningCard:not(.learningCardOpen) .learningCardSummary { display: none; }
+  .learningStack .learningCard:not(.learningCardOpen) .learningCardButton { grid-template-columns: 42px minmax(0,1fr) auto !important; padding: 12px 10px 12px 14px !important; }
+  .learningStack .learningCard:not(.learningCardOpen) .learningKeep { margin: 0 10px 0 2px !important; width: 34px; height: 34px; padding: 0 !important; justify-content: center; }
+  .learningStack .learningCard:not(.learningCardOpen) .learningKeepLabel { display: none; }
 }
-@media (max-width: 760px) { .learningPair { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .learningStack { grid-template-columns: 1fr; } }
 /* Exam focus mode: fade the surrounding chrome down to a whisper, bring it
    back on hover so the question is the only thing competing for attention. */
 .examDim { opacity: .1; transition: opacity .4s ease; }
@@ -12647,7 +12617,7 @@ button:focus-visible { outline: 2px solid ${T.teal}; outline-offset: 2px; }
    wrapped to three rows, and the Menu button stayed hidden. */
 @media (max-width: 680px), (max-height: 520px) {
   .topActions { gap: 6px !important; flex-wrap: wrap !important; justify-content: flex-end !important; }
-  .topActBtn { padding: 7px 9px !important; }
+  .topActBtn { padding: 4px 7px !important; }
   .btnTxt { display: none !important; }
   /* Collapse the pill clutter behind the Menu button: header actions, library
      buttons, study toggles etc. are hidden until the menu is opened. */
@@ -12662,8 +12632,8 @@ button:focus-visible { outline: 2px solid ${T.teal}; outline-offset: 2px; }
   .deckPanel .deckBody { overflow: visible !important; }
 }
 @media (max-width: 680px) {
-  .topInner { flex-wrap: wrap !important; padding: 10px 14px !important; gap: 8px 10px !important; }
-  .topMeta { width: 100% !important; justify-content: space-between !important; gap: 8px !important; flex-wrap: wrap !important; }
+  .topInner { flex-wrap: wrap !important; padding: 6px 12px !important; gap: 6px 8px !important; }
+  .topMeta { width: 100% !important; justify-content: space-between !important; gap: 6px !important; flex-wrap: wrap !important; }
   /* On a phone the quick-start presets stack, so the eyebrow gets its own line
      instead of stealing width from the first (widest) button. */
   .quickLabel { flex-basis: 100%; margin-bottom: 2px; }
@@ -12672,7 +12642,7 @@ button:focus-visible { outline: 2px solid ${T.teal}; outline-offset: 2px; }
    on one line (no second row for topMeta) and trim its padding, so the sticky
    header costs ~40px of a 390px viewport instead of a third of the screen. */
 @media (max-height: 520px) {
-  .topInner { flex-wrap: nowrap !important; padding: 6px 14px !important; gap: 8px !important; }
+  .topInner { flex-wrap: nowrap !important; padding: 4px 12px !important; gap: 6px !important; }
   /* width:auto cancels the ≤680px rule above — a narrow landscape phone (568px)
      matches both blocks, and a 100%-wide meta on a nowrap row overflows. */
   .topMeta { flex-wrap: nowrap !important; gap: 8px !important; width: auto !important; min-width: 0; }
@@ -12700,23 +12670,23 @@ const s: Record<string, React.CSSProperties> = {
   // instead of squeezing — with brand + countdown + up to ~9 admin controls,
   // an unwrapped 880px row forced the countdown text to break word-by-word
   // and pushed the button cluster off-screen.
-  topInner: { maxWidth: 1180, margin: "0 auto", padding: "13px 22px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: "10px 14px" },
-  brand: { position: "relative", overflow: "hidden", display: "flex", alignItems: "center", gap: 9, flexShrink: 0, background: "transparent", border: `1px solid ${T.inkLine}`, borderRadius: 11, padding: "5px 14px 5px 5px", cursor: "pointer", font: "inherit" },
-  brandMark: { position: "relative", width: 28, height: 28, borderRadius: 8, background: T.teal, color: "#fff", display: "grid", placeItems: "center", flexShrink: 0, boxShadow: "0 2px 6px rgba(4,16,20,0.5)" },
-  brandName: { position: "relative", color: "#fff", fontWeight: 600, fontSize: 16, letterSpacing: "-0.01em", whiteSpace: "nowrap", textShadow: "0 1px 3px rgba(4,16,20,0.75)" },
+  topInner: { maxWidth: 1180, margin: "0 auto", padding: "6px 18px", display: "flex", alignItems: "flex-start", flexWrap: "wrap", gap: "6px 12px" },
+  brand: { position: "relative", overflow: "hidden", display: "flex", alignItems: "center", gap: 7, flexShrink: 0, background: "transparent", border: `1px solid ${T.inkLine}`, borderRadius: 9, padding: "3px 11px 3px 3px", cursor: "pointer", font: "inherit" },
+  brandMark: { position: "relative", width: 24, height: 24, borderRadius: 7, background: T.teal, color: "#fff", display: "grid", placeItems: "center", flexShrink: 0, boxShadow: "0 2px 6px rgba(4,16,20,0.5)" },
+  brandName: { position: "relative", color: "#fff", fontWeight: 600, fontSize: 14.5, letterSpacing: "-0.01em", whiteSpace: "nowrap", textShadow: "0 1px 3px rgba(4,16,20,0.75)" },
   // marginLeft: auto keeps this cluster pinned to the right whether it shares
   // a line with the brand or wraps onto its own line below it.
-  topMeta: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px 13px", marginLeft: "auto", justifyContent: "flex-end" },
-  countdown: { color: "#c7ccd6", fontSize: 12.5, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", whiteSpace: "nowrap", flexShrink: 0 },
+  topMeta: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: "5px 9px", marginLeft: "auto", justifyContent: "flex-end" },
+  countdown: { color: "#c7ccd6", fontSize: 12, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", whiteSpace: "nowrap", flexShrink: 0 },
   countNum: { color: T.gold, fontWeight: 700 },
   pollCreditNum: { color: T.teal, fontWeight: 700, fontSize: "0.82em", marginLeft: 3 },
-  who: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px 7px", justifyContent: "flex-end" },
-  avatarSm: { width: 28, height: 28, borderRadius: 8, background: T.teal, color: "#fff", display: "grid", placeItems: "center", fontSize: 11.5, fontWeight: 700, flexShrink: 0 },
+  who: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: "5px 6px", justifyContent: "flex-end" },
+  avatarSm: { width: 24, height: 24, borderRadius: 7, background: T.teal, color: "#fff", display: "grid", placeItems: "center", fontSize: 11, fontWeight: 700, flexShrink: 0 },
   adminTag: { display: "inline-flex", alignItems: "center", gap: 4, color: "#9aa0ab", fontSize: 11, fontWeight: 500, textTransform: "capitalize", whiteSpace: "nowrap", flexShrink: 0 },
-  signOut: { display: "grid", placeItems: "center", width: 28, height: 28, borderRadius: 8, background: T.inkSoft, color: "#aeb4c0", border: `1px solid ${T.inkLine}`, cursor: "pointer", flexShrink: 0 },
-  approveBtn: { position: "relative", display: "inline-flex", alignItems: "center", gap: 6, background: T.inkSoft, color: "#e7d9b4", border: `1px solid ${T.inkLine}`, padding: "6px 11px", borderRadius: 8, fontSize: 12.5, fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 },
-  navSegRow: { display: "inline-flex", background: T.inkSoft, border: `1px solid ${T.inkLine}`, borderRadius: 9, padding: 2, gap: 2, flexShrink: 0 },
-  navSegBtn: { display: "inline-flex", alignItems: "center", gap: 5, background: "transparent", color: "#aeb4c0", border: "none", padding: "5px 10px", borderRadius: 7, fontSize: 12.5, fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap" },
+  signOut: { display: "grid", placeItems: "center", width: 24, height: 24, borderRadius: 7, background: T.inkSoft, color: "#aeb4c0", border: `1px solid ${T.inkLine}`, cursor: "pointer", flexShrink: 0 },
+  approveBtn: { position: "relative", display: "inline-flex", alignItems: "center", gap: 5, background: T.inkSoft, color: "#e7d9b4", border: `1px solid ${T.inkLine}`, padding: "3px 9px", borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 },
+  navSegRow: { display: "inline-flex", background: T.inkSoft, border: `1px solid ${T.inkLine}`, borderRadius: 8, padding: 2, gap: 1, flexShrink: 0 },
+  navSegBtn: { display: "inline-flex", alignItems: "center", gap: 4, background: "transparent", color: "#aeb4c0", border: "none", padding: "3px 8px", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap" },
   navSegOn: { background: T.teal, color: "#fff", boxShadow: "0 1px 5px rgba(0,0,0,.28)" },
   pendingBadge: { display: "inline-grid", placeItems: "center", minWidth: 18, height: 18, padding: "0 5px", borderRadius: 9, background: T.gold, color: "#fff", fontSize: 11, fontWeight: 700, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
 
@@ -13090,7 +13060,7 @@ const s: Record<string, React.CSSProperties> = {
   learningHead: { display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 18, marginBottom: 8, flexWrap: "wrap" },
   learningActions: { display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" },
   learningAction: { background: T.inkSoft, color: "#b9c0cc", border: `1px solid ${T.inkLine}`, borderRadius: 999, padding: "6px 10px", fontSize: 11.5, fontWeight: 650, cursor: "pointer" },
-  learningStack: { display: "grid", gap: 10 },
+  learningStack: { display: "grid", gridTemplateColumns: "1fr 1fr", alignItems: "start", gap: 10 },
   learningCard: { background: T.paper, border: `1px solid ${T.paperEdge}`, borderRadius: 14, overflow: "hidden", boxShadow: "0 5px 18px -18px rgba(0,0,0,.55)" },
   learningCardHeader: { position: "relative", zIndex: 1, display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", alignItems: "stretch", background: "linear-gradient(110deg, rgba(255,255,255,.96), rgba(247,246,242,.92))" },
   learningCardButton: { width: "100%", display: "grid", gridTemplateColumns: "38px 42px minmax(0,1fr) auto auto", alignItems: "center", gap: 11, padding: "15px 10px 15px 18px", background: "transparent", color: T.text, border: "none", textAlign: "left", cursor: "pointer" },
