@@ -28,7 +28,6 @@ import { CarlatPanel } from "./lib/carlatPanel";
 import {
   carlatCategory,
   carlatCategoryRank,
-  carlatReaderHref,
   CARLAT_BOOK_BUY_URL,
   loadCarlatQuestions,
   type CarlatLoc,
@@ -3661,12 +3660,8 @@ export default function App() {
             <div>
               <div style={s.bankBannerTitle}>Meds · Carlat Medication Fact Book, 8th ed. (2026)</div>
               <div style={s.bankBannerHint}>
-                Clinical vignettes for each fact sheet. The book page opens under the question so you can read dosing and pearls while you work.
+                Clinical vignettes for each fact sheet. The matching book page sits under the question so you can check dosing and pearls.
                 {" "}
-                <a href={carlatReaderHref(q?.carlat?.medication_id)} target="_blank" rel="noreferrer" style={s.bankBannerLink}>
-                  Open the fact sheet
-                </a>
-                {" · "}
                 <a href={CARLAT_BOOK_BUY_URL} target="_blank" rel="noreferrer" style={s.bankBannerLink}>
                   Buy the book
                 </a>
@@ -3716,23 +3711,6 @@ export default function App() {
               title="Read Bienenfeld chapter by chapter"
             >
               <BookOpen size={13} strokeWidth={2.4} /> Read Bienenfeld
-            </a>
-          )}
-          {psychMode === "meds" && (
-            <a
-              href={carlatReaderHref(q?.carlat?.medication_id)}
-              target="_blank"
-              rel="noreferrer"
-              style={{
-                ...s.deckBtn,
-                textDecoration: "none",
-                color: "#f4efe4",
-                background: "rgba(255,255,255,.10)",
-                border: "1px solid rgba(244,239,228,.38)",
-              }}
-              title="Read the Carlat fact sheet for this medication"
-            >
-              <BookOpen size={13} strokeWidth={2.4} /> Read fact sheet
             </a>
           )}
           <button style={s.deckBtn} className="mobExtra" onClick={() => setShowAudioDrills(true)} title="Listen to active-recall questions by topic">
