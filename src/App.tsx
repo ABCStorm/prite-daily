@@ -913,6 +913,39 @@ function weakCategories(all: RawQuestion[], answers: Record<string, AnswerRow>) 
     .slice(0, 5);
 }
 
+/** Grouping key for "randomize within each category": keep classes / modalities
+    / chapters together, but mix the items inside so one drug or chapter heading
+    does not dump its entire run first. */
+function practiceCategoryKey(q: RawQuestion, kind: "prite" | "neuro" | "therapy" | "meds" = "prite"): string {
+  if (kind === "meds") return carlatCategory(q);
+  if (kind === "therapy") return therapyModality(q);
+  if (kind === "neuro") return neuroChapter(q);
+  return q.prite_category || q.year || "";
+}
+
+/** Shuffle items but keep first-seen category blocks intact. Therapy vignette
+    chains stay together inside their modality. */
+function shuffleWithinPracticeCategory<T extends RawQuestion>(
+  qs: T[],
+  kind: "prite" | "neuro" | "therapy" | "meds",
+  shuffleFn: <U>(arr: U[]) => U[] = shuffled,
+): T[] {
+  const groups = new Map<string, T[]>();
+  const order: string[] = [];
+  for (const q of qs) {
+    const k = practiceCategoryKey(q, kind);
+    if (!groups.has(k)) {
+      groups.set(k, []);
+      order.push(k);
+    }
+    groups.get(k)!.push(q);
+  }
+  return order.flatMap((k) => {
+    const g = groups.get(k)!;
+    return kind === "therapy" ? shuffleKeepingTherapySequences(g, shuffleFn) : shuffleFn(g);
+  });
+}
+
 /** Build the comparator for a given arrangement. `missedIds` is the set the
     caller already identified as due-for-another-attempt, so "wrong" means the
     same thing here as it does everywhere else in the app. */
@@ -925,11 +958,12 @@ function orderComparator(opts: {
   highYieldMixSeed?: string;
   recentlyAnsweredGroups?: Set<string>;
   kind?: "prite" | "neuro" | "therapy" | "meds";
+  shuffleWithin?: boolean;
 }) {
   const {
     order, yearFocus, weakCats, missedIds, answers,
     highYieldMixSeed = ymd(), recentlyAnsweredGroups = new Set<string>(),
-    kind = "prite",
+    kind = "prite", shuffleWithin = true,
   } = opts;
   const score = (q: RawQuestion, rule: OrderRuleId): number => {
     if (isPracticeBank(kind) && PRACTICE_HIDDEN_ORDER.has(rule)) return 0;
@@ -957,6 +991,16 @@ function orderComparator(opts: {
     for (const rule of order) {
       const d = score(a, rule) - score(b, rule);
       if (d) return d;
+    }
+    if (shuffleWithin) {
+      const ca = practiceCategoryKey(a, kind);
+      const cb = practiceCategoryKey(b, kind);
+      // Same category: mix. Different category: leave bank order (stable 0)
+      // so classes stay grouped — antidepressants together, then antipsychotics.
+      if (ca === cb) {
+        return mixedOrderScore(`${highYieldMixSeed}:${questionId(a.year, a.q_index)}`)
+          - mixedOrderScore(`${highYieldMixSeed}:${questionId(b.year, b.q_index)}`);
+      }
     }
     return 0;
   };
@@ -1648,6 +1692,14 @@ export default function App() {
     try { return normalizeQuotaShares(JSON.parse(localStorage.getItem("pd_daily_quota") || "null")); }
     catch { return [...DAILY_QUOTA_SHARES]; }
   });
+  // Default on: hop around inside a class/category instead of dumping every
+  // bupropion (or every other clustered bank-order block) first.
+  const [shuffleWithinCat, setShuffleWithinCat] = useState<boolean>(() => {
+    try {
+      const raw = localStorage.getItem("pd_shuffle_within_cat");
+      return raw == null ? true : JSON.parse(raw) !== false;
+    } catch { return true; }
+  });
   const [todayQueue, setTodayQueue] = useState<RawQuestion[]>([]);
   // Incremented for every newly built queue. This gives equally high-yield
   // concepts a fresh, stable mix while keeping each individual sort valid.
@@ -1743,6 +1795,7 @@ export default function App() {
           setDailyOrder(normalizeOrder(merged.daily_order));
           if (merged.daily_quota) setQuotaShares(normalizeQuotaShares(merged.daily_quota));
           setYearFocus(merged.year_focus ?? []);
+          setShuffleWithinCat(merged.shuffle_within_cat !== false);
           setOwlOn(merged.owl_on === true);
           setFoxOn(merged.fox_on === true);
           const learningDefaults = new Set(merged.learning_open_sections ?? ["explanation"]);
@@ -1798,7 +1851,7 @@ export default function App() {
   const quotaCustomized = allocateQuota(10, quotaShares).join() !== allocateQuota(10, DAILY_QUOTA_SHARES).join();
   const orderCustomized = (isPracticeBank(bankKind)
     ? visibleOrderRules(bankKind, dailyOrder).join() !== PRACTICE_DEFAULT_VISIBLE.join()
-    : dailyOrder.join() !== DEFAULT_ORDER.join() || yearFocus.length > 0) || quotaCustomized;
+    : dailyOrder.join() !== DEFAULT_ORDER.join() || yearFocus.length > 0) || quotaCustomized || !shuffleWithinCat;
   const weakAreasForOrder = useMemo(() => weakCategories(all ?? [], answers), [all, answers]);
   /* The panel's live preview. Runs the same comparator over the same candidate
      pool buildToday draws from — everything unanswered, plus anything missed —
@@ -1827,6 +1880,7 @@ export default function App() {
       missedIds,
       answers,
       kind: bankKind,
+      shuffleWithin: shuffleWithinCat,
     });
     const uniqueDue = uniqueQuestionGroups(due);
     const uniqueFresh = uniqueQuestionGroups(fresh, new Set(uniqueDue.map(questionGroupKey)));
@@ -1845,7 +1899,7 @@ export default function App() {
       }),
       all,
     );
-  }, [all, answers, dailyOrder, yearFocus, weakAreasForOrder, bankKind, settings, quotaShares]);
+  }, [all, answers, dailyOrder, yearFocus, weakAreasForOrder, bankKind, settings, quotaShares, shuffleWithinCat]);
   /* Every year in the bank, built from the data so a newly published exam
      appears without a code change. Sorted plain newest-first, NOT by yearRank:
      that ranking is the app's internal serving preference, and showing a picker
@@ -1854,7 +1908,7 @@ export default function App() {
     () => [...new Set((all ?? []).map((q) => q.year))].sort((a, b) => (Number(b) || 0) - (Number(a) || 0)),
     [all],
   );
-  const applyOrder = (patch: { order?: OrderRuleId[]; yearFocus?: string[]; quota?: number[] }) => {
+  const applyOrder = (patch: { order?: OrderRuleId[]; yearFocus?: string[]; quota?: number[]; shuffleWithin?: boolean }) => {
     if (patch.order) {
       setDailyOrder(patch.order);
       try { localStorage.setItem("pd_daily_order", JSON.stringify(patch.order)); } catch { /* private mode */ }
@@ -1868,14 +1922,18 @@ export default function App() {
       setQuotaShares(next);
       try { localStorage.setItem("pd_daily_quota", JSON.stringify(next)); } catch { /* private mode */ }
     }
+    if (patch.shuffleWithin !== undefined) {
+      setShuffleWithinCat(patch.shuffleWithin);
+      try { localStorage.setItem("pd_shuffle_within_cat", JSON.stringify(patch.shuffleWithin)); } catch { /* private mode */ }
+    }
     schedulePrefsPush();
   };
   const resetOrder = () => {
     if (isPracticeBank(bankKind)) {
-      applyOrder({ order: replaceVisibleOrder(dailyOrder, PRACTICE_DEFAULT_VISIBLE, bankKind), quota: [...DAILY_QUOTA_SHARES] });
+      applyOrder({ order: replaceVisibleOrder(dailyOrder, PRACTICE_DEFAULT_VISIBLE, bankKind), quota: [...DAILY_QUOTA_SHARES], shuffleWithin: true });
       return;
     }
-    applyOrder({ order: DEFAULT_ORDER, yearFocus: [], quota: [...DAILY_QUOTA_SHARES] });
+    applyOrder({ order: DEFAULT_ORDER, yearFocus: [], quota: [...DAILY_QUOTA_SHARES], shuffleWithin: true });
   };
 
   // build today's set: due-review (missed, past the recycle interval) first,
@@ -1925,6 +1983,7 @@ export default function App() {
       highYieldMixSeed,
       recentlyAnsweredGroups,
       kind: bankKind,
+      shuffleWithin: shuffleWithinCat,
     });
     const uniqueDue = uniqueQuestionGroups(due);
     const uniqueFresh = uniqueQuestionGroups(
@@ -1960,7 +2019,7 @@ export default function App() {
       });
       return nextBonus;
     });
-  }, [all, settings, dailyOrder, yearFocus, quotaShares, profile?.id, session?.user?.id, bankKind]);
+  }, [all, settings, dailyOrder, yearFocus, quotaShares, shuffleWithinCat, profile?.id, session?.user?.id, bankKind]);
 
   // build a review-only set from every currently-missed question, presented
   // fresh (answer hidden) for a second attempt
@@ -4982,6 +5041,7 @@ export default function App() {
         <DeckBuilder
           all={all} byId={byId} fire={fire}
           kind={psychMode === "neuro" ? "neuro" : psychMode === "therapy" ? "therapy" : psychMode === "meds" ? "meds" : "prite"}
+          shuffleWithin={shuffleWithinCat}
           usedGroupKeys={usedGroupKeys}
           answers={answers}
           kaplanRefs={kaplanRefs}
@@ -5141,6 +5201,7 @@ export default function App() {
           weakAreas={weakAreasForOrder}
           setSize={settings?.regimen ?? 10}
           quotaShares={quotaShares}
+          shuffleWithin={shuffleWithinCat}
           onChange={applyOrder}
           onReset={resetOrder}
           onClose={() => setShowOrder(false)}
@@ -8936,7 +8997,7 @@ function Approvals({
    also moves with the keyboard (and on touch, where HTML5 drag is unreliable)
    via its own up/down buttons. */
 function DailyOrderPanel({
-  kind = "prite", order, yearFocus, years, preview, weakAreas, setSize = 10, quotaShares, onChange, onReset, onClose,
+  kind = "prite", order, yearFocus, years, preview, weakAreas, setSize = 10, quotaShares, shuffleWithin = true, onChange, onReset, onClose,
 }: {
   kind?: "prite" | "neuro" | "therapy" | "meds";
   order: OrderRuleId[];
@@ -8946,7 +9007,8 @@ function DailyOrderPanel({
   weakAreas: { cat: string; acc: number; tried: number }[];
   setSize?: number;
   quotaShares: number[];
-  onChange: (next: { order?: OrderRuleId[]; yearFocus?: string[]; quota?: number[] }) => void;
+  shuffleWithin?: boolean;
+  onChange: (next: { order?: OrderRuleId[]; yearFocus?: string[]; quota?: number[]; shuffleWithin?: boolean }) => void;
   onReset: () => void;
   onClose: () => void;
 }) {
@@ -8978,7 +9040,8 @@ function DailyOrderPanel({
   const quotaDefault = allocateQuota(setSize, DAILY_QUOTA_SHARES).join() === quotaCounts.join();
   const isDefault = (isPracticeBank(kind)
     ? shown.join() === PRACTICE_DEFAULT_VISIBLE.join()
-    : order.join() === DEFAULT_ORDER.join() && yearFocus.length === 0) && quotaDefault;
+    : order.join() === DEFAULT_ORDER.join() && yearFocus.length === 0) && quotaDefault && shuffleWithin;
+  const categoryWord = kind === "meds" ? "class" : kind === "therapy" ? "modality" : kind === "neuro" ? "chapter" : "category";
 
   return (
     <div data-scrim style={s.scrim} onClick={onClose}>
@@ -9084,6 +9147,25 @@ function DailyOrderPanel({
           {leftoverQuota > 0 && (
             <div style={s.setHint}>{leftoverQuota} of {setSize} fill from whatever is left if a higher slice runs short.</div>
           )}
+
+          <div style={s.setBlock}>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={shuffleWithin}
+                onChange={(e) => onChange({ shuffleWithin: e.target.checked })}
+                style={{ marginTop: 3, accentColor: T.teal }}
+              />
+              <span>
+                <span style={{ ...s.setLbl, marginBottom: 2, display: "block" }}>Randomize within each {categoryWord}</span>
+                <span style={{ ...s.setHint, marginTop: 2, display: "block" }}>
+                  {kind === "meds"
+                    ? "Hop around medications inside a class — so Antidepressants is not every bupropion question first. Uncheck to keep medications grouped."
+                    : `Mix questions inside each ${categoryWord} instead of serving them in bank order. Uncheck to keep the original sequence.`}
+                </span>
+              </span>
+            </label>
+          </div>
 
           {!isPracticeBank(kind) && (
           <div style={s.setBlock}>
@@ -10005,7 +10087,7 @@ function AudioDrillsPanel({ all, onClose, fire }: { all: RawQuestion[]; onClose:
 }
 
 function DeckBuilder({
-  all, byId, onClose, onOpen, onStudy, onSaveTest, fire, usedGroupKeys, answers, kaplanRefs, kaplanErr, kind = "prite",
+  all, byId, onClose, onOpen, onStudy, onSaveTest, fire, usedGroupKeys, answers, kaplanRefs, kaplanErr, kind = "prite", shuffleWithin = true,
 }: {
   all: RawQuestion[];
   byId: Map<string, RawQuestion>;
@@ -10019,6 +10101,7 @@ function DeckBuilder({
   kaplanRefs: Record<string, KaplanRef>; // question id -> textbook citation, {} until loaded
   kaplanErr?: string | null; // why they didn't load, shown instead of a silently dead filter
   kind?: "prite" | "neuro" | "therapy" | "meds";
+  shuffleWithin?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [scope, setScope] = useState<"both" | "stem" | "choices" | "answer">("both");
@@ -10214,6 +10297,7 @@ function DeckBuilder({
     let ordered = matches.filter((q) => selected.has(questionId(q.year, q.q_index)));
     if (!ordered.length) return;
     if (shuffleOrder) ordered = shuffleKeepingTherapySequences(ordered, shuffled);
+    else if (shuffleWithin) ordered = shuffleWithinPracticeCategory(expandTherapySequences(ordered, all), kind);
     else ordered = keepTherapySequencesTogether(expandTherapySequences(ordered, all));
     const parts: string[] = [];
     if (progress !== "all") parts.push(progressLabel[progress]);
@@ -10623,9 +10707,9 @@ function DeckBuilder({
               <button style={{ ...s.primarySm, opacity: selected.size ? 1 : 0.5 }} disabled={!selected.size} onClick={study} title="Practice the selected questions">
                 <Target size={14} strokeWidth={2.3} /> Study these ({selected.size})
               </button>
-              <label style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, color: T.muted, cursor: "pointer" }}>
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, color: T.muted, cursor: "pointer" }} title={shuffleWithin ? "Already mixing inside each class. Check this to also mix classes together." : "Serve selected questions in a random order"}>
                 <input type="checkbox" checked={shuffleOrder} onChange={(e) => setShuffleOrder(e.target.checked)} />
-                Shuffle order
+                {shuffleWithin ? "Mix classes together" : "Shuffle order"}
               </label>
             </>
           )}
