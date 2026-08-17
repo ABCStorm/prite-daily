@@ -212,7 +212,7 @@ export function BienenfeldPanel({
         <div>
           <div style={{ fontSize: 14.5, fontWeight: 700, color: T.text }}>{heading}</div>
           <div style={{ fontSize: 12.5, color: T.faint, marginTop: 2 }}>
-            Dr. David Bienenfeld (our previous residency training director for many years), <i>Psychodynamic Theory for Clinicians</i>
+            Dr. David Bienenfeld, <i>Psychodynamic Theory for Clinicians</i>
             {readerPage != null ? ` · p. ${readerPage}` : ""}
           </div>
         </div>
