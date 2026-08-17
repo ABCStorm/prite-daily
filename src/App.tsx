@@ -3641,7 +3641,7 @@ export default function App() {
               <Sofa size={16} strokeWidth={2.2} />
             </span>
             <div>
-              <div style={s.bankBannerTitle}>Psychotherapy · Quizapine and Bienenfeld</div>
+              <div style={s.bankBannerTitle}>Psychotherapy · AI-created and Bienenfeld</div>
               <div style={s.bankBannerHint}>
                 On Bienenfeld items the cited pages open below the question so you can review the vignette before you answer.
                 {" "}
@@ -3957,8 +3957,8 @@ export default function App() {
                   : <>Meds · {q.carlat.category.replace(/ Medications$/i, "")} · Q{q.q_index}</>
               : q.quizapine
                 ? showAnswer
-                  ? <>Therapy · {q.quizapine.modality || "Psychotherapy"} · Q{q.q_index}{q.year ? <span style={{ color: T.faint }}> · {q.year}</span> : null}</>
-                  : <>Therapy · {q.quizapine.modality || "Psychotherapy"} · Q{q.q_index}</>
+                  ? <>AI-created · {q.quizapine.modality || "Psychotherapy"} · Q{q.q_index}{q.year ? <span style={{ color: T.faint }}> · {q.year}</span> : null}</>
+                  : <>AI-created · {q.quizapine.modality || "Psychotherapy"} · Q{q.q_index}</>
                 : <>{q.year} · Q{q.q_index} <span style={{ color: T.faint }}>(slide {q.slide_number})</span></>}
           </span>
           {reviewMode && <span style={{ ...s.multiTag, color: T.teal, background: T.tealSoft }}><RotateCcw size={12} strokeWidth={2.2} /> Reviewing missed — try again</span>}
