@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Minus, Plus, RotateCcw, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Minus, Plus, RotateCcw, X } from "lucide-react";
 
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 5;
@@ -9,10 +9,14 @@ const STEP = 0.25;
 export function ZoomLightbox({
   src,
   alt = "Enlarged",
+  gallery,
+  onChangeSrc,
   onClose,
 }: {
   src: string;
   alt?: string;
+  gallery?: string[];
+  onChangeSrc?: (src: string) => void;
   onClose: () => void;
 }) {
   const [scale, setScale] = useState(1);
@@ -36,17 +40,32 @@ export function ZoomLightbox({
     setOffset({ x: 0, y: 0 });
   }, []);
 
-  // Escape closes; +/- keys zoom.
+  const pages = (gallery && gallery.length > 0 ? gallery : [src]).filter(Boolean);
+  const idx = Math.max(0, pages.indexOf(src));
+  const hasPrev = pages.length > 1 && idx > 0;
+  const hasNext = pages.length > 1 && idx < pages.length - 1;
+  const go = useCallback((dir: -1 | 1) => {
+    if (!onChangeSrc || pages.length < 2) return;
+    const next = pages[idx + dir];
+    if (!next) return;
+    setScale(1);
+    setOffset({ x: 0, y: 0 });
+    onChangeSrc(next);
+  }, [idx, onChangeSrc, pages]);
+
+  // Escape closes; arrows page; +/- keys zoom.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
+      else if (e.key === "ArrowLeft") { e.preventDefault(); go(-1); }
+      else if (e.key === "ArrowRight") { e.preventDefault(); go(1); }
       else if (e.key === "+" || e.key === "=") { e.preventDefault(); zoomBy(STEP); }
       else if (e.key === "-" || e.key === "_") { e.preventDefault(); zoomBy(-STEP); }
       else if (e.key === "0") { e.preventDefault(); reset(); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, zoomBy, reset]);
+  }, [onClose, zoomBy, reset, go]);
 
   // Wheel zooms toward cursor area (keeps offset when already panned).
   useEffect(() => {
@@ -189,6 +208,53 @@ export function ZoomLightbox({
         </button>
       </div>
 
+      {pages.length > 1 && (
+        <>
+          <button
+            type="button"
+            disabled={!hasPrev}
+            onClick={(e) => { e.stopPropagation(); go(-1); }}
+            title="Previous page (←)"
+            aria-label="Previous page"
+            style={{
+              ...btnStyle,
+              position: "absolute",
+              left: 16,
+              top: "50%",
+              transform: "translateY(-50%)",
+              zIndex: 3,
+              width: 46,
+              height: 46,
+              borderRadius: 999,
+              opacity: hasPrev ? 1 : 0.28,
+            }}
+          >
+            <ChevronLeft size={22} strokeWidth={2.3} />
+          </button>
+          <button
+            type="button"
+            disabled={!hasNext}
+            onClick={(e) => { e.stopPropagation(); go(1); }}
+            title="Next page (→)"
+            aria-label="Next page"
+            style={{
+              ...btnStyle,
+              position: "absolute",
+              right: 16,
+              top: "50%",
+              transform: "translateY(-50%)",
+              zIndex: 3,
+              width: 46,
+              height: 46,
+              borderRadius: 999,
+              opacity: hasNext ? 1 : 0.28,
+            }}
+          >
+            <ChevronRight size={22} strokeWidth={2.3} />
+          </button>
+        </>
+      )}
+
       {/* Stage: image fills most of the screen; drag when zoomed */}
       <div
         ref={stageRef}
@@ -253,7 +319,7 @@ export function ZoomLightbox({
           whiteSpace: "nowrap",
         }}
       >
-        Scroll or + / − to zoom{scale > 1 ? " · drag to pan" : ""} · Esc to close
+        {pages.length > 1 ? "← → to change page · " : ""}Scroll or + / − to zoom{scale > 1 ? " · drag to pan" : ""} · Esc to close
       </div>
     </div>
   );

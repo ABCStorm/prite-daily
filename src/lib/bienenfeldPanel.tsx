@@ -83,7 +83,7 @@ export function BienenfeldPanel({
 }: {
   loc: BienenfeldLoc;
   theme: Theme;
-  onZoom?: (u: string) => void;
+  onZoom?: (u: string, gallery?: string[]) => void;
   returnTo?: BienenfeldReturn | null;
   showQuote?: boolean;
 }) {
@@ -262,7 +262,7 @@ export function BienenfeldPanel({
               src={src}
               alt={readerPage != null ? `Bienenfeld page ${readerPage}` : "Bienenfeld page"}
               theme={T}
-              onZoom={zoom}
+              onZoom={(u) => zoom(u, pages.map((p) => bienenfeldPageSrc(p.image)).filter((s): s is string => !!s))}
             />
             {pages.length > 1 && !narrow && arrow(-1)}
             {pages.length > 1 && !narrow && arrow(1)}

@@ -41,6 +41,9 @@ export function carlatReaderHref(medicationId?: string): string {
   return medicationId ? `/carlat/#med=${encodeURIComponent(medicationId)}` : "/carlat/";
 }
 
+export const CARLAT_BOOK_BUY_URL =
+  "https://www.thecarlatreport.com/products/766-medication-fact-book-for-psychiatric-practice-eighth-edition-2026-spiral-bound-with-toolkit-app-access";
+
 let promise: Promise<unknown[]> | null = null;
 
 export function loadCarlatQuestions(): Promise<unknown[]> {

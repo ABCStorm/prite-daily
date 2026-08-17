@@ -29,6 +29,7 @@ import {
   carlatCategory,
   carlatCategoryRank,
   carlatReaderHref,
+  CARLAT_BOOK_BUY_URL,
   loadCarlatQuestions,
   type CarlatLoc,
 } from "./lib/carlatRefs";
@@ -1646,6 +1647,11 @@ export default function App() {
   const [answersLoaded, setAnswersLoaded] = useState(false);
   const [prefsSynced, setPrefsSynced] = useState(false); // account-synced localStorage prefs merged (see lib/prefsSync)
   const [zoomImg, setZoomImg] = useState<string | null>(null); // figure/explanation image enlarged in a lightbox
+  const [zoomGallery, setZoomGallery] = useState<string[]>([]);
+  const openZoom = useCallback((src: string, gallery?: string[]) => {
+    setZoomImg(src);
+    setZoomGallery(gallery && gallery.length > 1 ? gallery : []);
+  }, []);
   const [reviewMode, setReviewMode] = useState(false);
   const [showMissed, setShowMissed] = useState(false);
   const [allMyNotes, setAllMyNotes] = useState<Record<string, string>>({});
@@ -3599,19 +3605,13 @@ export default function App() {
                 <a href={carlatReaderHref(q?.carlat?.medication_id)} target="_blank" rel="noreferrer" style={s.bankBannerLink}>
                   Open the fact sheet
                 </a>
+                {" · "}
+                <a href={CARLAT_BOOK_BUY_URL} target="_blank" rel="noreferrer" style={s.bankBannerLink}>
+                  Buy the book
+                </a>
               </div>
             </div>
           </div>
-        )}
-        {psychMode === "meds" && !examActive && all && (
-          <BankTopicFilters
-            mode="meds"
-            all={all}
-            year={year}
-            modality={modalityFilter}
-            onYear={(y) => { setYear(y); setQi(0); }}
-            onModality={(m) => { setModalityFilter(m); setYear("all"); setQi(0); }}
-          />
         )}
         {/* Navigation / filter row */}
         <div style={s.nav} className={examActive ? "examDim" : undefined}>
@@ -3662,7 +3662,13 @@ export default function App() {
               href={carlatReaderHref(q?.carlat?.medication_id)}
               target="_blank"
               rel="noreferrer"
-              style={{ ...s.deckBtn, textDecoration: "none", color: "inherit" }}
+              style={{
+                ...s.deckBtn,
+                textDecoration: "none",
+                color: "#f4efe4",
+                background: "rgba(255,255,255,.10)",
+                border: "1px solid rgba(244,239,228,.38)",
+              }}
               title="Read the Carlat fact sheet for this medication"
             >
               <BookOpen size={13} strokeWidth={2.4} /> Read fact sheet
@@ -3881,7 +3887,9 @@ export default function App() {
               : q.bienenfeld
                 ? <>Bienenfeld · {q.year} · Q{q.q_index}{q.bienenfeld.page != null ? <span style={{ color: T.faint }}> · p. {q.bienenfeld.page}</span> : null}</>
               : q.carlat
-                ? <>Meds · {q.carlat.medication_title} · Q{q.q_index}{q.carlat.printed_pages?.[0] != null ? <span style={{ color: T.faint }}> · p. {q.carlat.printed_pages[0]}</span> : null}</>
+                ? showAnswer
+                  ? <>Meds · {q.carlat.medication_title} · Q{q.q_index}{q.carlat.printed_pages?.[0] != null ? <span style={{ color: T.faint }}> · p. {q.carlat.printed_pages[0]}</span> : null}</>
+                  : <>Meds · {q.carlat.category.replace(/ Medications$/i, "")} · Q{q.q_index}</>
               : q.quizapine
                 ? <>Therapy · {q.quizapine.modality || "Psychotherapy"} · Q{q.q_index}{q.year ? <span style={{ color: T.faint }}> · {q.year}</span> : null}</>
                 : <>{q.year} · Q{q.q_index} <span style={{ color: T.faint }}>(slide {q.slide_number})</span></>}
@@ -3943,7 +3951,7 @@ export default function App() {
               file={fig.file}
               caption={fig.caption}
               theme={T}
-              onZoom={setZoomImg}
+              onZoom={openZoom}
             />
           ))}
           {q.figure_images.filter((p) => imgSrc(p)).length > 0 && (
@@ -3958,7 +3966,7 @@ export default function App() {
                     index={i}
                     alt="question figure (click to enlarge)"
                     style={{ ...s.figImg, cursor: "zoom-in" }}
-                    onZoom={setZoomImg}
+                    onZoom={openZoom}
                     showCredit={showAnswer}
                   />
                 ))}
@@ -4304,7 +4312,7 @@ export default function App() {
                       file={fig.file}
                       caption={fig.caption}
                       theme={T}
-                      onZoom={setZoomImg}
+                      onZoom={openZoom}
                     />
                   ))}
                   {q.explanation_images.filter((p) => imgSrc(p)).map((p, i) => (
@@ -4316,7 +4324,7 @@ export default function App() {
                       index={i}
                       alt="explanation (click to enlarge)"
                       style={{ ...s.explImg, cursor: "zoom-in" }}
-                      onZoom={setZoomImg}
+                      onZoom={openZoom}
                     />
                   ))}
                   {!hasExpl && (
@@ -4330,31 +4338,31 @@ export default function App() {
 
               {id === "textbook" && kaplan && (
                 <div className="fade">
-                  <KaplanPanel data={kaplan} theme={T} onZoom={setZoomImg} />
+                  <KaplanPanel data={kaplan} theme={T} onZoom={openZoom} />
                 </div>
               )}
 
               {id === "dsm" && dsm && (
                 <div className="fade">
-                  <DsmPanel data={dsm} theme={T} onZoom={setZoomImg} />
+                  <DsmPanel data={dsm} theme={T} onZoom={openZoom} />
                 </div>
               )}
 
               {id === "kaufman" && kaufman && (
                 <div className="fade">
-                  <KaufmanPanel data={kaufman} theme={T} onZoom={setZoomImg} />
+                  <KaufmanPanel data={kaufman} theme={T} onZoom={openZoom} />
                 </div>
               )}
 
               {id === "bienenfeld" && q.bienenfeld && (
                 <div className="fade">
-                  <BienenfeldPanel loc={q.bienenfeld} theme={T} onZoom={setZoomImg} returnTo={bookReturn} showQuote={showAnswer} />
+                  <BienenfeldPanel loc={q.bienenfeld} theme={T} onZoom={openZoom} returnTo={bookReturn} showQuote={showAnswer} />
                 </div>
               )}
 
               {id === "carlat" && q.carlat && (
                 <div className="fade">
-                  <CarlatPanel loc={q.carlat} theme={T} onZoom={setZoomImg} />
+                  <CarlatPanel loc={q.carlat} theme={T} onZoom={openZoom} />
                 </div>
               )}
 
@@ -4372,7 +4380,7 @@ export default function App() {
                     images={ankingImgs}
                     match={q.anking_match}
                     theme={T}
-                    onZoom={setZoomImg}
+                    onZoom={openZoom}
                   />
                 </div>
               )}
@@ -4385,7 +4393,7 @@ export default function App() {
                     images={sketchyImgs}
                     match={q.anking_match}
                     theme={T}
-                    onZoom={setZoomImg}
+                    onZoom={openZoom}
                   />
                 </div>
               )}
@@ -4395,7 +4403,7 @@ export default function App() {
                   {q.clinical_application ? (
                     <>
                       <label style={s.lbl}>How a resident would use this — an example scenario</label>
-                      <ScenarioIllustration year={q.year} qIndex={q.q_index} onZoom={setZoomImg} />
+                      <ScenarioIllustration year={q.year} qIndex={q.q_index} onZoom={openZoom} />
                       <p style={s.expl}>{q.clinical_application}</p>
                     </>
                   ) : (
@@ -5108,7 +5116,13 @@ export default function App() {
       )}
 
       {zoomImg && (
-        <ZoomLightbox src={zoomImg} alt="Enlarged" onClose={() => setZoomImg(null)} />
+        <ZoomLightbox
+          src={zoomImg}
+          gallery={zoomGallery}
+          onChangeSrc={setZoomImg}
+          alt="Enlarged"
+          onClose={() => { setZoomImg(null); setZoomGallery([]); }}
+        />
       )}
 
       {teamModePrompt !== false && (

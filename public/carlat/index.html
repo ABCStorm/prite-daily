@@ -26,7 +26,7 @@
     <label>Medication
       <select id="med"></select>
     </label>
-    <a id="pdf" href="/carlat/">Download this fact sheet (PDF)</a>
+    <a href="https://www.thecarlatreport.com/products/766-medication-fact-book-for-psychiatric-practice-eighth-edition-2026-spiral-bound-with-toolkit-app-access" target="_blank" rel="noreferrer">Buy the book</a>
   </header>
   <main>
     <p class="meta" id="meta"></p>
@@ -36,7 +36,6 @@
     const medSel = document.getElementById("med");
     const pagesEl = document.getElementById("pages");
     const metaEl = document.getElementById("meta");
-    const pdfEl = document.getElementById("pdf");
     let catalog = [];
 
     function currentId() {
@@ -50,8 +49,6 @@
       if (!med) return;
       medSel.value = med.medication_id;
       metaEl.textContent = `${med.title} · ${med.category} · printed p. ${med.printed_pages.join(", ")}`;
-      pdfEl.href = med.excerpt_pdf;
-      pdfEl.download = "";
       pagesEl.innerHTML = med.images.map((src, i) => `
         <figure class="page">
           <img src="${src}" alt="${med.title} page ${med.printed_pages[i]}" />

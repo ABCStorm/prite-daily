@@ -33,7 +33,7 @@ type Theme = {
 };
 
 /** One page screenshot, loaded lazily and only once it scrolls into view. */
-function PageShot({ name, theme, onZoom }: { name: string; theme: Theme; onZoom: (u: string) => void }) {
+function PageShot({ name, theme, onZoom }: { name: string; theme: Theme; onZoom: (u: string, gallery?: string[]) => void }) {
   const [url, setUrl] = useState<string | null>(null);
   const [err, setErr] = useState(false);
 
@@ -109,7 +109,7 @@ function PageWindow({ c, section, title, theme, onZoom }: {
   section: string;
   title: string;
   theme: Theme;
-  onZoom: (u: string) => void;
+  onZoom: (u: string, gallery?: string[]) => void;
 }) {
   const quotePage = c.page!;
   const lo = c.lo ?? quotePage;
@@ -217,7 +217,16 @@ function PageWindow({ c, section, title, theme, onZoom }: {
       }}
     >
       <div ref={wrapRef} style={{ position: "relative" }}>
-        <PageShot name={pageImageName(cur)} theme={theme} onZoom={onZoom} />
+        <PageShot
+          name={pageImageName(cur)}
+          theme={theme}
+          onZoom={(url) => {
+            const names = Array.from({ length: Math.max(0, hi - lo + 1) }, (_, i) => pageImageName(lo + i));
+            void Promise.all(names.map((n) => kaplanImage(n).catch(() => ""))).then((urls) => {
+              onZoom(url, urls.filter(Boolean));
+            });
+          }}
+        />
         {!narrow && arrow(-1)}
         {!narrow && arrow(1)}
       </div>
@@ -296,7 +305,7 @@ function Cite({ c, section, title, theme, onZoom }: {
 export function KaplanPanel({ data, theme, onZoom }: {
   data: KaplanRef;
   theme: Theme;
-  onZoom: (u: string) => void;
+  onZoom: (u: string, gallery?: string[]) => void;
 }) {
   return (
     <div>

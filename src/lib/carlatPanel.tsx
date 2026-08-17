@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { BookOpen, ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
-import { carlatPageSrc, carlatReaderHref, type CarlatLoc } from "./carlatRefs";
+import { CARLAT_BOOK_BUY_URL, carlatPageSrc, carlatReaderHref, type CarlatLoc } from "./carlatRefs";
 
 type Theme = {
   text: string;
@@ -66,7 +66,7 @@ export function CarlatPanel({
 }: {
   loc: CarlatLoc;
   theme: Theme;
-  onZoom: (u: string) => void;
+  onZoom: (u: string, gallery?: string[]) => void;
 }) {
   const images = [...(loc.page_images || []), ...(loc.cited_images || []).filter((p) => !(loc.page_images || []).includes(p))];
   const [idx, setIdx] = useState(0);
@@ -123,9 +123,22 @@ export function CarlatPanel({
         >
           Full reader <ExternalLink size={12} />
         </a>
+        <a
+          href={CARLAT_BOOK_BUY_URL}
+          target="_blank"
+          rel="noreferrer"
+          style={{ color: T.muted, fontSize: 13, display: "inline-flex", alignItems: "center", gap: 4 }}
+        >
+          Buy the book <ExternalLink size={12} />
+        </a>
       </div>
       <div style={{ border: `1px solid ${T.paperEdge}`, borderRadius: 10, overflow: "hidden" }}>
-        <PageShot src={carlatPageSrc(cur)} alt={`${loc.medication_title} ${label}`} theme={T} onZoom={onZoom} />
+        <PageShot
+          src={carlatPageSrc(cur)}
+          alt={`${loc.medication_title} ${label}`}
+          theme={T}
+          onZoom={(u) => onZoom(u, images.map(carlatPageSrc))}
+        />
       </div>
     </div>
   );

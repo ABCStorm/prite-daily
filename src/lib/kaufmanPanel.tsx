@@ -32,7 +32,7 @@ function PageShot({
 }: {
   name: string;
   theme: Theme;
-  onZoom: (u: string) => void;
+  onZoom: (u: string, gallery?: string[]) => void;
 }) {
   const [url, setUrl] = useState<string | null>(null);
   const [err, setErr] = useState(false);
@@ -126,7 +126,7 @@ function PageWindow({
 }: {
   data: KaufmanRef;
   theme: Theme;
-  onZoom: (u: string) => void;
+  onZoom: (u: string, gallery?: string[]) => void;
 }) {
   const anchor = data.page ?? 0;
   const lo = data.lo ?? anchor;
@@ -234,7 +234,16 @@ function PageWindow({
       }}
     >
       <div ref={wrapRef} style={{ position: "relative" }}>
-        <PageShot name={kaufmanPageImageName(cur)} theme={theme} onZoom={onZoom} />
+        <PageShot
+          name={kaufmanPageImageName(cur)}
+          theme={theme}
+          onZoom={(url) => {
+            const names = Array.from({ length: Math.max(0, hi - lo + 1) }, (_, i) => kaufmanPageImageName(lo + i));
+            void Promise.all(names.map((n) => kaufmanImage(n).catch(() => ""))).then((urls) => {
+              onZoom(url, urls.filter(Boolean));
+            });
+          }}
+        />
         {!narrow && arrow(-1)}
         {!narrow && arrow(1)}
       </div>
@@ -311,7 +320,7 @@ export function KaufmanPanel({
 }: {
   data: KaufmanRef;
   theme: Theme;
-  onZoom?: (u: string) => void;
+  onZoom?: (u: string, gallery?: string[]) => void;
 }) {
   const zoom = onZoom ?? (() => {});
   const hasPages = data.page != null && data.lo != null;

@@ -34,7 +34,7 @@ function PageShot({
 }: {
   name: string;
   theme: Theme;
-  onZoom: (u: string) => void;
+  onZoom: (u: string, gallery?: string[]) => void;
 }) {
   const [url, setUrl] = useState<string | null>(null);
   const [err, setErr] = useState(false);
@@ -128,7 +128,7 @@ function PageWindow({
 }: {
   data: DsmRef;
   theme: Theme;
-  onZoom: (u: string) => void;
+  onZoom: (u: string, gallery?: string[]) => void;
 }) {
   const anchor = data.page ?? data.pdf_page_start ?? 0;
   const lo = data.lo ?? anchor;
@@ -237,7 +237,16 @@ function PageWindow({
       }}
     >
       <div ref={wrapRef} style={{ position: "relative" }}>
-        <PageShot name={dsmPageImageName(cur)} theme={theme} onZoom={onZoom} />
+        <PageShot
+          name={dsmPageImageName(cur)}
+          theme={theme}
+          onZoom={(url) => {
+            const names = Array.from({ length: Math.max(0, hi - lo + 1) }, (_, i) => dsmPageImageName(lo + i));
+            void Promise.all(names.map((n) => dsmImage(n).catch(() => ""))).then((urls) => {
+              onZoom(url, urls.filter(Boolean));
+            });
+          }}
+        />
         {!narrow && arrow(-1)}
         {!narrow && arrow(1)}
       </div>
@@ -314,7 +323,7 @@ export function DsmPanel({
 }: {
   data: DsmRef;
   theme: Theme;
-  onZoom?: (u: string) => void;
+  onZoom?: (u: string, gallery?: string[]) => void;
 }) {
   const zoom = onZoom ?? (() => {});
   const hasPages = (data.page ?? data.pdf_page_start) != null && (data.lo != null || data.pdf_page_start != null);
