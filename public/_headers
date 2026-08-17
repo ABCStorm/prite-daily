@@ -6,3 +6,9 @@
 
 /bienenfeld/words.json
   Cache-Control: public, max-age=86400
+
+/carlat/pages/*
+  Cache-Control: public, max-age=86400
+
+/carlat/meds.json
+  Cache-Control: public, max-age=86400

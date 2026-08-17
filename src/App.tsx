@@ -24,6 +24,14 @@ import { KaufmanPanel, KaufmanFigure } from "./lib/kaufmanPanel";
 import { loadKaufmanRefs, loadKaufmanQuestions, type KaufmanRef } from "./lib/kaufmanRefs";
 import { loadTherapyQuestions } from "./lib/therapyQuestions";
 import { BienenfeldPanel } from "./lib/bienenfeldPanel";
+import { CarlatPanel } from "./lib/carlatPanel";
+import {
+  carlatCategory,
+  carlatCategoryRank,
+  carlatReaderHref,
+  loadCarlatQuestions,
+  type CarlatLoc,
+} from "./lib/carlatRefs";
 import {
   bienenfeldChapterLabel,
   bienenfeldReaderHref,
@@ -320,6 +328,8 @@ type RawQuestion = {
   };
   /** Present on Bienenfeld psychodynamic-theory items. */
   bienenfeld?: BienenfeldLoc;
+  /** Present on Carlat 2026 medication vignette items. */
+  carlat?: CarlatLoc;
   /** Quizapine vignette chain: keep these neighbors adjacent in practice. */
   therapy_seq?: TherapySeq;
   /** Optional sidecar story for Neuro/Therapy items (not the PRITE context table). */
@@ -468,12 +478,12 @@ function writeCustomQueueSnap(uid: string, snap: CustomQueueSnap | null) {
     else localStorage.setItem(customQueueKey(uid), JSON.stringify(snap));
   } catch { /* private mode */ }
 }
-function todayQueueKey(uid: string) {
-  return `pd_today_queue_${uid}`;
+function todayQueueKey(uid: string, bank: string) {
+  return bank === "prite" ? `pd_today_queue_${uid}` : `pd_today_queue_${uid}_${bank}`;
 }
-function readTodayQueueSnap(uid: string): TodayQueueSnap | null {
+function readTodayQueueSnap(uid: string, bank: string): TodayQueueSnap | null {
   try {
-    const raw = localStorage.getItem(todayQueueKey(uid));
+    const raw = localStorage.getItem(todayQueueKey(uid, bank));
     if (!raw) return null;
     const v = JSON.parse(raw) as TodayQueueSnap;
     if (!v || v.day !== ymd() || !Array.isArray(v.ids)) return null;
@@ -482,9 +492,9 @@ function readTodayQueueSnap(uid: string): TodayQueueSnap | null {
     return null;
   }
 }
-function writeTodayQueueSnap(uid: string, snap: TodayQueueSnap) {
+function writeTodayQueueSnap(uid: string, bank: string, snap: TodayQueueSnap) {
   try {
-    localStorage.setItem(todayQueueKey(uid), JSON.stringify(snap));
+    localStorage.setItem(todayQueueKey(uid, bank), JSON.stringify(snap));
   } catch { /* private mode */ }
 }
 
@@ -682,31 +692,37 @@ const NEURO_ORDER_RULES: { id: OrderRuleId; label: string; hint: string }[] = [
   { id: "weak", label: "My weakest chapters", hint: "Chapters you score below your own average in" },
 ];
 
+const MEDS_ORDER_RULES: { id: OrderRuleId; label: string; hint: string }[] = [
+  { id: "unseen", label: "Questions I've never seen", hint: "Fresh material ahead of anything you've attempted" },
+  { id: "missed", label: "Questions I got wrong", hint: "Ones you've missed before come back around first" },
+  { id: "weak", label: "My weakest medication classes", hint: "Classes you score below your own average in" },
+];
+
 /** Exam-year / PRITE-repeat ranking only belongs on the main PRITE bank. */
 const PRACTICE_HIDDEN_ORDER = new Set<OrderRuleId>(["year", "highyield"]);
 const PRACTICE_DEFAULT_VISIBLE: OrderRuleId[] = ["unseen", "missed", "weak"];
 
-function isPracticeBank(kind: "prite" | "neuro" | "therapy" | undefined): kind is "neuro" | "therapy" {
-  return kind === "neuro" || kind === "therapy";
+function isPracticeBank(kind: "prite" | "neuro" | "therapy" | "meds" | undefined): kind is "neuro" | "therapy" | "meds" {
+  return kind === "neuro" || kind === "therapy" || kind === "meds";
 }
 
 function isStockDailyOrder(order: OrderRuleId[]): boolean {
   return order.join() === DEFAULT_DAILY_ORDER.join();
 }
 
-function visibleOrderRules(kind: "prite" | "neuro" | "therapy", order: OrderRuleId[]): OrderRuleId[] {
+function visibleOrderRules(kind: "prite" | "neuro" | "therapy" | "meds", order: OrderRuleId[]): OrderRuleId[] {
   if (!isPracticeBank(kind)) return order;
   if (isStockDailyOrder(order)) return [...PRACTICE_DEFAULT_VISIBLE];
   return order.filter((id) => !PRACTICE_HIDDEN_ORDER.has(id));
 }
 
-function replaceVisibleOrder(full: OrderRuleId[], nextVisible: OrderRuleId[], kind: "prite" | "neuro" | "therapy"): OrderRuleId[] {
+function replaceVisibleOrder(full: OrderRuleId[], nextVisible: OrderRuleId[], kind: "prite" | "neuro" | "therapy" | "meds"): OrderRuleId[] {
   if (!isPracticeBank(kind)) return nextVisible;
   let i = 0;
   return full.map((id) => (PRACTICE_HIDDEN_ORDER.has(id) ? id : nextVisible[i++]));
 }
 
-function practiceSortOrder(kind: "prite" | "neuro" | "therapy" | undefined, order: OrderRuleId[]): OrderRuleId[] {
+function practiceSortOrder(kind: "prite" | "neuro" | "therapy" | "meds" | undefined, order: OrderRuleId[]): OrderRuleId[] {
   if (!isPracticeBank(kind)) return order;
   if (isStockDailyOrder(order)) return replaceVisibleOrder(order, PRACTICE_DEFAULT_VISIBLE, kind);
   return order;
@@ -890,7 +906,7 @@ function orderComparator(opts: {
   answers: Record<string, AnswerRow>;
   highYieldMixSeed?: string;
   recentlyAnsweredGroups?: Set<string>;
-  kind?: "prite" | "neuro" | "therapy";
+  kind?: "prite" | "neuro" | "therapy" | "meds";
 }) {
   const {
     order, yearFocus, weakCats, missedIds, answers,
@@ -1249,7 +1265,7 @@ function writePref(key: string, value: unknown) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* best-effort */ }
 }
 const LEARNING_SECTION_IDS = new Set([
-  "explanation", "textbook", "dsm", "kaufman", "bienenfeld", "anking", "sketchy", "practice", "mnemonic", "context",
+  "explanation", "textbook", "dsm", "kaufman", "bienenfeld", "carlat", "anking", "sketchy", "practice", "mnemonic", "context",
   "diagram", "video", "mine", "group", "flash", "research",
 ]);
 function readLearningOpenPref(): Set<string> {
@@ -1257,7 +1273,11 @@ function readLearningOpenPref(): Set<string> {
     .filter((id) => LEARNING_SECTION_IDS.has(id)));
 }
 
-function initialPsychMode(): "general" | "child" | "neuro" | "therapy" {
+function initialPsychMode(): "general" | "child" | "neuro" | "therapy" | "meds" {
+  try {
+    const bank = new URLSearchParams(location.search).get("bank");
+    if (bank === "meds" || bank === "therapy" || bank === "neuro" || bank === "general") return bank;
+  } catch { /* ignore */ }
   const ret = bienenfeldReturnFromSearch();
   if (ret?.bank === "therapy" || ret?.bank === "neuro" || ret?.bank === "general") return ret.bank;
   return "general";
@@ -1297,8 +1317,10 @@ export default function App() {
   const [kaufmanBankErr, setKaufmanBankErr] = useState<string | null>(null);
   const [therapyAll, setTherapyAll] = useState<RawQuestion[] | null>(null);
   const [therapyBankErr, setTherapyBankErr] = useState<string | null>(null);
-  const [psychMode, setPsychMode] = useState<"general" | "child" | "neuro" | "therapy">(initialPsychMode);
-  const all = psychMode === "neuro" ? kaufmanAll : psychMode === "therapy" ? therapyAll : priteAll;
+  const [carlatAll, setCarlatAll] = useState<RawQuestion[] | null>(null);
+  const [carlatBankErr, setCarlatBankErr] = useState<string | null>(null);
+  const [psychMode, setPsychMode] = useState<"general" | "child" | "neuro" | "therapy" | "meds">(initialPsychMode);
+  const all = psychMode === "neuro" ? kaufmanAll : psychMode === "therapy" ? therapyAll : psychMode === "meds" ? carlatAll : priteAll;
   const [loadErr, setLoadErr] = useState<string | null>(null);
   // question id -> supporting Kaplan & Sadock passage(s); empty until loaded
   const [kaplanRefs, setKaplanRefs] = useState<Record<string, KaplanRef>>({});
@@ -1590,6 +1612,7 @@ export default function App() {
   const selectChildPsych = () => { setPsychMode("child"); setShowCapite(true); };
   const selectNeuro = () => { setShowCapite(false); setPsychMode("neuro"); setYear("all"); setModalityFilter("all"); setQi(0); };
   const selectTherapy = () => { setShowCapite(false); setPsychMode("therapy"); setYear("all"); setModalityFilter("all"); setQi(0); };
+  const selectMeds = () => { setShowCapite(false); setPsychMode("meds"); setYear("all"); setModalityFilter("all"); setQi(0); };
   const closeCapite = () => { setShowCapite(false); setPsychMode("general"); }; // bounces back — nothing to switch to yet
   const [leaders, setLeaders] = useState<LeaderRow[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -1717,8 +1740,8 @@ export default function App() {
     } else { setAnswers({}); setAnswersLoaded(false); setSettings(null); setSrsDue([]); setSavedTests([]); setPrefsSynced(false); setPollAnsweredIds([]); }
   }, [persist]); // eslint-disable-line
 
-  const bankKind: "prite" | "neuro" | "therapy" =
-    psychMode === "neuro" ? "neuro" : psychMode === "therapy" ? "therapy" : "prite";
+  const bankKind: "prite" | "neuro" | "therapy" | "meds" =
+    psychMode === "neuro" ? "neuro" : psychMode === "therapy" ? "therapy" : psychMode === "meds" ? "meds" : "prite";
   const quotaCustomized = allocateQuota(10, quotaShares).join() !== allocateQuota(10, DAILY_QUOTA_SHARES).join();
   const orderCustomized = (isPracticeBank(bankKind)
     ? visibleOrderRules(bankKind, dailyOrder).join() !== PRACTICE_DEFAULT_VISIBLE.join()
@@ -1874,7 +1897,7 @@ export default function App() {
     setTodayQueue(picked);
     setBonusRound((prev) => {
       const nextBonus = extra ? Math.max(1, prev + 1) : 0;
-      writeTodayQueueSnap(uid, {
+      writeTodayQueueSnap(uid, bankKind, {
         day: ymd(),
         extra,
         bonusRound: nextBonus,
@@ -1902,7 +1925,7 @@ export default function App() {
     setTodayQueue(picked);
     setMode("today"); setQi(0);
     try { localStorage.setItem(`pd_practice_mode_${uid}`, "today"); } catch { /* private mode */ }
-    writeTodayQueueSnap(uid, {
+    writeTodayQueueSnap(uid, bankKind, {
       day: ymd(),
       extra: false,
       bonusRound: 0,
@@ -1910,14 +1933,14 @@ export default function App() {
       qi: 0,
       ids: picked.map((qq) => ({ year: String(qq.year), q_index: qq.q_index })),
     });
-  }, [all, profile?.id, session?.user?.id]);
+  }, [all, profile?.id, session?.user?.id, bankKind]);
 
   // Restore today's queue (including mid-bonus-set progress) before rebuilding.
   useEffect(() => {
     if (!persist || !answersLoaded || !all) return;
     const uid = profile?.id ?? session?.user?.id ?? "local";
     const byId = new Map(all.map((qq) => [questionId(qq.year, qq.q_index), qq]));
-    const snap = readTodayQueueSnap(uid);
+    const snap = readTodayQueueSnap(uid, bankKind);
     if (snap && snap.ids.length > 0) {
       const restored = snap.ids
         .map((id) => byId.get(questionId(id.year, id.q_index)))
@@ -1957,7 +1980,7 @@ export default function App() {
         }
       }
     }
-  }, [persist, answersLoaded, all, buildToday, profile?.id, session?.user?.id]);
+  }, [persist, answersLoaded, all, buildToday, profile?.id, session?.user?.id, bankKind]);
 
   // Coming back from the Bienenfeld reader: land on Therapy and the question
   // that was on screen when they opened the book.
@@ -2007,8 +2030,8 @@ export default function App() {
     if (!persist) return;
     const uid = profile?.id ?? session?.user?.id ?? "local";
     if (mode === "today" && todayQueue.length > 0) {
-      const prev = readTodayQueueSnap(uid);
-      if (prev) writeTodayQueueSnap(uid, { ...prev, qi });
+      const prev = readTodayQueueSnap(uid, bankKind);
+      if (prev) writeTodayQueueSnap(uid, bankKind, { ...prev, qi });
     }
     if (customQueue.length > 0) {
       writeCustomQueueSnap(uid, {
@@ -2017,7 +2040,7 @@ export default function App() {
         ids: customQueue.map((qq) => ({ year: String(qq.year), q_index: qq.q_index })),
       });
     }
-  }, [persist, mode, qi, todayQueue, customQueue, customLabel, profile?.id, session?.user?.id]);
+  }, [persist, mode, qi, todayQueue, customQueue, customLabel, profile?.id, session?.user?.id, bankKind]);
 
   // admins: load the member list (for the approvals panel + pending badge)
   const adminLoggedIn = isConfigured && !!profile?.is_admin;
@@ -2189,6 +2212,26 @@ export default function App() {
     return () => { alive = false; };
   }, [psychMode, signedIn, approved, therapyAll]);
 
+  // Carlat 2026 medication vignettes — fetched only when the Meds toggle is on.
+  useEffect(() => {
+    if (psychMode !== "meds") return;
+    if (isConfigured && !(signedIn && approved)) return;
+    if (carlatAll) return;
+    let alive = true;
+    loadCarlatQuestions()
+      .then((data) => {
+        if (alive) {
+          setCarlatAll((data as RawQuestion[]).map(enrichBankQuestion));
+          setCarlatBankErr(null);
+        }
+      })
+      .catch((e) => {
+        if (alive) setCarlatBankErr(String(e?.message ?? e));
+        console.warn("[carlat] practice bank failed to load:", e);
+      });
+    return () => { alive = false; };
+  }, [psychMode, signedIn, approved, carlatAll]);
+
   // Historical / gee-whiz context for Neuro + Therapy items.
   const [bankContext, setBankContext] = useState<Record<string, string>>({});
   useEffect(() => {
@@ -2238,23 +2281,36 @@ export default function App() {
         return a.localeCompare(b);
       });
     }
+    if (psychMode === "meds") {
+      const catOf = (y: string) => {
+        const q = all.find((row) => row.year === y);
+        return q ? carlatCategory(q) : "";
+      };
+      const filtered = modalityFilter === "all" ? ys : ys.filter((y) => catOf(y) === modalityFilter);
+      return filtered.sort((a, b) => {
+        const cr = carlatCategoryRank(catOf(a)) - carlatCategoryRank(catOf(b));
+        if (cr) return cr;
+        return a.localeCompare(b);
+      });
+    }
     return ys.sort();
   }, [all, psychMode, modalityFilter]);
   const browseSet = useMemo(() => {
     if (!all) return [];
     return all.filter((q) => {
       if (psychMode === "therapy" && modalityFilter !== "all" && q.quizapine?.modality !== modalityFilter) return false;
+      if (psychMode === "meds" && modalityFilter !== "all" && carlatCategory(q) !== modalityFilter) return false;
       if (year !== "all" && q.year !== year) return false;
       return true;
     });
   }, [all, year, psychMode, modalityFilter]);
   const byId = useMemo(() => {
     const m = new Map<string, RawQuestion>();
-    for (const bank of [priteAll, kaufmanAll, therapyAll]) {
+    for (const bank of [priteAll, kaufmanAll, therapyAll, carlatAll]) {
       if (bank) for (const qq of bank) m.set(questionId(qq.year, qq.q_index), qq);
     }
     return m;
-  }, [priteAll, kaufmanAll, therapyAll]);
+  }, [priteAll, kaufmanAll, therapyAll, carlatAll]);
   // Repeat-groups already used across ALL of this user's saved tests, so the
   // random test generator can skip questions (and their cross-year twins)
   // already handed out in a prior week's set.
@@ -2331,6 +2387,7 @@ export default function App() {
   useEffect(() => {
     const next = new Set(preferredOpenSectionsRef.current);
     if (q?.bienenfeld) next.add("bienenfeld");
+    if (q?.carlat) next.add("carlat");
     setOpenSections(next); setDraft(""); setStats(null); setCard(null); setEditCard(null); setContext(null); setCrossed([]);
     helpSectionCursorRef.current = { qid: navQid, lastId: null };
     setAskOpen(false); setAskText("");
@@ -2751,6 +2808,8 @@ export default function App() {
       ? (kaufmanBankErr ? `Kaufman questions: ${kaufmanBankErr}` : "Loading Kaufman questions…")
       : psychMode === "therapy"
         ? (therapyBankErr ? `Therapy questions: ${therapyBankErr}` : "Loading therapy questions…")
+        : psychMode === "meds"
+          ? (carlatBankErr ? `Medication questions: ${carlatBankErr}` : "Loading medication questions…")
         : "Loading the PRITE bank…"
   }</Center>;
   // "Caught up today" is no longer a full-page takeover (that felt like leaving
@@ -2978,6 +3037,9 @@ export default function App() {
     ...(q?.bienenfeld
       ? ([["bienenfeld", "Bienenfeld", showAnswer ? "Psychodynamic theory for clinicians" : "Review the vignette and cited pages", <BookOpen size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
       : []),
+    ...(q?.carlat
+      ? ([["carlat", "Carlat", showAnswer ? "Medication fact sheet from the 2026 book" : "Read the fact sheet while you work the vignette", <Pill size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
+      : []),
     ...(ankingImgs.length
       ? ([["anking", "AnKing", "AnKing / AnkiHub diagrams", <ImageIcon size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
       : []),
@@ -3070,6 +3132,12 @@ export default function App() {
 
     if (e.key === "h" || e.key === "H") {
       if (!showAnswer) {
+        if (q.carlat) {
+          e.preventDefault();
+          if (!openSections.has("carlat")) setOpenSections((current) => new Set(current).add("carlat"));
+          requestAnimationFrame(() => scrollToSection("carlat"));
+          return;
+        }
         if (!q.bienenfeld) return;
         e.preventDefault();
         if (!openSections.has("bienenfeld")) setOpenSections((current) => new Set(current).add("bienenfeld"));
@@ -3393,6 +3461,12 @@ export default function App() {
                   >
                     <Sofa size={12} strokeWidth={2.3} /> <span className="btnTxt">Therapy</span>
                   </button>
+                  <button
+                    style={{ ...s.navSegBtn, ...(psychMode === "meds" ? s.navSegOn : {}) }}
+                    onClick={selectMeds}
+                  >
+                    <Pill size={12} strokeWidth={2.3} /> <span className="btnTxt">Meds</span>
+                  </button>
                 </span>
                 <button style={s.approveBtn} className="topActBtn" onClick={() => setShowBoard(true)} title="Leaderboard">
                   <Trophy size={13} strokeWidth={2.3} /> <span className="btnTxt">Leaderboard</span>
@@ -3478,7 +3552,7 @@ export default function App() {
       <main style={
         examActive ? { ...s.well, maxWidth: 880 }
           // Textbook pages are large screenshots — give them most of the screen width.
-          : (openSections.has("textbook") || openSections.has("dsm") || openSections.has("kaufman") || openSections.has("bienenfeld")) && (showAnswer || !!q?.bienenfeld) ? { ...s.well, maxWidth: 1100 }
+          : (openSections.has("textbook") || openSections.has("dsm") || openSections.has("kaufman") || openSections.has("bienenfeld") || openSections.has("carlat")) && (showAnswer || !!q?.bienenfeld || !!q?.carlat) ? { ...s.well, maxWidth: 1100 }
           : s.well
       }>
         {psychMode === "neuro" && !examActive && (
@@ -3512,6 +3586,33 @@ export default function App() {
             </div>
           </div>
         )}
+        {psychMode === "meds" && !examActive && (
+          <div style={s.bankBanner}>
+            <span style={s.bankBannerIcon} aria-hidden>
+              <Pill size={16} strokeWidth={2.2} />
+            </span>
+            <div>
+              <div style={s.bankBannerTitle}>Meds · Carlat Medication Fact Book, 8th ed. (2026)</div>
+              <div style={s.bankBannerHint}>
+                Clinical vignettes for each fact sheet. The book page opens under the question so you can read dosing and pearls while you work.
+                {" "}
+                <a href={carlatReaderHref(q?.carlat?.medication_id)} target="_blank" rel="noreferrer" style={s.bankBannerLink}>
+                  Open the fact sheet
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
+        {psychMode === "meds" && !examActive && all && (
+          <BankTopicFilters
+            mode="meds"
+            all={all}
+            year={year}
+            modality={modalityFilter}
+            onYear={(y) => { setYear(y); setQi(0); }}
+            onModality={(m) => { setModalityFilter(m); setYear("all"); setQi(0); }}
+          />
+        )}
         {/* Navigation / filter row */}
         <div style={s.nav} className={examActive ? "examDim" : undefined}>
           {persist && (
@@ -3533,7 +3634,7 @@ export default function App() {
             <button
               style={{ ...s.deckBtn, ...(orderCustomized ? s.deckBtnOn : {}) }}
               onClick={() => setShowOrder(true)}
-              title={psychMode === "therapy" ? "Choose what shows up first in your daily therapy set" : psychMode === "neuro" ? "Choose what shows up first in your daily Kaufman set" : "Choose what shows up first in your daily questions"}
+              title={psychMode === "therapy" ? "Choose what shows up first in your daily therapy set" : psychMode === "neuro" ? "Choose what shows up first in your daily Kaufman set" : psychMode === "meds" ? "Choose what shows up first in your daily meds set" : "Choose what shows up first in your daily questions"}
             >
               <GripVertical size={13} strokeWidth={2.3} /> What comes first
               {orderCustomized && <span style={s.deckDot} />}
@@ -3542,7 +3643,7 @@ export default function App() {
           {/* Not behind the mobile Menu: this is the one control that answers
               "give me my wrong ones" / "give me ones I haven't done", and a
               resident asked for it because they couldn't find it on a phone. */}
-          <button style={s.deckBtn} onClick={() => setShowDeck(true)} title={psychMode === "therapy" ? "Filter by modality, chapter, or your history — missed, unseen, or already right" : psychMode === "neuro" ? "Filter by Kaufman chapter or your history — missed, unseen, or already right" : "Filter questions by topic, year, or your own history — the ones you missed, or the ones you've never tried"}>
+          <button style={s.deckBtn} onClick={() => setShowDeck(true)} title={psychMode === "therapy" ? "Filter by modality, chapter, or your history — missed, unseen, or already right" : psychMode === "neuro" ? "Filter by Kaufman chapter or your history — missed, unseen, or already right" : psychMode === "meds" ? "Filter by medication class or your history — missed, unseen, or already right" : "Filter questions by topic, year, or your own history — the ones you missed, or the ones you've never tried"}>
             <Search size={13} strokeWidth={2.4} /> Filter
           </button>
           {psychMode === "therapy" && (
@@ -3554,6 +3655,17 @@ export default function App() {
               title="Read Bienenfeld chapter by chapter"
             >
               <BookOpen size={13} strokeWidth={2.4} /> Read Bienenfeld
+            </a>
+          )}
+          {psychMode === "meds" && (
+            <a
+              href={carlatReaderHref(q?.carlat?.medication_id)}
+              target="_blank"
+              rel="noreferrer"
+              style={{ ...s.deckBtn, textDecoration: "none", color: "inherit" }}
+              title="Read the Carlat fact sheet for this medication"
+            >
+              <BookOpen size={13} strokeWidth={2.4} /> Read fact sheet
             </a>
           )}
           <button style={s.deckBtn} className="mobExtra" onClick={() => setShowAudioDrills(true)} title="Listen to active-recall questions by topic">
@@ -3619,7 +3731,7 @@ export default function App() {
             </span>
           ) : (
             <select value={year} onChange={(e) => { setYear(e.target.value); setQi(0); }} style={s.sel}>
-              <option value="all">{psychMode === "neuro" ? "All chapters" : psychMode === "therapy" ? "All topics" : "All years"} ({all.length})</option>
+              <option value="all">{psychMode === "neuro" ? "All chapters" : psychMode === "therapy" ? "All topics" : psychMode === "meds" ? "All medications" : "All years"} ({all.length})</option>
               {years.map((y) => {
                 const n = all.filter((x) => x.year === y).length;
                 const sample = all.find((x) => x.year === y);
@@ -3768,6 +3880,8 @@ export default function App() {
               ? <>Kaufman · {q.year} · Q{q.kaufman.book_number ?? q.q_index}{q.prite_label ? <span style={{ color: T.faint }}> · {q.prite_label.replace(/^Chapter \d+:\s*/, "")}</span> : null}</>
               : q.bienenfeld
                 ? <>Bienenfeld · {q.year} · Q{q.q_index}{q.bienenfeld.page != null ? <span style={{ color: T.faint }}> · p. {q.bienenfeld.page}</span> : null}</>
+              : q.carlat
+                ? <>Meds · {q.carlat.medication_title} · Q{q.q_index}{q.carlat.printed_pages?.[0] != null ? <span style={{ color: T.faint }}> · p. {q.carlat.printed_pages[0]}</span> : null}</>
               : q.quizapine
                 ? <>Therapy · {q.quizapine.modality || "Psychotherapy"} · Q{q.q_index}{q.year ? <span style={{ color: T.faint }}> · {q.year}</span> : null}</>
                 : <>{q.year} · Q{q.q_index} <span style={{ color: T.faint }}>(slide {q.slide_number})</span></>}
@@ -4096,7 +4210,7 @@ export default function App() {
             stays visible as a table of contents instead of disappearing behind tabs.
             Bienenfeld pages also appear before the answer so the vignette can be
             reread while the question is still open. */}
-        {(showAnswer || (!examActive && q.bienenfeld)) && (
+        {(showAnswer || (!examActive && (q.bienenfeld || q.carlat))) && (
           <section style={s.below}>
             {/* No "Learning guide / Build out the answer" heading: the cards
                 below say what they are, and the title + hint pushed the
@@ -4122,7 +4236,7 @@ export default function App() {
             </div>
 
             <div style={s.learningStack}>
-              {pairNoteCards((showAnswer ? sections : sections.filter(([id]) => id === "bienenfeld")).map(([id, label, summary, icon], sectionIndex) => {
+              {pairNoteCards((showAnswer ? sections : sections.filter(([id]) => id === "bienenfeld" || id === "carlat")).map(([id, label, summary, icon], sectionIndex) => {
                 const isOpen = openSections.has(id);
                 const isKeptOpen = preferredOpenSections.has(id);
                 const bodyId = `learning-${q.year}-${q.q_index}-${id}`;
@@ -4235,6 +4349,12 @@ export default function App() {
               {id === "bienenfeld" && q.bienenfeld && (
                 <div className="fade">
                   <BienenfeldPanel loc={q.bienenfeld} theme={T} onZoom={setZoomImg} returnTo={bookReturn} showQuote={showAnswer} />
+                </div>
+              )}
+
+              {id === "carlat" && q.carlat && (
+                <div className="fade">
+                  <CarlatPanel loc={q.carlat} theme={T} onZoom={setZoomImg} />
                 </div>
               )}
 
@@ -4789,7 +4909,7 @@ export default function App() {
       {showDeck && all && (
         <DeckBuilder
           all={all} byId={byId} fire={fire}
-          kind={psychMode === "neuro" ? "neuro" : psychMode === "therapy" ? "therapy" : "prite"}
+          kind={psychMode === "neuro" ? "neuro" : psychMode === "therapy" ? "therapy" : psychMode === "meds" ? "meds" : "prite"}
           usedGroupKeys={usedGroupKeys}
           answers={answers}
           kaplanRefs={kaplanRefs}
@@ -8275,7 +8395,7 @@ function OfficialResultsPanel({ results, onClose, onCleared, onEditTeams, onEdit
 function BankTopicFilters({
   mode, all, year, modality, onYear, onModality,
 }: {
-  mode: "neuro" | "therapy";
+  mode: "neuro" | "therapy" | "meds";
   all: RawQuestion[];
   year: string;
   modality: string;
@@ -8289,6 +8409,14 @@ function BankTopicFilters({
       counts.set(m, (counts.get(m) || 0) + 1);
     }
     return [...counts.entries()].sort((a, b) => therapyModalityRank(a[0]) - therapyModalityRank(b[0]) || a[0].localeCompare(b[0]));
+  }, [all]);
+  const medsChips = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const q of all) {
+      const c = carlatCategory(q);
+      counts.set(c, (counts.get(c) || 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => carlatCategoryRank(a[0]) - carlatCategoryRank(b[0]) || a[0].localeCompare(b[0]));
   }, [all]);
   const neuroChips = useMemo(() => {
     const counts = new Map<string, { label: string; n: number; year: string }>();
@@ -8308,12 +8436,22 @@ function BankTopicFilters({
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "0 0 12px" }}>
       <button
-        style={{ ...s.orderYear, ...((mode === "therapy" ? modality === "all" : year === "all") ? s.orderYearOn : {}) }}
-        onClick={() => { if (mode === "therapy") onModality("all"); else onYear("all"); }}
+        style={{ ...s.orderYear, ...((mode === "therapy" || mode === "meds" ? modality === "all" : year === "all") ? s.orderYearOn : {}) }}
+        onClick={() => { if (mode === "therapy" || mode === "meds") onModality("all"); else onYear("all"); }}
       >
         All ({all.length})
       </button>
-      {mode === "therapy"
+      {mode === "meds"
+        ? medsChips.map(([name, n]) => (
+            <button
+              key={name}
+              style={{ ...s.orderYear, ...(modality === name ? s.orderYearOn : {}) }}
+              onClick={() => onModality(modality === name ? "all" : name)}
+            >
+              {name.replace(/ Medications$/i, "")} <span style={{ fontWeight: 500, opacity: 0.7 }}>{n}</span>
+            </button>
+          ))
+      : mode === "therapy"
         ? therapyChips.map(([name, n]) => (
             <button
               key={name}
@@ -8722,7 +8860,7 @@ function Approvals({
 function DailyOrderPanel({
   kind = "prite", order, yearFocus, years, preview, weakAreas, setSize = 10, quotaShares, onChange, onReset, onClose,
 }: {
-  kind?: "prite" | "neuro" | "therapy";
+  kind?: "prite" | "neuro" | "therapy" | "meds";
   order: OrderRuleId[];
   yearFocus: string[];
   years: string[];
@@ -8737,7 +8875,7 @@ function DailyOrderPanel({
   const [dragId, setDragId] = useState<OrderRuleId | null>(null);
   const [overId, setOverId] = useState<OrderRuleId | null>(null);
   const shown = visibleOrderRules(kind, order);
-  const catalog = kind === "therapy" ? THERAPY_ORDER_RULES : kind === "neuro" ? NEURO_ORDER_RULES : ORDER_RULES;
+  const catalog = kind === "therapy" ? THERAPY_ORDER_RULES : kind === "neuro" ? NEURO_ORDER_RULES : kind === "meds" ? MEDS_ORDER_RULES : ORDER_RULES;
   const quotaCounts = allocateQuota(setSize, quotaShares);
   const leftoverQuota = quotaCounts.slice(shown.length).reduce((a, b) => a + b, 0);
 
@@ -8769,7 +8907,7 @@ function DailyOrderPanel({
       <div style={{ ...s.apPanel, maxWidth: 560 }} onClick={(e) => e.stopPropagation()} className="rise">
         <div style={s.apHead}>
           <div>
-            <div style={s.apEyebrow}>{kind === "therapy" ? "Therapy daily set" : kind === "neuro" ? "Kaufman daily set" : "Daily questions"}</div>
+            <div style={s.apEyebrow}>{kind === "therapy" ? "Therapy daily set" : kind === "neuro" ? "Kaufman daily set" : kind === "meds" ? "Meds daily set" : "Daily questions"}</div>
             <div style={s.apTitle}>What comes first</div>
           </div>
           <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
@@ -9802,7 +9940,7 @@ function DeckBuilder({
   answers: Record<string, AnswerRow>; // this user's attempt history
   kaplanRefs: Record<string, KaplanRef>; // question id -> textbook citation, {} until loaded
   kaplanErr?: string | null; // why they didn't load, shown instead of a silently dead filter
-  kind?: "prite" | "neuro" | "therapy";
+  kind?: "prite" | "neuro" | "therapy" | "meds";
 }) {
   const [search, setSearch] = useState("");
   const [scope, setScope] = useState<"both" | "stem" | "choices" | "answer">("both");
@@ -9841,6 +9979,17 @@ function DeckBuilder({
         const mr = therapyModalityRank(ma) - therapyModalityRank(mb);
         if (mr) return mr;
         if (ma === "Bienenfeld") return bienenfeldYearRank(a) - bienenfeldYearRank(b);
+        return a.localeCompare(b);
+      });
+    }
+    if (kind === "meds") {
+      return ys.sort((a, b) => {
+        const qa = all.find((q) => q.year === a);
+        const qb = all.find((q) => q.year === b);
+        const ca = qa ? carlatCategory(qa) : "";
+        const cb = qb ? carlatCategory(qb) : "";
+        const cr = carlatCategoryRank(ca) - carlatCategoryRank(cb);
+        if (cr) return cr;
         return a.localeCompare(b);
       });
     }
@@ -10079,7 +10228,7 @@ function DeckBuilder({
         <div style={s.apHead}>
           <div>
             <div style={s.apEyebrow}>Search · study · export</div>
-            <div style={s.apTitle}>{kind === "neuro" ? "Filter Kaufman questions" : kind === "therapy" ? "Filter therapy questions" : "Build a study set"}</div>
+            <div style={s.apTitle}>{kind === "neuro" ? "Filter Kaufman questions" : kind === "therapy" ? "Filter therapy questions" : kind === "meds" ? "Filter medication questions" : "Build a study set"}</div>
           </div>
           <button style={s.close} onClick={onClose}><X size={16} strokeWidth={2.4} /></button>
         </div>
@@ -10129,17 +10278,17 @@ function DeckBuilder({
               disabled={!weakAreas.length}
               title={
                 weakAreas.length
-                  ? `Your lowest-scoring ${kind === "therapy" ? "modalities" : kind === "neuro" ? "chapters" : "categories"}: ${weakAreas.map((w) => catLabel.get(w.cat) ?? w.cat).join(", ")}`
+                  ? `Your lowest-scoring ${kind === "therapy" ? "modalities" : kind === "neuro" ? "chapters" : kind === "meds" ? "medication classes" : "categories"}: ${weakAreas.map((w) => catLabel.get(w.cat) ?? w.cat).join(", ")}`
                   : "Answer a few more questions first — this needs some history before it can tell which sections are giving you trouble"
               }
             >
-              <Target size={13} strokeWidth={2.3} /> {kind === "therapy" ? "Modalities I’m weakest in" : kind === "neuro" ? "Chapters I’m weakest in" : "Areas I\u2019m weakest in"}{" "}
+              <Target size={13} strokeWidth={2.3} /> {kind === "therapy" ? "Modalities I’m weakest in" : kind === "neuro" ? "Chapters I’m weakest in" : kind === "meds" ? "Classes I’m weakest in" : "Areas I\u2019m weakest in"}{" "}
               <b style={{ fontWeight: 700 }}>{weakAreas.length ? presetCounts.weak.toLocaleString() : "—"}</b>
             </button>
           </div>
-          {(kind === "neuro" || kind === "therapy") && (
+          {(kind === "neuro" || kind === "therapy" || kind === "meds") && (
             <div style={{ margin: "4px 0 10px" }}>
-              <span style={s.quickLabel} className="quickLabel">{kind === "neuro" ? "Chapters" : "Modalities"}</span>
+              <span style={s.quickLabel} className="quickLabel">{kind === "neuro" ? "Chapters" : kind === "meds" ? "Classes" : "Modalities"}</span>
               <BankTopicFilters
                 mode={kind}
                 all={all}
@@ -10168,7 +10317,7 @@ function DeckBuilder({
             )}
           </p>
           <div style={s.deckSearchRow}>
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={kind === "therapy" ? "Search (e.g. transference, Kohut, exposure)" : kind === "neuro" ? "Search (e.g. seizure, aphasia, MS)" : "Search for a word (e.g. fluoxetine)"} style={{ ...s.deckSearch, marginBottom: 0, flex: 1 }} />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={kind === "therapy" ? "Search (e.g. transference, Kohut, exposure)" : kind === "neuro" ? "Search (e.g. seizure, aphasia, MS)" : kind === "meds" ? "Search (e.g. clozapine, lithium, QT)" : "Search for a word (e.g. fluoxetine)"} style={{ ...s.deckSearch, marginBottom: 0, flex: 1 }} />
             <button
               style={{ ...s.moreBtn, ...(showAdvanced || activeFilterCount > 0 ? s.moreBtnOn : {}) }}
               onClick={() => setShowAdvanced((v) => !v)}
@@ -10215,7 +10364,7 @@ function DeckBuilder({
                     </select>
                   )}
                   <select value={year} onChange={(e) => setYear(e.target.value)} style={{ ...s.cohortSel, ...(year !== "all" ? s.cohortSelOn : {}) }}>
-                    <option value="all">{kind === "neuro" ? "Any chapter" : kind === "therapy" ? "Any chapter or topic" : "Any year"}</option>
+                    <option value="all">{kind === "neuro" ? "Any chapter" : kind === "therapy" ? "Any chapter or topic" : kind === "meds" ? "Any medication" : "Any year"}</option>
                     {kind === "therapy"
                       ? years.reduce<{ mod: string; items: string[] }[]>((groups, y) => {
                           const sample = all.find((q) => q.year === y);

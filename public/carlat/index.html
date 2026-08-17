@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Carlat 2026 fact sheets</title>
+  <style>
+    :root { color-scheme: dark; --bg:#14161a; --panel:#1d2128; --ink:#e8eaed; --muted:#9aa3af; --line:#2c3340; --acc:#8ab4ff; }
+    * { box-sizing: border-box; }
+    body { margin:0; font: 15px/1.45 system-ui, sans-serif; background:var(--bg); color:var(--ink); }
+    header { position:sticky; top:0; z-index:2; display:flex; gap:12px; flex-wrap:wrap; align-items:center; padding:10px 16px; background:var(--panel); border-bottom:1px solid var(--line); }
+    h1 { font-size:15px; margin:0; font-weight:650; }
+    select, input { background:#0f1217; color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:6px 8px; }
+    select { min-width: 280px; max-width: 100%; }
+    a { color:var(--acc); }
+    main { max-width: 920px; margin: 16px auto 48px; padding: 0 16px; }
+    .meta { color:var(--muted); font-size:13px; margin: 0 0 12px; }
+    .page { background:#0b0d10; border:1px solid var(--line); border-radius:10px; margin: 0 0 16px; overflow:hidden; }
+    .page img { display:block; width:100%; height:auto; }
+    .caption { padding:8px 12px; color:var(--muted); font-size:12px; border-top:1px solid var(--line); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Carlat Medication Fact Book, 8th ed. (2026)</h1>
+    <label>Medication
+      <select id="med"></select>
+    </label>
+    <a id="pdf" href="/carlat/">Download this fact sheet (PDF)</a>
+  </header>
+  <main>
+    <p class="meta" id="meta"></p>
+    <div id="pages"></div>
+  </main>
+  <script>
+    const medSel = document.getElementById("med");
+    const pagesEl = document.getElementById("pages");
+    const metaEl = document.getElementById("meta");
+    const pdfEl = document.getElementById("pdf");
+    let catalog = [];
+
+    function currentId() {
+      const hash = new URLSearchParams(location.hash.replace(/^#/, ""));
+      return hash.get("med") || catalog[0]?.medication_id;
+    }
+
+    function render() {
+      const id = currentId();
+      const med = catalog.find((row) => row.medication_id === id) || catalog[0];
+      if (!med) return;
+      medSel.value = med.medication_id;
+      metaEl.textContent = `${med.title} · ${med.category} · printed p. ${med.printed_pages.join(", ")}`;
+      pdfEl.href = med.excerpt_pdf;
+      pdfEl.download = "";
+      pagesEl.innerHTML = med.images.map((src, i) => `
+        <figure class="page">
+          <img src="${src}" alt="${med.title} page ${med.printed_pages[i]}" />
+          <figcaption class="caption">Printed page ${med.printed_pages[i]} · Medication Fact Book for Psychiatric Practice, 8th ed.</figcaption>
+        </figure>`).join("");
+    }
+
+    medSel.addEventListener("change", () => {
+      location.hash = `med=${medSel.value}`;
+    });
+    window.addEventListener("hashchange", render);
+
+    fetch("/carlat/meds.json").then((r) => r.json()).then((rows) => {
+      catalog = rows;
+      medSel.innerHTML = rows.map((row) =>
+        `<option value="${row.medication_id}">${row.title}</option>`
+      ).join("");
+      render();
+    });
+  </script>
+</body>
+</html>

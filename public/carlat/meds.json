@@ -1,0 +1,1683 @@
+[
+  {
+    "medication_id": "amphetamine-adzenys-xr-odt-dyanavel-xr-evekeo",
+    "title": "Amphetamine (Adzenys XR-ODT, Dyanavel XR, Evekeo)",
+    "category": "ADHD Medications",
+    "printed_pages": [
+      20
+    ],
+    "images": [
+      "/carlat/pages/p020.jpg"
+    ]
+  },
+  {
+    "medication_id": "atomoxetine-strattera",
+    "title": "Atomoxetine (Strattera)",
+    "category": "ADHD Medications",
+    "printed_pages": [
+      21
+    ],
+    "images": [
+      "/carlat/pages/p021.jpg"
+    ]
+  },
+  {
+    "medication_id": "clonidine-catapres-kapvay-onyda-xr",
+    "title": "Clonidine (Catapres, Kapvay, Onyda XR)",
+    "category": "ADHD Medications",
+    "printed_pages": [
+      22
+    ],
+    "images": [
+      "/carlat/pages/p022.jpg"
+    ]
+  },
+  {
+    "medication_id": "dexmethylphenidate-azstarys-focalin-focalin-xr",
+    "title": "Dexmethylphenidate (Azstarys, Focalin, Focalin XR)",
+    "category": "ADHD Medications",
+    "printed_pages": [
+      23
+    ],
+    "images": [
+      "/carlat/pages/p023.jpg"
+    ]
+  },
+  {
+    "medication_id": "dextroamphetamine-dexedrine-dextrostat-liquadd-procentra-zenzedi",
+    "title": "Dextroamphetamine (Dexedrine, Dextrostat, Liquadd, ProCentra, Zenzedi)",
+    "category": "ADHD Medications",
+    "printed_pages": [
+      24
+    ],
+    "images": [
+      "/carlat/pages/p024.jpg"
+    ]
+  },
+  {
+    "medication_id": "dextroamphetamine-transdermal-xelstrym",
+    "title": "Dextroamphetamine Transdermal (Xelstrym)",
+    "category": "ADHD Medications",
+    "printed_pages": [
+      25
+    ],
+    "images": [
+      "/carlat/pages/p025.jpg"
+    ]
+  },
+  {
+    "medication_id": "guanfacine-intuniv-tenex",
+    "title": "Guanfacine (Intuniv, Tenex)",
+    "category": "ADHD Medications",
+    "printed_pages": [
+      26
+    ],
+    "images": [
+      "/carlat/pages/p026.jpg"
+    ]
+  },
+  {
+    "medication_id": "lisdexamfetamine-vyvanse",
+    "title": "Lisdexamfetamine (Vyvanse)",
+    "category": "ADHD Medications",
+    "printed_pages": [
+      27
+    ],
+    "images": [
+      "/carlat/pages/p027.jpg"
+    ]
+  },
+  {
+    "medication_id": "methamphetamine-desoxyn",
+    "title": "Methamphetamine (Desoxyn)",
+    "category": "ADHD Medications",
+    "printed_pages": [
+      28
+    ],
+    "images": [
+      "/carlat/pages/p028.jpg"
+    ]
+  },
+  {
+    "medication_id": "methylphenidate-immediate-release-methylin-ritalin",
+    "title": "Methylphenidate Immediate-Release (Methylin, Ritalin)",
+    "category": "ADHD Medications",
+    "printed_pages": [
+      29
+    ],
+    "images": [
+      "/carlat/pages/p029.jpg"
+    ]
+  },
+  {
+    "medication_id": "methylphenidate-extended-release-concerta-ritalin-sr-and-la-others",
+    "title": "Methylphenidate Extended-Release (Concerta, Ritalin SR and LA, others)",
+    "category": "ADHD Medications",
+    "printed_pages": [
+      30
+    ],
+    "images": [
+      "/carlat/pages/p030.jpg"
+    ]
+  },
+  {
+    "medication_id": "methylphenidate-transdermal-daytrana",
+    "title": "Methylphenidate Transdermal (Daytrana)",
+    "category": "ADHD Medications",
+    "printed_pages": [
+      31
+    ],
+    "images": [
+      "/carlat/pages/p031.jpg"
+    ]
+  },
+  {
+    "medication_id": "mixed-amphetamine-salts-adderall-adderall-xr-mydayis",
+    "title": "Mixed Amphetamine Salts (Adderall, Adderall XR, Mydayis)",
+    "category": "ADHD Medications",
+    "printed_pages": [
+      32
+    ],
+    "images": [
+      "/carlat/pages/p032.jpg"
+    ]
+  },
+  {
+    "medication_id": "viloxazine-xr-qelbree",
+    "title": "Viloxazine XR (Qelbree)",
+    "category": "ADHD Medications",
+    "printed_pages": [
+      33
+    ],
+    "images": [
+      "/carlat/pages/p033.jpg"
+    ]
+  },
+  {
+    "medication_id": "bupropion-wellbutrin-others",
+    "title": "Bupropion (Wellbutrin, others)",
+    "category": "Antidepressants",
+    "printed_pages": [
+      45
+    ],
+    "images": [
+      "/carlat/pages/p045.jpg"
+    ]
+  },
+  {
+    "medication_id": "citalopram-celexa",
+    "title": "Citalopram (Celexa)",
+    "category": "Antidepressants",
+    "printed_pages": [
+      46
+    ],
+    "images": [
+      "/carlat/pages/p046.jpg"
+    ]
+  },
+  {
+    "medication_id": "clomipramine-anafranil",
+    "title": "Clomipramine (Anafranil)",
+    "category": "Antidepressants",
+    "printed_pages": [
+      47
+    ],
+    "images": [
+      "/carlat/pages/p047.jpg"
+    ]
+  },
+  {
+    "medication_id": "desvenlafaxine-pristiq",
+    "title": "Desvenlafaxine (Pristiq)",
+    "category": "Antidepressants",
+    "printed_pages": [
+      48
+    ],
+    "images": [
+      "/carlat/pages/p048.jpg"
+    ]
+  },
+  {
+    "medication_id": "dextromethorphan-bupropion-auvelity",
+    "title": "Dextromethorphan/Bupropion (Auvelity)",
+    "category": "Antidepressants",
+    "printed_pages": [
+      49
+    ],
+    "images": [
+      "/carlat/pages/p049.jpg"
+    ]
+  },
+  {
+    "medication_id": "duloxetine-cymbalta-drizalma-sprinkle",
+    "title": "Duloxetine (Cymbalta, Drizalma Sprinkle)",
+    "category": "Antidepressants",
+    "printed_pages": [
+      50
+    ],
+    "images": [
+      "/carlat/pages/p050.jpg"
+    ]
+  },
+  {
+    "medication_id": "escitalopram-lexapro",
+    "title": "Escitalopram (Lexapro)",
+    "category": "Antidepressants",
+    "printed_pages": [
+      51
+    ],
+    "images": [
+      "/carlat/pages/p051.jpg"
+    ]
+  },
+  {
+    "medication_id": "esketamine-spravato",
+    "title": "Esketamine (Spravato)",
+    "category": "Antidepressants",
+    "printed_pages": [
+      52
+    ],
+    "images": [
+      "/carlat/pages/p052.jpg"
+    ]
+  },
+  {
+    "medication_id": "fluoxetine-prozac-prozac-weekly",
+    "title": "Fluoxetine (Prozac, Prozac Weekly)",
+    "category": "Antidepressants",
+    "printed_pages": [
+      53
+    ],
+    "images": [
+      "/carlat/pages/p053.jpg"
+    ]
+  },
+  {
+    "medication_id": "fluvoxamine-luvox-luvox-cr",
+    "title": "Fluvoxamine (Luvox, Luvox CR)",
+    "category": "Antidepressants",
+    "printed_pages": [
+      54
+    ],
+    "images": [
+      "/carlat/pages/p054.jpg"
+    ]
+  },
+  {
+    "medication_id": "gepirone-exxua",
+    "title": "Gepirone (Exxua)",
+    "category": "Antidepressants",
+    "printed_pages": [
+      55
+    ],
+    "images": [
+      "/carlat/pages/p055.jpg"
+    ]
+  },
+  {
+    "medication_id": "ketamine-ketalar",
+    "title": "Ketamine (Ketalar)",
+    "category": "Antidepressants",
+    "printed_pages": [
+      56
+    ],
+    "images": [
+      "/carlat/pages/p056.jpg"
+    ]
+  },
+  {
+    "medication_id": "levomilnacipran-fetzima",
+    "title": "Levomilnacipran (Fetzima)",
+    "category": "Antidepressants",
+    "printed_pages": [
+      57
+    ],
+    "images": [
+      "/carlat/pages/p057.jpg"
+    ]
+  },
+  {
+    "medication_id": "mirtazapine-remeron",
+    "title": "Mirtazapine (Remeron)",
+    "category": "Antidepressants",
+    "printed_pages": [
+      58
+    ],
+    "images": [
+      "/carlat/pages/p058.jpg"
+    ]
+  },
+  {
+    "medication_id": "monoamine-oxidase-inhibitors-maois",
+    "title": "Monoamine Oxidase Inhibitors (MAOIs)",
+    "category": "Antidepressants",
+    "printed_pages": [
+      59
+    ],
+    "images": [
+      "/carlat/pages/p059.jpg"
+    ]
+  },
+  {
+    "medication_id": "nefazodone-serzone",
+    "title": "Nefazodone (Serzone)",
+    "category": "Antidepressants",
+    "printed_pages": [
+      60
+    ],
+    "images": [
+      "/carlat/pages/p060.jpg"
+    ]
+  },
+  {
+    "medication_id": "paroxetine-brisdelle-paxil-paxil-cr",
+    "title": "Paroxetine (Brisdelle, Paxil, Paxil CR)",
+    "category": "Antidepressants",
+    "printed_pages": [
+      61
+    ],
+    "images": [
+      "/carlat/pages/p061.jpg"
+    ]
+  },
+  {
+    "medication_id": "selegiline-transdermal-emsam",
+    "title": "Selegiline Transdermal (Emsam)",
+    "category": "Antidepressants",
+    "printed_pages": [
+      62
+    ],
+    "images": [
+      "/carlat/pages/p062.jpg"
+    ]
+  },
+  {
+    "medication_id": "sertraline-zoloft",
+    "title": "Sertraline (Zoloft)",
+    "category": "Antidepressants",
+    "printed_pages": [
+      63
+    ],
+    "images": [
+      "/carlat/pages/p063.jpg"
+    ]
+  },
+  {
+    "medication_id": "thyroid-cytomel-synthroid-others",
+    "title": "Thyroid (Cytomel, Synthroid, others)",
+    "category": "Antidepressants",
+    "printed_pages": [
+      64
+    ],
+    "images": [
+      "/carlat/pages/p064.jpg"
+    ]
+  },
+  {
+    "medication_id": "trazodone-desyrel",
+    "title": "Trazodone (Desyrel)",
+    "category": "Antidepressants",
+    "printed_pages": [
+      65
+    ],
+    "images": [
+      "/carlat/pages/p065.jpg"
+    ]
+  },
+  {
+    "medication_id": "tricyclic-antidepressants-tcas",
+    "title": "Tricyclic Antidepressants (TCAs)",
+    "category": "Antidepressants",
+    "printed_pages": [
+      66
+    ],
+    "images": [
+      "/carlat/pages/p066.jpg"
+    ]
+  },
+  {
+    "medication_id": "venlafaxine-effexor-effexor-xr",
+    "title": "Venlafaxine (Effexor, Effexor XR)",
+    "category": "Antidepressants",
+    "printed_pages": [
+      67
+    ],
+    "images": [
+      "/carlat/pages/p067.jpg"
+    ]
+  },
+  {
+    "medication_id": "vilazodone-viibryd",
+    "title": "Vilazodone (Viibryd)",
+    "category": "Antidepressants",
+    "printed_pages": [
+      68
+    ],
+    "images": [
+      "/carlat/pages/p068.jpg"
+    ]
+  },
+  {
+    "medication_id": "vortioxetine-trintellix",
+    "title": "Vortioxetine (Trintellix)",
+    "category": "Antidepressants",
+    "printed_pages": [
+      69
+    ],
+    "images": [
+      "/carlat/pages/p069.jpg"
+    ]
+  },
+  {
+    "medication_id": "zuranolone-zurzuvae",
+    "title": "Zuranolone (Zurzuvae)",
+    "category": "Antidepressants",
+    "printed_pages": [
+      70
+    ],
+    "images": [
+      "/carlat/pages/p070.jpg"
+    ]
+  },
+  {
+    "medication_id": "aripiprazole-abilify",
+    "title": "Aripiprazole (Abilify)",
+    "category": "Antipsychotics",
+    "printed_pages": [
+      80
+    ],
+    "images": [
+      "/carlat/pages/p080.jpg"
+    ]
+  },
+  {
+    "medication_id": "asenapine-saphris-secuado",
+    "title": "Asenapine (Saphris, Secuado)",
+    "category": "Antipsychotics",
+    "printed_pages": [
+      81
+    ],
+    "images": [
+      "/carlat/pages/p081.jpg"
+    ]
+  },
+  {
+    "medication_id": "brexpiprazole-rexulti",
+    "title": "Brexpiprazole (Rexulti)",
+    "category": "Antipsychotics",
+    "printed_pages": [
+      82
+    ],
+    "images": [
+      "/carlat/pages/p082.jpg"
+    ]
+  },
+  {
+    "medication_id": "cariprazine-vraylar",
+    "title": "Cariprazine (Vraylar)",
+    "category": "Antipsychotics",
+    "printed_pages": [
+      83
+    ],
+    "images": [
+      "/carlat/pages/p083.jpg"
+    ]
+  },
+  {
+    "medication_id": "chlorpromazine-thorazine",
+    "title": "Chlorpromazine (Thorazine)",
+    "category": "Antipsychotics",
+    "printed_pages": [
+      84
+    ],
+    "images": [
+      "/carlat/pages/p084.jpg"
+    ]
+  },
+  {
+    "medication_id": "clozapine-clozaril-versacloz",
+    "title": "Clozapine (Clozaril, Versacloz)",
+    "category": "Antipsychotics",
+    "printed_pages": [
+      85,
+      86,
+      87,
+      88
+    ],
+    "images": [
+      "/carlat/pages/p085.jpg",
+      "/carlat/pages/p086.jpg",
+      "/carlat/pages/p087.jpg",
+      "/carlat/pages/p088.jpg"
+    ]
+  },
+  {
+    "medication_id": "fluphenazine-prolixin",
+    "title": "Fluphenazine (Prolixin)",
+    "category": "Antipsychotics",
+    "printed_pages": [
+      89
+    ],
+    "images": [
+      "/carlat/pages/p089.jpg"
+    ]
+  },
+  {
+    "medication_id": "haloperidol-haldol",
+    "title": "Haloperidol (Haldol)",
+    "category": "Antipsychotics",
+    "printed_pages": [
+      90
+    ],
+    "images": [
+      "/carlat/pages/p090.jpg"
+    ]
+  },
+  {
+    "medication_id": "iloperidone-fanapt",
+    "title": "Iloperidone (Fanapt)",
+    "category": "Antipsychotics",
+    "printed_pages": [
+      91
+    ],
+    "images": [
+      "/carlat/pages/p091.jpg"
+    ]
+  },
+  {
+    "medication_id": "loxapine-adasuve-loxitane",
+    "title": "Loxapine (Adasuve, Loxitane)",
+    "category": "Antipsychotics",
+    "printed_pages": [
+      92
+    ],
+    "images": [
+      "/carlat/pages/p092.jpg"
+    ]
+  },
+  {
+    "medication_id": "lumateperone-caplyta",
+    "title": "Lumateperone (Caplyta)",
+    "category": "Antipsychotics",
+    "printed_pages": [
+      93
+    ],
+    "images": [
+      "/carlat/pages/p093.jpg"
+    ]
+  },
+  {
+    "medication_id": "lurasidone-latuda",
+    "title": "Lurasidone (Latuda)",
+    "category": "Antipsychotics",
+    "printed_pages": [
+      94
+    ],
+    "images": [
+      "/carlat/pages/p094.jpg"
+    ]
+  },
+  {
+    "medication_id": "molindone-moban",
+    "title": "Molindone (Moban)",
+    "category": "Antipsychotics",
+    "printed_pages": [
+      95
+    ],
+    "images": [
+      "/carlat/pages/p095.jpg"
+    ]
+  },
+  {
+    "medication_id": "olanzapine-lybalvi-symbyax-zyprexa",
+    "title": "Olanzapine (Lybalvi, Symbyax, Zyprexa)",
+    "category": "Antipsychotics",
+    "printed_pages": [
+      96,
+      97
+    ],
+    "images": [
+      "/carlat/pages/p096.jpg",
+      "/carlat/pages/p097.jpg"
+    ]
+  },
+  {
+    "medication_id": "paliperidone-invega",
+    "title": "Paliperidone (Invega)",
+    "category": "Antipsychotics",
+    "printed_pages": [
+      98
+    ],
+    "images": [
+      "/carlat/pages/p098.jpg"
+    ]
+  },
+  {
+    "medication_id": "perphenazine-trilafon",
+    "title": "Perphenazine (Trilafon)",
+    "category": "Antipsychotics",
+    "printed_pages": [
+      99
+    ],
+    "images": [
+      "/carlat/pages/p099.jpg"
+    ]
+  },
+  {
+    "medication_id": "pimavanserin-nuplazid",
+    "title": "Pimavanserin (Nuplazid)",
+    "category": "Antipsychotics",
+    "printed_pages": [
+      100
+    ],
+    "images": [
+      "/carlat/pages/p100.jpg"
+    ]
+  },
+  {
+    "medication_id": "quetiapine-seroquel-seroquel-xr",
+    "title": "Quetiapine (Seroquel, Seroquel XR)",
+    "category": "Antipsychotics",
+    "printed_pages": [
+      101
+    ],
+    "images": [
+      "/carlat/pages/p101.jpg"
+    ]
+  },
+  {
+    "medication_id": "risperidone-risperdal",
+    "title": "Risperidone (Risperdal)",
+    "category": "Antipsychotics",
+    "printed_pages": [
+      102
+    ],
+    "images": [
+      "/carlat/pages/p102.jpg"
+    ]
+  },
+  {
+    "medication_id": "thioridazine-mellaril",
+    "title": "Thioridazine (Mellaril)",
+    "category": "Antipsychotics",
+    "printed_pages": [
+      103
+    ],
+    "images": [
+      "/carlat/pages/p103.jpg"
+    ]
+  },
+  {
+    "medication_id": "thiothixene-navane",
+    "title": "Thiothixene (Navane)",
+    "category": "Antipsychotics",
+    "printed_pages": [
+      104
+    ],
+    "images": [
+      "/carlat/pages/p104.jpg"
+    ]
+  },
+  {
+    "medication_id": "trifluoperazine-stelazine",
+    "title": "Trifluoperazine (Stelazine)",
+    "category": "Antipsychotics",
+    "printed_pages": [
+      105
+    ],
+    "images": [
+      "/carlat/pages/p105.jpg"
+    ]
+  },
+  {
+    "medication_id": "xanomeline-trospium-cobenfy",
+    "title": "Xanomeline/Trospium (Cobenfy)",
+    "category": "Antipsychotics",
+    "printed_pages": [
+      106
+    ],
+    "images": [
+      "/carlat/pages/p106.jpg"
+    ]
+  },
+  {
+    "medication_id": "ziprasidone-geodon",
+    "title": "Ziprasidone (Geodon)",
+    "category": "Antipsychotics",
+    "printed_pages": [
+      107
+    ],
+    "images": [
+      "/carlat/pages/p107.jpg"
+    ]
+  },
+  {
+    "medication_id": "long-acting-injectable-lai-antipsychotics",
+    "title": "Long-Acting Injectable (LAI) Antipsychotics",
+    "category": "Antipsychotics",
+    "printed_pages": [
+      108,
+      109,
+      110,
+      111,
+      112,
+      113,
+      114
+    ],
+    "images": [
+      "/carlat/pages/p108.jpg",
+      "/carlat/pages/p109.jpg",
+      "/carlat/pages/p110.jpg",
+      "/carlat/pages/p111.jpg",
+      "/carlat/pages/p112.jpg",
+      "/carlat/pages/p113.jpg",
+      "/carlat/pages/p114.jpg"
+    ]
+  },
+  {
+    "medication_id": "alprazolam-xanax",
+    "title": "Alprazolam (Xanax)",
+    "category": "Anxiolytic and Hypnotic Medications",
+    "printed_pages": [
+      123
+    ],
+    "images": [
+      "/carlat/pages/p123.jpg"
+    ]
+  },
+  {
+    "medication_id": "antihistamines-diphenhydramine-others",
+    "title": "Antihistamines (Diphenhydramine, others)",
+    "category": "Anxiolytic and Hypnotic Medications",
+    "printed_pages": [
+      124
+    ],
+    "images": [
+      "/carlat/pages/p124.jpg"
+    ]
+  },
+  {
+    "medication_id": "buspirone-buspar",
+    "title": "Buspirone (BuSpar)",
+    "category": "Anxiolytic and Hypnotic Medications",
+    "printed_pages": [
+      125
+    ],
+    "images": [
+      "/carlat/pages/p125.jpg"
+    ]
+  },
+  {
+    "medication_id": "clonazepam-klonopin",
+    "title": "Clonazepam (Klonopin)",
+    "category": "Anxiolytic and Hypnotic Medications",
+    "printed_pages": [
+      126
+    ],
+    "images": [
+      "/carlat/pages/p126.jpg"
+    ]
+  },
+  {
+    "medication_id": "daridorexant-quviviq",
+    "title": "Daridorexant (Quviviq)",
+    "category": "Anxiolytic and Hypnotic Medications",
+    "printed_pages": [
+      127
+    ],
+    "images": [
+      "/carlat/pages/p127.jpg"
+    ]
+  },
+  {
+    "medication_id": "dexmedetomidine-igalmi",
+    "title": "Dexmedetomidine (Igalmi)",
+    "category": "Anxiolytic and Hypnotic Medications",
+    "printed_pages": [
+      128
+    ],
+    "images": [
+      "/carlat/pages/p128.jpg"
+    ]
+  },
+  {
+    "medication_id": "diazepam-valium",
+    "title": "Diazepam (Valium)",
+    "category": "Anxiolytic and Hypnotic Medications",
+    "printed_pages": [
+      129
+    ],
+    "images": [
+      "/carlat/pages/p129.jpg"
+    ]
+  },
+  {
+    "medication_id": "doxepin-silenor",
+    "title": "Doxepin (Silenor)",
+    "category": "Anxiolytic and Hypnotic Medications",
+    "printed_pages": [
+      130
+    ],
+    "images": [
+      "/carlat/pages/p130.jpg"
+    ]
+  },
+  {
+    "medication_id": "eszopiclone-lunesta",
+    "title": "Eszopiclone (Lunesta)",
+    "category": "Anxiolytic and Hypnotic Medications",
+    "printed_pages": [
+      131
+    ],
+    "images": [
+      "/carlat/pages/p131.jpg"
+    ]
+  },
+  {
+    "medication_id": "flurazepam-dalmane",
+    "title": "Flurazepam (Dalmane)",
+    "category": "Anxiolytic and Hypnotic Medications",
+    "printed_pages": [
+      132
+    ],
+    "images": [
+      "/carlat/pages/p132.jpg"
+    ]
+  },
+  {
+    "medication_id": "hydroxyzine-atarax-vistaril",
+    "title": "Hydroxyzine (Atarax, Vistaril)",
+    "category": "Anxiolytic and Hypnotic Medications",
+    "printed_pages": [
+      133
+    ],
+    "images": [
+      "/carlat/pages/p133.jpg"
+    ]
+  },
+  {
+    "medication_id": "lemborexant-dayvigo",
+    "title": "Lemborexant (Dayvigo)",
+    "category": "Anxiolytic and Hypnotic Medications",
+    "printed_pages": [
+      134
+    ],
+    "images": [
+      "/carlat/pages/p134.jpg"
+    ]
+  },
+  {
+    "medication_id": "lorazepam-ativan-loreev-xr",
+    "title": "Lorazepam (Ativan, Loreev XR)",
+    "category": "Anxiolytic and Hypnotic Medications",
+    "printed_pages": [
+      135
+    ],
+    "images": [
+      "/carlat/pages/p135.jpg"
+    ]
+  },
+  {
+    "medication_id": "prazosin-minipress",
+    "title": "Prazosin (Minipress)",
+    "category": "Anxiolytic and Hypnotic Medications",
+    "printed_pages": [
+      136
+    ],
+    "images": [
+      "/carlat/pages/p136.jpg"
+    ]
+  },
+  {
+    "medication_id": "propranolol-inderal",
+    "title": "Propranolol (Inderal)",
+    "category": "Anxiolytic and Hypnotic Medications",
+    "printed_pages": [
+      137
+    ],
+    "images": [
+      "/carlat/pages/p137.jpg"
+    ]
+  },
+  {
+    "medication_id": "ramelteon-rozerem",
+    "title": "Ramelteon (Rozerem)",
+    "category": "Anxiolytic and Hypnotic Medications",
+    "printed_pages": [
+      138
+    ],
+    "images": [
+      "/carlat/pages/p138.jpg"
+    ]
+  },
+  {
+    "medication_id": "suvorexant-belsomra",
+    "title": "Suvorexant (Belsomra)",
+    "category": "Anxiolytic and Hypnotic Medications",
+    "printed_pages": [
+      139
+    ],
+    "images": [
+      "/carlat/pages/p139.jpg"
+    ]
+  },
+  {
+    "medication_id": "temazepam-restoril",
+    "title": "Temazepam (Restoril)",
+    "category": "Anxiolytic and Hypnotic Medications",
+    "printed_pages": [
+      140
+    ],
+    "images": [
+      "/carlat/pages/p140.jpg"
+    ]
+  },
+  {
+    "medication_id": "triazolam-halcion",
+    "title": "Triazolam (Halcion)",
+    "category": "Anxiolytic and Hypnotic Medications",
+    "printed_pages": [
+      141
+    ],
+    "images": [
+      "/carlat/pages/p141.jpg"
+    ]
+  },
+  {
+    "medication_id": "zaleplon-sonata",
+    "title": "Zaleplon (Sonata)",
+    "category": "Anxiolytic and Hypnotic Medications",
+    "printed_pages": [
+      142
+    ],
+    "images": [
+      "/carlat/pages/p142.jpg"
+    ]
+  },
+  {
+    "medication_id": "zolpidem-ambien-edluar",
+    "title": "Zolpidem (Ambien, Edluar)",
+    "category": "Anxiolytic and Hypnotic Medications",
+    "printed_pages": [
+      143
+    ],
+    "images": [
+      "/carlat/pages/p143.jpg"
+    ]
+  },
+  {
+    "medication_id": "benzgalantamine-zunveyl",
+    "title": "Benzgalantamine (Zunveyl)",
+    "category": "Dementia Medications",
+    "printed_pages": [
+      150
+    ],
+    "images": [
+      "/carlat/pages/p150.jpg"
+    ]
+  },
+  {
+    "medication_id": "donanemab-kisunla",
+    "title": "Donanemab (Kisunla)",
+    "category": "Dementia Medications",
+    "printed_pages": [
+      151
+    ],
+    "images": [
+      "/carlat/pages/p151.jpg"
+    ]
+  },
+  {
+    "medication_id": "donepezil-aricept-adlarity",
+    "title": "Donepezil (Aricept, Adlarity)",
+    "category": "Dementia Medications",
+    "printed_pages": [
+      152
+    ],
+    "images": [
+      "/carlat/pages/p152.jpg"
+    ]
+  },
+  {
+    "medication_id": "galantamine-razadyne-razadyne-er",
+    "title": "Galantamine (Razadyne, Razadyne ER)",
+    "category": "Dementia Medications",
+    "printed_pages": [
+      153
+    ],
+    "images": [
+      "/carlat/pages/p153.jpg"
+    ]
+  },
+  {
+    "medication_id": "lecanemab-leqembi",
+    "title": "Lecanemab (Leqembi)",
+    "category": "Dementia Medications",
+    "printed_pages": [
+      154
+    ],
+    "images": [
+      "/carlat/pages/p154.jpg"
+    ]
+  },
+  {
+    "medication_id": "memantine-namenda-namenda-xr",
+    "title": "Memantine (Namenda, Namenda XR)",
+    "category": "Dementia Medications",
+    "printed_pages": [
+      155
+    ],
+    "images": [
+      "/carlat/pages/p155.jpg"
+    ]
+  },
+  {
+    "medication_id": "memantine-donepezil-extended-release-namzaric",
+    "title": "Memantine/Donepezil Extended-Release (Namzaric)",
+    "category": "Dementia Medications",
+    "printed_pages": [
+      156
+    ],
+    "images": [
+      "/carlat/pages/p156.jpg"
+    ]
+  },
+  {
+    "medication_id": "rivastigmine-exelon-exelon-patch",
+    "title": "Rivastigmine (Exelon, Exelon Patch)",
+    "category": "Dementia Medications",
+    "printed_pages": [
+      157
+    ],
+    "images": [
+      "/carlat/pages/p157.jpg"
+    ]
+  },
+  {
+    "medication_id": "carbamazepine-epitol-equetro-tegretol-others",
+    "title": "Carbamazepine (Epitol, Equetro, Tegretol, others)",
+    "category": "Mood Stabilizers and Anticonvulsants",
+    "printed_pages": [
+      165
+    ],
+    "images": [
+      "/carlat/pages/p165.jpg"
+    ]
+  },
+  {
+    "medication_id": "gabapentin-gralise-horizant-neurontin",
+    "title": "Gabapentin (Gralise, Horizant, Neurontin)",
+    "category": "Mood Stabilizers and Anticonvulsants",
+    "printed_pages": [
+      166
+    ],
+    "images": [
+      "/carlat/pages/p166.jpg"
+    ]
+  },
+  {
+    "medication_id": "lamotrigine-lamictal-lamictal-xr-subvenite",
+    "title": "Lamotrigine (Lamictal, Lamictal XR, Subvenite)",
+    "category": "Mood Stabilizers and Anticonvulsants",
+    "printed_pages": [
+      167
+    ],
+    "images": [
+      "/carlat/pages/p167.jpg"
+    ]
+  },
+  {
+    "medication_id": "lithium-eskalith-lithobid",
+    "title": "Lithium (Eskalith, Lithobid)",
+    "category": "Mood Stabilizers and Anticonvulsants",
+    "printed_pages": [
+      168
+    ],
+    "images": [
+      "/carlat/pages/p168.jpg"
+    ]
+  },
+  {
+    "medication_id": "oxcarbazepine-oxtellar-xr-trileptal",
+    "title": "Oxcarbazepine (Oxtellar XR, Trileptal)",
+    "category": "Mood Stabilizers and Anticonvulsants",
+    "printed_pages": [
+      169
+    ],
+    "images": [
+      "/carlat/pages/p169.jpg"
+    ]
+  },
+  {
+    "medication_id": "pregabalin-lyrica-lyrica-cr",
+    "title": "Pregabalin (Lyrica, Lyrica CR)",
+    "category": "Mood Stabilizers and Anticonvulsants",
+    "printed_pages": [
+      170
+    ],
+    "images": [
+      "/carlat/pages/p170.jpg"
+    ]
+  },
+  {
+    "medication_id": "topiramate-eprontia-qudexy-xr-topamax-trokendi-xr",
+    "title": "Topiramate (Eprontia, Qudexy XR, Topamax, Trokendi XR)",
+    "category": "Mood Stabilizers and Anticonvulsants",
+    "printed_pages": [
+      171
+    ],
+    "images": [
+      "/carlat/pages/p171.jpg"
+    ]
+  },
+  {
+    "medication_id": "valproic-acid-depakene-depakote-others",
+    "title": "Valproic Acid (Depakene, Depakote, others)",
+    "category": "Mood Stabilizers and Anticonvulsants",
+    "printed_pages": [
+      172
+    ],
+    "images": [
+      "/carlat/pages/p172.jpg"
+    ]
+  },
+  {
+    "medication_id": "curcumin-turmeric",
+    "title": "Curcumin (Turmeric)",
+    "category": "Natural Treatments",
+    "printed_pages": [
+      176
+    ],
+    "images": [
+      "/carlat/pages/p176.jpg"
+    ]
+  },
+  {
+    "medication_id": "lavender-essential-oil-calmaid-silexan",
+    "title": "Lavender Essential Oil (CalmAid, Silexan)",
+    "category": "Natural Treatments",
+    "printed_pages": [
+      177
+    ],
+    "images": [
+      "/carlat/pages/p177.jpg"
+    ]
+  },
+  {
+    "medication_id": "lithium-orotate",
+    "title": "Lithium Orotate",
+    "category": "Natural Treatments",
+    "printed_pages": [
+      178
+    ],
+    "images": [
+      "/carlat/pages/p178.jpg"
+    ]
+  },
+  {
+    "medication_id": "l-methylfolate-deplin",
+    "title": "L-Methylfolate (Deplin)",
+    "category": "Natural Treatments",
+    "printed_pages": [
+      179
+    ],
+    "images": [
+      "/carlat/pages/p179.jpg"
+    ]
+  },
+  {
+    "medication_id": "l-tryptophan",
+    "title": "L-Tryptophan",
+    "category": "Natural Treatments",
+    "printed_pages": [
+      180
+    ],
+    "images": [
+      "/carlat/pages/p180.jpg"
+    ]
+  },
+  {
+    "medication_id": "magnesium",
+    "title": "Magnesium",
+    "category": "Natural Treatments",
+    "printed_pages": [
+      181
+    ],
+    "images": [
+      "/carlat/pages/p181.jpg"
+    ]
+  },
+  {
+    "medication_id": "melatonin",
+    "title": "Melatonin",
+    "category": "Natural Treatments",
+    "printed_pages": [
+      182
+    ],
+    "images": [
+      "/carlat/pages/p182.jpg"
+    ]
+  },
+  {
+    "medication_id": "n-acetylcysteine-nac",
+    "title": "N-Acetylcysteine (NAC)",
+    "category": "Natural Treatments",
+    "printed_pages": [
+      183
+    ],
+    "images": [
+      "/carlat/pages/p183.jpg"
+    ]
+  },
+  {
+    "medication_id": "omega-3-fatty-acids-fish-oil",
+    "title": "Omega-3 Fatty Acids (Fish Oil)",
+    "category": "Natural Treatments",
+    "printed_pages": [
+      184
+    ],
+    "images": [
+      "/carlat/pages/p184.jpg"
+    ]
+  },
+  {
+    "medication_id": "s-adenosyl-l-methionine-same",
+    "title": "S-Adenosyl-L-Methionine (SAMe)",
+    "category": "Natural Treatments",
+    "printed_pages": [
+      185
+    ],
+    "images": [
+      "/carlat/pages/p185.jpg"
+    ]
+  },
+  {
+    "medication_id": "saffron",
+    "title": "Saffron",
+    "category": "Natural Treatments",
+    "printed_pages": [
+      186
+    ],
+    "images": [
+      "/carlat/pages/p186.jpg"
+    ]
+  },
+  {
+    "medication_id": "st-johns-wort",
+    "title": "St. John’s Wort",
+    "category": "Natural Treatments",
+    "printed_pages": [
+      187
+    ],
+    "images": [
+      "/carlat/pages/p187.jpg"
+    ]
+  },
+  {
+    "medication_id": "vitamin-d",
+    "title": "Vitamin D",
+    "category": "Natural Treatments",
+    "printed_pages": [
+      188
+    ],
+    "images": [
+      "/carlat/pages/p188.jpg"
+    ]
+  },
+  {
+    "medication_id": "avanafil-stendra",
+    "title": "Avanafil (Stendra)",
+    "category": "Sexual Dysfunction Medications",
+    "printed_pages": [
+      191
+    ],
+    "images": [
+      "/carlat/pages/p191.jpg"
+    ]
+  },
+  {
+    "medication_id": "bremelanotide-vyleesi",
+    "title": "Bremelanotide (Vyleesi)",
+    "category": "Sexual Dysfunction Medications",
+    "printed_pages": [
+      192
+    ],
+    "images": [
+      "/carlat/pages/p192.jpg"
+    ]
+  },
+  {
+    "medication_id": "cyproheptadine-periactin",
+    "title": "Cyproheptadine (Periactin)",
+    "category": "Sexual Dysfunction Medications",
+    "printed_pages": [
+      193
+    ],
+    "images": [
+      "/carlat/pages/p193.jpg"
+    ]
+  },
+  {
+    "medication_id": "flibanserin-addyi",
+    "title": "Flibanserin (Addyi)",
+    "category": "Sexual Dysfunction Medications",
+    "printed_pages": [
+      194
+    ],
+    "images": [
+      "/carlat/pages/p194.jpg"
+    ]
+  },
+  {
+    "medication_id": "sildenafil-viagra",
+    "title": "Sildenafil (Viagra)",
+    "category": "Sexual Dysfunction Medications",
+    "printed_pages": [
+      195
+    ],
+    "images": [
+      "/carlat/pages/p195.jpg"
+    ]
+  },
+  {
+    "medication_id": "tadalafil-cialis",
+    "title": "Tadalafil (Cialis)",
+    "category": "Sexual Dysfunction Medications",
+    "printed_pages": [
+      196
+    ],
+    "images": [
+      "/carlat/pages/p196.jpg"
+    ]
+  },
+  {
+    "medication_id": "testosterone-various",
+    "title": "Testosterone (various)",
+    "category": "Sexual Dysfunction Medications",
+    "printed_pages": [
+      197
+    ],
+    "images": [
+      "/carlat/pages/p197.jpg"
+    ]
+  },
+  {
+    "medication_id": "vardenafil-levitra",
+    "title": "Vardenafil (Levitra)",
+    "category": "Sexual Dysfunction Medications",
+    "printed_pages": [
+      198
+    ],
+    "images": [
+      "/carlat/pages/p198.jpg"
+    ]
+  },
+  {
+    "medication_id": "amantadine-gocovri-symmetrel",
+    "title": "Amantadine (Gocovri, Symmetrel)",
+    "category": "Side Effect Management Medications",
+    "printed_pages": [
+      201
+    ],
+    "images": [
+      "/carlat/pages/p201.jpg"
+    ]
+  },
+  {
+    "medication_id": "benztropine-cogentin",
+    "title": "Benztropine (Cogentin)",
+    "category": "Side Effect Management Medications",
+    "printed_pages": [
+      202
+    ],
+    "images": [
+      "/carlat/pages/p202.jpg"
+    ]
+  },
+  {
+    "medication_id": "deutetrabenazine-austedo",
+    "title": "Deutetrabenazine (Austedo)",
+    "category": "Side Effect Management Medications",
+    "printed_pages": [
+      203
+    ],
+    "images": [
+      "/carlat/pages/p203.jpg"
+    ]
+  },
+  {
+    "medication_id": "metformin-glucophage-glumetza-riomet",
+    "title": "Metformin (Glucophage, Glumetza, Riomet)",
+    "category": "Side Effect Management Medications",
+    "printed_pages": [
+      204
+    ],
+    "images": [
+      "/carlat/pages/p204.jpg"
+    ]
+  },
+  {
+    "medication_id": "tetrabenazine-xenazine",
+    "title": "Tetrabenazine (Xenazine)",
+    "category": "Side Effect Management Medications",
+    "printed_pages": [
+      205
+    ],
+    "images": [
+      "/carlat/pages/p205.jpg"
+    ]
+  },
+  {
+    "medication_id": "trihexyphenidyl-artane",
+    "title": "Trihexyphenidyl (Artane)",
+    "category": "Side Effect Management Medications",
+    "printed_pages": [
+      206
+    ],
+    "images": [
+      "/carlat/pages/p206.jpg"
+    ]
+  },
+  {
+    "medication_id": "valbenazine-ingrezza",
+    "title": "Valbenazine (Ingrezza)",
+    "category": "Side Effect Management Medications",
+    "printed_pages": [
+      207
+    ],
+    "images": [
+      "/carlat/pages/p207.jpg"
+    ]
+  },
+  {
+    "medication_id": "armodafinil-nuvigil",
+    "title": "Armodafinil (Nuvigil)",
+    "category": "Sleep Disorder Medications",
+    "printed_pages": [
+      233
+    ],
+    "images": [
+      "/carlat/pages/p233.jpg"
+    ]
+  },
+  {
+    "medication_id": "modafinil-provigil",
+    "title": "Modafinil (Provigil)",
+    "category": "Sleep Disorder Medications",
+    "printed_pages": [
+      234
+    ],
+    "images": [
+      "/carlat/pages/p234.jpg"
+    ]
+  },
+  {
+    "medication_id": "oxybates-lumryz-xyrem-xywav",
+    "title": "Oxybates (Lumryz, Xyrem, Xywav)",
+    "category": "Sleep Disorder Medications",
+    "printed_pages": [
+      235
+    ],
+    "images": [
+      "/carlat/pages/p235.jpg"
+    ]
+  },
+  {
+    "medication_id": "pitolisant-wakix",
+    "title": "Pitolisant (Wakix)",
+    "category": "Sleep Disorder Medications",
+    "printed_pages": [
+      236
+    ],
+    "images": [
+      "/carlat/pages/p236.jpg"
+    ]
+  },
+  {
+    "medication_id": "solriamfetol-sunosi",
+    "title": "Solriamfetol (Sunosi)",
+    "category": "Sleep Disorder Medications",
+    "printed_pages": [
+      237
+    ],
+    "images": [
+      "/carlat/pages/p237.jpg"
+    ]
+  },
+  {
+    "medication_id": "tasimelteon-hetlioz",
+    "title": "Tasimelteon (Hetlioz)",
+    "category": "Sleep Disorder Medications",
+    "printed_pages": [
+      238
+    ],
+    "images": [
+      "/carlat/pages/p238.jpg"
+    ]
+  },
+  {
+    "medication_id": "acamprosate-campral",
+    "title": "Acamprosate (Campral)",
+    "category": "Substance Use Disorder Medications",
+    "printed_pages": [
+      252
+    ],
+    "images": [
+      "/carlat/pages/p252.jpg"
+    ]
+  },
+  {
+    "medication_id": "buprenorphine-extended-release-injection-monotherapy-brixadi-sublocade",
+    "title": "Buprenorphine Extended-Release Injection Monotherapy (Brixadi, Sublocade)",
+    "category": "Substance Use Disorder Medications",
+    "printed_pages": [
+      253
+    ],
+    "images": [
+      "/carlat/pages/p253.jpg"
+    ]
+  },
+  {
+    "medication_id": "buprenorphine-monotherapy-subutex-others",
+    "title": "Buprenorphine Monotherapy (Subutex, others)",
+    "category": "Substance Use Disorder Medications",
+    "printed_pages": [
+      254
+    ],
+    "images": [
+      "/carlat/pages/p254.jpg"
+    ]
+  },
+  {
+    "medication_id": "buprenorphine-naloxone-suboxone-zubsolv",
+    "title": "Buprenorphine/Naloxone (Suboxone, Zubsolv)",
+    "category": "Substance Use Disorder Medications",
+    "printed_pages": [
+      255
+    ],
+    "images": [
+      "/carlat/pages/p255.jpg"
+    ]
+  },
+  {
+    "medication_id": "bupropion-sr-zyban",
+    "title": "Bupropion SR (Zyban)",
+    "category": "Substance Use Disorder Medications",
+    "printed_pages": [
+      256
+    ],
+    "images": [
+      "/carlat/pages/p256.jpg"
+    ]
+  },
+  {
+    "medication_id": "disulfiram-antabuse",
+    "title": "Disulfiram (Antabuse)",
+    "category": "Substance Use Disorder Medications",
+    "printed_pages": [
+      257
+    ],
+    "images": [
+      "/carlat/pages/p257.jpg"
+    ]
+  },
+  {
+    "medication_id": "lofexidine-lucemyra",
+    "title": "Lofexidine (Lucemyra)",
+    "category": "Substance Use Disorder Medications",
+    "printed_pages": [
+      258
+    ],
+    "images": [
+      "/carlat/pages/p258.jpg"
+    ]
+  },
+  {
+    "medication_id": "methadone-methadose",
+    "title": "Methadone (Methadose)",
+    "category": "Substance Use Disorder Medications",
+    "printed_pages": [
+      259
+    ],
+    "images": [
+      "/carlat/pages/p259.jpg"
+    ]
+  },
+  {
+    "medication_id": "nalmefene-opvee-zurnai",
+    "title": "Nalmefene (Opvee, Zurnai)",
+    "category": "Substance Use Disorder Medications",
+    "printed_pages": [
+      260
+    ],
+    "images": [
+      "/carlat/pages/p260.jpg"
+    ]
+  },
+  {
+    "medication_id": "naloxone-kloxxado-narcan-nasal-spray-rextovy-rezenopy-rivive-zimhi",
+    "title": "Naloxone (Kloxxado, Narcan Nasal Spray, Rextovy, Rezenopy, RiVive, Zimhi)",
+    "category": "Substance Use Disorder Medications",
+    "printed_pages": [
+      261
+    ],
+    "images": [
+      "/carlat/pages/p261.jpg"
+    ]
+  },
+  {
+    "medication_id": "naltrexone-revia-vivitrol",
+    "title": "Naltrexone (ReVia, Vivitrol)",
+    "category": "Substance Use Disorder Medications",
+    "printed_pages": [
+      262
+    ],
+    "images": [
+      "/carlat/pages/p262.jpg"
+    ]
+  },
+  {
+    "medication_id": "nicotine-gum-lozenge-nicorette-others",
+    "title": "Nicotine Gum/Lozenge (Nicorette, others)",
+    "category": "Substance Use Disorder Medications",
+    "printed_pages": [
+      263
+    ],
+    "images": [
+      "/carlat/pages/p263.jpg"
+    ]
+  },
+  {
+    "medication_id": "nicotine-nasal-spray-nicotrol-ns",
+    "title": "Nicotine Nasal Spray (Nicotrol NS)",
+    "category": "Substance Use Disorder Medications",
+    "printed_pages": [
+      264
+    ],
+    "images": [
+      "/carlat/pages/p264.jpg"
+    ]
+  },
+  {
+    "medication_id": "nicotine-patch-nicoderm-cq-others",
+    "title": "Nicotine Patch (Nicoderm CQ, others)",
+    "category": "Substance Use Disorder Medications",
+    "printed_pages": [
+      265
+    ],
+    "images": [
+      "/carlat/pages/p265.jpg"
+    ]
+  },
+  {
+    "medication_id": "varenicline-chantix",
+    "title": "Varenicline (Chantix)",
+    "category": "Substance Use Disorder Medications",
+    "printed_pages": [
+      266
+    ],
+    "images": [
+      "/carlat/pages/p266.jpg"
+    ]
+  }
+]

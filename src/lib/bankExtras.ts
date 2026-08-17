@@ -7,12 +7,13 @@
 import type { PodcastRef } from "./podcasts";
 import type { ResearchArticle, ResearchRef } from "./researchRefs";
 
-export type BankKind = "prite" | "neuro" | "therapy";
+export type BankKind = "prite" | "neuro" | "therapy" | "meds";
 
-export function bankKindOf(q: { kaufman?: unknown; quizapine?: unknown } | null | undefined): BankKind {
+export function bankKindOf(q: { kaufman?: unknown; quizapine?: unknown; carlat?: unknown } | null | undefined): BankKind {
   if (!q) return "prite";
   if (q.kaufman) return "neuro";
   if (q.quizapine) return "therapy";
+  if (q.carlat) return "meds";
   return "prite";
 }
 
@@ -115,6 +116,7 @@ export function enrichBankQuestion<T extends Record<string, unknown>>(raw: T): T
     context?: string;
     kaufman?: { chapter?: string; chapter_num?: string | number; teach_title?: string };
     quizapine?: { modality?: string; topic?: string; sources?: string[] };
+    carlat?: { category?: string; medication_title?: string };
   };
   const kind = bankKindOf(q);
   if (kind === "prite") return raw;
@@ -123,10 +125,13 @@ export function enrichBankQuestion<T extends Record<string, unknown>>(raw: T): T
   const point = teachingPoint(expl);
   const chapter = neuroChapter(q);
   const modality = therapyModality(q);
+  const medTitle = q.carlat?.medication_title || q.prite_label || q.year;
 
   let clinical = q.clinical_application;
   if (!clinical) {
-    if (kind === "therapy") {
+    if (kind === "meds") {
+      clinical = firstSentence(String(q.stem || ""), 400);
+    } else if (kind === "therapy") {
       const move = point || firstSentence(expl);
       clinical = move
         ? `In clinic this shows up as: ${firstSentence(String(q.stem || ""))} What you actually do: ${move}`
@@ -141,7 +146,9 @@ export function enrichBankQuestion<T extends Record<string, unknown>>(raw: T): T
 
   let video = q.video_query;
   if (!video) {
-    if (kind === "therapy") {
+    if (kind === "meds") {
+      video = `${medTitle} psychiatry pharmacology`.replace(/\s+/g, " ").slice(0, 120);
+    } else if (kind === "therapy") {
       const topic = q.quizapine?.topic || q.year || modality;
       video = `${modality} ${topic} psychotherapy psychiatry`.replace(/\s+/g, " ").slice(0, 120);
     } else {
@@ -166,11 +173,24 @@ export function enrichBankQuestion<T extends Record<string, unknown>>(raw: T): T
     };
     if (!(tags.topics as string[])?.length) tags.topics = [String(q.year || modality), modality];
   }
+  if (kind === "meds") {
+    const cat = q.carlat?.category || "Medications";
+    tags = {
+      diagnosis: [],
+      medication: [slug(medTitle || "medication")],
+      psychotherapy: [],
+      neuro: [],
+      historical: [],
+      setting: null,
+      topics: [cat],
+      ...tags,
+    };
+  }
 
   return {
     ...q,
-    prite_category: kind === "therapy" ? slug(modality) : (q.prite_category || slug(chapter)),
-    prite_label: kind === "therapy" ? modality : (q.prite_label || chapter),
+    prite_category: kind === "therapy" ? slug(modality) : kind === "meds" ? slug(q.carlat?.category || "medications") : (q.prite_category || slug(chapter)),
+    prite_label: kind === "therapy" ? modality : kind === "meds" ? medTitle : (q.prite_label || chapter),
     tags,
     clinical_application: clinical,
     video_query: video,
