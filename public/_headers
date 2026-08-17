@@ -12,3 +12,6 @@
 
 /carlat/meds.json
   Cache-Control: public, max-age=86400
+
+/study-music/*
+  Cache-Control: public, max-age=86400

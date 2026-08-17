@@ -9,7 +9,7 @@ import {
   Eye, EyeOff, PanelRight, PanelBottom,
   BookOpen, Volume2, Play, Pause, Square, Copy, Shuffle, GripVertical,
   Brain, Pill, HeartPulse, GraduationCap, LayoutDashboard, Pin, Headphones,
-  Library, BookMarked, Sofa, Newspaper,
+  Library, BookMarked, Sofa, Newspaper, FolderOpen,
 } from "lucide-react";
 import mermaid from "mermaid";
 import { nextRewardPost, RewardKind } from "./lib/motivation";
@@ -56,11 +56,11 @@ import {
   neuroChapter, therapyModality, therapyModalityRank, neuroYearRank, neuroTopicLabel,
   neuroChapterOptionLabel, slug, loadBankContext, bankKindOf,
 } from "./lib/bankExtras";
-import { WiseOwl } from "./lib/WiseOwl";
 import { loadOwlStats, type OwlStat } from "./lib/owlStats";
-import { AnalystFox } from "./lib/AnalystFox";
 import { loadDynPerspectives, type DynPearl } from "./lib/dynPerspectives";
-import { MascotTab } from "./lib/MascotTab";
+import { DifferentPerspectives } from "./lib/DifferentPerspectives";
+import { StudyIsland } from "./lib/StudyIsland";
+import { DateWheel, formatLongDate } from "./lib/DateWheel";
 import { ZoomLightbox } from "./lib/ZoomLightbox";
 import { RoundsLanding } from "./lib/roundsPage";
 import { ScenarioIllustration } from "./lib/ScenarioIllustration";
@@ -1330,7 +1330,7 @@ function writePref(key: string, value: unknown) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* best-effort */ }
 }
 const LEARNING_SECTION_IDS = new Set([
-  "explanation", "textbook", "dsm", "kaufman", "bienenfeld", "carlat", "anking", "sketchy", "practice", "mnemonic", "context",
+  "explanation", "perspectives", "textbook", "dsm", "kaufman", "bienenfeld", "carlat", "anking", "sketchy", "practice", "mnemonic", "context",
   "diagram", "video", "mine", "group", "flash", "research",
 ]);
 function readLearningOpenPref(): Set<string> {
@@ -1462,28 +1462,12 @@ export default function App() {
   const aiDisclaimerCheckedRef = useRef(false);
 
   // --- exam mode + timer (UI prefs, kept in localStorage to avoid a DB migration) ---
-  const [owlOn, setOwlOn] = useState<boolean>(() => readPref<boolean>("pd_stat_on", false));
-  const [foxOn, setFoxOn] = useState<boolean>(() => readPref<boolean>("pd_dyn_on", false));
-  const toggleOwl = () => setOwlOn((on) => {
-    const next = !on;
-    writePref("pd_stat_on", next);
-    schedulePrefsPush();
-    return next;
-  });
-  const toggleFox = () => setFoxOn((on) => {
-    const next = !on;
-    writePref("pd_dyn_on", next);
-    schedulePrefsPush();
-    return next;
-  });
   const [examMode, setExamMode] = useState<boolean>(() => readPref("pd_exam_mode", false));
   const [deskFlash, setDeskFlash] = useState<{ dir: "in" | "out"; token: number }>({ dir: "in", token: 0 }); // desk fly-in/out when toggling exam focus mode
   const [examReview, setExamReview] = useState(false); // entered the post-set review phase
   const [timerOn, setTimerOn] = useState<boolean>(() => readPref("pd_timer_on", false));
   const [timerSecs, setTimerSecs] = useState<number>(() => clampSecs(readPref("pd_timer_secs", 60)));
-  const [secsDraft, setSecsDraft] = useState<string>(() => String(clampSecs(readPref("pd_timer_secs", 60))));
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
-  const commitSecs = () => { const n = clampSecs(Number(secsDraft)); setTimerSecs(n); setSecsDraft(String(n)); };
 
   // --- study guides (prep page + audio overview generated from a saved test) ---
   const [openStudyGuideId, setOpenStudyGuideId] = useState<string | null>(null); // reading/listening the shared page
@@ -1792,15 +1776,12 @@ export default function App() {
           setExamMode(merged.exam_mode ?? false);
           setTimerOn(merged.timer_on ?? false);
           setTimerSecs(clampSecs(merged.timer_secs ?? 60));
-          setSecsDraft(String(clampSecs(merged.timer_secs ?? 60)));
           setSeenGuideIds(new Set(merged.seen_study_guides));
           // normalizeOrder fills in any rule the stored copy predates.
           setDailyOrder(normalizeOrder(merged.daily_order));
           if (merged.daily_quota) setQuotaShares(normalizeQuotaShares(merged.daily_quota));
           setYearFocus(merged.year_focus ?? []);
           setShuffleWithinCat(merged.shuffle_within_cat !== false);
-          setOwlOn(merged.owl_on === true);
-          setFoxOn(merged.fox_on === true);
           const learningDefaults = new Set(merged.learning_open_sections ?? ["explanation"]);
           preferredOpenSectionsRef.current = learningDefaults;
           setPreferredOpenSections(learningDefaults);
@@ -2521,6 +2502,8 @@ export default function App() {
     const next = new Set(preferredOpenSectionsRef.current);
     if (q?.bienenfeld) next.add("bienenfeld");
     if (q?.carlat) next.add("carlat");
+    const pearlId = q ? questionId(q.year, q.q_index) : "";
+    if (pearlId && (owlStats[pearlId] || dynPearls[pearlId])) next.add("perspectives");
     setOpenSections(next); setDraft(""); setStats(null); setCard(null); setEditCard(null); setContext(null); setCrossed([]);
     helpSectionCursorRef.current = { qid: navQid, lastId: null };
     setAskOpen(false); setAskText("");
@@ -3154,12 +3137,11 @@ export default function App() {
     : undefined;
   const owl = q ? owlStats[questionId(q.year, q.q_index)] : undefined;
   const dyn = q ? dynPearls[questionId(q.year, q.q_index)] : undefined;
-  // Mascot tabs are post-answer study aids. Keeping them out of the answering
-  // state prevents even a small visual hint/distraction before the learner commits.
-  const showOwlAid = showAnswer && !!owl;
-  const showDynAid = showAnswer && !!dyn;
   const sections: [string, string, string, React.ReactNode][] = [
     ["explanation", "Explanation", "Why this answer is correct", <Layers size={17} strokeWidth={2.1} />],
+    ...(owl || dyn
+      ? ([["perspectives", "Different perspectives", "The same case from other chairs", <FolderOpen size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
+      : []),
     ...(kaplan
       ? ([["textbook", "Textbook", "Verified Kaplan & Sadock support", <BookOpen size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
       : []),
@@ -3524,6 +3506,15 @@ export default function App() {
       {plasmaBg && <ClosingPlasmaBackground speed={0.12} />}
 
       {/* Top bar */}
+      <StudyIsland
+        timerOn={timerOn}
+        onTimerOn={setTimerOn}
+        timerSecs={timerSecs}
+        onTimerSecs={setTimerSecs}
+        timeLeft={timeLeft}
+        inPractice={inPractice}
+        answering={!revealed}
+      />
       <header data-topbar style={{ ...s.top, ...(scrolled ? s.topScrolled : {}) }}>
         <div style={s.topInner} className="topInner">
           {/* Wordmark = home button. Mark AND name ride an endlessly drifting
@@ -3915,28 +3906,6 @@ export default function App() {
                 >
                   <ListChecks size={13} strokeWidth={2.3} /> Exam mode: {examMode ? "on" : "off"}
                 </button>
-                <button
-                  className="mobExtra"
-                  style={{ ...s.studyToggle, ...(timerOn ? s.studyToggleOn : {}) }}
-                  onClick={() => setTimerOn((v) => !v)}
-                  title="Countdown per question, like the real exam"
-                >
-                  <Clock size={13} strokeWidth={2.3} /> Timer: {timerOn ? "on" : "off"}
-                </button>
-                {timerOn && (
-                  <span style={s.studySecs} className="mobExtra">
-                    <input
-                      value={secsDraft}
-                      onChange={(e) => setSecsDraft(e.target.value.replace(/[^0-9]/g, ""))}
-                      onBlur={commitSecs}
-                      onKeyDown={(e) => e.key === "Enter" && commitSecs()}
-                      style={s.secsInput}
-                      inputMode="numeric"
-                      title="Seconds per question (20–120)"
-                    />
-                    <span style={{ color: T.faint }}>sec/question (20–120)</span>
-                  </span>
-                )}
               </>
             )}
             <button
@@ -3956,11 +3925,6 @@ export default function App() {
             >
               <Users size={13} strokeWidth={2.3} /> Join poll
             </button>
-            {timerOn && inPractice && timeLeft != null && !revealed && (
-              <span className={timeLeft <= 10 ? "timerLow" : undefined} style={{ ...s.timerPill, ...(timeLeft <= 10 ? s.timerPillLow : {}) }}>
-                <Clock size={12} strokeWidth={2.5} /> {fmtTime(timeLeft)}
-              </span>
-            )}
           </div>
         )}
 
@@ -4051,30 +4015,6 @@ export default function App() {
             <span aria-hidden style={{ ...s.qcard, position: "absolute", inset: 0, padding: 0 }} />
           )}
         <section data-qcard className={nextLaunching ? "pageFold" : undefined} style={examActive ? { ...s.qcard, marginTop: 30, padding: "36px 38px 30px" } : s.qcard}>
-          {showDynAid && (
-            <MascotTab
-              side="left"
-              tone="brown"
-              label="Dynamic"
-              on={foxOn}
-              onToggle={toggleFox}
-              showTitle="Show Dynamic Dawg"
-              hideTitle="Hide Dynamic Dawg"
-            />
-          )}
-          {showOwlAid && (
-            <MascotTab
-              side="right"
-              tone="orange"
-              label="Stat"
-              on={owlOn}
-              onToggle={toggleOwl}
-              showTitle="Show Stat Cat"
-              hideTitle="Hide Stat Cat"
-            />
-          )}
-          {showDynAid && foxOn && <AnalystFox qid={qid} pearl={dyn} theme={T} />}
-          {showOwlAid && owlOn && <WiseOwl qid={qid} stat={owl} theme={T} />}
           {(q.kaufman?.stem_figures ?? []).map((fig) => (
             <KaufmanFigure
               key={fig.file}
@@ -4086,7 +4026,7 @@ export default function App() {
           ))}
           {q.figure_images.filter((p) => imgSrc(p)).length > 0 && (
             <>
-              <div style={{ ...s.figRow, ...((showOwlAid && owlOn) || (showDynAid && foxOn) ? { paddingRight: showOwlAid && owlOn ? 78 : 0, paddingLeft: showDynAid && foxOn ? 84 : 0 } : {}) }}>
+              <div style={s.figRow}>
                 {q.figure_images.filter((p) => imgSrc(p)).map((p, i) => (
                   <AuditedQuestionImage
                     key={i}
@@ -4113,7 +4053,7 @@ export default function App() {
             ranges={highlights.filter((h) => h.field === "stem")}
             editable={persist}
             onChange={updateHighlights}
-            style={{ ...s.stem, marginBottom: 18, ...(examActive ? { fontSize: 23, lineHeight: 1.58 } : {}), ...((showOwlAid && owlOn) || (showDynAid && foxOn) ? { paddingRight: showOwlAid && owlOn ? 78 : undefined, paddingLeft: showDynAid && foxOn ? 84 : undefined } : {}) }}
+            style={{ ...s.stem, marginBottom: 18, ...(examActive ? { fontSize: 23, lineHeight: 1.58 } : {}) }}
           />
 
           {q.multi_select && !revealed && (
@@ -4385,7 +4325,7 @@ export default function App() {
                 return (
                   <article
                     key={id}
-                    className={`learningCard learningCardIn${isOpen ? " learningCardOpen" : ""}`}
+                    className={`learningCard learningCardIn${isOpen ? " learningCardOpen" : ""}${id === "perspectives" ? " learningCardPerspectives" : ""}`}
                     style={{ ...s.learningCard, animationDelay: `${Math.min(sectionIndex * 35, 245)}ms` }}
                   >
                     <div className="learningCardHeader" style={s.learningCardHeader}>
@@ -4464,6 +4404,10 @@ export default function App() {
                     </div>
                   )}
                 </div>
+              )}
+
+              {id === "perspectives" && (owl || dyn) && (
+                <DifferentPerspectives qid={qid} owl={owl} dyn={dyn} />
               )}
 
               {id === "textbook" && kaplan && (
@@ -9292,15 +9236,17 @@ function SettingsPanel({
 
           <div style={s.setBlock}>
             <div style={s.setLbl}>Exam date</div>
-            <input
-              type="date"
+            <div style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: "-0.015em", margin: "2px 0 10px" }}>
+              {formatLongDate(settings.exam_date ?? guessedExamDate())}
+            </div>
+            <DateWheel
               value={settings.exam_date ?? guessedExamDate()}
-              onChange={(e) => onChange({ exam_date: e.target.value || null })}
-              style={s.dateInput}
+              onChange={(ymd) => onChange({ exam_date: ymd })}
+              ariaLabel="PRITE exam date"
             />
             <div style={s.setHint}>
               Drives the countdown in the header. Pre-filled with the assumed PRITE date
-              {settings.exam_date ? "" : " (edit if yours differs)"}.
+              {settings.exam_date ? "" : " (edit if yours differs)"}. Flick the drums, or use the arrow keys when a column is focused.
             </div>
           </div>
 
@@ -12300,6 +12246,8 @@ button { font-family: inherit; -webkit-appearance: none; appearance: none; }
 .learningCard::after { content: ""; position: absolute; width: 210px; height: 210px; right: -120px; top: -150px; border-radius: 50%; background: radial-gradient(circle, rgba(14,122,107,.12), rgba(14,122,107,0) 68%); opacity: 0; transform: scale(.7); transition: opacity .3s ease, transform .45s cubic-bezier(.2,.7,.3,1); pointer-events: none; z-index: -1; }
 .learningCard:hover { transform: translateY(-1px); border-color: ${T.teal}55 !important; box-shadow: 0 14px 34px -26px rgba(17,51,51,.65); }
 .learningCardOpen::before, .learningCardOpen::after { opacity: 1; }
+.learningCardPerspectives.learningCardOpen { overflow: visible; }
+.learningCardPerspectives.learningCardOpen .learningBody > div { overflow: visible; }
 .learningCardOpen::after { transform: scale(1); }
 .learningCardButton:hover .learningChevron { color: ${T.teal} !important; }
 .learningKeep:hover { color: ${T.tealDeep} !important; border-color: ${T.teal}88 !important; background: ${T.tealSoft} !important; transform: translateY(-1px); }

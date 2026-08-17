@@ -1,11 +1,9 @@
 /**
  * Grid of AnKing/AnkiHub or Sketchy images for a question.
  * Loads via authenticated blob URLs (private R2).
- * Each figure sits in a Uiverse-style 3D tilt frame (CyberTiltCard).
  */
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { resourceImage, prefetchResourceImage } from "./resourceImages";
-import { CyberTiltCard, cyberTiltStyles } from "./CyberTiltCard";
 
 type Kind = "anking" | "sketchy";
 
@@ -57,24 +55,47 @@ function AuthImg({
     );
   }
 
+  const frame: CSSProperties = {
+    display: "block",
+    width: "100%",
+    borderRadius: 10,
+    border: "1px solid #ece5d8",
+    background: "#fff",
+    overflow: "hidden",
+  };
+
   if (!src) {
     return (
-      <CyberTiltCard wide={wide}>
-        <div
-          style={{
-            width: "100%",
-            minHeight: wide ? 220 : 260,
-            background: "rgba(127,127,127,0.1)",
-          }}
-        />
-      </CyberTiltCard>
+      <div
+        style={{
+          ...frame,
+          minHeight: wide ? 220 : 260,
+          background: "rgba(127,127,127,0.08)",
+        }}
+      />
     );
   }
 
   return (
-    <CyberTiltCard wide={wide} onActivate={onZoom ? () => onZoom(src) : undefined}>
-      <img src={src} alt={alt} loading="lazy" decoding="async" draggable={false} />
-    </CyberTiltCard>
+    <button
+      type="button"
+      onClick={onZoom ? () => onZoom(src) : undefined}
+      aria-label={alt}
+      style={{
+        ...frame,
+        padding: 0,
+        cursor: onZoom ? "zoom-in" : "default",
+      }}
+    >
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        decoding="async"
+        draggable={false}
+        style={{ display: "block", width: "100%", height: "auto" }}
+      />
+    </button>
   );
 }
 
@@ -117,7 +138,6 @@ export function ResourceImagePanel({
 
   return (
     <div>
-      <style>{cyberTiltStyles}</style>
       <p style={{ margin: "0 0 12px", color: theme.muted, fontSize: 13, lineHeight: 1.5 }}>
         {blurb}
         {match?.text_preview ? (
