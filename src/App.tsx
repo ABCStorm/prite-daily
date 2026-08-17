@@ -9,7 +9,7 @@ import {
   Eye, EyeOff, PanelRight, PanelBottom,
   BookOpen, Volume2, Play, Pause, Square, Copy, Shuffle, GripVertical,
   Brain, Pill, HeartPulse, GraduationCap, LayoutDashboard, Pin, Headphones,
-  Library, BookMarked, Sofa,
+  Library, BookMarked, Sofa, Newspaper,
 } from "lucide-react";
 import mermaid from "mermaid";
 import { nextRewardPost, RewardKind } from "./lib/motivation";
@@ -62,6 +62,7 @@ import { AnalystFox } from "./lib/AnalystFox";
 import { loadDynPerspectives, type DynPearl } from "./lib/dynPerspectives";
 import { MascotTab } from "./lib/MascotTab";
 import { ZoomLightbox } from "./lib/ZoomLightbox";
+import { RoundsLanding } from "./lib/roundsPage";
 import { ScenarioIllustration } from "./lib/ScenarioIllustration";
 import { ResourceImagePanel, type AnkingMatchMeta } from "./lib/ResourceImagePanel";
 import { mnemonicsForQuestion, type Mnemonic } from "./lib/mnemonics";
@@ -1336,7 +1337,7 @@ export default function App() {
   const [therapyBankErr, setTherapyBankErr] = useState<string | null>(null);
   const [carlatAll, setCarlatAll] = useState<RawQuestion[] | null>(null);
   const [carlatBankErr, setCarlatBankErr] = useState<string | null>(null);
-  const [psychMode, setPsychMode] = useState<"general" | "child" | "neuro" | "therapy" | "meds">(initialPsychMode);
+  const [psychMode, setPsychMode] = useState<"general" | "child" | "neuro" | "therapy" | "meds" | "rounds">(initialPsychMode);
   const all = psychMode === "neuro" ? kaufmanAll : psychMode === "therapy" ? therapyAll : psychMode === "meds" ? carlatAll : priteAll;
   const [loadErr, setLoadErr] = useState<string | null>(null);
   // question id -> supporting Kaplan & Sadock passage(s); empty until loaded
@@ -1759,9 +1760,9 @@ export default function App() {
 
   const bankKind: "prite" | "neuro" | "therapy" | "meds" =
     psychMode === "neuro" ? "neuro" : psychMode === "therapy" ? "therapy" : psychMode === "meds" ? "meds" : "prite";
-  const bankKindFor = (tab: "general" | "child" | "neuro" | "therapy" | "meds"): "prite" | "neuro" | "therapy" | "meds" =>
+  const bankKindFor = (tab: "general" | "child" | "neuro" | "therapy" | "meds" | "rounds"): "prite" | "neuro" | "therapy" | "meds" =>
     tab === "neuro" ? "neuro" : tab === "therapy" ? "therapy" : tab === "meds" ? "meds" : "prite";
-  const switchPsychBank = (next: "general" | "child" | "neuro" | "therapy" | "meds") => {
+  const switchPsychBank = (next: "general" | "child" | "neuro" | "therapy" | "meds" | "rounds") => {
     if (next === psychMode) {
       if (next === "child") setShowCapite(true);
       return;
@@ -1792,6 +1793,7 @@ export default function App() {
   const selectNeuro = () => switchPsychBank("neuro");
   const selectTherapy = () => switchPsychBank("therapy");
   const selectMeds = () => switchPsychBank("meds");
+  const selectRounds = () => switchPsychBank("rounds");
   const closeCapite = () => { setShowCapite(false); switchPsychBank("general"); };
   const quotaCustomized = allocateQuota(10, quotaShares).join() !== allocateQuota(10, DAILY_QUOTA_SHARES).join();
   const orderCustomized = (isPracticeBank(bankKind)
@@ -2868,22 +2870,24 @@ export default function App() {
   if (isConfigured && session && profile && profile.status === "approved" && !profile.training_level)
     return <TrainingLevelGate onSaved={reloadProfile} />;
 
-  if (loadErr) return <Center>Couldn’t load the question bank: {loadErr}</Center>;
-  if (!all) return <Center>{
-    psychMode === "neuro"
-      ? (kaufmanBankErr ? `Kaufman questions: ${kaufmanBankErr}` : "Loading Kaufman questions…")
-      : psychMode === "therapy"
-        ? (therapyBankErr ? `Therapy questions: ${therapyBankErr}` : "Loading therapy questions…")
-        : psychMode === "meds"
-          ? (carlatBankErr ? `Medication questions: ${carlatBankErr}` : "Loading medication questions…")
-        : "Loading the PRITE bank…"
-  }</Center>;
-  // "Caught up today" is no longer a full-page takeover (that felt like leaving
-  // the site). It now renders as a card in the normal app shell — the header,
-  // nav and study bar stay put, and only the question slot is swapped for the
-  // caught-up card below. So we only hard-return for the genuinely empty states.
-  if (!q && persist && mode === "today" && !answersLoaded) return <Center>Building today’s set…</Center>;
-  if (!q && !(persist && mode === "today")) return <Center>No questions for this filter.</Center>;
+  if (psychMode !== "rounds") {
+    if (loadErr) return <Center>Couldn’t load the question bank: {loadErr}</Center>;
+    if (!all) return <Center>{
+      psychMode === "neuro"
+        ? (kaufmanBankErr ? `Kaufman questions: ${kaufmanBankErr}` : "Loading Kaufman questions…")
+        : psychMode === "therapy"
+          ? (therapyBankErr ? `Therapy questions: ${therapyBankErr}` : "Loading therapy questions…")
+          : psychMode === "meds"
+            ? (carlatBankErr ? `Medication questions: ${carlatBankErr}` : "Loading medication questions…")
+          : "Loading the PRITE bank…"
+    }</Center>;
+    // "Caught up today" is no longer a full-page takeover (that felt like leaving
+    // the site). It now renders as a card in the normal app shell — the header,
+    // nav and study bar stay put, and only the question slot is swapped for the
+    // caught-up card below. So we only hard-return for the genuinely empty states.
+    if (!q && persist && mode === "today" && !answersLoaded) return <Center>Building today’s set…</Center>;
+    if (!q && !(persist && mode === "today")) return <Center>No questions for this filter.</Center>;
+  }
 
   const correctSet = q ? (q.answer_letters && q.answer_letters.length ? q.answer_letters
     : q.answer_letter ? [q.answer_letter] : []) : [];
@@ -3234,7 +3238,7 @@ export default function App() {
   const qid = q ? questionId(q.year, q.q_index) : "";
   const recentRepeatCutoff = Date.now() - 7 * 86400000;
   const recentHighYieldRepeat = q && (q.repeat_count ?? 1) > 1
-    ? all
+    ? (all ?? [])
         .map((other) => ({
           question: other,
           id: questionId(other.year, other.q_index),
@@ -3487,7 +3491,7 @@ export default function App() {
             <span style={s.countdown}>
               {examDays !== null
                 ? <><span style={{ ...s.countNum, color: examDays <= 14 ? "#e07a5f" : T.gold }}>{examDays}</span> {examDays === 1 ? "day" : "days"} to exam</>
-                : <><span style={s.countNum}>{all.length}</span> questions</>}
+                : <><span style={s.countNum}>{(all ?? []).length}</span> questions</>}
               {persist && (
                 <>
                   {" "}· <span style={s.countNum}>{totalDoneCount}</span> done
@@ -3502,7 +3506,7 @@ export default function App() {
             </span>
             {persist ? (
               <span style={s.who} className="topActions mobExtra">
-                <span style={s.navSegRow} className="topActBtn" title="PRITE, child psych, Kaufman neurology, or psychotherapy">
+                <span style={s.navSegRow} className="topActBtn" title="PRITE, child psych, Kaufman neurology, psychotherapy, meds, or Morning Rounds">
                   <button
                     style={{ ...s.navSegBtn, ...(psychMode === "general" ? s.navSegOn : {}) }}
                     onClick={() => switchPsychBank("general")}
@@ -3532,6 +3536,12 @@ export default function App() {
                     onClick={selectMeds}
                   >
                     <Pill size={12} strokeWidth={2.3} /> <span className="btnTxt">Meds</span>
+                  </button>
+                  <button
+                    style={{ ...s.navSegBtn, ...(psychMode === "rounds" ? s.navSegOn : {}) }}
+                    onClick={selectRounds}
+                  >
+                    <Newspaper size={12} strokeWidth={2.3} /> <span className="btnTxt">Rounds</span>
                   </button>
                 </span>
                 <button style={s.approveBtn} className="topActBtn" onClick={() => setShowBoard(true)} title="Leaderboard">
@@ -3621,6 +3631,14 @@ export default function App() {
           : (openSections.has("textbook") || openSections.has("dsm") || openSections.has("kaufman") || openSections.has("bienenfeld") || openSections.has("carlat")) && (showAnswer || !!q?.bienenfeld || !!q?.carlat) ? { ...s.well, maxWidth: 1100 }
           : s.well
       }>
+        {psychMode === "rounds" && (
+          <RoundsLanding
+            theme={T}
+            defaultName={profile?.full_name || ""}
+            defaultEmail={profile?.email || session?.user?.email || ""}
+          />
+        )}
+        {psychMode !== "rounds" && (<>
         {psychMode === "neuro" && !examActive && (
           <div style={s.bankBanner}>
             <span style={s.bankBannerIcon} aria-hidden>
@@ -3776,10 +3794,10 @@ export default function App() {
             </span>
           ) : (
             <select value={year} onChange={(e) => { setYear(e.target.value); setQi(0); }} style={s.sel}>
-              <option value="all">{psychMode === "neuro" ? "All chapters" : psychMode === "therapy" ? "All topics" : psychMode === "meds" ? "All medications" : "All years"} ({all.length})</option>
+              <option value="all">{psychMode === "neuro" ? "All chapters" : psychMode === "therapy" ? "All topics" : psychMode === "meds" ? "All medications" : "All years"} ({(all ?? []).length})</option>
               {years.map((y) => {
-                const n = all.filter((x) => x.year === y).length;
-                const sample = all.find((x) => x.year === y);
+                const n = (all ?? []).filter((x) => x.year === y).length;
+                const sample = (all ?? []).find((x) => x.year === y);
                 const mod = psychMode === "therapy" ? sample?.quizapine?.modality : null;
                 const ch = psychMode === "neuro" && sample ? neuroChapter(sample) : null;
                 const label = psychMode === "neuro" && sample
@@ -4843,6 +4861,7 @@ export default function App() {
             </a>
           </div>
         </footer>
+        </>)}
       </main>
 
       {reminderPromptStage && (
