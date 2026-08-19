@@ -1,4 +1,4 @@
-/* Derived study extras for the Neuro (Kaufman) and Therapy (Quizapine) banks.
+/* Derived study extras for the Neuro, Therapy, Meds, and Child (CPRITE) banks.
 
    These items are not in the PRITE matching pipelines (Kaplan, PubMed sidecar,
    question_context table). We fill the same cards from fields already on the
@@ -7,10 +7,11 @@
 import type { PodcastRef } from "./podcasts";
 import type { ResearchArticle, ResearchRef } from "./researchRefs";
 
-export type BankKind = "prite" | "neuro" | "therapy" | "meds";
+export type BankKind = "prite" | "child" | "neuro" | "therapy" | "meds";
 
-export function bankKindOf(q: { kaufman?: unknown; quizapine?: unknown; carlat?: unknown; bienenfeld?: unknown } | null | undefined): BankKind {
+export function bankKindOf(q: { kaufman?: unknown; quizapine?: unknown; carlat?: unknown; bienenfeld?: unknown; cprite?: unknown } | null | undefined): BankKind {
   if (!q) return "prite";
+  if (q.cprite) return "child";
   if (q.kaufman) return "neuro";
   if (q.quizapine || q.bienenfeld) return "therapy";
   if (q.carlat) return "meds";
@@ -117,6 +118,7 @@ export function enrichBankQuestion<T extends Record<string, unknown>>(raw: T): T
     kaufman?: { chapter?: string; chapter_num?: string | number; teach_title?: string };
     quizapine?: { modality?: string; topic?: string; sources?: string[] };
     carlat?: { category?: string; medication_title?: string };
+    cprite?: { topic?: string; exam?: string };
   };
   const kind = bankKindOf(q);
   if (kind === "prite") return raw;
@@ -126,12 +128,13 @@ export function enrichBankQuestion<T extends Record<string, unknown>>(raw: T): T
   const chapter = neuroChapter(q);
   const modality = therapyModality(q);
   const medTitle = q.carlat?.medication_title || q.prite_label || q.year;
+  const childTopic = q.cprite?.topic || q.prite_label || "child psychiatry";
 
   let clinical = q.clinical_application;
   if (!clinical) {
     if (kind === "meds") {
       clinical = firstSentence(String(q.stem || ""), 400);
-    } else if (kind === "therapy") {
+    } else if (kind === "therapy" || kind === "child") {
       const move = point || firstSentence(expl);
       clinical = move
         ? `In clinic this shows up as: ${firstSentence(String(q.stem || ""))} What you actually do: ${move}`
@@ -151,6 +154,8 @@ export function enrichBankQuestion<T extends Record<string, unknown>>(raw: T): T
     } else if (kind === "therapy") {
       const topic = q.quizapine?.topic || q.year || modality;
       video = `${modality} ${topic} psychotherapy psychiatry`.replace(/\s+/g, " ").slice(0, 120);
+    } else if (kind === "child") {
+      video = `${childTopic} ${q.answer_text || ""} child psychiatry`.replace(/\s+/g, " ").slice(0, 120);
     } else {
       video = `${chapter} ${q.answer_text || ""} neurology psychiatry`.replace(/\s+/g, " ").slice(0, 120);
     }
@@ -186,11 +191,24 @@ export function enrichBankQuestion<T extends Record<string, unknown>>(raw: T): T
       ...tags,
     };
   }
+  if (kind === "child") {
+    tags = {
+      diagnosis: [],
+      medication: [],
+      psychotherapy: [],
+      neuro: [],
+      historical: [],
+      setting: null,
+      topics: [childTopic, "CPRITE"],
+      ...tags,
+    };
+    if (!(tags.topics as string[])?.length) tags.topics = [childTopic, "CPRITE"];
+  }
 
   return {
     ...q,
-    prite_category: kind === "therapy" ? slug(modality) : kind === "meds" ? slug(q.carlat?.category || "medications") : (q.prite_category || slug(chapter)),
-    prite_label: kind === "therapy" ? modality : kind === "meds" ? medTitle : (q.prite_label || chapter),
+    prite_category: kind === "therapy" ? slug(modality) : kind === "meds" ? slug(q.carlat?.category || "medications") : kind === "child" ? slug(childTopic) : (q.prite_category || slug(chapter)),
+    prite_label: kind === "therapy" ? modality : kind === "meds" ? medTitle : kind === "child" ? childTopic : (q.prite_label || chapter),
     tags,
     clinical_application: clinical,
     video_query: video,
@@ -200,12 +218,14 @@ export function enrichBankQuestion<T extends Record<string, unknown>>(raw: T): T
 export function podcastKeysFor(q: {
   kaufman?: { chapter?: string };
   quizapine?: { modality?: string };
+  cprite?: { topic?: string };
   tags?: { neuro?: string[] };
   prite_label?: string;
   year?: string;
 }): string[] {
   const keys: string[] = [];
   if (q.quizapine?.modality) keys.push(`therapy:${q.quizapine.modality}`);
+  if (q.cprite?.topic) keys.push(`child:${q.cprite.topic}`);
   const ch = neuroChapter(q);
   if (q.kaufman || q.tags?.neuro?.length) keys.push(`neuro:${ch}`);
   if (q.year) keys.push(`year:${q.year}`);
@@ -215,6 +235,7 @@ export function podcastKeysFor(q: {
 export function furtherReadingFor(q: {
   quizapine?: { sources?: string[]; topic?: string; modality?: string };
   kaufman?: { chapter?: string; teach_title?: string };
+  cprite?: { topic?: string };
   prite_label?: string;
   answer_text?: string;
   year?: string;
@@ -245,6 +266,17 @@ export function furtherReadingFor(q: {
       kind: "article",
     });
   }
+  if (q.cprite) {
+    const topic = q.cprite.topic || q.prite_label || "child psychiatry";
+    const query = encodeURIComponent(`${topic} child adolescent psychiatry`);
+    articles.push({
+      title: `PubMed search: ${topic}`,
+      journal: "PubMed",
+      why: "Further reading around this CPRITE topic — reviews and clinical papers a child fellow can open next.",
+      url: `https://pubmed.ncbi.nlm.nih.gov/?term=${query}`,
+      kind: "article",
+    });
+  }
   return articles.length ? { articles } : undefined;
 }
 
@@ -255,10 +287,11 @@ export function autoFlashcard(q: {
   explanation_text?: string;
   quizapine?: { topic?: string; modality?: string };
   kaufman?: { chapter?: string };
+  cprite?: { topic?: string };
   prite_label?: string;
 }): { question_id: string; cloze_text: string; extra: string } {
   const id = `${q.year}-${q.q_index}`;
-  const topic = q.quizapine?.topic || q.kaufman?.chapter || q.prite_label || q.year;
+  const topic = q.quizapine?.topic || q.kaufman?.chapter || q.cprite?.topic || q.prite_label || q.year;
   const ans = (q.answer_text || "the correct next step").replace(/\s+/g, " ").trim();
   const point = teachingPoint(q.explanation_text || "");
   const cloze = point

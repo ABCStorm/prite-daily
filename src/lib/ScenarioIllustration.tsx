@@ -51,16 +51,26 @@ function loopSeamOpacity(currentTime: number, duration: number): number {
   return 1 - Math.exp(-4.5 * x * x);
 }
 
-/** Key format: 4-digit year, 4-digit zero-padded q_index. */
-export function illustrationUrl(year?: string, qIndex?: number): string | null {
+/** Key format: 4-digit year, 4-digit zero-padded q_index.
+    Child (CPRITE) items use cYYYY so they never collide with PRITE YYYY. */
+export function illustrationKey(year?: string, qIndex?: number): string | null {
   if (!year || qIndex == null || !Number.isFinite(qIndex)) return null;
-  return `${BASE}/i/${year}-${String(qIndex).padStart(4, "0")}.webp?v=${ILLUSTRATION_CACHE_VER}`;
+  const child = /^cprite\s+(\d{4})$/i.exec(String(year).trim());
+  const prefix = child ? `c${child[1]}` : year;
+  return `${prefix}-${String(qIndex).padStart(4, "0")}`;
+}
+
+export function illustrationUrl(year?: string, qIndex?: number): string | null {
+  const key = illustrationKey(year, qIndex);
+  if (!key) return null;
+  return `${BASE}/i/${key}.webp?v=${ILLUSTRATION_CACHE_VER}`;
 }
 
 export function scenarioVideoUrl(year?: string, qIndex?: number): string | null {
-  if (!year || qIndex == null || !Number.isFinite(qIndex)) return null;
+  const key = illustrationKey(year, qIndex);
+  if (!key) return null;
   if (!hasScenarioVideo(year, qIndex)) return null;
-  return `${BASE}/v/${year}-${String(qIndex).padStart(4, "0")}.mp4?v=${VIDEO_CACHE_VER}`;
+  return `${BASE}/v/${key}.mp4?v=${VIDEO_CACHE_VER}`;
 }
 
 export function ScenarioIllustration({

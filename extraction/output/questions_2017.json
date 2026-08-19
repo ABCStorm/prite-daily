@@ -6724,9 +6724,13 @@
     "answer_source": "letter",
     "answer_raw": "C. Translocation",
     "explanation_text": "Explanation: Countertransference in Supportive Therapy (Q160) Answer D: Express appreciation for the patient’s honesty and work together to understand the behavior and find alternatives. The therapist’s flash of anger is countertransference — useful information, not something to act on.\nIn supportive therapy the goal is to strengthen the alliance and coping: validate the disclosure, stay non-judgmental, and problem-solve collaboratively.\nWhy not the others: scolding or threatening (C, E) ruptures the alliance; bland reassurance (B) shuts down exploration; ignoring your reaction entirely (A) is unrealistic — countertransference always exists.\nSafety note: a genuine child-abuse disclosure can still trigger mandated reporting — but the FIRST therapeutic move is to engage, not threaten.",
-    "figure_images": [],
+    "figure_images": [
+      "images/2017/2017_q161_fig_1.png"
+    ],
     "explanation_images": [],
-    "flags": []
+    "flags": [
+      "has_figure"
+    ]
   },
   {
     "deck": "2017 PRITE.pptx",

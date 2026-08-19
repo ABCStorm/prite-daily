@@ -34,7 +34,7 @@ async function gunzipToText(blob: Blob): Promise<string> {
 // keep serving a prior release (the r5 object had a year-long cacheControl).
 // This same string is the IndexedDB cache key (see bankCache), so publishing
 // under a new name is all it takes to invalidate every user's cached copy.
-const BANK_OBJECT = "questions.anking-sketchy-20260805-r6.json.gz";
+const BANK_OBJECT = "questions.anking-sketchy-20260818-r8.json.gz";
 
 export async function loadQuestionBank(): Promise<unknown[]> {
   if (supabase) {

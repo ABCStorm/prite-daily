@@ -43,6 +43,8 @@ type Blob = {
   daily_quota?: number[];
   /** What comes first: mix questions inside each class/category (default on). */
   shuffle_within_cat?: boolean;
+  /** What comes first: restrict today's mix to unseen questions (default off). */
+  unseen_only?: boolean;
   owl_on?: boolean;
   fox_on?: boolean;
 };
@@ -98,6 +100,7 @@ function snapshot(uid: string): Blob {
       ? (readJson<number[]>("pd_daily_quota", [])).map((n) => Math.max(0, Math.round(Number(n)) || 0)).slice(0, 4)
       : undefined,
     shuffle_within_cat: readJson<boolean | null>("pd_shuffle_within_cat", null) !== false,
+    unseen_only: readJson<boolean>("pd_unseen_only", false) === true,
     owl_on: readJson<boolean>("pd_stat_on", false) === true,
     fox_on: readJson<boolean>("pd_dyn_on", false) === true,
   };
@@ -139,6 +142,7 @@ export function syncClientPrefs(uid: string, remoteRaw: Record<string, unknown> 
       ? r.daily_quota.map((n) => Math.max(0, Math.round(Number(n)) || 0)).slice(0, 4)
       : l.daily_quota,
     shuffle_within_cat: typeof r.shuffle_within_cat === "boolean" ? r.shuffle_within_cat : l.shuffle_within_cat !== false,
+    unseen_only: typeof r.unseen_only === "boolean" ? r.unseen_only : l.unseen_only === true,
     owl_on: typeof r.owl_on === "boolean" ? r.owl_on : l.owl_on,
     fox_on: typeof r.fox_on === "boolean" ? r.fox_on : l.fox_on,
   };
@@ -162,6 +166,7 @@ export function syncClientPrefs(uid: string, remoteRaw: Record<string, unknown> 
   writeJson("pd_year_focus", merged.year_focus ?? []);
   if (merged.daily_quota?.length) writeJson("pd_daily_quota", merged.daily_quota);
   writeJson("pd_shuffle_within_cat", merged.shuffle_within_cat !== false);
+  writeJson("pd_unseen_only", merged.unseen_only === true);
   writeJson("pd_stat_on", merged.owl_on === true);
   writeJson("pd_dyn_on", merged.fox_on === true);
 

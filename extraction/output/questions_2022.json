@@ -10745,6 +10745,25 @@
     "explanation_images": [],
     "flags": [
       "has_figure"
+    ],
+    "figure_attributions": [
+      {
+        "label": "Kato & Izumiyama, J Rehabil Med 2015, Fig. 1a — left postcentral gyrus infarct",
+        "url": "https://www.medicaljournals.se/jrm/content/html/10.2340/16501977-1900",
+        "license": "CC BY-NC 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-nc/4.0/",
+        "modifications": "Cropped to the T2-weighted panel (a)."
+      }
+    ],
+    "image_attributions": [
+      {
+        "image_path": "images/2022/2022_q257_fig_1.png",
+        "label": "Kato & Izumiyama, J Rehabil Med 2015, Fig. 1a — left postcentral gyrus infarct",
+        "url": "https://www.medicaljournals.se/jrm/content/html/10.2340/16501977-1900",
+        "license": "CC BY-NC 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-nc/4.0/",
+        "modifications": "Cropped to the T2-weighted panel (a)."
+      }
     ]
   },
   {

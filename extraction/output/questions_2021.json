@@ -627,9 +627,13 @@
     "answer_source": "letter",
     "answer_raw": "A. Gait apraxia",
     "explanation_text": "",
-    "figure_images": [],
+    "figure_images": [
+      "images/2021/2021_q015_fig_1.png"
+    ],
     "explanation_images": [],
-    "flags": []
+    "flags": [
+      "has_figure"
+    ]
   },
   {
     "deck": "2021 PRITE.pptx",

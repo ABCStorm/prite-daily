@@ -74,6 +74,10 @@ export type PollState = {
   // older host that doesn't send it still works — the phone just falls back to
   // its local copy of the bank when it has one.
   stem?: string;
+  // Stem figures (CT / MRI / EEG / etc.). Public /images paths, sent with the
+  // question — not gated on reveal — because many items are unanswerable
+  // without the picture. Older hosts omit this; phones fall back to the bank.
+  figure_images?: string[];
   index: number;   // 0-based position in the host's set
   total: number;   // size of the host's set
   multiSelect: boolean; // this question wants "select all that apply" — phones show a Submit step instead of tap-to-vote

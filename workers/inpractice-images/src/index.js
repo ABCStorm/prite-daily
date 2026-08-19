@@ -29,10 +29,11 @@ function cors(origin) {
   }
 }
 
-// Keys are exactly "<4-digit year>-<4-digit q_index>.(webp|mp4)". Anything else is a
-// 404 before it reaches the bucket -- blocks traversal and any listing attempt.
-const IMAGE_KEY_RE = /^\d{4}-\d{4}\.webp$/
-const VIDEO_KEY_RE = /^\d{4}-\d{4}\.mp4$/
+// Keys are "<4-digit year>-<4-digit q_index>.(webp|mp4)", or the child-bank
+// twin "cYYYY-NNNN" so CPRITE items never collide with PRITE YYYY-NNNN.
+// Anything else is a 404 before it reaches the bucket.
+const IMAGE_KEY_RE = /^(?:c)?\d{4}-\d{4}\.webp$/
+const VIDEO_KEY_RE = /^(?:c)?\d{4}-\d{4}\.mp4$/
 
 export default {
   async fetch(request, env) {

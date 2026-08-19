@@ -58,12 +58,13 @@ Deno.serve(async (req) => {
   const narrated: string[] = [];
   const failed: { id: string; reason: string }[] = [];
 
-  for (const g of stale ?? []) {
-    // Already has audio: the run finished but never flipped status. Just settle it.
+  // Parallel: sequential TTS of two ~10-minute scripts regularly exceeded the
+  // sweeper isolate's budget and left the second stranded guide untouched.
+  await Promise.all((stale ?? []).map(async (g) => {
     if (g.audio_path) {
       await admin.from("study_guides").update({ status: "ready", stage: null, error_message: null }).eq("id", g.id);
       narrated.push(g.id);
-      continue;
+      return;
     }
     if (g.text_ready && g.audio_script && batchSecret) {
       const res = await fetch(`${SUPABASE_URL}/functions/v1/generate-study-guide`, {
@@ -77,18 +78,16 @@ Deno.serve(async (req) => {
         },
         body: JSON.stringify({ saved_test_id: g.saved_test_id }),
       });
-      if (res.ok) { narrated.push(g.id); continue; }
+      if (res.ok) { narrated.push(g.id); return; }
       const reason = `narration retry failed: ${res.status} ${await res.text()}`.slice(0, 300);
       await admin.from("study_guides").update({ status: "error", stage: null, error_message: reason }).eq("id", g.id);
       failed.push({ id: g.id, reason });
-      continue;
+      return;
     }
-    // No script to narrate — the run died before Claude finished. Surface it so
-    // the reader sees a real state and can retry, instead of a forever spinner.
     const reason = "Generation stopped unexpectedly (the server run was cut short). Try generating again.";
     await admin.from("study_guides").update({ status: "error", stage: null, error_message: reason }).eq("id", g.id);
     failed.push({ id: g.id, reason });
-  }
+  }));
 
   return json({ checked: stale?.length ?? 0, recovered: narrated.length, errored: failed.length, narrated, failed });
 });

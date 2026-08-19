@@ -283,6 +283,8 @@ Deno.serve(async (req) => {
       // with no error shown.
       try {
         let script = "";
+        let apiKey = ownAnthropicKey || Deno.env.get("ANTHROPIC_API_KEY") || "";
+        let guide: { title: string; intro: string; sections: { heading: string; body: string }[]; key_terms: string[]; audio_script: string } | null = null;
 
         if (ttsOnly) {
           // Upgrading a slides-only guide to a full one: the text (and its
@@ -291,7 +293,6 @@ Deno.serve(async (req) => {
           script = row?.audio_script ?? "";
           if (!script) { await fail("no stored narration script to narrate"); return; }
         } else {
-        const apiKey = ownAnthropicKey || Deno.env.get("ANTHROPIC_API_KEY");
         if (!apiKey) { await fail("No Anthropic API key — add your own under Settings → Your own AI keys, or set the ANTHROPIC_API_KEY secret"); return; }
 
         const topicLines = topics.map((t, i) => {
@@ -325,8 +326,8 @@ Respond with ONLY a JSON object, no markdown fencing:
         if (!aiRes.ok) { await fail("anthropic " + aiRes.status + ": " + (await aiRes.text())); return; }
         const ai = await aiRes.json();
         const raw = (ai.content?.[0]?.text ?? "").trim().replace(/^```json\s*|\s*```$/g, "");
-        let guide: { title: string; intro: string; sections: { heading: string; body: string }[]; key_terms: string[]; audio_script: string };
         try { guide = JSON.parse(raw); } catch { await fail("Claude returned unparseable output"); return; }
+        if (!guide) { await fail("Claude returned empty output"); return; }
 
         // 6. write the TEXT now — before slides/audio — and flip text_ready.
         //    The page and the library can show the material immediately; the
@@ -336,17 +337,17 @@ Respond with ONLY a JSON object, no markdown fencing:
           title: guide.title, intro: guide.intro,
           sections: guide.sections ?? [], key_terms: guide.key_terms ?? [],
           audio_script: guide.audio_script ?? "",
-          text_ready: true, stage: "designing",
+          // Audio next (unless this is a slides-only run). Designing slides +
+          // six image gens used to happen first and regularly killed the
+          // isolate, leaving a shareable written guide with no MP3.
+          text_ready: true, stage: slides_only ? "designing" : "narrating",
         }).eq("saved_test_id", saved_test_id);
         if (textErr) { await fail("saving the guide text failed: " + textErr.message); return; }
+        script = guide.audio_script ?? "";
+        } // end !ttsOnly
 
-        // 6b. dedicated slide-designer pass — a SECOND Claude call focused
-        //     purely on slide craft (very little text per slide, large type,
-        //     varied layouts), then AI illustration images for the most
-        //     visual slides. Deliberately a separate paid call rather than
-        //     bolting slides onto the prose prompt: the deck reads like a
-        //     designed deck, not reformatted paragraphs.
-        try {
+        const designSlides = async () => {
+          if (!guide || !apiKey) throw new Error("no written guide to design slides from");
           const slidePrompt =
 `You are designing a teaching slide deck (PowerPoint) for psychiatry residents, sent as pre-reading before a class session. Below is the written study guide the deck must teach. The same no-spoiler rule applies: this material deliberately avoids resolving any quiz question — do not introduce anything that would.
 
@@ -377,9 +378,6 @@ Respond with ONLY a JSON object, no markdown fencing: {"slides": [ ... ]}`;
           }[];
           if (!slides.length) throw new Error("slide designer returned no slides");
 
-          // Illustrations: first 6 image_prompts, generated concurrently. A
-          // single failed image just leaves that slide text-only — never
-          // fails the deck.
           const imgKey = ownOpenaiKey || Deno.env.get("OPENAI_API_KEY");
           if (imgKey) {
             const wanted = slides.map((sl, i) => ({ sl, i })).filter((x) => x.sl.image_prompt).slice(0, 6);
@@ -395,44 +393,41 @@ Respond with ONLY a JSON object, no markdown fencing: {"slides": [ ... ]}`;
           const { error: slidesErr } = await admin.from("study_guides")
             .update({ slides }).eq("saved_test_id", saved_test_id);
           if (slidesErr) throw new Error("saving the slides failed: " + slidesErr.message);
-        } catch (e) {
-          // slides_only has nothing else to deliver — surface the error. A
-          // full run still has audio to make; log and move on deck-less.
-          if (slides_only) { await fail(String(e)); return; }
-          console.warn("slide design failed, continuing without deck:", e);
-        }
+        };
 
-        // slides_only: done here — no narration. (Any previously generated
-        // audio_path is left in place, though a slides-only run normally has
-        // none.)
+        // slides_only: no narration. Full runs narrate FIRST so a timeout
+        // during slide design cannot ship a silent guide to the class.
         if (slides_only) {
+          try { await designSlides(); } catch (e) { await fail(String(e)); return; }
           const { error: doneErr } = await admin.from("study_guides").update({
             status: "ready", stage: null, error_message: null,
           }).eq("saved_test_id", saved_test_id);
           if (doneErr) await fail("saving the finished guide failed: " + doneErr.message);
           return;
         }
-        await admin.from("study_guides").update({ stage: "narrating" }).eq("saved_test_id", saved_test_id);
-        script = guide.audio_script ?? "";
-        } // end !ttsOnly
 
-        // 7. render the narration to speech (Fish Audio) and store the MP3.
-        //    A failure here leaves status='error' but text_ready stays true,
-        //    so the written guide remains readable — only the audio is missing.
         const fishKey = Deno.env.get("FISH_API_KEY");
         if (!fishKey) { await fail("No Fish Audio API key — set the FISH_API_KEY secret on the project"); return; }
         const audioPath = `${saved_test_id}.mp3`;
-
         const audioBytes = await synthesizeSpeech(script, fishKey);
         const { error: upErr } = await admin.storage.from("study-audio")
           .upload(audioPath, audioBytes, { contentType: "audio/mpeg", upsert: true });
         if (upErr) { await fail("storage upload failed: " + upErr.message); return; }
 
-        // 8. done — mark audio ready
         const { error: finalErr } = await admin.from("study_guides").update({
           audio_path: audioPath, status: "ready", stage: null, error_message: null,
         }).eq("saved_test_id", saved_test_id);
         if (finalErr) await fail("saving the finished guide failed: " + finalErr.message);
+
+        if (!ttsOnly) {
+          try {
+            await admin.from("study_guides").update({ stage: "designing" }).eq("saved_test_id", saved_test_id);
+            await designSlides();
+          } catch (e) {
+            console.warn("slide design failed after audio was ready:", e);
+          }
+          await admin.from("study_guides").update({ stage: null }).eq("saved_test_id", saved_test_id);
+        }
       } catch (e) {
         await fail(String(e));
       }
