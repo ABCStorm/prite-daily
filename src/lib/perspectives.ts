@@ -1,14 +1,16 @@
 /* Chairs that re-read the same PRITE item from another theoretical seat.
 
-   Dog (psychodynamic) and Cat (sourced evidence) ship today. Adding a later
-   psychotherapy chair — CBT, IPT, DBT — is: load its JSON, push a card in
-   `perspectivesForQuestion`, and give it a palette + mascot. The folder UI
-   fans whatever this function returns. */
+   Dog (psychodynamic), Cat (sourced evidence), and eight named psychotherapy
+   modalities (CBT first, falling back to IPT/DBT/ACT/existential/supportive/
+   CPT/exposure — see scripts/therapy-perspectives/) ship today. Adding a new
+   chair is: load its JSON, push a card in `perspectivesForQuestion`, and give
+   it a palette + mascot. The folder UI fans whatever this function returns. */
 
 import type { DynPearl } from "./dynPerspectives";
 import type { OwlStat } from "./owlStats";
+import type { TherapyPearl, TherapyPerspectiveKind } from "./therapyPerspectives";
 
-export type PerspectiveKind = "psychodynamic" | "evidence" | "cbt" | "ipt" | "dbt";
+export type PerspectiveKind = "psychodynamic" | "evidence" | TherapyPerspectiveKind;
 
 export type PerspectivePalette = {
   paper: string;
@@ -26,7 +28,8 @@ export type PerspectiveCard = {
   school: string;
   body: string;
   source?: { label: string; url: string; year?: number | null };
-  mascot: { idle: string; blink: string; alt: string };
+  /** Illustrated mascot sprite; when absent the UI falls back to a lettered badge. */
+  mascot?: { idle: string; blink: string; alt: string };
   palette: PerspectivePalette;
 };
 
@@ -71,14 +74,76 @@ const PALETTES: Record<PerspectiveKind, PerspectivePalette> = {
     accentSoft: "#dde7f0",
     mark: "B",
   },
+  act: {
+    paper: "#f4f7ee",
+    paperEdge: "#dbe4c8",
+    ink: "#232b1c",
+    accent: "#5c7a2e",
+    accentSoft: "#e6edd7",
+    mark: "A",
+  },
+  existential: {
+    paper: "#f0f2f4",
+    paperEdge: "#d2d8dd",
+    ink: "#20262b",
+    accent: "#3f4a52",
+    accentSoft: "#dde3e6",
+    mark: "E",
+  },
+  supportive: {
+    paper: "#fdf2f3",
+    paperEdge: "#f0d6d9",
+    ink: "#2c1e20",
+    accent: "#a8465a",
+    accentSoft: "#f6dde1",
+    mark: "U",
+  },
+  cpt: {
+    paper: "#eef3f7",
+    paperEdge: "#c9d9e6",
+    ink: "#1c2733",
+    accent: "#2d5f8a",
+    accentSoft: "#dbe6f0",
+    mark: "P",
+  },
+  exposure: {
+    paper: "#fff7ec",
+    paperEdge: "#f0dcb8",
+    ink: "#2c2013",
+    accent: "#b85c1f",
+    accentSoft: "#f7e6c6",
+    mark: "X",
+  },
+};
+
+const MODALITY_TITLES: Record<TherapyPerspectiveKind, { title: string; school: string }> = {
+  cbt: { title: "CBT", school: "Cognitive Behavioral Therapy" },
+  ipt: { title: "IPT", school: "Interpersonal Therapy" },
+  dbt: { title: "DBT", school: "Dialectical Behavior Therapy" },
+  act: { title: "ACT", school: "Acceptance & Commitment Therapy" },
+  existential: { title: "Existential", school: "Existential Therapy" },
+  supportive: { title: "Supportive", school: "Supportive Therapy" },
+  cpt: { title: "CPT", school: "Cognitive Processing Therapy" },
+  exposure: { title: "Exposure", school: "Exposure Therapy" },
 };
 
 /** Stable display order — new chairs append here so the fan stays predictable. */
-const KIND_ORDER: PerspectiveKind[] = ["psychodynamic", "evidence", "cbt", "ipt", "dbt"];
+const KIND_ORDER: PerspectiveKind[] = [
+  "psychodynamic",
+  "evidence",
+  "cbt",
+  "ipt",
+  "dbt",
+  "act",
+  "existential",
+  "supportive",
+  "cpt",
+  "exposure",
+];
 
 export function perspectivesForQuestion(
   qid: string,
-  extras: { dyn?: DynPearl; owl?: OwlStat } = {},
+  extras: { dyn?: DynPearl; owl?: OwlStat; therapy?: TherapyPearl } = {},
 ): PerspectiveCard[] {
   const cards: PerspectiveCard[] = [];
 
@@ -118,6 +183,21 @@ export function perspectivesForQuestion(
         alt: "Stat Cat",
       },
       palette: PALETTES.evidence,
+    });
+  }
+
+  if (extras.therapy?.sentence) {
+    const { modality } = extras.therapy;
+    const meta = MODALITY_TITLES[modality];
+    cards.push({
+      id: `${qid}-${modality}`,
+      kind: modality,
+      title: meta.title,
+      school: meta.school,
+      body: extras.therapy.sentence.trim(),
+      // No illustrated mascot yet for the therapy-modality chairs; the folder
+      // UI falls back to a lettered badge in this palette.
+      palette: PALETTES[modality],
     });
   }
 

@@ -2,10 +2,35 @@ import React, { useEffect, useState } from "react";
 import { ExternalLink } from "lucide-react";
 import type { DynPearl } from "./dynPerspectives";
 import type { OwlStat } from "./owlStats";
+import type { TherapyPearl } from "./therapyPerspectives";
 import { ProjectFolder } from "./ProjectFolder";
 import { perspectivesForQuestion, type PerspectiveCard } from "./perspectives";
 
 type Frame = "idle" | "blink";
+
+/** Chairs without an illustrated mascot yet get a lettered badge instead. */
+function MascotBadge({ card, height }: { card: PerspectiveCard; height: number }) {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        height,
+        width: height,
+        borderRadius: "50%",
+        background: card.palette.accentSoft,
+        color: card.palette.accent,
+        fontWeight: 800,
+        fontSize: Math.max(11, height * 0.34),
+        letterSpacing: "0.02em",
+      }}
+    >
+      {card.palette.mark}
+    </span>
+  );
+}
 
 function MascotSprite({
   card,
@@ -17,6 +42,7 @@ function MascotSprite({
   const [frame, setFrame] = useState<Frame>("idle");
 
   useEffect(() => {
+    if (!card.mascot) return;
     let cancelled = false;
     let blinkTimer = 0;
     const schedule = () => {
@@ -34,7 +60,9 @@ function MascotSprite({
       cancelled = true;
       window.clearTimeout(blinkTimer);
     };
-  }, [card.id]);
+  }, [card.id, card.mascot]);
+
+  if (!card.mascot) return <MascotBadge card={card} height={height} />;
 
   const src = frame === "blink" ? card.mascot.blink : card.mascot.idle;
   return (
@@ -198,12 +226,14 @@ export function DifferentPerspectives({
   qid,
   dyn,
   owl,
+  therapy,
 }: {
   qid: string;
   dyn?: DynPearl;
   owl?: OwlStat;
+  therapy?: TherapyPearl;
 }) {
-  const cards = perspectivesForQuestion(qid, { dyn, owl });
+  const cards = perspectivesForQuestion(qid, { dyn, owl, therapy });
   if (!cards.length) return null;
   const present = cards.map((c) => c.school.toLowerCase());
   const presentLine = present.length === 1

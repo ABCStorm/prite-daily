@@ -7,7 +7,7 @@ export type DynPearl = {
 };
 
 let refsPromise: Promise<Record<string, DynPearl>> | null = null;
-const DYN_DATA_VERSION = "clinical-3972";
+const DYN_DATA_VERSION = "clinical-2277-v2";
 
 export function loadDynPerspectives(): Promise<Record<string, DynPearl>> {
   if (!refsPromise) {

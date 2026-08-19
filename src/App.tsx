@@ -60,6 +60,7 @@ import {
 } from "./lib/bankExtras";
 import { loadOwlStats, type OwlStat } from "./lib/owlStats";
 import { loadDynPerspectives, type DynPearl } from "./lib/dynPerspectives";
+import { loadTherapyPerspectives, type TherapyPearl } from "./lib/therapyPerspectives";
 import { DifferentPerspectives } from "./lib/DifferentPerspectives";
 import { StudyIsland } from "./lib/StudyIsland";
 import { DateWheel, formatLongDate } from "./lib/DateWheel";
@@ -1454,6 +1455,7 @@ export default function App() {
   const [kaufmanErr, setKaufmanErr] = useState<string | null>(null);
   const [owlStats, setOwlStats] = useState<Record<string, OwlStat>>({});
   const [dynPearls, setDynPearls] = useState<Record<string, DynPearl>>({});
+  const [therapyPearls, setTherapyPearls] = useState<Record<string, TherapyPearl>>({});
 
   const [year, setYear] = useState<string>("all");
   const [modalityFilter, setModalityFilter] = useState<string>("all");
@@ -2452,6 +2454,16 @@ export default function App() {
     return () => { alive = false; };
   }, [signedIn, approved]);
 
+  // Named psychotherapy-modality chair: one best-fit modality per question.
+  useEffect(() => {
+    if (isConfigured && !(signedIn && approved)) return;
+    let alive = true;
+    loadTherapyPerspectives()
+      .then((m) => { if (alive) setTherapyPearls(m); })
+      .catch((e) => { console.warn("[therapy] perspectives failed to load:", e); });
+    return () => { alive = false; };
+  }, [signedIn, approved]);
+
   const years = useMemo(() => {
     if (!all) return [];
     const ys = Array.from(new Set(all.map((q) => q.year)));
@@ -2588,8 +2600,6 @@ export default function App() {
     const next = new Set(preferredOpenSectionsRef.current);
     if (q?.bienenfeld) next.add("bienenfeld");
     if (q?.carlat) next.add("carlat");
-    const pearlId = q ? questionId(q.year, q.q_index) : "";
-    if (pearlId && (owlStats[pearlId] || dynPearls[pearlId])) next.add("perspectives");
     setOpenSections(next); setDraft(""); setStats(null); setCard(null); setEditCard(null); setContext(null); setCrossed([]);
     helpSectionCursorRef.current = { qid: navQid, lastId: null };
     setAskOpen(false); setAskText("");
@@ -3227,9 +3237,10 @@ export default function App() {
     : undefined;
   const owl = q ? owlStats[questionId(q.year, q.q_index)] : undefined;
   const dyn = q ? dynPearls[questionId(q.year, q.q_index)] : undefined;
+  const therapy = q ? therapyPearls[questionId(q.year, q.q_index)] : undefined;
   const sections: [string, string, string, React.ReactNode][] = [
     ["explanation", "Explanation", "Why this answer is correct", <Layers size={17} strokeWidth={2.1} />],
-    ...(owl || dyn
+    ...(owl || dyn || therapy
       ? ([["perspectives", "Different perspectives", "The same case from other chairs", <FolderOpen size={17} strokeWidth={2.1} />]] as [string, string, string, React.ReactNode][])
       : []),
     ...(kaplan
@@ -4518,8 +4529,8 @@ export default function App() {
                 </div>
               )}
 
-              {id === "perspectives" && (owl || dyn) && (
-                <DifferentPerspectives qid={qid} owl={owl} dyn={dyn} />
+              {id === "perspectives" && (owl || dyn || therapy) && (
+                <DifferentPerspectives qid={qid} owl={owl} dyn={dyn} therapy={therapy} />
               )}
 
               {id === "textbook" && kaplan && (
