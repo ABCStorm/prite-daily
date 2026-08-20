@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Build the CPRITE 2024 Q1–100 practice bank from the extracted Word quiz.
+"""Build the CPRITE 2024 practice bank.
 
-Source: ~/Downloads/CPRITE 2024 Q1-100.docx (pandoc → /tmp/cprite-2024-q1-100.md).
+Q1–100: ~/Downloads/CPRITE 2024 Q1-100.docx (pandoc → /tmp/cprite-2024-q1-100.md).
+Q101–200: ~/Downloads/CPRITE 2024 Q101-200.docx (Word XML; green-shaded keys).
 Output: public/data/cprite_questions.json
 
 IDs use year "CPRITE 2024" so they never collide with PRITE 2024-N.
@@ -10,16 +11,24 @@ from __future__ import annotations
 
 import json
 import re
+import xml.etree.ElementTree as ET
 from pathlib import Path
+from zipfile import ZipFile
 
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from clinical_2024 import CLINICAL
+from clinical_2024_101_200 import CLINICAL as CLINICAL_101
+from meta_2024_101_200 import META as META_101
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC_MD = Path("/tmp/cprite-2024-q1-100.md")
+SRC_DOCX_101 = Path.home() / "Downloads" / "CPRITE 2024 Q101-200.docx"
 OUT = ROOT / "public" / "data" / "cprite_questions.json"
+W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+CORRECT_FILL = "C6EFCE"
+Q134_FIG = "images/cprite/2024_q134_growth.png"
 
 # (topic, explanation) keyed by original item number.
 # Explanations follow the keyed answer in the source quiz.
@@ -234,6 +243,86 @@ def clean(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
+def _para_text(p: ET.Element) -> str:
+    return "".join((t.text or "") for t in p.iter(f"{W}t")).strip()
+
+
+def _is_correct(p: ET.Element) -> bool:
+    ppr = p.find(f"{W}pPr")
+    if ppr is not None:
+        shd = ppr.find(f"{W}shd")
+        if shd is not None and (shd.get(f"{W}fill") or "").upper() == CORRECT_FILL:
+            return True
+    return "Correct Answer" in _para_text(p)
+
+
+def _has_drawing(p: ET.Element) -> bool:
+    return p.find(f".//{W}drawing") is not None
+
+
+def parse_docx(path: Path) -> list[dict]:
+    """Parse Q101–200 from the keyed Word quiz (green-shaded correct options)."""
+    with ZipFile(path) as z:
+        root = ET.fromstring(z.read("word/document.xml"))
+    qs: list[dict] = []
+    cur: dict | None = None
+    for p in root.iter(f"{W}p"):
+        style_el = p.find(f"{W}pPr/{W}pStyle")
+        style = style_el.get(f"{W}val") if style_el is not None else None
+        text = _para_text(p)
+        if style == "Heading2" and text.startswith("Question "):
+            if cur:
+                qs.append(cur)
+            cur = {"n": int(text.split()[-1]), "blocks": []}
+            continue
+        if cur is None:
+            continue
+        cur["blocks"].append({"text": text, "correct": _is_correct(p), "drawing": _has_drawing(p)})
+    if cur:
+        qs.append(cur)
+
+    out: list[dict] = []
+    letters = "ABCDEFGHIJ"
+    for q in qs:
+        stem = ""
+        opts: list[dict] = []
+        has_img = False
+        for b in q["blocks"]:
+            if b["drawing"]:
+                has_img = True
+                continue
+            txt = b["text"]
+            if not txt or txt.startswith("Centers for Disease Control"):
+                continue
+            if not stem:
+                stem = clean(txt)
+                continue
+            opt = clean(re.sub(r"\s*✓\s*Correct Answer\s*", "", txt))
+            if not opt:
+                continue
+            opts.append({"letter": letters[len(opts)], "text": opt, "correct": b["correct"]})
+        answers = [o["letter"] for o in opts if o["correct"]]
+        if not stem or not opts or not answers:
+            raise SystemExit(f"Bad DOCX parse Q{q['n']}: stem={bool(stem)} nopts={len(opts)} answers={answers}")
+        multi = "(Select" in stem or len(answers) > 1
+        if multi and len(answers) != 3:
+            raise SystemExit(f"Q{q['n']} expected 3 answers, got {answers}")
+        if not multi and len(answers) != 1:
+            raise SystemExit(f"Q{q['n']} expected 1 answer, got {answers}")
+        out.append({
+            "n": q["n"],
+            "stem": stem,
+            "options": [{"letter": o["letter"], "text": o["text"]} for o in opts],
+            "answer": answers[0],
+            "answers": answers,
+            "multi": multi,
+            "has_img": has_img,
+        })
+    if len(out) != 100 or out[0]["n"] != 101 or out[-1]["n"] != 200:
+        raise SystemExit(f"Expected Q101–200, got {len(out)} items {[x['n'] for x in out[:3]]}…")
+    return out
+
+
 def parse_md(path: Path) -> list[dict]:
     text = path.read_text()
     parts = re.split(r"\n(?=\*\*\d+\.\s)", text)
@@ -304,7 +393,52 @@ def slug(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-") or "topic"
 
 
-def build() -> list[dict]:
+def record(q: dict, topic: str, expl: str, clinical: str, source: str) -> dict:
+    letters = q.get("answers") or [q["answer"]]
+    chosen = [o for o in q["options"] if o["letter"] in letters]
+    ans_text = " / ".join(o["text"] for o in chosen)
+    multi = bool(q.get("multi")) or len(letters) > 1
+    figs = [Q134_FIG] if q.get("has_img") or q["n"] == 134 else []
+    return {
+        "deck": "CPRITE 2024",
+        "year": "CPRITE 2024",
+        "q_index": q["n"],
+        "slide_number": 0,
+        "stem": q["stem"],
+        "options": q["options"],
+        "answer_letter": letters[0],
+        "answer_letters": letters,
+        "multi_select": multi,
+        "answer_text": ans_text,
+        "answer_source": "letter" if not multi else "multi",
+        "answer_raw": f"{letters[0]}. {chosen[0]['text']}" if not multi else "".join(letters),
+        "explanation_text": expl,
+        "figure_images": figs,
+        "explanation_images": [],
+        "flags": [],
+        "prite_category": slug(topic),
+        "prite_label": topic,
+        "clinical_application": clinical,
+        "video_query": f"{topic} {ans_text} child psychiatry",
+        "tags": {
+            "diagnosis": [],
+            "medication": [],
+            "psychotherapy": [],
+            "neuro": [],
+            "historical": [],
+            "setting": None,
+            "topics": [topic, "CPRITE 2024"],
+        },
+        "cprite": {
+            "exam": "CPRITE",
+            "exam_year": 2024,
+            "topic": topic,
+            "source": source,
+        },
+    }
+
+
+def build_first_100() -> list[dict]:
     parsed = parse_md(SRC_MD)
     missing = [q["n"] for q in parsed if q["n"] not in META]
     if missing:
@@ -312,50 +446,46 @@ def build() -> list[dict]:
     out = []
     for q in parsed:
         topic, expl = META[q["n"]]
-        ans = next(o for o in q["options"] if o["letter"] == q["answer"])
         clinical = CLINICAL.get(q["n"])
         if not clinical:
             raise SystemExit(f"Missing CLINICAL for Q{q['n']}")
-        out.append(
-            {
-                "deck": "CPRITE 2024",
-                "year": "CPRITE 2024",
-                "q_index": q["n"],
-                "slide_number": 0,
-                "stem": q["stem"],
-                "options": q["options"],
-                "answer_letter": q["answer"],
-                "answer_letters": [q["answer"]],
-                "multi_select": False,
-                "answer_text": ans["text"],
-                "answer_source": "letter",
-                "answer_raw": f"{q['answer']}. {ans['text']}",
-                "explanation_text": expl,
-                "figure_images": [],
-                "explanation_images": [],
-                "flags": [],
-                "prite_category": slug(topic),
-                "prite_label": topic,
-                "clinical_application": clinical,
-                "video_query": f"{topic} {ans['text']} child psychiatry",
-                "tags": {
-                    "diagnosis": [],
-                    "medication": [],
-                    "psychotherapy": [],
-                    "neuro": [],
-                    "historical": [],
-                    "setting": None,
-                    "topics": [topic, "CPRITE 2024"],
-                },
-                "cprite": {
-                    "exam": "CPRITE",
-                    "exam_year": 2024,
-                    "topic": topic,
-                    "source": "CPRITE 2024 practice quiz Q1–100",
-                },
-            }
-        )
+        q["answers"] = [q["answer"]]
+        q["multi"] = False
+        q["has_img"] = False
+        out.append(record(q, topic, expl, clinical, "CPRITE 2024 practice quiz Q1–100"))
     return out
+
+
+def build_101_200() -> list[dict]:
+    if not SRC_DOCX_101.exists():
+        raise SystemExit(f"Missing {SRC_DOCX_101}")
+    parsed = parse_docx(SRC_DOCX_101)
+    out = []
+    for q in parsed:
+        if q["n"] not in META_101:
+            raise SystemExit(f"Missing META for Q{q['n']}")
+        if q["n"] not in CLINICAL_101:
+            raise SystemExit(f"Missing CLINICAL for Q{q['n']}")
+        topic, expl = META_101[q["n"]]
+        out.append(record(q, topic, expl, CLINICAL_101[q["n"]], "CPRITE 2024 practice quiz Q101–200"))
+    return out
+
+
+def build() -> list[dict]:
+    if SRC_MD.exists():
+        first = build_first_100()
+    elif OUT.exists():
+        existing = json.loads(OUT.read_text())
+        first = [q for q in existing if int(q.get("q_index") or 0) <= 100]
+        if len(first) != 100:
+            raise SystemExit(f"Expected 100 existing Q1–100, found {len(first)}")
+    else:
+        raise SystemExit(f"Need {SRC_MD} or an existing {OUT} with Q1–100")
+    rest = build_101_200()
+    bank = first + rest
+    if len(bank) != 200:
+        raise SystemExit(f"Expected 200 questions, got {len(bank)}")
+    return bank
 
 
 def main() -> None:
@@ -363,10 +493,13 @@ def main() -> None:
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(bank, indent=2, ensure_ascii=False) + "\n")
     topics: dict[str, int] = {}
+    multi = 0
     for q in bank:
         t = q["cprite"]["topic"]
         topics[t] = topics.get(t, 0) + 1
-    print(f"Wrote {len(bank)} questions → {OUT}")
+        if q["multi_select"]:
+            multi += 1
+    print(f"Wrote {len(bank)} questions ({multi} multi-select) → {OUT}")
     for t, n in sorted(topics.items(), key=lambda kv: (-kv[1], kv[0])):
         print(f"  {n:3}  {t}")
 

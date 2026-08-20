@@ -88,7 +88,7 @@ function snapshot(uid: string): Blob {
     ai_disclaimer_stage: readInt(`pd_ai_disclaimer_stage_${uid}`),
     seen_study_guides: strList(readJson("pd_seen_study_guides", [])),
     webcards_note_dismissed: readJson<boolean>("pd_webcards_note_dismissed", false) === true,
-    exam_mode: readJson<boolean>("pd_exam_mode", false) === true,
+    exam_mode: readJson<boolean>("pd_exam_mode", true) === true,
     timer_on: readJson<boolean>("pd_timer_on", false) === true,
     timer_secs: Number(readJson("pd_timer_secs", 60)) || 60,
     poll_team: readStr("prite_poll_team"),
@@ -108,11 +108,22 @@ function snapshot(uid: string): Blob {
 
 const unionDays = (a: string[], b: string[]) => [...new Set([...a, ...b])].sort().slice(-400);
 
+/** One-time flip: exam mode is now on by default (daily/custom practice).
+    Existing accounts get true once; later toggles stick. */
+export function ensureExamModeDefaultOn(): void {
+  try {
+    if (localStorage.getItem("pd_exam_mode_default_v2") === "1") return;
+    localStorage.setItem("pd_exam_mode_default_v2", "1");
+    localStorage.setItem("pd_exam_mode", "true");
+  } catch { /* private mode */ }
+}
+
 /** Merge the server blob into localStorage (loss-proof rules) and push the
     merged result back to the server if anything differs. Call once per
     sign-in, after the settings row loads. */
 export function syncClientPrefs(uid: string, remoteRaw: Record<string, unknown> | null | undefined) {
   activeUid = uid;
+  ensureExamModeDefaultOn();
   const r = (remoteRaw ?? {}) as Partial<Blob>;
   const l = snapshot(uid);
 
@@ -123,7 +134,10 @@ export function syncClientPrefs(uid: string, remoteRaw: Record<string, unknown> 
     ai_disclaimer_stage: Math.max(l.ai_disclaimer_stage, Number(r.ai_disclaimer_stage) || 0),
     seen_study_guides: [...new Set([...l.seen_study_guides, ...strList(r.seen_study_guides)])].slice(-200),
     webcards_note_dismissed: l.webcards_note_dismissed || r.webcards_note_dismissed === true,
-    exam_mode: typeof r.exam_mode === "boolean" ? r.exam_mode : l.exam_mode,
+    // Local true wins so the one-time "exam mode on by default" bump is not
+    // overwritten by an older server copy of false. After the user turns it
+    // off, both sides are false and this stays off.
+    exam_mode: l.exam_mode === true ? true : (typeof r.exam_mode === "boolean" ? r.exam_mode : false),
     timer_on: typeof r.timer_on === "boolean" ? r.timer_on : l.timer_on,
     timer_secs: typeof r.timer_secs === "number" && r.timer_secs > 0 ? r.timer_secs : l.timer_secs,
     poll_team: typeof r.poll_team === "string" && r.poll_team ? r.poll_team : l.poll_team,

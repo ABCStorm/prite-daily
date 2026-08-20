@@ -1,6 +1,6 @@
 {
   "version": "v6-r2-16k-5100-topic-complete",
-  "generated_at": "2026-08-03T01:55:53.749Z",
+  "generated_at": "2026-08-20T02:07:33.344Z",
   "audio_bitrate_kbps": 16,
   "audio_sample_rate_hz": 22050,
   "thinking_pause_seconds": 4,
@@ -3039,6 +3039,34 @@
           "bytes": 10197439,
           "duration_seconds": 5099,
           "sha256": "9056cf5c9d7a0520cb8df22fd9ae9401fe20a341d6fc0258bc5b92b7e4b3e232"
+        }
+      ]
+    },
+    {
+      "scope_key": "cprite:all",
+      "topic": "Child · CPRITE 2024",
+      "question_count": 200,
+      "path": "exports/v7-cprite-2024/prite-daily-cprite-all.mp3",
+      "filename": "prite-daily-cprite-all.mp3",
+      "bytes": 28221153,
+      "duration_seconds": 3528,
+      "between_question_seconds": 1,
+      "variants": [
+        {
+          "playback_rate": 1,
+          "between_question_seconds": 1,
+          "path": "exports/v7-cprite-2024/prite-daily-cprite-all.mp3",
+          "filename": "prite-daily-cprite-all.mp3",
+          "bytes": 28221153,
+          "duration_seconds": 3528
+        },
+        {
+          "playback_rate": 1.5,
+          "between_question_seconds": 1,
+          "path": "exports/v7-cprite-2024/prite-daily-cprite-all-1-5x.mp3",
+          "filename": "prite-daily-cprite-all-1-5x.mp3",
+          "bytes": 18814737,
+          "duration_seconds": 2352
         }
       ]
     }

@@ -117,8 +117,11 @@ Deno.serve(async (req) => {
     }
 
     const { data: cached } = await admin.from("audio_drills").select("*").eq("question_id", question_id).maybeSingle();
-    const prompt_audio_path = `${question_id}/${renderVersion}/prompt.mp3`;
-    const answer_audio_path = cached?.answer_audio_path ?? `${question_id}/${answerRenderVersion}/answer.mp3`;
+    // R2 clip keys only allow year-index or cprite-YYYY-N. CPRITE bank IDs are
+    // "CPRITE 2024-12"; slug the object path, keep question_id unchanged.
+    const storagePrefix = String(question_id).replace(/^CPRITE\s+(\d{4})-/i, "cprite-$1-").replace(/\s+/g, "-");
+    const prompt_audio_path = `${storagePrefix}/${renderVersion}/prompt.mp3`;
+    const answer_audio_path = cached?.answer_audio_path ?? `${storagePrefix}/${answerRenderVersion}/answer.mp3`;
     if (
       !force &&
       cached?.status === "ready" &&

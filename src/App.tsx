@@ -170,7 +170,7 @@ import { isConfigured, supabase, signInWithGoogle, signOut, questionId } from ".
 import { useAuth } from "./lib/useAuth";
 import { matchRoster, matchPlannedTeam, matchNamesList, academicYearEnd, classYearLevel } from "./lib/roster";
 import { recordToday, peekStreak, totalDays, ymd } from "./lib/streaks";
-import { syncClientPrefs, schedulePrefsPush } from "./lib/prefsSync";
+import { syncClientPrefs, schedulePrefsPush, ensureExamModeDefaultOn } from "./lib/prefsSync";
 import { dueReminderPromptStage, markReminderPromptShown } from "./lib/reminderPrompt";
 import { dueAiDisclaimerStage, markAiDisclaimerShown } from "./lib/aiDisclaimerPrompt";
 import { isAutoReminderActive, guessedExamDate } from "./lib/reminderWindow";
@@ -1515,7 +1515,10 @@ export default function App() {
   const aiDisclaimerCheckedRef = useRef(false);
 
   // --- exam mode + timer (UI prefs, kept in localStorage to avoid a DB migration) ---
-  const [examMode, setExamMode] = useState<boolean>(() => readPref("pd_exam_mode", false));
+  const [examMode, setExamMode] = useState<boolean>(() => {
+    ensureExamModeDefaultOn();
+    return readPref("pd_exam_mode", true);
+  });
   const [deskFlash, setDeskFlash] = useState<{ dir: "in" | "out"; token: number }>({ dir: "in", token: 0 }); // desk fly-in/out when toggling exam focus mode
   const [examReview, setExamReview] = useState(false); // entered the post-set review phase
   const [timerOn, setTimerOn] = useState<boolean>(() => readPref("pd_timer_on", false));
@@ -3851,7 +3854,7 @@ export default function App() {
               <Baby size={16} strokeWidth={2.2} />
             </span>
             <div>
-              <div style={s.bankBannerTitle}>Child · CPRITE 2024 (questions 1–100)</div>
+              <div style={s.bankBannerTitle}>Child · CPRITE 2024 (questions 1–{all?.length || 200})</div>
               <div style={s.bankBannerHint}>
                 Child Psychiatry Resident-In-Training Exam items. Filter by topic, then use Today or Custom the same way as the other banks.
               </div>
@@ -3869,7 +3872,7 @@ export default function App() {
           />
         )}
         {/* Navigation / filter row */}
-        <div style={s.nav} className={examActive ? "examDim" : undefined}>
+        <div style={examActive ? { ...s.nav, ...s.examChrome } : s.nav} className={examActive ? "examDim" : undefined}>
           {persist && (
             <div style={s.modeToggle}>
               <button style={{ ...s.modeBtn, ...(mode === "today" ? s.modeOn : {}) }} onClick={() => switchMode("today")}>
@@ -4018,11 +4021,10 @@ export default function App() {
 
         {/* Study options: hold-explanations (exam mode) + per-question timer + group poll */}
         {persist && (
-          <div style={s.studyBar} className={examActive ? "examDim" : undefined}>
+          <div style={s.studyBar}>
             {inPractice && (
               <>
                 <button
-                  className="mobExtra"
                   style={{ ...s.studyToggle, ...(examMode ? s.studyToggleOn : {}) }}
                   onClick={() => { setDeskFlash((f) => ({ dir: examMode ? "out" : "in", token: f.token + 1 })); setExamMode((v) => !v); setExamReview(false); }}
                   title="Focus mode — hides the clutter and holds every explanation until you finish the set"
@@ -9945,7 +9947,13 @@ function AudioDrillsPanel({ all, onClose, fire }: { all: RawQuestion[]; onClose:
     () => savedProgress.find((p) => p.scope_key === topic && !p.completed && p.current_index < p.question_ids.length) ?? null,
     [savedProgress, topic],
   );
-  const currentExport = useMemo(() => exports.find((e) => e.scope_key === topic) ?? null, [exports, topic]);
+  const exportScopeKey = useMemo(() => {
+    // Child (and other side banks) must not pick up the 5,100-question PRITE
+    // "all" file. Prefix matches scripts/cprite/build-audio-exports.mjs.
+    if (all.some((q) => q.cprite)) return topic === "all" ? "cprite:all" : `cprite:${topic}`;
+    return topic;
+  }, [all, topic]);
+  const currentExport = useMemo(() => exports.find((e) => e.scope_key === exportScopeKey) ?? null, [exports, exportScopeKey]);
   const currentExportVariants = useMemo<AudioExportVariant[]>(() => {
     if (!currentExport) return [];
     const variants = currentExport.variants?.length
@@ -9962,7 +9970,7 @@ function AudioDrillsPanel({ all, onClose, fire }: { all: RawQuestion[]; onClose:
     listAudioReviewProgress().then((rows) => { if (alive) setSavedProgress(rows); });
     // Version the URL as well as sending no-store headers. Pages deployment
     // aliases can briefly retain an older static JSON object across a release.
-    fetch("/data/audio_exports.json?v=audio-5100-topics-r2", { cache: "no-store" })
+    fetch("/data/audio_exports.json?v=audio-cprite-200", { cache: "no-store" })
       .then((response) => response.ok ? response.json() : null)
       .then((manifest) => { if (alive && Array.isArray(manifest?.exports)) setExports(manifest.exports); })
       .catch(() => { /* Exports can be populated after the player ships. */ });
@@ -10187,7 +10195,7 @@ function AudioDrillsPanel({ all, onClose, fire }: { all: RawQuestion[]; onClose:
       </div>}
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginTop: 18 }} className="audioActions"><button style={{ ...s.primarySm, minWidth: 144, justifyContent: "center", padding: "10px 16px" }} disabled={!chosen.length || playState !== "idle"} onClick={() => void play()}><Play size={15} /> {playState === "loading" ? "Preparing…" : playState === "playing" ? "Playing" : currentProgress ? "Start over" : "Start review"}</button>{playState !== "idle" && <button style={{ ...s.ghost, padding: "10px 15px" }} onClick={() => stop()}><Square size={13} /> Save & stop</button>}<span style={{ marginLeft: "auto", color: T.faint, fontSize: 12.5 }}>Progress saves automatically</span></div>
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 18, paddingTop: 17, borderTop: `1px solid ${T.paperEdge}` }}>
-        <div style={{ flex: 1, minWidth: 210 }}><b style={{ color: T.text, fontSize: 14 }}>{topic === "all" ? "Take the complete library offline" : "Take the complete topic offline"}</b><div style={{ marginTop: 3, color: T.faint, fontSize: 12.5 }}>{currentExport ? `One open-ended MP3 · ${currentExport.question_count.toLocaleString()} questions · ${currentExportVariant?.between_question_seconds ?? 1}-sec gaps · ${exportHours} · ${exportSize}${currentExportVariant?.parts?.length ? ` · securely assembled from ${currentExportVariant.parts.length} sections` : ""}` : "The single-file open-ended download for this selection is being prepared."}</div></div>
+        <div style={{ flex: 1, minWidth: 210 }}><b style={{ color: T.text, fontSize: 14 }}>{topic === "all" ? (all.some((q) => q.cprite) ? "Take the complete Child library offline" : "Take the complete library offline") : "Take the complete topic offline"}</b><div style={{ marginTop: 3, color: T.faint, fontSize: 12.5 }}>{currentExport ? `One open-ended MP3 · ${currentExport.question_count.toLocaleString()} questions · ${currentExportVariant?.between_question_seconds ?? 1}-sec gaps · ${exportHours} · ${exportSize}${currentExportVariant?.parts?.length ? ` · securely assembled from ${currentExportVariant.parts.length} sections` : ""}` : "The single-file open-ended download for this selection is being prepared."}</div></div>
         <label style={{ ...field, minWidth: 100 }}>MP3 GAP<select value={downloadGap} onChange={(e) => setDownloadGap(Number(e.target.value))} disabled={!downloadGapOptions.length} style={{ ...control, paddingTop: 9, paddingBottom: 9 }}>{downloadGapOptions.map((gap) => <option key={gap} value={gap}>{gap} sec</option>)}</select></label>
         <label style={{ ...field, minWidth: 100 }}>MP3 SPEED<select value={downloadRate} onChange={(e) => setDownloadRate(Number(e.target.value))} disabled={!currentGapVariants.length} style={{ ...control, paddingTop: 9, paddingBottom: 9 }}>{currentGapVariants.map((variant) => <option key={variant.playback_rate} value={variant.playback_rate}>{variant.playback_rate}×</option>)}</select></label>
         <button style={{ ...s.ghost, padding: "9px 14px" }} disabled={!currentExportVariant || downloadBusy} onClick={() => void downloadExport()}><Download size={14} /> {downloadProgress ? `Assembling ${downloadProgress.current}/${downloadProgress.total}…` : downloadBusy ? "Preparing…" : "Download MP3"}</button>
@@ -12455,11 +12463,16 @@ button { font-family: inherit; -webkit-appearance: none; appearance: none; }
   .learningStack .learningCard:not(.learningCardOpen) .learningKeepLabel { display: none; }
 }
 @media (max-width: 760px) { .learningStack { grid-template-columns: 1fr; } }
-/* Exam focus mode: fade the surrounding chrome down to a whisper, bring it
-   back on hover so the question is the only thing competing for attention. */
-.examDim { opacity: .1; transition: opacity .4s ease; }
+/* Exam focus mode: recede the chrome so the question leads, but keep labels
+   readable on the plasma background. Hover / focus restores full strength. */
+.examDim { opacity: .62; transition: opacity .4s ease; }
 .examDim:hover, .examDim:focus-within { opacity: 1; }
-@media (prefers-reduced-motion: reduce) { .examDim { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .examDim { opacity: .85; } }
+/* Phones have no hover, so dimming the chrome made Today / progress / Filter
+   unreadable. Keep full strength on the same breakpoint as the Menu collapse. */
+@media (max-width: 680px), (max-height: 520px) {
+  .examDim { opacity: 1; }
+}
 .topActBtn { transition: filter .15s ease, transform .16s cubic-bezier(.2,.7,.3,1); }
 .topActBtn:hover { filter: brightness(1.22); }
 .rewardTile { transition: transform .16s cubic-bezier(.2,.7,.3,1), border-color .15s ease, background .15s ease; }
@@ -13038,6 +13051,14 @@ const s: Record<string, React.CSSProperties> = {
   } as React.CSSProperties,
 
   nav: { display: "flex", alignItems: "center", gap: 12, marginBottom: 16, flexWrap: "wrap" },
+  examChrome: {
+    background: "rgba(8, 12, 22, 0.72)",
+    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08)",
+    borderRadius: 14,
+    padding: "8px 10px",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
+  } as React.CSSProperties,
   sel: { background: T.inkSoft, color: "#e7eaf0", border: `1px solid ${T.inkLine}`, borderRadius: 9, padding: "8px 11px", fontSize: 13, cursor: "pointer" },
   modeToggle: { display: "inline-flex", background: T.inkSoft, border: `1px solid ${T.inkLine}`, borderRadius: 10, padding: 3, gap: 2 },
   modeBtn: { display: "inline-flex", alignItems: "center", gap: 6, background: "transparent", color: "#8c93a1", border: "none", padding: "6px 12px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" },
