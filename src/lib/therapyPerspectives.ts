@@ -19,7 +19,7 @@ export type TherapyPearl = {
 };
 
 let refsPromise: Promise<Record<string, TherapyPearl>> | null = null;
-const THERAPY_DATA_VERSION = "therapy-v1-0";
+const THERAPY_DATA_VERSION = "therapy-v1-165";
 
 export function loadTherapyPerspectives(): Promise<Record<string, TherapyPearl>> {
   if (!refsPromise) {

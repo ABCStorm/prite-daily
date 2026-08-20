@@ -1,1 +1,827 @@
-{}
+{
+ "2009-11": {
+  "pearl_id": "therapy-2009-11",
+  "modality": "supportive",
+  "sentence": "Supportive therapy isn't about excavating why the defenses formed — it's about propping up the ones already doing useful work, using encouragement, direct advice, and psychoeducation so a patient who's barely holding on gets steadier footing instead of more to carry."
+ },
+ "2009-55": {
+  "pearl_id": "therapy-2009-55",
+  "modality": "supportive",
+  "sentence": "You're not going to argue him out of the belief, and trying will only cost you the alliance — meet the fear underneath it ('it sounds exhausting to feel like you have to keep watch all night') and let reality-testing happen gently over time instead of in one confrontation."
+ },
+ "2009-59": {
+  "pearl_id": "therapy-2009-59",
+  "modality": "cbt",
+  "sentence": "CBT for bulimia doesn't start by white-knuckling the food — it maps the restrict-binge-purge cycle itself, using self-monitoring records to catch the all-or-nothing thought right after a 'forbidden' bite ('I've already ruined it, might as well keep going') that turns one bite into a binge."
+ },
+ "2009-77": {
+  "pearl_id": "therapy-2009-77",
+  "modality": "exposure",
+  "sentence": "The mechanism isn't disputing the obsession — it's response prevention: let the intrusive thought fire without performing the compulsion, and ride out the anxiety spike until it crests and falls on its own, session after session, until the urge stops running the show."
+ },
+ "2009-80": {
+  "pearl_id": "therapy-2009-80",
+  "modality": "ipt",
+  "sentence": "IPT deliberately hands the patient a diagnosis and a temporary sick role — not to pathologize, but to give permission: 'this is depression, not a character flaw,' which lifts some of the self-blame so the actual work, naming the grief, role change, or dispute driving it, can start."
+ },
+ "2009-88": {
+  "pearl_id": "therapy-2009-88",
+  "modality": "ipt",
+  "sentence": "Four months out, with him convinced he should have died instead of her, this isn't just sadness to sit with — it's grief work with a target: naming what's unfinished between him and his wife and rebuilding a life that has a place in it without her, alongside the antidepressant."
+ },
+ "2009-194": {
+  "pearl_id": "therapy-2009-194",
+  "modality": "dbt",
+  "sentence": "The individual DBT hour holds both halves of the dialectic at once: the therapist genuinely nurtures the patient through whatever crisis brought them in, and in the same breath expects the patient to do the work of using their skills, because nurturing without that expectation just teaches helplessness rather than change."
+ },
+ "2009-260": {
+  "pearl_id": "therapy-2009-260",
+  "modality": "ipt",
+  "sentence": "This isn't social anxiety to desensitize away — it's an interpersonal deficit with a concrete opening right in front of her: her coworkers already eat lunch together every day, so IPT's job is to help her actually ask to join and lean on the friendships she already has, not to rehearse relaxation before the next group interaction."
+ },
+ "2009-271": {
+  "pearl_id": "therapy-2009-271",
+  "modality": "exposure",
+  "sentence": "Sending her straight into a 15-minute talk to strangers with no warm-up isn't just 'more CBT' — it's flooding, a deliberate jump past the fear hierarchy so her anxiety has to spike and come down on its own, which is a rougher ride than the graded, relaxation-paired climb of systematic desensitization."
+ },
+ "2010-51": {
+  "pearl_id": "therapy-2010-51",
+  "modality": "cbt",
+  "sentence": "That leap from \"one college said no\" to \"they'll all say no\" is a textbook cognitive distortion — overgeneralization stacked on all-or-nothing thinking, turning one data point into a certainty. Before letting the prediction stand, have him write down the actual evidence for and against it — it's rarely as airtight as the panic makes it feel."
+ },
+ "2010-61": {
+  "pearl_id": "therapy-2010-61",
+  "modality": "exposure",
+  "sentence": "The best exposure-therapy candidates are the ones with a single, nameable trauma they can walk through start to finish — no guilt about their own role, no amnesia blocking the memory, no ongoing danger or substance use muddying the picture. That clean narrative is what makes repeated exposure tolerable enough to actually habituate to, instead of just re-traumatizing."
+ },
+ "2010-84": {
+  "pearl_id": "therapy-2010-84",
+  "modality": "ipt",
+  "sentence": "IPT's middle phase isn't archaeology — it stays locked on whatever's happening in the patient's current relationships right now, working the one identified problem area, whether that's grief, a role dispute, a transition, or interpersonal deficits, session after session rather than drifting into the whole life story."
+ },
+ "2010-109": {
+  "pearl_id": "therapy-2010-109",
+  "modality": "supportive",
+  "sentence": "His constant questions aren't a behavior problem to shut down — they're his usual coping style, control through information, doing exactly what it's supposed to do under the terror of a heart attack. Give him the details and a real role in his own care instead of confronting the need for control, and the \"difficult\" behavior mostly resolves on its own."
+ },
+ "2010-165": {
+  "pearl_id": "therapy-2010-165",
+  "modality": "ipt",
+  "sentence": "This is grief that curdled into an atypical depression — the extra sweets, the fifteen pounds, and the thoughts of death since her mother died are the atypical-features fingerprint, not the melancholic kind. IPT would put the loss itself on the table as the grief work: what was left unsaid with her mother, and how she's carrying that six months later, rather than only chasing the appetite and weight symptoms."
+ },
+ "2010-230": {
+  "pearl_id": "therapy-2010-230",
+  "modality": "cbt",
+  "sentence": "The whole engine of cognitive therapy is right there in that phrase — catching the automatic thought the instant it fires, then putting it on trial against the actual evidence instead of treating it as fact. That habit of testing thoughts rather than just having them is what separates CBT from simply venting about a bad day."
+ },
+ "2010-236": {
+  "pearl_id": "therapy-2010-236",
+  "modality": "exposure",
+  "sentence": "This is the exposure-and-response-prevention mechanism in miniature — staying in contact with the trigger while blocking the ritual is what lets the anxiety curve come down on its own, and that decline is habituation, not the compulsion 'working.' Let the ritual short-circuit that curve even once and the whole treatment logic collapses."
+ },
+ "2010-239": {
+  "pearl_id": "therapy-2010-239",
+  "modality": "supportive",
+  "sentence": "He's not in denial that needs correcting — his composure without grieving on cue might be exactly the psychological scaffolding holding him together right now, and supportive therapy's job is to reinforce that, not dismantle it by forcing him to 'face reality.' Confronting him would strip a defense that's actually working before he has anything better to replace it with."
+ },
+ "2010-244": {
+  "pearl_id": "therapy-2010-244",
+  "modality": "cbt",
+  "sentence": "Leaving the room the moment panic starts feels like the escape worked, but that relief is negative reinforcement doing its job — training the brain that only fleeing shuts the alarm off, which is exactly why the avoidance keeps spreading to more places. CBT breaks the loop by having him stay long enough to learn the sensations pass on their own, without the exit."
+ },
+ "2010-263": {
+  "pearl_id": "therapy-2010-263",
+  "modality": "ipt",
+  "sentence": "Role transitions are IPT's home turf — a new job, a retirement, a first baby, a divorce — because the mismatch between who you were in the old role and who you're supposed to be in the new one is often exactly what's driving the mood symptoms. Treatment means grieving what the old role gave you and building real skills for the new one, not just riding out the sadness."
+ },
+ "2011-24": {
+  "pearl_id": "therapy-2011-24",
+  "modality": "cbt",
+  "sentence": "The pull isn't random — it's discharging a build-up of tension, which is exactly why lecturing a kid to \"just stop\" fails every time. Habit reversal training works because it gives that tension somewhere else to go (a clenched fist, a squeeze ball) instead of trying to argue the urge away."
+ },
+ "2011-39": {
+  "pearl_id": "therapy-2011-39",
+  "modality": "cbt",
+  "sentence": "The point was never zero pain — it's catching the avoidance and fear-of-movement that turn a bad back into a life lived on the couch. Pacing and graded activity retrain the idea that moving hurts less than staying still costs."
+ },
+ "2011-41": {
+  "pearl_id": "therapy-2011-41",
+  "modality": "cbt",
+  "sentence": "It's not the sad mood driving the spiral — it's the running verdict underneath it, \"I'm worthless,\" that keeps generating hopeless predictions and pulling the person further into withdrawal. Target that self-appraisal directly and the mood has less fuel to feed on."
+ },
+ "2011-54": {
+  "pearl_id": "therapy-2011-54",
+  "modality": "cbt",
+  "sentence": "One bad exam became \"I will never graduate\" in about two sentences — that's the catastrophic leap CBT is built to catch. Listing evidence for and against forces the prediction to survive contact with the actual facts instead of just feeling true."
+ },
+ "2011-83": {
+  "pearl_id": "therapy-2011-83",
+  "modality": "cbt",
+  "sentence": "Humor in CBT isn't comic relief — it's a wedge that pries a rigid, catastrophic thought loose long enough for the patient to see it as one interpretation, not a verdict. A well-timed joke about the absurdity of a thought does the same job as an evidence list, just faster."
+ },
+ "2011-98": {
+  "pearl_id": "therapy-2011-98",
+  "modality": "ipt",
+  "sentence": "This isn't really about her mood chemistry — it's about her son's absence and the future she pictured evaporating with a ten-year sentence. IPT would name this as a loss to grieve and a role to renegotiate (visits, finances, family identity), not just wait for \"adjustment\" to fade on its own."
+ },
+ "2011-105": {
+  "pearl_id": "therapy-2011-105",
+  "modality": "cbt",
+  "sentence": "Socratic questioning isn't the therapist proving the thought wrong — it's a string of questions that let the patient discover the gap between \"I'm sure I'll fail\" and what the evidence actually says, so the correction sticks because they got there themselves."
+ },
+ "2011-111": {
+  "pearl_id": "therapy-2011-111",
+  "modality": "supportive",
+  "sentence": "She's not being brave — she's dissociated, and being calmly \"okay\" right after a disclosure like this is often the sign, not the absence, of overwhelming fear. The job right now isn't to explore what happened or challenge anything; it's concrete, present-tense grounding — where you are, what you can see, who's safe here — until she's actually back in the room."
+ },
+ "2011-147": {
+  "pearl_id": "therapy-2011-147",
+  "modality": "cbt",
+  "sentence": "Panic attacks feel like they're proving something's physically wrong, but the sensations aren't the disorder — it's reading a racing heart as \"I'm dying\" that turns adrenaline into a crisis. Restructuring that interpretation, then testing it against what actually happens, breaks the loop faster than white-knuckling through the fear."
+ },
+ "2011-272": {
+  "pearl_id": "therapy-2011-272",
+  "modality": "supportive",
+  "sentence": "She's just been beaten and isn't in a place to explore or process anything yet — the job right now is pure ego support: orient her, out loud, to the fact that the danger has passed and this room is safe. That reality-testing does more for her nervous system in this hour than any interpretation could."
+ },
+ "2012-5": {
+  "pearl_id": "therapy-2012-5",
+  "modality": "supportive",
+  "sentence": "On the expressive-supportive spectrum, giving direct advice sits at the most supportive end because it hands the patient concrete external structure instead of asking them to generate insight — exactly what a patient who needs bolstering, not uncovering, benefits from."
+ },
+ "2012-9": {
+  "pearl_id": "therapy-2012-9",
+  "modality": "supportive",
+  "sentence": "You don't have to agree assassins are real to be on this patient's side — reflecting how terrifying the experience feels validates him without confirming the delusion or picking a fight he can't win. That's the whole move in supportive work with a psychotic patient: reduce the anxiety, don't challenge the belief."
+ },
+ "2012-35": {
+  "pearl_id": "therapy-2012-35",
+  "modality": "dbt",
+  "sentence": "Mindfulness comes first in DBT and gets revisited constantly because every other skill depends on it — you can't use distress tolerance or opposite action on an urge you never noticed forming. It's the foundation the rest of the module stack is built on, not just one skill among five."
+ },
+ "2012-56": {
+  "pearl_id": "therapy-2012-56",
+  "modality": "exposure",
+  "sentence": "ERP works by making the patient sit with the obsession's discomfort while blocking the compulsion that would normally relieve it — the ritual is what keeps the fear alive, so removing it is the actual mechanism, not a side effect of exposure."
+ },
+ "2012-63": {
+  "pearl_id": "therapy-2012-63",
+  "modality": "cbt",
+  "sentence": "Before you can challenge a depressed patient's thoughts, you need data on what they're actually doing all day and how it feels — hourly mastery-and-pleasure ratings turn a vague 'I do nothing worthwhile' into a testable map connecting specific activities to specific mood shifts."
+ },
+ "2012-65": {
+  "pearl_id": "therapy-2012-65",
+  "modality": "cbt",
+  "sentence": "After a real attempt, the goal isn't generic support — CBT for suicide prevention maps out the exact thoughts and narrowing options that led up to the attempt and builds a specific plan for the next time that chain starts, which is why it outperforms standard care at cutting repeat attempts."
+ },
+ "2012-71": {
+  "pearl_id": "therapy-2012-71",
+  "modality": "supportive",
+  "sentence": "With somatoform presentations, the treatment isn't a technique you deliver in one visit — it's the relationship itself: one clinician, scheduled regularly, who doesn't wait for a new symptom to justify seeing the patient. That predictable contact does more to calm the anxiety driving the symptoms than any single reassurance ever will."
+ },
+ "2012-120": {
+  "pearl_id": "therapy-2012-120",
+  "modality": "exposure",
+  "sentence": "D-cycloserine doesn't calm anxiety on its own — it works at the NMDA receptor to help the brain learn faster during the exposure session itself, so the extinction learning that happens when the feared situation doesn't produce disaster sticks better. It's an exposure-augmenter, not an anxiolytic."
+ },
+ "2012-133": {
+  "pearl_id": "therapy-2012-133",
+  "modality": "supportive",
+  "sentence": "Supportive therapy's defining move is siding with the defenses that are currently getting the patient through the day rather than dismantling them to find what's underneath — you shore up the coping strategy, you don't interpret it away."
+ },
+ "2012-143": {
+  "pearl_id": "therapy-2012-143",
+  "modality": "cbt",
+  "sentence": "CBT stays anchored in the current thought-feeling-behavior loop rather than excavating childhood — it's structured and time-limited by design, which is exactly the same present-focused discipline that lets IPT stay on this week's role dispute instead of drifting into the patient's whole life story."
+ },
+ "2012-170": {
+  "pearl_id": "therapy-2012-170",
+  "modality": "exposure",
+  "sentence": "Having her picture herself on the bridge is imaginal exposure, not general anxiety talk-therapy — the visualized details of the crossing need to be vivid enough to provoke real anxiety, so it can habituate in her mind before you ever touch real elevation."
+ },
+ "2012-213": {
+  "pearl_id": "therapy-2012-213",
+  "modality": "exposure",
+  "sentence": "This isn't about pressuring her to talk — it's a graded exposure ladder: start with a whispered word to one trusted adult, work up to a full sentence, then speaking in front of a small group, holding each step until her anxiety comes down on its own before adding the next."
+ },
+ "2012-225": {
+  "pearl_id": "therapy-2012-225",
+  "modality": "cbt",
+  "sentence": "The affair is the trigger, but 'I'm a failure as a husband' is the automatic thought actually driving the depression — put it in a thought record, weigh the evidence for and against it, and the guilt starts looking like it's doing more work than the facts support."
+ },
+ "2013-19": {
+  "pearl_id": "therapy-2013-19",
+  "modality": "cbt",
+  "sentence": "The bed itself has become the trigger for wakefulness after months of lying there wired with worry — stimulus control breaks that link by only getting into bed when he's actually sleepy, so bed goes back to meaning 'sleep' instead of 'try harder.'"
+ },
+ "2013-35": {
+  "pearl_id": "therapy-2013-35",
+  "modality": "cbt",
+  "sentence": "One failed exam has, in his head, already become dropping the course, leaving school, and losing his family — that chain is catastrophizing, and the fix isn't reassurance, it's walking the chain backward and testing whether each 'and then' actually follows."
+ },
+ "2013-43": {
+  "pearl_id": "therapy-2013-43",
+  "modality": "ipt",
+  "sentence": "The whole engine of the intermediate phase is repeatedly drawing the line from 'this happened with this person' to 'and that's when the mood dropped' — not because insight alone helps, but because seeing the link is what lets her actually work the problem area instead of just tracking symptoms."
+ },
+ "2013-90": {
+  "pearl_id": "therapy-2013-90",
+  "modality": "supportive",
+  "sentence": "She's medically fragile and flooded right now, not ready to examine why food feels dangerous — the job is coaching her through each meal and reinforcing every bite she manages, bolstering her ability to tolerate the plan rather than uncovering what's underneath it."
+ },
+ "2013-105": {
+  "pearl_id": "therapy-2013-105",
+  "modality": "dbt",
+  "sentence": "Dialectical means she doesn't have to choose between 'my emotions are unbearable' and 'I have to change how I respond to them' — both are true at once, and DBT works precisely because it validates the first before it ever asks her to do the second."
+ },
+ "2013-125": {
+  "pearl_id": "therapy-2013-125",
+  "modality": "exposure",
+  "sentence": "Five miles from home with white-knuckle apprehension isn't something to talk her out of — it's the starting rung of a fear hierarchy, and the treatment is repeated, graded trips just far enough past that boundary that the fear peaks and comes down on its own before the next push."
+ },
+ "2013-136": {
+  "pearl_id": "therapy-2013-136",
+  "modality": "supportive",
+  "sentence": "Right now isn't the moment for anything that asks her to process or make sense of what happened — it's the moment to make sure she's actually safe and has some control back over what happens next, and that concrete, low-demand support is what keeps this from calcifying into something worse."
+ },
+ "2013-172": {
+  "pearl_id": "therapy-2013-172",
+  "modality": "exposure",
+  "sentence": "This isn't just \"facing your fears\" in the abstract — riding along until her pulse and sweating come back down on their own is prolonged in vivo exposure, letting the fear extinguish naturally instead of escaping it early and reinforcing the avoidance."
+ },
+ "2013-180": {
+  "pearl_id": "therapy-2013-180",
+  "modality": "supportive",
+  "sentence": "Supportive therapy stays anchored in today's stressors and coping, not last year's conflicts — the goal is bolstering someone's ability to function right now, so you lean on encouragement and problem-solving rather than digging for the root cause."
+ },
+ "2013-221": {
+  "pearl_id": "therapy-2013-221",
+  "modality": "cbt",
+  "sentence": "Arbitrary inference is jumping to \"she thinks I'm incompetent\" the moment a supervisor glances away, with nothing else to back it up — the fix in CBT isn't to stop having the thought, it's to make her actually check it against the evidence before she believes it."
+ },
+ "2013-258": {
+  "pearl_id": "therapy-2013-258",
+  "modality": "cbt",
+  "sentence": "Rehearsing what to actually say when someone hands you a drink, and mapping out the exact moment things go sideways before it happens, is CBT's relapse-prevention core — naming the high-risk situation in advance is what turns \"I'll try to resist\" into a skill he's already practiced."
+ },
+ "2013-268": {
+  "pearl_id": "therapy-2013-268",
+  "modality": "cbt",
+  "sentence": "For a mildly anxious kid, CBT-style skills — naming the worried thought, testing it, and gently facing the avoided situation — usually do the job without a prescription, because avoidance and family accommodation are often what's keeping the anxiety alive in the first place."
+ },
+ "2013-272": {
+  "pearl_id": "therapy-2013-272",
+  "modality": "cbt",
+  "sentence": "The edge CBT has over medication for panic isn't necessarily how fast symptoms drop — it's that reappraising the catastrophic thought and doing the interoceptive exposures builds a skill she keeps using after treatment ends, which is why relapse rates stay lower once the meds (and their effect) are gone."
+ },
+ "2013-273": {
+  "pearl_id": "therapy-2013-273",
+  "modality": "cbt",
+  "sentence": "Selective mutism isn't defiance or a language problem — it's avoidance behavior functioning exactly like a phobia: the child wants to talk but staying silent relieves the anxiety in the moment, which is why the fix looks like graded exposure to speaking rather than waiting for the anxiety to just go away on its own."
+ },
+ "2014-21": {
+  "pearl_id": "therapy-2014-21",
+  "modality": "exposure",
+  "sentence": "This is cue exposure in action: repeatedly playing the song without alcohol lets the craving response extinguish through habituation, the same mechanism a fear hierarchy uses, just aimed at an appetitive urge instead of a phobia."
+ },
+ "2014-63": {
+  "pearl_id": "therapy-2014-63",
+  "modality": "supportive",
+  "sentence": "Arguing him out of it would cost you the alliance, and agreeing would feed the delusion — the supportive move is to sit with how exhausting and frightening this constant vigilance over the dog feels for him, without confirming or challenging whether the neighbor is really doing it."
+ },
+ "2014-126": {
+  "pearl_id": "therapy-2014-126",
+  "modality": "cbt",
+  "sentence": "The belief driving the paralysis isn't the disaster itself, it's the catastrophic prediction that nothing she does will ever make things better — building self-efficacy means testing that global belief against small, concrete recovery steps (one insurance call, one housing lead) instead of accepting it as fact."
+ },
+ "2014-155": {
+  "pearl_id": "therapy-2014-155",
+  "modality": "supportive",
+  "sentence": "The goal here isn't insight or symptom cure - it's keeping the patient's current level of functioning intact by propping up whatever defenses already work for them, leaning on reality-testing and encouragement instead of interpretation or challenge."
+ },
+ "2014-186": {
+  "pearl_id": "therapy-2014-186",
+  "modality": "dbt",
+  "sentence": "Ten superficial cuts with no wish to die and 'I just wanted to feel something' is the classic language of emotion dysregulation, not suicidality - and the fresh drinking matters because alcohol strips away what little impulse control was holding that urge back. Name what the cutting is actually doing for her (converting unbearable numbness into something she can control and stop) before you address the drinking underneath it."
+ },
+ "2014-221": {
+  "pearl_id": "therapy-2014-221",
+  "modality": "exposure",
+  "sentence": "This is vicarious extinction at work - watching other kids ride without anything bad happening teaches his nervous system the bike is safe without him ever swinging a leg over it. It's why participant modeling, a trusted person doing the feared thing first, gets built directly into a graded exposure plan for kids rather than jumping straight to asking them to ride solo."
+ },
+ "2014-222": {
+  "pearl_id": "therapy-2014-222",
+  "modality": "ipt",
+  "sentence": "This isn't a cognition to dispute or a schedule to fill - it's the interpersonal-deficits pattern IPT targets directly: instead of waiting to be invited into the lunch group, she works on saying yes to the one coworker she already gets along with and building outward from there. IPT stays on the relationship gap itself rather than chasing the depressive symptoms it's producing."
+ },
+ "2014-229": {
+  "pearl_id": "therapy-2014-229",
+  "modality": "supportive",
+  "sentence": "This is grief, not major depression, and the job isn't to treat it - it's to say the quiet part out loud: anyone facing this news would feel exactly what she's feeling. Naming it as a normal, proportionate reaction is the intervention itself; pushing to uncover more underneath it only tells her something's wrong with how she's coping when nothing is."
+ },
+ "2014-279": {
+  "pearl_id": "therapy-2014-279",
+  "modality": "cbt",
+  "sentence": "This is relapse-prevention CBT in its most concrete form - the point isn't willpower, it's structurally removing the trigger before the craving ever gets a chance to fire. Mapping the actual commute and picking a route that never passes the bar does more good than any amount of resisting the urge once he's already standing outside it."
+ },
+ "2014-287": {
+  "pearl_id": "therapy-2014-287",
+  "modality": "cbt",
+  "sentence": "The chest sensations aren't the real problem - his mind's insistence that 'something is wrong' despite three clean workups is what's keeping the fear alive, and every reassurance-seeking visit just proves to his brain that checking works. Test the catastrophic interpretation directly against the evidence, rather than trying to out-argue the fear with one more negative test."
+ },
+ "2015-37": {
+  "pearl_id": "therapy-2015-37",
+  "modality": "cbt",
+  "sentence": "Escaping the second panic spikes doesn't just end the attack — it teaches her nervous system that leaving is what saved her, which is exactly why the fear comes back just as strong next time she's out in public. Break the negative-reinforcement loop by staying through the peak instead of escaping it, since every successful exit is training the avoidance, not curing it."
+ },
+ "2015-117": {
+  "pearl_id": "therapy-2015-117",
+  "modality": "cbt",
+  "sentence": "‘I'm being left out again’ is the textbook automatic thought — it fired instantly the moment the roommate left, before any deliberate reasoning kicked in, which is exactly why it's worth writing down verbatim in a thought record rather than treating it as simply true. Test it against the actual evidence (a phone call, not a rejection) before assuming it reflects reality."
+ },
+ "2015-134": {
+  "pearl_id": "therapy-2015-134",
+  "modality": "exposure",
+  "sentence": "Making her sit with the fullness until the urge to purge crests and fades on its own is response prevention in action — she isn't being punished, she's relearning that the anxious sensation passes without vomiting, which is what actually extinguishes the fullness-to-purge link. Cutting the observation window short before the urge peaks would just reset the cycle instead of breaking it."
+ },
+ "2015-153": {
+  "pearl_id": "therapy-2015-153",
+  "modality": "exposure",
+  "sentence": "Blocking the ritual isn't about willpower — it lets the anxiety spike and then fall on its own each time the patient faces the trigger without escaping into the compulsion, and that decline in arousal to a repeated stimulus is habituation, the actual engine behind ERP for OCD."
+ },
+ "2015-165": {
+  "pearl_id": "therapy-2015-165",
+  "modality": "supportive",
+  "sentence": "The first move with someone who just watched two coworkers crushed isn't to unpack the trauma — it's to name that numbness and intrusive images are a normal brain's reaction to an abnormal day and get his own people around him, not to push him toward reliving it before he's stabilized."
+ },
+ "2015-168": {
+  "pearl_id": "therapy-2015-168",
+  "modality": "exposure",
+  "sentence": "The dilators aren't a mechanical fix — they're a graded exposure hierarchy for the pelvic floor, each size chosen to be tolerable enough that the involuntary guarding can habituate before she moves up, which is why jumping straight to intercourse would be flooding, not progress."
+ },
+ "2015-233": {
+  "pearl_id": "therapy-2015-233",
+  "modality": "dbt",
+  "sentence": "The martinis and the marital fight matter, but they don't get the first fifteen minutes — self-injury sits at the top of DBT's target hierarchy because staying alive has to be secured before anything else, including the drinking or the lateness, gets processed."
+ },
+ "2015-277": {
+  "pearl_id": "therapy-2015-277",
+  "modality": "exposure",
+  "sentence": "Fighting the anxious thought does nothing here — deliberately holding pleasurable mental images while at the party works because relaxation and anxiety can't occupy the body at the same time, so one crowds the other out, which is Wolpe's reciprocal inhibition in action."
+ },
+ "2015-280": {
+  "pearl_id": "therapy-2015-280",
+  "modality": "cbt",
+  "sentence": "The real work isn't reassuring the patient their thought is wrong — it's teaching them to catch the automatic thought the instant it fires and then test it against the actual evidence, which is the elicit-and-test cycle that drives Beck's cognitive therapy."
+ },
+ "2015-285": {
+  "pearl_id": "therapy-2015-285",
+  "modality": "exposure",
+  "sentence": "The fear hasn't reset to zero — this is context-dependent renewal: the extinction learned with one small dog in a quiet room doesn't automatically transfer to a chaotic party with an unfamiliar dog, which is exactly why exposure work needs to be practiced across varied settings, not just the therapy office."
+ },
+ "2016-17": {
+  "pearl_id": "therapy-2016-17",
+  "modality": "ipt",
+  "sentence": "This isn't really an Erikson stage to identify and move on from — it's a role transition happening in real time: her whole relationship structure is on the line whether she goes or stays, and the anger and loss of control are exactly what IPT works with directly. The useful question isn't 'what stage is this' but what she's mourning about the life she has now, and what she needs the relationship to become if she stays."
+ },
+ "2016-24": {
+  "pearl_id": "therapy-2016-24",
+  "modality": "supportive",
+  "sentence": "This is exactly the population supportive therapy is built for — no interpretation, no digging for unconscious material, just an ally who reality-tests, gives advice, and shores up the defenses the patient already has. Push someone with splitting and poor impulse control into uncovering work and you get regression, not insight."
+ },
+ "2016-44": {
+  "pearl_id": "therapy-2016-44",
+  "modality": "ipt",
+  "sentence": "When grief, transitions, and disputes don't explain the depression, IPT's fourth pillar is the one people forget — is this patient just profoundly under-connected, with no single named conflict to work on? Mapping who's actually in a depressed patient's corner right now is as concrete an intervention as naming a role dispute."
+ },
+ "2016-62": {
+  "pearl_id": "therapy-2016-62",
+  "modality": "cbt",
+  "sentence": "Don't just tell the patient the thought is distorted — walk them into testing it themselves: 'What's the evidence? Would you say that to a friend who told you the same thing?' Socratic questioning works because the patient discovers the flaw in the automatic thought, so the correction actually sticks instead of bouncing off."
+ },
+ "2016-71": {
+  "pearl_id": "therapy-2016-71",
+  "modality": "cbt",
+  "sentence": "The garage was never the real obstacle — the all-or-nothing thought 'I have to do this whole thing right now' is what triggers the freeze. Graded task assignment breaks the mountain into steps small enough that starting doesn't require courage, and each finished piece becomes evidence against 'I can't handle this.'"
+ },
+ "2016-103": {
+  "pearl_id": "therapy-2016-103",
+  "modality": "dbt",
+  "sentence": "The rule with between-session coaching calls is skills, not processing — a patient calls before she cuts, and the therapist walks her through one concrete skill in the moment rather than exploring feelings, which is exactly what keeps the skill from staying theoretical the next time she's alone with the urge."
+ },
+ "2016-135": {
+  "pearl_id": "therapy-2016-135",
+  "modality": "existential",
+  "sentence": "This isn't a diagnosis to argue her out of — it's a genuine confrontation with finitude, the possibility that motherhood, something she always assumed was still ahead of her, might not happen. The useful move isn't reassurance ('you still have time') but helping her name what freedom and responsibility look like now, with adoption as a real choice she's making rather than a consolation prize."
+ },
+ "2016-150": {
+  "pearl_id": "therapy-2016-150",
+  "modality": "dbt",
+  "sentence": "The dialectic isn't a debate trick, it's the whole model held at once: 'you're doing the best you can' and 'you need to do better' are both true, and the therapist's job is teaching a concrete skill from one of the four modules — mindfulness, distress tolerance, emotion regulation, interpersonal effectiveness — to replace the self-harm or blow-up with something that actually works."
+ },
+ "2016-152": {
+  "pearl_id": "therapy-2016-152",
+  "modality": "cbt",
+  "sentence": "The point of group CBT here isn't to make the pain disappear — it's to stop the pain from running the patient's whole life, using activity pacing and reframing catastrophic thoughts about what the pain means. Function is the target you can actually move; the pain signal itself often isn't."
+ },
+ "2016-164": {
+  "pearl_id": "therapy-2016-164",
+  "modality": "supportive",
+  "sentence": "In a crisis you're not digging for insight — you're shoring up whatever defenses are still standing, giving direct advice, and helping the person get through the next few hours intact. Uncovering can wait; right now the job is stabilization."
+ },
+ "2016-256": {
+  "pearl_id": "therapy-2016-256",
+  "modality": "cbt",
+  "sentence": "Waiting to 'feel ready' for the real world is the trap — behavioral activation flips the order and has her cook one meal a week before the motivation shows up, because competence and momentum build from doing, not from feeling ready first. Small, scheduled wins against her avoidance will move her faster than more insight into why she's stuck."
+ },
+ "2016-272": {
+  "pearl_id": "therapy-2016-272",
+  "modality": "cbt",
+  "sentence": "The work isn't just behavioral monitoring — it's identifying and challenging the distorted cognitions that let the offending continue: minimization, blaming the victim, believing the harm wasn't real. Relapse prevention only holds up once those thinking errors are named and disputed."
+ },
+ "2016-286": {
+  "pearl_id": "therapy-2016-286",
+  "modality": "ipt",
+  "sentence": "Before IPT touches the mood symptoms, it maps the whole cast of characters — who's actually in this patient's life, what each relationship gives or costs, and where the friction really is. You can't target a role dispute or a role transition you haven't found yet."
+ },
+ "2017-6": {
+  "pearl_id": "therapy-2017-6",
+  "modality": "dbt",
+  "sentence": "When she waves off a year with zero self-harm as no big deal, the DBT move isn't to take the easy yes — it's devil's-advocate: naming out loud just how brutal a year without her most reliable coping tool will actually be. Making her argue herself into the commitment gets a sturdier yes than one she gave you to end the conversation."
+ },
+ "2017-25": {
+  "pearl_id": "therapy-2017-25",
+  "modality": "supportive",
+  "sentence": "With a frightened, disorganized patient fresh off a psychotic break in public, you don't earn trust through interpretation — you earn it with a plain, honest fact, and telling her exactly what a resident is does more to steady her than any reassurance would."
+ },
+ "2017-30": {
+  "pearl_id": "therapy-2017-30",
+  "modality": "cbt",
+  "sentence": "The font question was never about the font — it's a safety behavior propping up the belief 'I can't trust my own judgment,' and every reassurance she collects only proves to her brain that she needed the check. Target the belief directly: have her make one small call solo and sit with the discomfort instead of outsourcing it."
+ },
+ "2017-97": {
+  "pearl_id": "therapy-2017-97",
+  "modality": "exposure",
+  "sentence": "The prevention half is the whole engine — letting the anxiety spike and then not performing the ritual is what breaks the loop, because the compulsion is what's actually reinforcing the fear by 'proving' it kept the catastrophe away. Skip response prevention and you're left with exposure that never gets the chance to teach anything new."
+ },
+ "2017-116": {
+  "pearl_id": "therapy-2017-116",
+  "modality": "supportive",
+  "sentence": "You don't need to agree with the delusion or argue him out of it — either move costs you the alliance. Naming the fear underneath it, without confirming or challenging the belief itself, meets him where the distress actually lives and steadies him instead of provoking defensiveness."
+ },
+ "2017-145": {
+  "pearl_id": "therapy-2017-145",
+  "modality": "ipt",
+  "sentence": "This isn't pathology to medicate away — it's a role transition with real decisions attached (a house, kids, in-laws) that she and her spouse haven't actually negotiated yet, which is why the isolation and the calls home for backup. IPT would name the transition specifically and work through what the new couple actually wants to decide together, rather than treating the tension as a symptom."
+ },
+ "2017-160": {
+  "pearl_id": "therapy-2017-160",
+  "modality": "supportive",
+  "sentence": "When she owns up to cursing at her daughter, the supportive move is to meet that honesty with genuine appreciation before anything else - that's what keeps her disclosing instead of hiding the next slip - then invite her to work with you on what else she could do next time, keeping your own flash of anger out of the room."
+ },
+ "2017-215": {
+  "pearl_id": "therapy-2017-215",
+  "modality": "dbt",
+  "sentence": "Chain analysis doesn't open with 'why would you hurt yourself' - it opens by rewinding to the very first moment the urge showed up that day, because the earliest link in the chain is usually where she still has room to do something different before the momentum builds."
+ },
+ "2017-226": {
+  "pearl_id": "therapy-2017-226",
+  "modality": "cbt",
+  "sentence": "Ninety-nine glowing evaluations and his brain locks onto the one line about pacing - that's selective abstraction doing its work, not an accurate read on his teaching. Have him write down the full set of comments and weigh himself against all of it, not the single sentence his mind chose to keep."
+ },
+ "2017-299": {
+  "pearl_id": "therapy-2017-299",
+  "modality": "supportive",
+  "sentence": "When a patient hands you the credit for her marriage improving, supportive therapy says accept it warmly instead of deflecting it - affirming that the work helped reinforces both her progress and the alliance carrying it, rather than turning the moment into an analysis of why she needed to say it."
+ },
+ "2018-7": {
+  "pearl_id": "therapy-2018-7",
+  "modality": "cbt",
+  "sentence": "That line — \"I always have to work harder than everyone else to succeed\" — isn't a passing automatic thought, it's the schema underneath, the standing rule she's been running on long before this project existed. You don't argue with the extra hours she's logging; you go after the rule itself, testing where it came from and whether it's actually still true."
+ },
+ "2018-12": {
+  "pearl_id": "therapy-2018-12",
+  "modality": "cbt",
+  "sentence": "She's not weighing the whole night, she's zoomed in on the one misstep nobody else even caught and let it stand for the entire performance, which is selective abstraction doing its work. The fix isn't reassurance (\"you were great\"); it's making her hold the misstep and the acclaim in the same frame and asking which one actually predicts anything about her as a dancer."
+ },
+ "2018-47": {
+  "pearl_id": "therapy-2018-47",
+  "modality": "supportive",
+  "sentence": "You're not going to talk her out of the paranoia in the ED, and confronting it head-on just proves to her that you're not safe either — so lead with the one thing that's true and non-threatening: she's scared. Naming the fear instead of the content lets her feel heard without you endorsing or arguing the delusion, which is what actually builds enough trust to get through the visit."
+ },
+ "2018-153": {
+  "pearl_id": "therapy-2018-153",
+  "modality": "cbt",
+  "sentence": "The downward-arrow question just exposed the actual target: it isn't the physics exam, it's the catastrophic chain from 'I fail this test' to 'my family abandons me' — and that chain is what gets tested against the evidence, one link at a time, not talked out of in one sitting."
+ },
+ "2018-164": {
+  "pearl_id": "therapy-2018-164",
+  "modality": "cbt",
+  "sentence": "The bus isn't really the threat here — what's maintaining the fear is what happens right after he balks: if refusing earns him comfort, attention, or a day off school, that relief quietly teaches his brain that avoidance works. Ask about the parents' response, not just the fear, because that reinforcement loop is exactly what a CBT case formulation targets."
+ },
+ "2018-191": {
+  "pearl_id": "therapy-2018-191",
+  "modality": "dbt",
+  "sentence": "Both things are true at once: she's genuinely overwhelmed right now, and kicking the furniture is the only lever she has to make that feeling stop — so validate the distress before you respond to the behavior. Offering a real choice, quiet room or medication, works because it treats her as capable of regulating rather than someone to be controlled, which is what actually brings a crisis like this down."
+ },
+ "2018-237": {
+  "pearl_id": "therapy-2018-237",
+  "modality": "supportive",
+  "sentence": "This isn't a moment to interpret or question — the patient handing you an idealizing 'wise and loving doctor' role is fuel, and supportive therapy's job is to run on it rather than dissect it. Let the positive transference do its work of steadying the alliance now; save any digging into where that idealization comes from for a different kind of treatment."
+ },
+ "2018-273": {
+  "pearl_id": "therapy-2018-273",
+  "modality": "cbt",
+  "sentence": "Every clean scan buys her ten minutes of relief before the doubt creeps back in and she needs another one — that's reassurance-seeking working exactly the way it works, cementing the fear instead of resolving it. The fix isn't a better MRI, it's helping her tolerate the uncertainty without checking, which is the safety-behavior work CBT does with health anxiety."
+ },
+ "2019-63": {
+  "pearl_id": "therapy-2019-63",
+  "modality": "supportive",
+  "sentence": "With a guarded, paranoid patient, a small gesture like offering a cookie is a rare bid for connection, not a boundary to dissect — accepting it graciously protects the fragile trust you've built. The goal here isn't insight, it's alliance: bolster her existing defenses and let the relationship stay safe enough for her to keep showing up."
+ },
+ "2019-191": {
+  "pearl_id": "therapy-2019-191",
+  "modality": "supportive",
+  "sentence": "She's not confused or delusional; she's grieving a death sentence in real time, and \"I wish God would just take me\" is a passive expression of that grief, not a plan. Name it out loud as a normal, understandable reaction to an unbearable situation before doing anything else — that validation builds the alliance you need before you can even assess whether a treatable depression is riding along underneath it."
+ },
+ "2019-192": {
+  "pearl_id": "therapy-2019-192",
+  "modality": "dbt",
+  "sentence": "Naming a reaction as understandable (\"of course this is overwhelming\") and asking for change in the same breath is the dialectic itself — DBT doesn't choose between soothing the patient and pushing them toward something different, it insists both happen at once, which is why psychoeducation and validation show up right alongside the push for new behavior."
+ },
+ "2019-242": {
+  "pearl_id": "therapy-2019-242",
+  "modality": "supportive",
+  "sentence": "When a patient's sense of self is too fragile to survive being challenged, supportive therapy doesn't go looking for what's wrong with their defenses — it shores up the ones already working, praises real strengths, and treats a steadier self-esteem as the treatment goal in its own right, not a byproduct of insight."
+ },
+ "2019-264": {
+  "pearl_id": "therapy-2019-264",
+  "modality": "exposure",
+  "sentence": "The checking isn't caution, it's the disorder — every completed ritual teaches her brain that checking is what kept the family safe, which is exactly the belief ERP is built to disconfirm. Have her stand at the oven without checking and ride the anxiety out until it falls on its own; that's the only way she learns the fear was never what was protecting them."
+ },
+ "2019-276": {
+  "pearl_id": "therapy-2019-276",
+  "modality": "cbt",
+  "sentence": "A hypnotic quiets tonight's insomnia; CBT-I retrains the association between bed and sleep through stimulus control and sleep restriction, so when treatment stops the skills don't stop working with it — that's why the gains are still measurable at two years while the pill's benefit faded within weeks of tapering."
+ },
+ "2019-296": {
+  "pearl_id": "therapy-2019-296",
+  "modality": "cbt",
+  "sentence": "The nagging never worked because it only shows up after the chore doesn't get done — flip it and reward the one time it does, and the therapist is shaping the behavior actually wanted instead of just venting about the one that isn't. That's the same structured, practical logic behind CBT homework: change follows what gets reinforced in session, not what gets complained about at home."
+ },
+ "2020-8": {
+  "pearl_id": "therapy-2020-8",
+  "modality": "supportive",
+  "sentence": "Acknowledging the frustration out loud is the move — an agitated patient needs to feel heard before anything else can happen, and that's ego-supportive validation, not confrontation. Save reasoning or reality-testing for after the arousal comes down."
+ },
+ "2020-80": {
+  "pearl_id": "therapy-2020-80",
+  "modality": "cbt",
+  "sentence": "The daily mood diary isn't busywork — it's the raw material every later CBT step depends on, teaching the teen to catch 'felt sad, thought X, did Y' as it happens instead of reconstructing it days later in session. You can't restructure a thought nobody wrote down."
+ },
+ "2020-132": {
+  "pearl_id": "therapy-2020-132",
+  "modality": "cbt",
+  "sentence": "\"I am worthless\" isn't a stray automatic thought about today — it's the deep, global rule this patient runs every experience through, which is why disputing today's negative thought alone won't move it. Core-belief work means testing that global rule itself against real counter-evidence, patiently, over many sessions."
+ },
+ "2020-156": {
+  "pearl_id": "therapy-2020-156",
+  "modality": "cbt",
+  "sentence": "\"I'm being left out again\" is the automatic thought doing the damage here, not the roommate's phone call itself — in CBT you'd catch it in the moment, write it down, and test it against the actual evidence (a phone call, not a rejection) before it hardens into a pattern."
+ },
+ "2020-170": {
+  "pearl_id": "therapy-2020-170",
+  "modality": "cbt",
+  "sentence": "Leaving the moment panic starts and feeling the panic subside is negative reinforcement doing its job — the relief teaches the brain 'escape saved me,' which is exactly the safety behavior that keeps agoraphobia alive; the CBT fix is staying in the situation long enough to learn the panic passes on its own."
+ },
+ "2020-278": {
+  "pearl_id": "therapy-2020-278",
+  "modality": "dbt",
+  "sentence": "When a binge functions as the fastest way to shut off unbearable emotion, adapted DBT treats it like self-harm's cousin — teaching distress tolerance and opposite action so the urge to numb out with food has somewhere else to go besides the kitchen."
+ },
+ "2021-23": {
+  "pearl_id": "therapy-2021-23",
+  "modality": "cbt",
+  "sentence": "The order here matters — action comes before insight. Scheduling pleasurable tasks and increasing socialization first interrupts the withdrawal-then-worse-mood spiral; that's behavioral activation, and it's often what gets a depressed patient moving again before you ever touch a thought record."
+ },
+ "2021-80": {
+  "pearl_id": "therapy-2021-80",
+  "modality": "ipt",
+  "sentence": "Grief itself isn't really the target here — the isolation that's grown up around it is. IPT doesn't ask her to process the loss alone in her head; it works the practical, relational side of mourning by helping her lean back on the extended support network she's stopped using."
+ },
+ "2021-97": {
+  "pearl_id": "therapy-2021-97",
+  "modality": "dbt",
+  "sentence": "In DBT the alliance isn't a nice-to-have before the real work starts — it's the delivery mechanism for the real work. A patient who doesn't feel her therapist is on her side won't trust the skills enough to try opposite action the next time an urge to self-harm hits."
+ },
+ "2021-102": {
+  "pearl_id": "therapy-2021-102",
+  "modality": "cbt",
+  "sentence": "Overwhelm shrinks the moment the task shrinks — that's the whole logic of graded task assignment. Starting with the easiest step and building up gives him small wins that argue against 'I'm just lazy' before the bigger, harder parts of the job ever come up."
+ },
+ "2021-104": {
+  "pearl_id": "therapy-2021-104",
+  "modality": "cbt",
+  "sentence": "Socratic questioning works because the patient discovers the distortion instead of being told about it — 'what's the evidence this thought is true?' lands very differently than 'that thought is wrong.' It's collaborative empiricism, which is exactly why it outperforms direct disputation."
+ },
+ "2021-120": {
+  "pearl_id": "therapy-2021-120",
+  "modality": "supportive",
+  "sentence": "The point isn't to interpret the splitting as unconscious conflict — that's a different modality's job. In supportive therapy you name what's happening gently and steer straight back toward protecting the relationship, because here the alliance itself is the treatment, not something to analyze."
+ },
+ "2021-124": {
+  "pearl_id": "therapy-2021-124",
+  "modality": "cbt",
+  "sentence": "Before you ever hand someone a thought record, they need the map: thoughts drive feelings drive behaviors, which loop back around to more thoughts. Naming that cycle up front — psychoeducation — is what makes the later work of catching and challenging a thought feel like it actually has a point."
+ },
+ "2021-173": {
+  "pearl_id": "therapy-2021-173",
+  "modality": "dbt",
+  "sentence": "The urge to withdraw after a disagreement is real, but the pattern already proved it backfires — isolating only deepens the sense of rejection instead of easing it. Opposite action doesn't argue with the hurt; it has the patient deliberately move toward friends precisely because the urge says to pull away, and that's what breaks the loop."
+ },
+ "2021-199": {
+  "pearl_id": "therapy-2021-199",
+  "modality": "cbt",
+  "sentence": "Personalization is the leap from 'the doctor's schedule is full' to 'the doctor must be upset with me' — a neutral scheduling fact read as a verdict on the relationship. The CBT move is to put that thought on trial: what's the actual evidence the doctor is offended, against every ordinary reason a same-day slot might not be open?"
+ },
+ "2021-224": {
+  "pearl_id": "therapy-2021-224",
+  "modality": "cbt",
+  "sentence": "The hand washing doesn't happen because it's rational — it happens because it works, in the short run: it kills the contamination fear fast, and that relief is exactly what teaches the brain to reach for it again next time the thought fires. That's the safety-behavior trap CBT targets — the compulsion isn't curing the anxiety, it's what's keeping it alive."
+ },
+ "2021-283": {
+  "pearl_id": "therapy-2021-283",
+  "modality": "supportive",
+  "sentence": "This isn't insight-oriented work, and it's not meant to be — praising the patient for taking medication and troubleshooting what makes adherence hard directly shores up coping that's already there. Supportive therapy meets someone managing a chronic mental illness where they are: encouragement and concrete advice, not digging into why the struggle exists in the first place."
+ },
+ "2022-27": {
+  "pearl_id": "therapy-2022-27",
+  "modality": "cbt",
+  "sentence": "This is Beck's cognitive triad in its most tested form — before chasing ‘the future looks hopeless,’ start with the self-schema, since ‘I'm worthless’ is usually the belief propping up the other two and the first one worth putting in a thought record."
+ },
+ "2022-72": {
+  "pearl_id": "therapy-2022-72",
+  "modality": "cbt",
+  "sentence": "Naming it ‘arbitrary inference’ isn't just vocabulary — it tells you the fix: send her back to hunt for the actual evidence (the friends who invited her out, the compliments she brushed past) rather than arguing her out of the conclusion directly."
+ },
+ "2022-124": {
+  "pearl_id": "therapy-2022-124",
+  "modality": "supportive",
+  "sentence": "With a patient this fragile — schizophrenia, active substance use, acute burns, and splitting the team — the move isn't to interpret the demands or the anger, it's supportive therapy: name that the pain and fear are real, then hold a clear, consistent limit so the structure itself becomes something he can lean on instead of fight."
+ },
+ "2022-191": {
+  "pearl_id": "therapy-2022-191",
+  "modality": "cbt",
+  "sentence": "Intermediate beliefs are the quiet ‘rules for living’ — the assumptions and conditional if-thens (‘If I’m not perfect, I’ll fail’) — that sit between a person’s deep core beliefs and the automatic thoughts of the moment. In session, tracing an automatic thought back to the rule behind it is often more useful than arguing with the thought itself."
+ },
+ "2022-195": {
+  "pearl_id": "therapy-2022-195",
+  "modality": "cbt",
+  "sentence": "The chest twinge isn’t the real target — it’s the catastrophic read of it as proof something’s wrong, and every reassurance-seeking visit or self-check just teaches the brain that checking works, which is exactly what keeps the cycle alive. Treatment means testing the catastrophic thought against the evidence and tapering the checking, not running more tests to prove he’s fine."
+ },
+ "2022-197": {
+  "pearl_id": "therapy-2022-197",
+  "modality": "existential",
+  "sentence": "This isn’t anxiety to talk him down from — it’s the sudden, unwelcome discovery that no one else can carry these decisions, that authoring his own care through its unknowns was always his to do alone. Sitting with that weight, rather than reassuring him it’ll be fine, is what existential work actually offers here."
+ },
+ "2022-229": {
+  "pearl_id": "therapy-2022-229",
+  "modality": "exposure",
+  "sentence": "This is the loop exposure therapy is built to interrupt: every exit he takes off the highway buys instant relief, and that relief — not the memory of the explosion itself — is what teaches the fear to stick around. A graded hierarchy, starting with sitting in a parked car near the highway and working up to rush-hour driving, lets the anxiety spike and fall on its own instead of being rescued by an exit ramp every time."
+ },
+ "2022-243": {
+  "pearl_id": "therapy-2022-243",
+  "modality": "cbt",
+  "sentence": "The pain is real, but the runaway attention to it and the doctor-shopping for reassurance are what CBT actually treats — each visit that calms the fear for a day teaches the brain to keep sounding the alarm. Progress looks like tolerating uncertainty about the symptom rather than resolving it with one more test."
+ },
+ "2023-60": {
+  "pearl_id": "therapy-2023-60",
+  "modality": "ipt",
+  "sentence": "This isn't just baby-blues fatigue — it's a role transition with a name: professional identity giving way to a role she hasn't grieved or renegotiated yet. IPT would spend the session on what she's lost from 'working professional' and what she actually wants motherhood to look like, not on chasing the mood symptoms directly."
+ },
+ "2023-84": {
+  "pearl_id": "therapy-2023-84",
+  "modality": "exposure",
+  "sentence": "The diaphragmatic breathing isn't there to calm her down in general — it's paired with the spider image so a competing, incompatible response blunts the fear response while she climbs the hierarchy. This is systematic desensitization, not generic relaxation training, because the point is the graded pairing itself, not just teaching her to breathe."
+ },
+ "2023-113": {
+  "pearl_id": "therapy-2023-113",
+  "modality": "exposure",
+  "sentence": "Blocking the compulsion is what makes ERP work — without it, the ritual keeps teaching the brain that the obsession was dangerous and the compulsion is what saved you. Held in place long enough, the anxiety habituates on its own and that conditioned fear response starts to extinguish, which is the whole behaviorist logic behind the gold-standard OCD treatment."
+ },
+ "2023-214": {
+  "pearl_id": "therapy-2023-214",
+  "modality": "cbt",
+  "sentence": "The alcohol before class isn't unrelated to the anxiety, it's a safety behavior, and like any safety behavior it quietly confirms the belief that presenting without it would go badly. The real treatment target isn't just less fear, it's dropping the crutch so the student learns the presentation goes fine on its own."
+ },
+ "2023-262": {
+  "pearl_id": "therapy-2023-262",
+  "modality": "cbt",
+  "sentence": "Naming it 'fortune-telling' instead of just 'anxiety' matters clinically, it's a specific, testable prediction ('this racing heart means another attack is coming'), which means it's a specific, testable target for a thought record rather than something you just reassure away."
+ },
+ "2023-284": {
+  "pearl_id": "therapy-2023-284",
+  "modality": "cbt",
+  "sentence": "The therapist's 'what would that mean' question is deliberately walking the chain out loud so the leap from one bad exam to total family rejection becomes visible on paper, once it's visible, you can test each link ('would failing this exam really mean failing the course?') instead of arguing with the whole catastrophe at once."
+ },
+ "2023-287": {
+  "pearl_id": "therapy-2023-287",
+  "modality": "ipt",
+  "sentence": "This isn't a relapse to chase with a medication change, it's acute grief with a name and a date, and reaching out today instead of waiting two weeks is exactly the right instinct. The work this week is helping her feel the loss with her support person nearby, not rushing her past it back to baseline."
+ },
+ "2023-300": {
+  "pearl_id": "therapy-2023-300",
+  "modality": "cbt",
+  "sentence": "The triad is the map for where to go hunting in session, a depressed patient's negative thoughts almost always sort into 'something's wrong with me,' 'nothing out there is working,' or 'it's never going to get better,' and knowing which bucket a comment falls into tells you which belief to target next."
+ },
+ "2024-128": {
+  "pearl_id": "therapy-2024-128",
+  "modality": "supportive",
+  "sentence": "This is supportive therapy's core aim in patients with more fragile psychological structure — you're not digging for insight or challenging defenses, you're actively reinforcing self-esteem and a coherent sense of self through encouragement and validation, which in turn steadies how they relate to others."
+ },
+ "2024-144": {
+  "pearl_id": "therapy-2024-144",
+  "modality": "dbt",
+  "sentence": "That's the dialectic DBT is built on: 'you're doing the best you can' and 'you need to do better and try harder' are both true at the same time, and refusing to pick just one is what keeps validation from becoming an excuse to stay stuck."
+ },
+ "2024-165": {
+  "pearl_id": "therapy-2024-165",
+  "modality": "supportive",
+  "sentence": "She's not spiraling into pathology — losing hope right after hearing treatment failed is exactly what anyone would feel, and naming that as normal, rather than reaching straight for a diagnosis or a med, is what earns enough trust for her to tell you if she's actually thinking about ending her life."
+ },
+ "2024-173": {
+  "pearl_id": "therapy-2024-173",
+  "modality": "supportive",
+  "sentence": "With a guarded, paranoid patient, refusing even a small homemade cookie reads as one more rejection confirming her suspicion that people push her away — accepting it warmly, without picking it apart in the moment, is what keeps enough alliance intact for her to keep showing up."
+ },
+ "2024-251": {
+  "pearl_id": "therapy-2024-251",
+  "modality": "ipt",
+  "sentence": "Idealizing the relationship after a loss isn't harmless nostalgia — it's often what blocks the grief work, because you can't mourn a real, complicated person you won't let yourself remember honestly. IPT makes room for the caregiver to name what was hard too, not just what was lost, before the yearning can start to settle."
+ },
+ "2025-22": {
+  "pearl_id": "therapy-2025-22",
+  "modality": "cbt",
+  "sentence": "The daily diary isn't busywork—it's how a teenager learns to catch the thought in the moment it happens, before it curdles into a mood, which is the whole point of building the model before you ever try to challenge it."
+ },
+ "2025-32": {
+  "pearl_id": "therapy-2025-32",
+  "modality": "cbt",
+  "sentence": "The daily weigh-ins aren't reassurance—they're a safety behavior that keeps the pancreatic-cancer fear alive by never letting him find out the fullness means nothing; skipping the physical does the same job, just by avoiding the test entirely."
+ },
+ "2025-53": {
+  "pearl_id": "therapy-2025-53",
+  "modality": "exposure",
+  "sentence": "ERP works because it breaks the loop where the compulsion negatively reinforces the fear—touch the doorknob, then sit with the urge to wash instead of discharging it, and the anxiety habituates on its own without the ritual ever needing to happen."
+ },
+ "2025-54": {
+  "pearl_id": "therapy-2025-54",
+  "modality": "supportive",
+  "sentence": "With psychotic patients you trade insight-oriented confrontation for structure—a predictable agenda and concrete tasks keep reality testing intact and anxiety low, instead of stirring up material a fragile ego can't yet metabolize."
+ },
+ "2025-101": {
+  "pearl_id": "therapy-2025-101",
+  "modality": "cbt",
+  "sentence": "The Columbo style works because directly confronting a delusion just makes patients dig in—staying genuinely curious ('help me understand...') instead of challenging lets the patient's own reasoning surface the inconsistency, which is what actually opens room for change."
+ },
+ "2025-120": {
+  "pearl_id": "therapy-2025-120",
+  "modality": "supportive",
+  "sentence": "You're not confirming the delusion and you're not staring him down about it either—naming the fear underneath ('that sounds frightening') keeps the alliance intact and lets him feel heard without you signing off on content that isn't real."
+ },
+ "2025-126": {
+  "pearl_id": "therapy-2025-126",
+  "modality": "supportive",
+  "sentence": "Supportive therapy doesn't dig for what's underneath—it works with what's already keeping someone upright, reinforcing the defenses and coping strategies that are actually functioning rather than picking them apart."
+ },
+ "2025-128": {
+  "pearl_id": "therapy-2025-128",
+  "modality": "cbt",
+  "sentence": "Stimulus control isn't about relaxing—it's re-teaching the brain that bed means sleep, not frustration: get up if you're not asleep within 20 minutes, keep a fixed wake time, and the bed stops being the place where insomnia happens."
+ },
+ "2025-165": {
+  "pearl_id": "therapy-2025-165",
+  "modality": "supportive",
+  "sentence": "When someone's agitated, the goal isn't to reason them out of the feeling — it's to let them know you heard it: acknowledging 'I can see how frustrating this has been' lowers the temperature before you ever get to redirecting behavior. That's supportive technique in action: validate the emotion and offer calm reassurance rather than confronting defenses or interpreting what's underneath the anger."
+ },
+ "2025-212": {
+  "pearl_id": "therapy-2025-212",
+  "modality": "dbt",
+  "sentence": "Both things can be true here: her baseline may include suicidal thoughts most days, and today could still be a genuine escalation — that's exactly the chronic-versus-acute distinction DBT trains you to make, and her own therapist is the only one who can tell you what today looks like against her real baseline. Calling for collateral isn't red tape, it's taking the dialectic seriously instead of assuming either 'just baseline' or 'automatic admission.'"
+ },
+ "2025-256": {
+  "pearl_id": "therapy-2025-256",
+  "modality": "exposure",
+  "sentence": "Flooding skips the ladder entirely — you put the patient in the full-intensity feared situation right away and let the fear peak and burn itself out through extinction, rather than climbing rungs one at a time the way graded exposure does. It works, but it's a rougher ride, which is why most clinicians reach for a hierarchy first."
+ },
+ "2025-257": {
+  "pearl_id": "therapy-2025-257",
+  "modality": "cbt",
+  "sentence": "CBT for psychosis isn't trying to argue the patient out of the voices being real — it's targeting the distress and the behavior those beliefs drive, like isolating or refusing care, because that's what's actually costing quality of life. Restructuring the appraisal, from 'the voice controls me' to 'the voice is loud but I still choose what I do,' changes the suffering even when the perception itself doesn't fully go away."
+ },
+ "2025-297": {
+  "pearl_id": "therapy-2025-297",
+  "modality": "ipt",
+  "sentence": "Restoration work is IPT's model of healthy grieving in miniature — you don't just process the loss, you rebuild a life that doesn't have your spouse in it, which is exactly why new relationships and roles count as progress, not betrayal of the grief. Time away from active grieving isn't avoidance here either; it's the other half of the dual process, and a widow who never lets herself do it usually isn't further along, just stuck."
+ }
+}
