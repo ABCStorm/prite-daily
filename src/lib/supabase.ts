@@ -18,16 +18,28 @@ export const supabase: SupabaseClient | null = isConfigured
     })
   : null;
 
+/** Always open Google's account picker so Chrome doesn't silently reuse
+    a wright.edu Workspace session when the roster expects personal Gmail. */
 export async function signInWithGoogle() {
   if (!supabase) throw new Error("Supabase not configured");
   return supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo: window.location.origin },
+    options: {
+      redirectTo: window.location.origin,
+      queryParams: { prompt: "select_account" },
+    },
   });
 }
 
 export async function signOut() {
   if (supabase) await supabase.auth.signOut();
+}
+
+/** Sign out, then start Google OAuth with the account picker — used when the
+    signed-in Google account isn't the personal Gmail on the roster. */
+export async function switchGoogleAccount() {
+  if (supabase) await supabase.auth.signOut();
+  return signInWithGoogle();
 }
 
 /** A question's stable id used as the foreign key across all user data. */
