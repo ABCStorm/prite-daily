@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// Generate "In practice" stills for the CPRITE 2024 bank.
+// Generate "In practice" stills for the CPRITE child bank.
 //
-//   node scripts/cprite/gen_inpractice.mjs --dry-run
-//   node scripts/cprite/gen_inpractice.mjs --jobs 4 --quality medium
+//   node scripts/cprite/gen_inpractice.mjs --year 2023 --dry-run
+//   node scripts/cprite/gen_inpractice.mjs --year 2023 --jobs 4 --quality medium
 //
-// Writes enrichment/illustrations/images/cprite-2024/c2024-NNNN.webp
+// Writes enrichment/illustrations/images/cprite-YYYY/cYYYY-NNNN.webp
 // Keys match ScenarioIllustration (cYYYY-NNNN) so they never collide with PRITE.
 import { readFile, writeFile, mkdir, appendFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
@@ -14,7 +14,6 @@ import { STYLE, ROOT, findImage, pool, stripBottomLine } from '../illustrations/
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const BANK = join(ROOT, 'public', 'data', 'cprite_questions.json')
-const OUT_DIR = join(ROOT, 'enrichment', 'illustrations', 'images', 'cprite-2024')
 const ERR_LOG = join(ROOT, 'enrichment', 'illustrations', 'errors-cprite.jsonl')
 
 for (const f of ['.env.local', '.env']) {
@@ -29,6 +28,7 @@ for (const f of ['.env.local', '.env']) {
 const arg = (f, d) => { const i = process.argv.indexOf(f); return i > -1 ? process.argv[i + 1] : d }
 const has = (f) => process.argv.includes(f)
 const DRY = has('--dry-run')
+const YEAR = arg('--year', '')
 const CONC = parseInt(arg('--jobs', '4'), 10)
 const QUALITY = arg('--quality', 'medium')
 const KEY = process.env.OPENAI_API_KEY
@@ -40,8 +40,17 @@ const SAFETY =
   'and not being physically examined. No self-harm, violence, or injection drug use. ' +
   'No readable text, labels, charts, or signage.\n\n'
 
+function examYear(q) {
+  const n = q.cprite?.exam_year || parseInt(String(q.year || '').replace(/\D/g, ''), 10)
+  return Number.isFinite(n) ? n : null
+}
+
 function qid(q) {
-  return `c2024-${String(q.q_index).padStart(4, '0')}`
+  return `c${examYear(q)}-${String(q.q_index).padStart(4, '0')}`
+}
+
+function outDirFor(year) {
+  return join(ROOT, 'enrichment', 'illustrations', 'images', `cprite-${year}`)
 }
 
 async function generate(prompt) {
@@ -87,21 +96,30 @@ async function withRetry(prompt, id) {
 }
 
 const rows = JSON.parse(await readFile(BANK, 'utf8'))
-await mkdir(OUT_DIR, { recursive: true })
+const wantedYear = YEAR ? parseInt(YEAR, 10) : null
 const jobs = []
+const dirs = new Set()
 for (const q of rows) {
+  const year = examYear(q)
+  if (!year) continue
+  if (wantedYear && year !== wantedYear) continue
   const id = qid(q)
-  if (findImage(OUT_DIR, id)) continue
+  const dir = outDirFor(year)
+  if (findImage(dir, id)) continue
   const scenario = stripBottomLine(q.clinical_application || '')
+  if (!scenario) continue
+  dirs.add(dir)
   jobs.push({
     id,
-    file: join(OUT_DIR, `${id}.webp`),
+    file: join(dir, `${id}.webp`),
     prompt: `${SAFETY}${scenario}\n\n${STYLE}`,
   })
 }
+for (const dir of dirs) await mkdir(dir, { recursive: true })
 
 const unit = PRICE[QUALITY] ?? PRICE.medium
-console.log(`cprite-2024 | ${jobs.length} to make | ~$${(jobs.length * unit).toFixed(2)} at $${unit}/img ${QUALITY}`)
+const label = wantedYear ? `cprite-${wantedYear}` : 'cprite'
+console.log(`${label} | ${jobs.length} to make | ~$${(jobs.length * unit).toFixed(2)} at $${unit}/img ${QUALITY}`)
 if (DRY) {
   for (const j of jobs.slice(0, 4)) console.log(`\n--- ${j.id} (${j.prompt.length} chars)\n${j.prompt.slice(0, 400)}`)
   console.log(`\nDRY RUN — ${jobs.length} images would be generated.`)

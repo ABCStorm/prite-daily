@@ -1,0 +1,6364 @@
+[
+  {
+    "n": 1,
+    "stem": "At what age does a normally developing infant selectively recognize their own name?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Six weeks"
+      },
+      {
+        "letter": "B",
+        "text": "Six months"
+      },
+      {
+        "letter": "C",
+        "text": "Two months"
+      },
+      {
+        "letter": "D",
+        "text": "Nine months"
+      },
+      {
+        "letter": "E",
+        "text": "Three months"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 2,
+    "stem": "Internet pornography viewership in adolescent males is associated with an increasing incidence of which of the following sexual dysfunctions?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Delayed ejaculation"
+      },
+      {
+        "letter": "B",
+        "text": "Male erectile disorder"
+      },
+      {
+        "letter": "C",
+        "text": "Genito-pelvic pain disorder"
+      },
+      {
+        "letter": "D",
+        "text": "Sexual masochism disorder"
+      },
+      {
+        "letter": "E",
+        "text": "Hypoactive sexual desire disorder"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 3,
+    "stem": "What is considered one of the biggest weaknesses of the molecular cytogenetic approach in linking chromosomal abnormalities with psychiatric illness?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "No single study is likely to be conclusive"
+      },
+      {
+        "letter": "B",
+        "text": "Lack of specificity in functional genetic changes"
+      },
+      {
+        "letter": "C",
+        "text": "Inability to identify genes for individual disorders"
+      },
+      {
+        "letter": "D",
+        "text": "Cannot be used for multiple disorders concurrently"
+      },
+      {
+        "letter": "E",
+        "text": "High number of shared genes may dilute implications"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 4,
+    "stem": "Mahler's theories on a child's ability to separate from the parents aligns with what physical development?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Sitting"
+      },
+      {
+        "letter": "B",
+        "text": "Talking"
+      },
+      {
+        "letter": "C",
+        "text": "Walking"
+      },
+      {
+        "letter": "D",
+        "text": "Standing"
+      },
+      {
+        "letter": "E",
+        "text": "Grasping"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 5,
+    "stem": "A six-year-old who has witnessed domestic violence is being treated in play therapy. During the session, the patient's doll punches the therapist's doll in order to get the toy snacks. This behavior could be an example of:",
+    "options": [
+      {
+        "letter": "A",
+        "text": "operant conditioning."
+      },
+      {
+        "letter": "B",
+        "text": "social learning theory."
+      },
+      {
+        "letter": "C",
+        "text": "classical conditioning."
+      },
+      {
+        "letter": "D",
+        "text": "cognitive restructuring."
+      },
+      {
+        "letter": "E",
+        "text": "avoidance conditioning."
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 6,
+    "stem": "A 16-year-old is seen for evaluation of recurrent episodes of severe anxiety which last for several minutes, and are associated with palpitations, dyspnea, nausea, and a sense of impending doom. These episodes happen reliably when the child is asked to be around unfamiliar people or speak in front of a group of people, and the child states that they worry about embarrassing themselves in these situations. Which of the following diagnoses best describes this teen's presentation?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Panic disorder"
+      },
+      {
+        "letter": "B",
+        "text": "Specific phobia"
+      },
+      {
+        "letter": "C",
+        "text": "Social anxiety disorder"
+      },
+      {
+        "letter": "D",
+        "text": "Separation anxiety disorder"
+      },
+      {
+        "letter": "E",
+        "text": "Generalized anxiety disorder"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 7,
+    "stem": "In interpersonal psychotherapy, which of the following domains is a specific area of discussion with adolescents?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "School refusal"
+      },
+      {
+        "letter": "B",
+        "text": "Abstract thinking"
+      },
+      {
+        "letter": "C",
+        "text": "Financial independence"
+      },
+      {
+        "letter": "D",
+        "text": "Family structural change"
+      },
+      {
+        "letter": "E",
+        "text": "Sexuality and gender identity"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 8,
+    "stem": "In contrast to Western cultures, many non-Western societies view suicide as primarily arising from:",
+    "options": [
+      {
+        "letter": "A",
+        "text": "evolution and survival of the fittest."
+      },
+      {
+        "letter": "B",
+        "text": "widespread availability of lethal means."
+      },
+      {
+        "letter": "C",
+        "text": "sanctions from more religious countries."
+      },
+      {
+        "letter": "D",
+        "text": "a solution to social or personal dilemmas."
+      },
+      {
+        "letter": "E",
+        "text": "an association with defined mental illness."
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 9,
+    "stem": "A 15-year-old patient has attention-deficit/hyperactivity disorder and significant irritability with aggressive behavior. The patient has no significant past medical or psychiatric history. What is the most appropriate first step in treatment?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Divalproex"
+      },
+      {
+        "letter": "B",
+        "text": "Risperidone"
+      },
+      {
+        "letter": "C",
+        "text": "Atomoxetine"
+      },
+      {
+        "letter": "D",
+        "text": "Clonazepam"
+      },
+      {
+        "letter": "E",
+        "text": "Methylphenidate"
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 10,
+    "stem": "A psychiatrist and a four-year-old child play with a dollhouse during a therapy appointment. During play, the child often makes their doll hit the other dolls and has their doll make statements towards other dolls such as, \"You are bad.\" or, \"I hate you.\" This observation of play is most indicative of which of the following mental status examination components?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Mood"
+      },
+      {
+        "letter": "B",
+        "text": "Insight"
+      },
+      {
+        "letter": "C",
+        "text": "Cognition"
+      },
+      {
+        "letter": "D",
+        "text": "Thought content"
+      },
+      {
+        "letter": "E",
+        "text": "Thought process"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 11,
+    "stem": "What term describes a disease phenotype that occurs in only some of the individuals carrying the disease-related gene?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Mendelian genetics"
+      },
+      {
+        "letter": "B",
+        "text": "Locus heterogeneity"
+      },
+      {
+        "letter": "C",
+        "text": "Polygenic inheritance"
+      },
+      {
+        "letter": "D",
+        "text": "Incomplete penetrance"
+      },
+      {
+        "letter": "E",
+        "text": "Presence of phenocopies"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 12,
+    "stem": "Which of the following is a core developmental concept proposed by Winnicott?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Psychoeducational role of the primary caregiver"
+      },
+      {
+        "letter": "B",
+        "text": "Family's influence in the socialization of the developing child"
+      },
+      {
+        "letter": "C",
+        "text": "Parent as a source of cultural assimilation in child development"
+      },
+      {
+        "letter": "D",
+        "text": "Primary caregiver as a regulator of expressed emotion in the family"
+      },
+      {
+        "letter": "E",
+        "text": "Infant-caretaker dyad as an emotionally facilitating force in development"
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 13,
+    "stem": "The parent of an adolescent patient asks the treating psychiatrist if they can correspond via a non-encrypted email account regarding the patient's care. The best use of e-mail in clinical practice is for:",
+    "options": [
+      {
+        "letter": "A",
+        "text": "arranging appointment times."
+      },
+      {
+        "letter": "B",
+        "text": "monitoring a patient's daily mood."
+      },
+      {
+        "letter": "C",
+        "text": "establishing a doctor-patient relationship."
+      },
+      {
+        "letter": "D",
+        "text": "forwarding recommendations for medication changes."
+      },
+      {
+        "letter": "E",
+        "text": "communicating concerns about a teenager to a guardian."
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 14,
+    "stem": "Which of the following factors best predicts generalizability of a study?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Test reliability"
+      },
+      {
+        "letter": "B",
+        "text": "Internal validity"
+      },
+      {
+        "letter": "C",
+        "text": "External validity"
+      },
+      {
+        "letter": "D",
+        "text": "Clinical significance"
+      },
+      {
+        "letter": "E",
+        "text": "Number needed to treat"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 15,
+    "stem": "A psychiatrist is subpoenaed to testify in court as a fact witness. Which of the following policies regarding compensation applies?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "The court sets a flat fee."
+      },
+      {
+        "letter": "B",
+        "text": "The patient's insurance is billed."
+      },
+      {
+        "letter": "C",
+        "text": "Reimbursement for time is not allowed."
+      },
+      {
+        "letter": "D",
+        "text": "Charges are sent directly to the patient."
+      },
+      {
+        "letter": "E",
+        "text": "An hourly rate is negotiated by the psychiatrist."
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 16,
+    "stem": "Pathology in which of the following brain regions is associated with psychosis in those diagnosed with epilepsy?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Parietotemporal cortex"
+      },
+      {
+        "letter": "B",
+        "text": "Ventromedial frontal lobe"
+      },
+      {
+        "letter": "C",
+        "text": "Tuberoinfundibular region"
+      },
+      {
+        "letter": "D",
+        "text": "Occipito-temporal circuits"
+      },
+      {
+        "letter": "E",
+        "text": "Temporo-limbic structures"
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 17,
+    "stem": "What term best describes a child's ability to hold the image of a comforting caregiver during an aggressive outburst, promoting self-regulation?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Theory of mind"
+      },
+      {
+        "letter": "B",
+        "text": "Object constancy"
+      },
+      {
+        "letter": "C",
+        "text": "Reaction formation"
+      },
+      {
+        "letter": "D",
+        "text": "Concrete operations"
+      },
+      {
+        "letter": "E",
+        "text": "Rapprochement crisis"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 18,
+    "stem": "In the United States, youth identified as African-American or Black are more likely than White youth to be diagnosed with a psychotic disorder. Which of the following provides the best explanation for this difference?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Structural racism"
+      },
+      {
+        "letter": "B",
+        "text": "Ethnic differences"
+      },
+      {
+        "letter": "C",
+        "text": "Poverty influences"
+      },
+      {
+        "letter": "D",
+        "text": "Prenatal exposures"
+      },
+      {
+        "letter": "E",
+        "text": "Genetic vulnerabilities"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 19,
+    "stem": "A child was in a severe motor vehicle collision that resulted in injury of the cribriform plate. Which of the following neurologic exam tests would show a high-risk cranial nerve injury in this patient?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Evaluating the gag reflex"
+      },
+      {
+        "letter": "B",
+        "text": "Assessing eyelid strength"
+      },
+      {
+        "letter": "C",
+        "text": "Identifying peppermint smell"
+      },
+      {
+        "letter": "D",
+        "text": "Observing tongue movements"
+      },
+      {
+        "letter": "E",
+        "text": "Determining jaw muscle strength"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 20,
+    "stem": "An abused child runs to hide in the bedroom closet at the sound of the garage door opening, even though the abusive parent no longer lives in the home and even though hiding never prevented the abuse when that parent was present. This fear response can best be explained with which of the following learning models?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Incentive learning"
+      },
+      {
+        "letter": "B",
+        "text": "Operant conditioning"
+      },
+      {
+        "letter": "C",
+        "text": "Learned helplessness"
+      },
+      {
+        "letter": "D",
+        "text": "Classical conditioning"
+      },
+      {
+        "letter": "E",
+        "text": "Contingency management"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 21,
+    "stem": "A child with focal epilepsy has not benefited from several antiepileptic medications and a ketogenic diet. The family is considering epilepsy surgery but is concerned about language loss related to the surgery. Which of the following diagnostic studies would address the family's concerns?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Diffusion tensor imaging"
+      },
+      {
+        "letter": "B",
+        "text": "Cerebrospinal flow studies"
+      },
+      {
+        "letter": "C",
+        "text": "Magnetic resonance angiography"
+      },
+      {
+        "letter": "D",
+        "text": "Magnetic resonance spectroscopy"
+      },
+      {
+        "letter": "E",
+        "text": "Functional magnetic resonance imaging"
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 22,
+    "stem": "Which of the following agents will most likely lower serum levels of lithium when taken concomitantly?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Caffeine"
+      },
+      {
+        "letter": "B",
+        "text": "Amiloride"
+      },
+      {
+        "letter": "C",
+        "text": "Ibuprofen"
+      },
+      {
+        "letter": "D",
+        "text": "Alprazolam"
+      },
+      {
+        "letter": "E",
+        "text": "Hydrochlorothiazide"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 23,
+    "stem": "Which of the following interventions is considered a means of harm reduction related to alcohol use in adolescents?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Sales restrictions"
+      },
+      {
+        "letter": "B",
+        "text": "Mass media campaigns"
+      },
+      {
+        "letter": "C",
+        "text": "Motivational interviewing"
+      },
+      {
+        "letter": "D",
+        "text": "Random roadside drug testing"
+      },
+      {
+        "letter": "E",
+        "text": "Self-help interventions with peers"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 24,
+    "stem": "A child with autism spectrum disorder screams during homework assignments, and parents immediately respond with a timeout, which results in homework avoidance. Which of the following interventions would be most effective in reducing the frequency of the screaming behavior over time?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Moving the child to time-out until the behavior stops"
+      },
+      {
+        "letter": "B",
+        "text": "Ending the child's task as soon as the behavior occurs"
+      },
+      {
+        "letter": "C",
+        "text": "Ignoring the behavior and redirecting the child to their task"
+      },
+      {
+        "letter": "D",
+        "text": "Providing reassurance after each behavior until the child goes back to their task"
+      },
+      {
+        "letter": "E",
+        "text": "Providing a token after each behavior which can be exchanged for a desired item"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 25,
+    "stem": "In the mental status assessment, a unique component to evaluating infants may include observation for:",
+    "options": [
+      {
+        "letter": "A",
+        "text": "speech."
+      },
+      {
+        "letter": "B",
+        "text": "hyperactivity."
+      },
+      {
+        "letter": "C",
+        "text": "affect regulation."
+      },
+      {
+        "letter": "D",
+        "text": "feeding behaviors."
+      },
+      {
+        "letter": "E",
+        "text": "dysmorphic features."
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 26,
+    "stem": "A young child with posttraumatic stress disorder demonstrates poor attachment to parents. Which of the following treatments is an evidence-based manualized intervention that has shown improvement in affect regulation?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Play therapy"
+      },
+      {
+        "letter": "B",
+        "text": "Family psychodynamic therapy"
+      },
+      {
+        "letter": "C",
+        "text": "Multidimensional family therapy"
+      },
+      {
+        "letter": "D",
+        "text": "Dyadic parent-child interaction therapy"
+      },
+      {
+        "letter": "E",
+        "text": "Self-regulation focused cognitive behavioral therapy"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 27,
+    "stem": "Which of the following best assesses neuronal connectivity in children with neurodevelopmental disabilities?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Computed tomography"
+      },
+      {
+        "letter": "B",
+        "text": "Diffusion tensor imaging"
+      },
+      {
+        "letter": "C",
+        "text": "Magnetic resonance imaging"
+      },
+      {
+        "letter": "D",
+        "text": "Positron emission tomography"
+      },
+      {
+        "letter": "E",
+        "text": "Magnetic resonance spectroscopy"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 28,
+    "stem": "What is the most common method for completed suicide in youth ages 10-14?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Cutting"
+      },
+      {
+        "letter": "B",
+        "text": "Jumping"
+      },
+      {
+        "letter": "C",
+        "text": "Poisoning"
+      },
+      {
+        "letter": "D",
+        "text": "Suffocation"
+      },
+      {
+        "letter": "E",
+        "text": "Electrocution"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 29,
+    "stem": "An adolescent presents after a five-day episode of significant irritability, while spending much of the afternoon and evening organizing several rooms of the home, often staying up most of the night to do so but still attending school. Teachers at school have noticed distinct changes in the adolescent, such as talking out of turn, difficulty staying on task, and dressing more provocatively. Which of the following is the most appropriate diagnosis for this adolescent?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Bipolar disorder"
+      },
+      {
+        "letter": "B",
+        "text": "Cyclothymic disorder"
+      },
+      {
+        "letter": "C",
+        "text": "Oppositional defiant disorder (ODD)"
+      },
+      {
+        "letter": "D",
+        "text": "Disruptive mood dysregulation disorder"
+      },
+      {
+        "letter": "E",
+        "text": "Attention-deficit/hyperactivity disorder (ADHD)"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 30,
+    "stem": "Which of the following personality disorders is most frequently comorbid in patients with bulimia nervosa?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Avoidant"
+      },
+      {
+        "letter": "B",
+        "text": "Histrionic"
+      },
+      {
+        "letter": "C",
+        "text": "Borderline"
+      },
+      {
+        "letter": "D",
+        "text": "Narcissistic"
+      },
+      {
+        "letter": "E",
+        "text": "Obsessive-compulsive"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 31,
+    "stem": "Which of the following drugs is used as first-line disease modifying therapy for pediatric multiple sclerosis?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Interferon"
+      },
+      {
+        "letter": "B",
+        "text": "Novantrone"
+      },
+      {
+        "letter": "C",
+        "text": "Prednisone"
+      },
+      {
+        "letter": "D",
+        "text": "Natalizumab"
+      },
+      {
+        "letter": "E",
+        "text": "Cyclophosphamide"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 32,
+    "stem": "A researcher plans to offer \\$100 to adolescents who complete a study. Which of the following is the most important factor for the researcher to consider?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Parents must be available to consent."
+      },
+      {
+        "letter": "B",
+        "text": "Patients may be vulnerable to coercion."
+      },
+      {
+        "letter": "C",
+        "text": "Paying patients is not considered ethical."
+      },
+      {
+        "letter": "D",
+        "text": "Mentally ill adolescents are not competent."
+      },
+      {
+        "letter": "E",
+        "text": "Treatment studies must have control groups."
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 33,
+    "stem": "An adolescent with chronic anorexia has a heart rate of 60 and a blood pressure of 100/80, with co-occurring depression and anxiety without suicidal ideation. The adolescent is unable to maintain adequate weight, despite the best efforts of the family and the outpatient treatment team. Over the last few months, there have been school refusals, academic decline, and outpatient treatment failures despite developing rapport with clinicians. What setting is best designed to treat the patient at this stage?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Medical hospital"
+      },
+      {
+        "letter": "B",
+        "text": "Partial hospital program"
+      },
+      {
+        "letter": "C",
+        "text": "Residential treatment center"
+      },
+      {
+        "letter": "D",
+        "text": "Intensive outpatient program"
+      },
+      {
+        "letter": "E",
+        "text": "General inpatient psychiatric unit"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 34,
+    "stem": "According to AACAP policy, the use of isolation for more than 24 hours as a form of discipline for youth in a correctional facility is:",
+    "options": [
+      {
+        "letter": "A",
+        "text": "strongly discouraged in all cases."
+      },
+      {
+        "letter": "B",
+        "text": "often necessary to manage agitation."
+      },
+      {
+        "letter": "C",
+        "text": "only used in cases of severe aggression."
+      },
+      {
+        "letter": "D",
+        "text": "preferred over the use of sedating medications."
+      },
+      {
+        "letter": "E",
+        "text": "appropriate if ordered by a child psychiatrist."
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 35,
+    "stem": "A 17-year-old girl is seen in clinic for management of schizophrenia. She previously had good symptom control with risperidone but recently began having galactorrhea. A pregnancy test is negative, and laboratory evaluation confirms hyperprolactinemia. What is the next best step in management of this patient?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Add lorazepam"
+      },
+      {
+        "letter": "B",
+        "text": "Add benztropine"
+      },
+      {
+        "letter": "C",
+        "text": "Add bromocriptine"
+      },
+      {
+        "letter": "D",
+        "text": "Switch to lurasidone"
+      },
+      {
+        "letter": "E",
+        "text": "Switch to aripiprazole"
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 36,
+    "stem": "A diagnosis of substance-induced psychosis has been most strongly associated with later diagnosis of schizophrenia for which of the following substances?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Alcohol"
+      },
+      {
+        "letter": "B",
+        "text": "Cocaine"
+      },
+      {
+        "letter": "C",
+        "text": "Cannabis"
+      },
+      {
+        "letter": "D",
+        "text": "Hallucinogens"
+      },
+      {
+        "letter": "E",
+        "text": "Amphetamines"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 37,
+    "stem": "Which of the following has been found to be elevated in plasma blood concentrations in response to acute stress?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Monocytes"
+      },
+      {
+        "letter": "B",
+        "text": "CD4+ cells"
+      },
+      {
+        "letter": "C",
+        "text": "Interleukin-6"
+      },
+      {
+        "letter": "D",
+        "text": "B lymphocytes"
+      },
+      {
+        "letter": "E",
+        "text": "Tumor necrosis factor - alpha"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 38,
+    "stem": "A 15-year-old starts cognitive behavior therapy for the treatment of a fear of needles. Which of the following components of the therapy is most central for treating this patient?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Graduated exposure to needles"
+      },
+      {
+        "letter": "B",
+        "text": "Processing of the emotion of fear of needles"
+      },
+      {
+        "letter": "C",
+        "text": "Maintenance of dysfunctional thought records"
+      },
+      {
+        "letter": "D",
+        "text": "Recognition of the irrational nature of the fear"
+      },
+      {
+        "letter": "E",
+        "text": "Examination of cognitive distortions about needles"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 39,
+    "stem": "Under the Individuals with Disabilities Education Act (IDEA), a manifestation determination review must be held in all children with:",
+    "options": [
+      {
+        "letter": "A",
+        "text": "communication difficulties."
+      },
+      {
+        "letter": "B",
+        "text": "disciplinary actions regardless of cause."
+      },
+      {
+        "letter": "C",
+        "text": "language ability, health, or medical concerns."
+      },
+      {
+        "letter": "D",
+        "text": "a change of placement of more than ten days."
+      },
+      {
+        "letter": "E",
+        "text": "concerns related to visual, auditory, or motor abilities."
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 40,
+    "stem": "Which of the following examination findings supports a diagnosis of schizophreniform disorder as opposed to epileptiform psychosis?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Hallucinations"
+      },
+      {
+        "letter": "B",
+        "text": "Flattened affect"
+      },
+      {
+        "letter": "C",
+        "text": "Depersonalization"
+      },
+      {
+        "letter": "D",
+        "text": "Persecutory delusions"
+      },
+      {
+        "letter": "E",
+        "text": "Disorganized behavior"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 41,
+    "stem": "Which receptor's expression has most conclusively been shown to be altered by epigenetic modification in a patient who experienced a history of sexual abuse as child?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "NMDA receptor"
+      },
+      {
+        "letter": "B",
+        "text": "Serotonin receptor 1A"
+      },
+      {
+        "letter": "C",
+        "text": "D2 dopamine receptor"
+      },
+      {
+        "letter": "D",
+        "text": "Glucocorticoid receptor"
+      },
+      {
+        "letter": "E",
+        "text": "Adrenocorticotropin receptor"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 42,
+    "stem": "Which of the following characteristics of childhood experience appears to decrease the risk for developing a psychiatric disorder as an adult?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Having same-sex parents"
+      },
+      {
+        "letter": "B",
+        "text": "Growing up in an apartment"
+      },
+      {
+        "letter": "C",
+        "text": "Being in a non-religious family"
+      },
+      {
+        "letter": "D",
+        "text": "Living in an urban environment"
+      },
+      {
+        "letter": "E",
+        "text": "Level of exposure to green space"
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 43,
+    "stem": "In the Tolerance and Effect of Antipsychotics in Children and Adolescents with Psychosis (TEA) study, which of the following best describes the association between weight gain and antipsychotic regimen?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Weight is unlikely to be affected by antipsychotic regimen."
+      },
+      {
+        "letter": "B",
+        "text": "Weight gain is most highly correlated to antipsychotic dose."
+      },
+      {
+        "letter": "C",
+        "text": "Weight will initially increase but will return to patient baseline."
+      },
+      {
+        "letter": "D",
+        "text": "Weight is likely to plateau after gaining 10% of total body weight."
+      },
+      {
+        "letter": "E",
+        "text": "Weight changes at two weeks are predictive of future weight gain."
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 44,
+    "stem": "A child researcher is studying the impact of employing a social and emotional skills-building intervention in public schools. The researcher assigns five schools to receive the intervention and five other schools to be the control by lottery. Which of the following designs is the research team employing in this study?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Factorial"
+      },
+      {
+        "letter": "B",
+        "text": "Crossover"
+      },
+      {
+        "letter": "C",
+        "text": "Time series"
+      },
+      {
+        "letter": "D",
+        "text": "Cluster randomization"
+      },
+      {
+        "letter": "E",
+        "text": "Comparative effectiveness"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 45,
+    "stem": "Which of the following substances increases appetite when its serum concentration decreases?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Leptin"
+      },
+      {
+        "letter": "B",
+        "text": "Orexin"
+      },
+      {
+        "letter": "C",
+        "text": "Ghrelin"
+      },
+      {
+        "letter": "D",
+        "text": "Cortisol"
+      },
+      {
+        "letter": "E",
+        "text": "Neuropeptide Y"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 46,
+    "stem": "Functional abdominal pain in childhood is most closely associated with which of the following?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Male gender"
+      },
+      {
+        "letter": "B",
+        "text": "Parental neglect"
+      },
+      {
+        "letter": "C",
+        "text": "Maternal anxiety and depression"
+      },
+      {
+        "letter": "D",
+        "text": "Attention-deficit/hyperactivity disorder"
+      },
+      {
+        "letter": "E",
+        "text": "Absence of other indications of anxiety in the child"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 47,
+    "stem": "The Adolescent Brain Cognitive Development (ABCD) Study® gathered data on over 11,000 children aged nine to ten across the United States, and asked parents to report whether their children experienced school detention or suspension in the past year. Amongst students exhibiting similar levels of externalizing behaviors, which variable had the greatest adjusted odds ratio of detention or suspension?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Older age"
+      },
+      {
+        "letter": "B",
+        "text": "Black race"
+      },
+      {
+        "letter": "C",
+        "text": "Single caregiver"
+      },
+      {
+        "letter": "D",
+        "text": "Low parental education"
+      },
+      {
+        "letter": "E",
+        "text": "Special education services"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 48,
+    "stem": "Which hypothalamic nucleus receives input from the retina and regulates diurnal rhythms?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Arcuate"
+      },
+      {
+        "letter": "B",
+        "text": "Supraoptic"
+      },
+      {
+        "letter": "C",
+        "text": "Ventromedial"
+      },
+      {
+        "letter": "D",
+        "text": "Paraventricular"
+      },
+      {
+        "letter": "E",
+        "text": "Suprachiasmatic"
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 49,
+    "stem": "Which of the following brain regions is implicated in selectively processing faces and thought to be implicated in the neuropathology of autism spectrum disorder (ASD)?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Thalamus"
+      },
+      {
+        "letter": "B",
+        "text": "Hippocampus"
+      },
+      {
+        "letter": "C",
+        "text": "Prefrontal cortex"
+      },
+      {
+        "letter": "D",
+        "text": "Corpus callosum"
+      },
+      {
+        "letter": "E",
+        "text": "Lateral fusiform gyrus"
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 50,
+    "stem": "Which of the following factors has been shown to mediate the influence of both socioeconomic status and neighborhood effects on the development of conduct disorders in adolescents?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Peer violence"
+      },
+      {
+        "letter": "B",
+        "text": "School climate"
+      },
+      {
+        "letter": "C",
+        "text": "Child's intelligence"
+      },
+      {
+        "letter": "D",
+        "text": "Parenting practices"
+      },
+      {
+        "letter": "E",
+        "text": "Child's temperament"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 51,
+    "stem": "A child presents with daytime sleepiness and hallucinations upon awakening. Polysomnography shows decreased REM latency. What would be the most appropriate next step to confirm the diagnosis?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Electroencephalogram"
+      },
+      {
+        "letter": "B",
+        "text": "Serum iron measurement"
+      },
+      {
+        "letter": "C",
+        "text": "Multiple sleep latency test"
+      },
+      {
+        "letter": "D",
+        "text": "Human leukocyte antigen typing"
+      },
+      {
+        "letter": "E",
+        "text": "Cerebrospinal fluid hypocretin measurement"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 52,
+    "stem": "A nine-year-old with oppositional defiant disorder (ODD) is eligible to participate in a research study designed to assess the efficacy of a parenting intervention for ODD. The child refuses to participate in the study, but the parent agrees. Which of the following responses is the most appropriate next step?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Acknowledge the child's dissent and nonparticipation in the study"
+      },
+      {
+        "letter": "B",
+        "text": "Tell the family to continue to discuss at home and reassess at the next appointment"
+      },
+      {
+        "letter": "C",
+        "text": "Enroll the family in the study because the intervention is with the parent who has given consent"
+      },
+      {
+        "letter": "D",
+        "text": "Readdress with the child separately and encourage him to participate because you believe the intervention will be helpful"
+      },
+      {
+        "letter": "E",
+        "text": "Obtain collateral information to determine if the child's oppositional behavior is impacting the decision to participate in the study"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 53,
+    "stem": "A school age child spends four hours per day arranging their room in an exact way and becomes highly distressed if items are moved around or appear \"off\" in the room. The child has been treated with exposure and response prevention therapy and is on the highest tolerated dose of fluoxetine with partial benefit. The addition of which of the following medications would represent an evidence-based augmentation strategy to treat this patient?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Sertraline"
+      },
+      {
+        "letter": "B",
+        "text": "Melatonin"
+      },
+      {
+        "letter": "C",
+        "text": "Risperidone"
+      },
+      {
+        "letter": "D",
+        "text": "Valproic acid"
+      },
+      {
+        "letter": "E",
+        "text": "Cyproheptadine"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 54,
+    "stem": "In psychiatric billing, current procedural terminology codes refer to the:",
+    "options": [
+      {
+        "letter": "A",
+        "text": "time required to perform the service."
+      },
+      {
+        "letter": "B",
+        "text": "insurance to be billed for the service."
+      },
+      {
+        "letter": "C",
+        "text": "diagnosis for which services are being billed."
+      },
+      {
+        "letter": "D",
+        "text": "specific service delivered in a treatment session."
+      },
+      {
+        "letter": "E",
+        "text": "level of training of the clinician performing the service."
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 55,
+    "stem": "The parents of a 14-year-old report that their teen has discussed frequently switching sexual orientation, with occasional comments about being pansexual. In addition, the youth has voiced multiple future plans regarding potential career plans. The teen has been doing well academically and socially, denies current romantic relationships, or concerns about their gender. Which of the following is the most accurate statement for the psychiatrist to make?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "\"Such conflicts are common and reflect that the adolescent is likely to identify as homosexual as an adult.\""
+      },
+      {
+        "letter": "B",
+        "text": "\"This level of variability often suggests that the adolescent is likely to have a transgender identity as an adult.\""
+      },
+      {
+        "letter": "C",
+        "text": "\"Exploration of sexuality and gender identity is common in this age group and often fluid until later in development.\""
+      },
+      {
+        "letter": "D",
+        "text": "\"Confusion about core identity traits is often a sign that the adolescent is struggling and at risk for developing a depressive disorder.\""
+      },
+      {
+        "letter": "E",
+        "text": "\"This type of behavior usually means that the adolescent has significantly maladaptive identity and personality problems requiring intervention.\""
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 56,
+    "stem": "In children with juvenile myoclonic epilepsy, which of the following antiepileptics can exacerbate myoclonus?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Valproate"
+      },
+      {
+        "letter": "B",
+        "text": "Topiramate"
+      },
+      {
+        "letter": "C",
+        "text": "Lamotrigine"
+      },
+      {
+        "letter": "D",
+        "text": "Levetiracetam"
+      },
+      {
+        "letter": "E",
+        "text": "Carbamazepine"
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 57,
+    "stem": "In a study, a 10-month-old is allowed to crawl over a virtual \"cliff.\" The study assesses whether facial expressions of the caregiver will impact the child's behavior in crossing or not crossing this \"cliff.\" Which of the following developmental tasks is being assessed by this study?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Joint attention"
+      },
+      {
+        "letter": "B",
+        "text": "Object constancy"
+      },
+      {
+        "letter": "C",
+        "text": "Social referencing"
+      },
+      {
+        "letter": "D",
+        "text": "Emotional refueling"
+      },
+      {
+        "letter": "E",
+        "text": "Object permanence"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 58,
+    "stem": "What is the most common cause of inappropriate disclosure of psychiatric information through security breaches?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Insufficient training"
+      },
+      {
+        "letter": "B",
+        "text": "Lack of IT personnel"
+      },
+      {
+        "letter": "C",
+        "text": "Utilization of paper records"
+      },
+      {
+        "letter": "D",
+        "text": "Relying on cloud-based services"
+      },
+      {
+        "letter": "E",
+        "text": "Employees accessing malicious files"
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 59,
+    "stem": "An emergency room physician evaluates a child with new-onset symptoms of obsessions and compulsions. The physician cannot determine a cause for the child's symptoms. Which of the following steps taken by the emergency room physician is considered lifelong learning?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Obtain a psychiatry consult"
+      },
+      {
+        "letter": "B",
+        "text": "Pursue further medical evaluation"
+      },
+      {
+        "letter": "C",
+        "text": "Refer the patient to an outpatient psychiatrist"
+      },
+      {
+        "letter": "D",
+        "text": "Review evidence-based literature regarding the symptoms"
+      },
+      {
+        "letter": "E",
+        "text": "Develop a committee to create a standard evaluation for mental illness"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 60,
+    "stem": "A clinician is consulted to see a school-age child for emotional outbursts. The child has a labile affect that is incongruent with speech content, and the clinician notes that the child's speech exhibits variable rhythm and intensity with periods of \"explosive\" speech. The child is otherwise attentive on interview. On neurologic assessment, the clinician notes that the child has a brisk gag reflex with subsequent intense crying and coughing. The child is also endorsing recent onset dysphagia although evaluation of the oropharynx is negative for pathology. Based on this assessment, the psychiatric symptoms are most likely related to:",
+    "options": [
+      {
+        "letter": "A",
+        "text": "bulbar palsy."
+      },
+      {
+        "letter": "B",
+        "text": "multiple sclerosis."
+      },
+      {
+        "letter": "C",
+        "text": "myasthenia gravis."
+      },
+      {
+        "letter": "D",
+        "text": "pseudobulbar palsy."
+      },
+      {
+        "letter": "E",
+        "text": "conversion disorder."
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 61,
+    "stem": "Which of the following self-reporting scales should a psychiatrist administer to an eight-year-old patient with symptoms of depression to augment their clinical assessment?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Young Mania Rating Scale"
+      },
+      {
+        "letter": "B",
+        "text": "Pediatric Symptom Checklist"
+      },
+      {
+        "letter": "C",
+        "text": "Patient Health Questionnaire 9"
+      },
+      {
+        "letter": "D",
+        "text": "Spence Children's Anxiety Scale"
+      },
+      {
+        "letter": "E",
+        "text": "Mood and Feelings Questionnaire"
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 62,
+    "stem": "The capacity for shame typically develops by what age?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Six months"
+      },
+      {
+        "letter": "B",
+        "text": "One year"
+      },
+      {
+        "letter": "C",
+        "text": "Three years"
+      },
+      {
+        "letter": "D",
+        "text": "Five years"
+      },
+      {
+        "letter": "E",
+        "text": "Seven years"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 63,
+    "stem": "The medical director of an outpatient clinic for youth with disruptive behavior disorders was concerned that patients treated with antipsychotic medications were developing metabolic syndrome. The clinic implemented a system in the electronic medical record in which charts were flagged for providers and the clinic manager if the patient's body mass index had increased by more than 2 points since baseline. This system is an example of:",
+    "options": [
+      {
+        "letter": "A",
+        "text": "root cause analysis."
+      },
+      {
+        "letter": "B",
+        "text": "continuous quality improvement."
+      },
+      {
+        "letter": "C",
+        "text": "consumer satisfaction monitoring."
+      },
+      {
+        "letter": "D",
+        "text": "health-plan sponsored practice protocol."
+      },
+      {
+        "letter": "E",
+        "text": "disease-specific outcome measurement."
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 64,
+    "stem": "A parent brings her overweight, ten-year-old daughter for her annual check-up. The parent tells you, \"I think my daughter is starting to go through puberty, and I'm afraid she's too young.\" The patient has no significant medical history, has met developmental milestones appropriately, and is doing well in school. On physical exam, she has tanner stage 2 breasts and tanner stage 2 pubic hair. Which of the following most likely explains these findings?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Normal puberty"
+      },
+      {
+        "letter": "B",
+        "text": "CYP21 deficiency"
+      },
+      {
+        "letter": "C",
+        "text": "Premature adrenarche"
+      },
+      {
+        "letter": "D",
+        "text": "Virilizing adrenal tumor"
+      },
+      {
+        "letter": "E",
+        "text": "Glucocorticoid resistance"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 65,
+    "stem": "A psychiatric assessment to determine transplant eligibility presents a dilemma for the evaluator under what ethical principle?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Assent"
+      },
+      {
+        "letter": "B",
+        "text": "Autonomy"
+      },
+      {
+        "letter": "C",
+        "text": "Beneficence"
+      },
+      {
+        "letter": "D",
+        "text": "Confidentiality"
+      },
+      {
+        "letter": "E",
+        "text": "Informed consent"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 66,
+    "stem": "Which of the following substances decreases hippocampal neurogenesis?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Cortisol"
+      },
+      {
+        "letter": "B",
+        "text": "Glucose"
+      },
+      {
+        "letter": "C",
+        "text": "Oxytocin"
+      },
+      {
+        "letter": "D",
+        "text": "Glutamate"
+      },
+      {
+        "letter": "E",
+        "text": "Progesterone"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 67,
+    "stem": "A 13-year-old is being evaluated for severe weight loss. The patient has a pattern of restrictive eating and, when forced to eat a meal, usually leaves the table quickly after finishing and spends long periods of time in the bathroom. The patient denies any problematic eating behaviors. Testing which of the following would be most helpful in determining if the patient is accurately reporting about eating behaviors?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Amylase"
+      },
+      {
+        "letter": "B",
+        "text": "Calcium"
+      },
+      {
+        "letter": "C",
+        "text": "Phosphate"
+      },
+      {
+        "letter": "D",
+        "text": "Lipid profile"
+      },
+      {
+        "letter": "E",
+        "text": "Aspartate aminotransferase"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 68,
+    "stem": "An eight-year-old is brought to the emergency department by his legal guardian after yelling during an argument, \"Nobody loves me, so I'm just going to walk across the street and get hit by a car.\" The child was removed from his parents' care six months ago due to physical abuse and neglect. The child is passing all his subjects at school and is popular with peers. The child reports feeling sad and has auditory hallucinations telling him he is \"no good.\" Which of the following is high on the differential diagnosis for this patient?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Autism spectrum disorder"
+      },
+      {
+        "letter": "B",
+        "text": "Separation anxiety disorder"
+      },
+      {
+        "letter": "C",
+        "text": "Oppositional defiant disorder"
+      },
+      {
+        "letter": "D",
+        "text": "Posttraumatic stress disorder"
+      },
+      {
+        "letter": "E",
+        "text": "Obsessive-compulsive disorder"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 69,
+    "stem": "An adolescent is brought to psychiatric care for excessive spending on a mobile gaming application. There have been \"spending sprees\" of escalating amounts of money drawn from the parents' credit card. When the parents have uninstalled the game, the adolescent reacts by being dysphoric and irritable for weeks and then surreptitiously re-installing the game. The parents report that the adolescent has been lying about time spent on the game and even stealing money from them to use in the game. Before considering an addictive disorder, the psychiatrist must rule out:",
+    "options": [
+      {
+        "letter": "A",
+        "text": "kleptomania."
+      },
+      {
+        "letter": "B",
+        "text": "manic episode."
+      },
+      {
+        "letter": "C",
+        "text": "conduct disorder."
+      },
+      {
+        "letter": "D",
+        "text": "depressive episode."
+      },
+      {
+        "letter": "E",
+        "text": "obsessive-compulsive disorder."
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 70,
+    "stem": "Which of the following receptors primarily regulates arousal and the sleep-wake cycle?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Muscarinic 1"
+      },
+      {
+        "letter": "B",
+        "text": "Histaminergic 1"
+      },
+      {
+        "letter": "C",
+        "text": "Dopaminergic 2"
+      },
+      {
+        "letter": "D",
+        "text": "Serotonergic 1A"
+      },
+      {
+        "letter": "E",
+        "text": "Beta-Adrenergic 1"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 71,
+    "stem": "The Juvenile Justice and Delinquency and Prevention Act mandates that upon an adolescent's transition from a juvenile justice facility back to public school, the public school must:",
+    "options": [
+      {
+        "letter": "A",
+        "text": "implement a transition plan."
+      },
+      {
+        "letter": "B",
+        "text": "provide home bound online educational programming."
+      },
+      {
+        "letter": "C",
+        "text": "offer specialized educational assessments and services."
+      },
+      {
+        "letter": "D",
+        "text": "place the adolescent in an alternative educational program."
+      },
+      {
+        "letter": "E",
+        "text": "count juvenile facility educational credits towards graduation."
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 72,
+    "stem": "Which of the following characteristics is commonly demonstrated in youth who have experienced frequent foster care placements?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Apathy"
+      },
+      {
+        "letter": "B",
+        "text": "Self-reliance"
+      },
+      {
+        "letter": "C",
+        "text": "Secure attachment"
+      },
+      {
+        "letter": "D",
+        "text": "Academic achievement"
+      },
+      {
+        "letter": "E",
+        "text": "Developmental regression"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 73,
+    "stem": "The reciprocal inhibition between the medial prefrontal cortex and which of the following brain structures results in a decrease in stress response?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Pons"
+      },
+      {
+        "letter": "B",
+        "text": "Amygdala"
+      },
+      {
+        "letter": "C",
+        "text": "Cerebellum"
+      },
+      {
+        "letter": "D",
+        "text": "Corpus callosum"
+      },
+      {
+        "letter": "E",
+        "text": "Medulla oblongata"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 74,
+    "stem": "A psychiatrist is investigating the effectiveness of transcranial magnetic stimulation (TMS) for adolescent depression. A study is performed that compares two groups of adolescents on improvement in mean Hamilton Depression (HAM-D) Rating Scale scores at two weeks post-treatment; one of the groups receives TMS, and the other group receives sham TMS. Which of the following statistical tests is most appropriate for detecting group differences?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "T-test"
+      },
+      {
+        "letter": "B",
+        "text": "Chi-square"
+      },
+      {
+        "letter": "C",
+        "text": "Logistic regression"
+      },
+      {
+        "letter": "D",
+        "text": "Correlation coefficient"
+      },
+      {
+        "letter": "E",
+        "text": "Mixed factorials ANOVA"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 75,
+    "stem": "Which of the following statements is more likely to be verbalized by a 12-year-old child dying from cancer than a six-year-old child in the same situation?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "\"I am seeing angels.\""
+      },
+      {
+        "letter": "B",
+        "text": "\"I don't feel like eating today.\""
+      },
+      {
+        "letter": "C",
+        "text": "\"I will never be able to drive a car.\""
+      },
+      {
+        "letter": "D",
+        "text": "\"I will soon be meeting my grandpa and grandma.\""
+      },
+      {
+        "letter": "E",
+        "text": "\"Mom and dad, can you stay beside me all the time?\""
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 76,
+    "stem": "What is the most widely reported and replicated brain growth phenotype during the first year of life in autism spectrum disorder (ASD)?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Average size at birth with decreasing volume"
+      },
+      {
+        "letter": "B",
+        "text": "Average size at birth with accelerated growth"
+      },
+      {
+        "letter": "C",
+        "text": "Increased size at birth with accelerated growth"
+      },
+      {
+        "letter": "D",
+        "text": "Decreased size at birth with accelerated growth"
+      },
+      {
+        "letter": "E",
+        "text": "Decreased size at birth with less than expected growth increase"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 77,
+    "stem": "A child psychiatrist meets an eight-year-old child whose parents are currently separated for an initial assessment. The psychiatrist asks the child to draw a picture of her family. The child draws herself, her father, and her younger brother standing under a tall tree outside of their family home. Which of the following comments is most appropriate?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "\"Tell me about your drawing.\""
+      },
+      {
+        "letter": "B",
+        "text": "\"That was fun. Let's draw some more.\""
+      },
+      {
+        "letter": "C",
+        "text": "\"How do you think you did on the drawing?\""
+      },
+      {
+        "letter": "D",
+        "text": "\"I like the way you made the tree so tall and detailed.\""
+      },
+      {
+        "letter": "E",
+        "text": "\"I see you didn't include your mother. Will you draw her under the tree?\""
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 78,
+    "stem": "A 10-year-old is seen emergently after attempting to jump out of a third story window. His family reports that the child has not slept for almost five days and insists that he has a job to do that no one else can assist with. On interview, he reports the belief that he is a superhero. There is a strong family history of bipolar disorder. Which of the following medications has the best evidence to support its use in the treatment of these acute symptoms in a pediatric patient?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Lithium"
+      },
+      {
+        "letter": "B",
+        "text": "Lamotrigine"
+      },
+      {
+        "letter": "C",
+        "text": "Risperidone"
+      },
+      {
+        "letter": "D",
+        "text": "Valproic acid"
+      },
+      {
+        "letter": "E",
+        "text": "Oxcarbazepine"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 79,
+    "stem": "What is the legal basis for a private school to refuse to honor a student's 504 plan?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "The 504 plan was created by a public school."
+      },
+      {
+        "letter": "B",
+        "text": "The child lacks a protected disability diagnosis."
+      },
+      {
+        "letter": "C",
+        "text": "The child is only minimally impaired by a disability."
+      },
+      {
+        "letter": "D",
+        "text": "The 504 plan lacks funding for recommended interventions."
+      },
+      {
+        "letter": "E",
+        "text": "The 504 plan applies only to schools receiving federal funds."
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 80,
+    "stem": "In equivocal sleep studies, CSF orexin levels of less than 110 pg/ml is most suggestive of which of the following sleep disorders?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Narcolepsy"
+      },
+      {
+        "letter": "B",
+        "text": "Restless legs syndrome"
+      },
+      {
+        "letter": "C",
+        "text": "REM sleep behavior disorder"
+      },
+      {
+        "letter": "D",
+        "text": "Delayed sleep phase disorder"
+      },
+      {
+        "letter": "E",
+        "text": "Advanced sleep phase disorder"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 81,
+    "stem": "Beginning as early as seven to nine months of age, the development of which of the following motor skills is critical in establishing social preferences?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Pointing to desired object"
+      },
+      {
+        "letter": "B",
+        "text": "Imitating the behavior of others"
+      },
+      {
+        "letter": "C",
+        "text": "Cooing in response to another's voice"
+      },
+      {
+        "letter": "D",
+        "text": "Visually tracking objects through space"
+      },
+      {
+        "letter": "E",
+        "text": "Making eye contact with a primary caregiver"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 82,
+    "stem": "The increased pruning and myelination that occur between the ages of 13 and 25 results in the greatest improved ability to engage in which of the following activities?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Solving problems"
+      },
+      {
+        "letter": "B",
+        "text": "Distinguishing textures"
+      },
+      {
+        "letter": "C",
+        "text": "Memorizing vocabulary"
+      },
+      {
+        "letter": "D",
+        "text": "Assessing spatial orientation"
+      },
+      {
+        "letter": "E",
+        "text": "Conducting precise movements"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 83,
+    "stem": "During therapy, a psychiatrist encourages the patient to talk, engages in active listening, and provides accurate empathic responses to show the adolescent they are understood. The psychiatrist encourages the adolescent to share feelings only to the extent that the patient is able to manage them. The psychiatrist doesn't aim to uncover deeply repressed material. Which of the following therapies best describes the therapeutic modality utilized by the psychiatrist?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Supportive therapy"
+      },
+      {
+        "letter": "B",
+        "text": "Interpersonal therapy"
+      },
+      {
+        "letter": "C",
+        "text": "Habit reversal therapy"
+      },
+      {
+        "letter": "D",
+        "text": "Psychodynamic therapy"
+      },
+      {
+        "letter": "E",
+        "text": "Dialectical behavioral therapy"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 84,
+    "stem": "How are premenstrual affective symptoms related to gonadal hormone levels?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Symptoms correlate with abnormally low levels of estrogen in the luteal phase."
+      },
+      {
+        "letter": "B",
+        "text": "Symptoms reflect an abnormal response to typical hormonal fluctuations."
+      },
+      {
+        "letter": "C",
+        "text": "Symptoms have no connection to hormonal fluctuations."
+      },
+      {
+        "letter": "D",
+        "text": "Symptoms are associated with abnormally high levels of progesterone in the luteal phase."
+      },
+      {
+        "letter": "E",
+        "text": "Symptoms follow a sharp rise in estrogen and progesterone early in the luteal phase."
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 85,
+    "stem": "A 16-year-old is brought to the emergency department (ED) by caregivers for confusion, nausea, vomiting, and diarrhea. The teen has a diagnosis of bipolar disorder and is treated with lithium for maintenance therapy. A lithium level obtained in the ED is 2.5 mEq/L. Caregivers report that the teen has recently developed an upper respiratory illness and takes an over-the-counter medication to decrease symptoms. Which of the following ingredients in common over-the-counter cold medications is most likely to have contributed to the teen's presentation?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Naproxen"
+      },
+      {
+        "letter": "B",
+        "text": "Guaifenesin"
+      },
+      {
+        "letter": "C",
+        "text": "Acetaminophen"
+      },
+      {
+        "letter": "D",
+        "text": "Pseudoephedrine"
+      },
+      {
+        "letter": "E",
+        "text": "Diphenhydramine"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 86,
+    "stem": "Which of the following is a projective technique in a child diagnostic interview?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Clarify objective with parent"
+      },
+      {
+        "letter": "B",
+        "text": "Ask the child to build a car using blocks"
+      },
+      {
+        "letter": "C",
+        "text": "Observe the child's interaction with a parent"
+      },
+      {
+        "letter": "D",
+        "text": "Observe how the child reacts to a new person"
+      },
+      {
+        "letter": "E",
+        "text": "Ask the child to draw a picture of themselves"
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 87,
+    "stem": "Secretion of prolactin is under direct regulation of what class of neurons located in the tuberoinfundibular area of the hypothalamus?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "GABAergic"
+      },
+      {
+        "letter": "B",
+        "text": "Cholinergic"
+      },
+      {
+        "letter": "C",
+        "text": "Serotonergic"
+      },
+      {
+        "letter": "D",
+        "text": "Dopaminergic"
+      },
+      {
+        "letter": "E",
+        "text": "Glutamatergic"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 88,
+    "stem": "Which of the following pieces of legislation addresses differential management and reimbursement of mental illness by insurance companies?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Affordable Care Act of 2010"
+      },
+      {
+        "letter": "B",
+        "text": "Children's Health Act of 2000"
+      },
+      {
+        "letter": "C",
+        "text": "Americans with Disabilities Act"
+      },
+      {
+        "letter": "D",
+        "text": "Garrett Lee Smith Memorial Act"
+      },
+      {
+        "letter": "E",
+        "text": "Mental Health Parity and Addiction Equity Act"
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 89,
+    "stem": "A 12-year-old child is brought to the emergency department for odd behavior. Over the past three days, the child will not engage with caregivers and is not doing routine tasks such as grooming, feeding, and going to school. The child is afebrile and has a normal blood pressure, pulse, and respiratory rate. On exam, the child has a fixed gaze, maintains an odd posture, and does not respond to voice, touch, or pain. There is notable muscle rigidity. In addition to supportive care, the next best step in management is to initiate:",
+    "options": [
+      {
+        "letter": "A",
+        "text": "lorazepam."
+      },
+      {
+        "letter": "B",
+        "text": "risperidone."
+      },
+      {
+        "letter": "C",
+        "text": "bromocriptine."
+      },
+      {
+        "letter": "D",
+        "text": "cyproheptadine."
+      },
+      {
+        "letter": "E",
+        "text": "electroconvulsive therapy."
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 90,
+    "stem": "An adolescent has recurrent acute lymphoblastic leukemia. The oncology team is concerned regarding the child's prognosis, but has not yet determined whether the illness is life-limiting. Which of the following statements would be the most appropriate next step in counseling the patient regarding advance care planning?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Avoid talking about death as it could contribute to depression"
+      },
+      {
+        "letter": "B",
+        "text": "Consult the hospital chaplain to encourage spiritual guidance"
+      },
+      {
+        "letter": "C",
+        "text": "Defer advance care planning until prognosis is more definitive"
+      },
+      {
+        "letter": "D",
+        "text": "Meet with the child's caregivers to select a surrogate decision-maker for the child"
+      },
+      {
+        "letter": "E",
+        "text": "Ask the child if anyone has discussed his or her wishes in the event of serious illness"
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 91,
+    "stem": "Which of the following rating scales provides a general screening of behavioral health symptoms that identifies risk for childhood psychiatric disorders in a primary care setting?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Pediatric Symptom Checklist"
+      },
+      {
+        "letter": "B",
+        "text": "Patient Health Questionnaire-9"
+      },
+      {
+        "letter": "C",
+        "text": "Mood and Feelings Questionnaire"
+      },
+      {
+        "letter": "D",
+        "text": "McMaster Family Assessment Device"
+      },
+      {
+        "letter": "E",
+        "text": "Screen for Child Anxiety Related Disorders"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 92,
+    "stem": "A young child playing soccer tells the coach, after missing a goal as the game ended, \"I don't want to play anymore 'cause I'm not good like the other kids!\" Which aspect of psycho-social development does this statement illustrate?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Initiative vs. guilt"
+      },
+      {
+        "letter": "B",
+        "text": "Trust vs. mistrust"
+      },
+      {
+        "letter": "C",
+        "text": "Autonomy vs. shame"
+      },
+      {
+        "letter": "D",
+        "text": "Industry vs. inferiority"
+      },
+      {
+        "letter": "E",
+        "text": "Identity vs. role confusion"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 93,
+    "stem": "A 17-year-old is being evaluated for oppositional behavior at home and in school. The patient is guarded and hesitant about engaging. When asked about drug use, the patient proudly responds, \"I have been without drugs for the past two months. I have been going to a substance use program.\" Which initial response from the psychiatrist is most likely to facilitate engagement?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "\"What were the drugs that you were using before?\""
+      },
+      {
+        "letter": "B",
+        "text": "\"You should keep going to the program since it is helpful.\""
+      },
+      {
+        "letter": "C",
+        "text": "\"How is the program helping you with remaining abstinent?\""
+      },
+      {
+        "letter": "D",
+        "text": "\"You must have put in lots of effort to stay away from drugs.\""
+      },
+      {
+        "letter": "E",
+        "text": "\"Have you been to any other substance use related programs before?\""
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 94,
+    "stem": "An adolescent receiving interpersonal psychotherapy for depression is in the initial phase of treatment. Which of the following tasks is the adolescent most likely participating in during these early sessions?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Completing a communication analysis"
+      },
+      {
+        "letter": "B",
+        "text": "Creating an inventory of their relationships"
+      },
+      {
+        "letter": "C",
+        "text": "Exploring ways to increase problem-solving"
+      },
+      {
+        "letter": "D",
+        "text": "Assisting with activity on the mood thermometer"
+      },
+      {
+        "letter": "E",
+        "text": "Engaging in role plays to enhance perspective-taking"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 95,
+    "stem": "An adolescent assaults a pharmacist to steal drugs that they then sell for profit. This type of aggression is best described as:",
+    "options": [
+      {
+        "letter": "A",
+        "text": "reactive."
+      },
+      {
+        "letter": "B",
+        "text": "affective."
+      },
+      {
+        "letter": "C",
+        "text": "impulsive."
+      },
+      {
+        "letter": "D",
+        "text": "defensive."
+      },
+      {
+        "letter": "E",
+        "text": "instrumental."
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 96,
+    "stem": "During a therapy session, a 17-year-old discloses having recurrent, sexually arousing fantasies about a 10-year-old neighbor. The fantasies have occurred over the past six months; and while they are enjoyable to the adolescent, they also cause intense shame. Which of the following conditions is the most likely diagnosis?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Conduct disorder"
+      },
+      {
+        "letter": "B",
+        "text": "Fetishistic disorder"
+      },
+      {
+        "letter": "C",
+        "text": "Pedophilic disorder"
+      },
+      {
+        "letter": "D",
+        "text": "Voyeuristic disorder"
+      },
+      {
+        "letter": "E",
+        "text": "Obsessive-compulsive disorder"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 97,
+    "stem": "A meta-analysis of four studies is performed on the efficacy of Drug X in treating anxiety disorders in adolescents. The forest plot from the meta-analysis is shown below. Which of the following conclusions can be drawn from this meta-analysis?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Drug X is more likely than placebo to increase anxiety."
+      },
+      {
+        "letter": "B",
+        "text": "Drug X is more likely than placebo to decrease anxiety."
+      },
+      {
+        "letter": "C",
+        "text": "Drug X and placebo have the same likelihood of decreasing anxiety."
+      },
+      {
+        "letter": "D",
+        "text": "Drug X and placebo have the same likelihood of causing an adverse effect."
+      },
+      {
+        "letter": "E",
+        "text": "Drug X is more likely than placebo to cause an adverse effect when used for anxiety."
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": true
+  },
+  {
+    "n": 98,
+    "stem": "A new study reports a five-fold increased risk of a rare side effect in a group of individuals exposed to a new medication during childhood compared to a group of individuals who were not exposed to the medication during the same period of time. What information would be most important for a psychiatrist to communicate when discussing the interpretation of this study?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "The difference between sensitivity and specificity"
+      },
+      {
+        "letter": "B",
+        "text": "The difference between reproducibility and reliability"
+      },
+      {
+        "letter": "C",
+        "text": "The difference between absolute risk and relative risk reduction"
+      },
+      {
+        "letter": "D",
+        "text": "The difference between a cohort study and a case control study"
+      },
+      {
+        "letter": "E",
+        "text": "The difference between modifiable and nonmodifiable risk factors"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 99,
+    "stem": "A parent is concerned after hearing their five-year-old child snort and cough while sleeping and grinding their teeth at night. The child also complains of not having energy to run on the playground with peers and gets cranky in the early afternoon. Which of the following tests is most useful in determining the etiology of these symptoms?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Actigraphy"
+      },
+      {
+        "letter": "B",
+        "text": "Chest X-ray"
+      },
+      {
+        "letter": "C",
+        "text": "Nasal endoscopy"
+      },
+      {
+        "letter": "D",
+        "text": "Polysomnography"
+      },
+      {
+        "letter": "E",
+        "text": "Dental examination"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 100,
+    "stem": "A postpartum adolescent reports partial improvement in her low mood after treatment with fluoxetine 40 mg, intensive family interventions, and cognitive behavior therapy for 12 weeks. She lives at home with supportive parents. She reveals being distressed by unwanted intrusive thoughts about throwing her baby out the window and has been avoiding going near windows. She does not have paranoia, delusions, a thought disorder, or suicidal or homicidal ideations. The next best step in pharmacologic management would be to:",
+    "options": [
+      {
+        "letter": "A",
+        "text": "start a neuroleptic."
+      },
+      {
+        "letter": "B",
+        "text": "increase fluoxetine."
+      },
+      {
+        "letter": "C",
+        "text": "start a benzodiazepine."
+      },
+      {
+        "letter": "D",
+        "text": "taper off fluoxetine and start a mood stabilizer."
+      },
+      {
+        "letter": "E",
+        "text": "taper off fluoxetine and trial another antidepressant."
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 101,
+    "stem": "Which of the following diagnoses best explains an adolescent's difficulty with waking up in the morning for school and tendency to sleep in on weekends?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Narcolepsy"
+      },
+      {
+        "letter": "B",
+        "text": "Restless leg syndrome"
+      },
+      {
+        "letter": "C",
+        "text": "Obstructive sleep apnea"
+      },
+      {
+        "letter": "D",
+        "text": "Hypersomnolence disorder"
+      },
+      {
+        "letter": "E",
+        "text": "Circadian rhythm sleep disorder"
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 102,
+    "stem": "Which of the following behaviors is most important for the survival of a species from a sociobiologic and ethnologic perspective?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Aggression"
+      },
+      {
+        "letter": "B",
+        "text": "Intelligence"
+      },
+      {
+        "letter": "C",
+        "text": "Competition"
+      },
+      {
+        "letter": "D",
+        "text": "Reproduction"
+      },
+      {
+        "letter": "E",
+        "text": "Resource holding potential"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 103,
+    "stem": "A psychiatrist has been treating an adolescent for social anxiety for two years. A staff member from the practice, who knows the patient and family through visits at the psychiatrist's office, is invited to a school play by the patient and the family. After attending the school play, the staff member posts a picture with the patient on social media and comments, \"Totally awed by your improvement. Congratulations on your hard work!\" What is the best next step for the psychiatrist to address the situation?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Ask the staff member to remove the post"
+      },
+      {
+        "letter": "B",
+        "text": "Inform the patient's family of the social media posting"
+      },
+      {
+        "letter": "C",
+        "text": "Report the staff member to their professional organization"
+      },
+      {
+        "letter": "D",
+        "text": "Prohibit the staff member from working with the patient further"
+      },
+      {
+        "letter": "E",
+        "text": "No action required as this is within the realm of acceptable interaction with patients via social media"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 104,
+    "stem": "A very energetic and physically advanced five-year-old boy begins to have trouble in school due to his interactions with peers during recess. He is enrolled by his mother in a club soccer league and, at home, uses physical games to build his understanding of rules and limits. This mother is responding to which of the temperamental characteristics identified by Thomas and Chess?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Activity"
+      },
+      {
+        "letter": "B",
+        "text": "Intensity"
+      },
+      {
+        "letter": "C",
+        "text": "Rhythmicity"
+      },
+      {
+        "letter": "D",
+        "text": "Adaptability"
+      },
+      {
+        "letter": "E",
+        "text": "Distractibility"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 105,
+    "stem": "What part of the brain is a site of postnatal central nervous system neurogenesis in humans?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Thalamus"
+      },
+      {
+        "letter": "B",
+        "text": "Basal ganglia"
+      },
+      {
+        "letter": "C",
+        "text": "Hippocampus"
+      },
+      {
+        "letter": "D",
+        "text": "Olfactory bulb"
+      },
+      {
+        "letter": "E",
+        "text": "Orbitofrontal cortex"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 106,
+    "stem": "A psychiatrist is consulted to assess for possible conversion disorder presenting in a child admitted for worsening falls. The patient demonstrates difficulty rising from a seated position, frequently trips when walking, expresses daily muscle pain, and has shown decline in school performance. Which of the following diagnostic studies will be most informative in distinguishing this child's condition from conversion disorder?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Electromyography"
+      },
+      {
+        "letter": "B",
+        "text": "Computed tomography"
+      },
+      {
+        "letter": "C",
+        "text": "Electroencephalography"
+      },
+      {
+        "letter": "D",
+        "text": "Magnetic resonance imaging"
+      },
+      {
+        "letter": "E",
+        "text": "Positron emission tomography"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 107,
+    "stem": "Which of the following neurobiologic characteristics explains impairments in emotional regulation during adolescence?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Increased axonal myelination"
+      },
+      {
+        "letter": "B",
+        "text": "Decreased synaptic connections"
+      },
+      {
+        "letter": "C",
+        "text": "Delayed limbic subcortical maturation"
+      },
+      {
+        "letter": "D",
+        "text": "Delayed prefrontal cortical maturation"
+      },
+      {
+        "letter": "E",
+        "text": "Increased nucleus accumbens activity"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 108,
+    "stem": "A 12-year-old child presents with new onset hallucinations, progressively worsening social isolation, flattening of affect, and academic challenges over the past two years. This has resulted in school refusal and aggression. On exam, the patient is staring off and occasionally laughing to themselves. A medical workup is negative. Which of the following is the most likely diagnosis?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Bipolar disorder"
+      },
+      {
+        "letter": "B",
+        "text": "Autism spectrum disorder"
+      },
+      {
+        "letter": "C",
+        "text": "Early-onset schizophrenia"
+      },
+      {
+        "letter": "D",
+        "text": "Reactive attachment disorder"
+      },
+      {
+        "letter": "E",
+        "text": "Disruptive mood dysregulation disorder"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 109,
+    "stem": "Which of the following polysomnogram findings is consistent with narcolepsy?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Long n2 phase"
+      },
+      {
+        "letter": "B",
+        "text": "Sleep onset REM"
+      },
+      {
+        "letter": "C",
+        "text": "Low total sleep time"
+      },
+      {
+        "letter": "D",
+        "text": "Increased sleep efficiency"
+      },
+      {
+        "letter": "E",
+        "text": "Increased slow wave sleep"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 110,
+    "stem": "A five-year-old girl is excited to participate in a surprise birthday party for her uncle. She does not want her uncle to see her, so she hides underneath a table in clear view of the door. The child's actions illustrate which of the following cognitive concepts?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Egocentrism"
+      },
+      {
+        "letter": "B",
+        "text": "Conservation"
+      },
+      {
+        "letter": "C",
+        "text": "Accommodation"
+      },
+      {
+        "letter": "D",
+        "text": "Object permanence"
+      },
+      {
+        "letter": "E",
+        "text": "Deductive reasoning"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 111,
+    "stem": "What is the most common psychiatric comorbidity in children with Fetal Alcohol Spectrum Disorder?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Conduct disorder"
+      },
+      {
+        "letter": "B",
+        "text": "Generalized anxiety disorder"
+      },
+      {
+        "letter": "C",
+        "text": "Oppositional defiant disorder"
+      },
+      {
+        "letter": "D",
+        "text": "Intermittent explosive disorder"
+      },
+      {
+        "letter": "E",
+        "text": "Attention-deficit/hyperactivity disorder"
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 112,
+    "stem": "A 13-year-old with a long history of psychiatric care has been referred to a community-based system of care. Which of the following is a Child and Adolescent Service System Program guiding principle for this type of service delivery?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Case management to optimize service coordination"
+      },
+      {
+        "letter": "B",
+        "text": "Dismissal from services if demonstrated lack of adherence to treatment"
+      },
+      {
+        "letter": "C",
+        "text": "Easy access to residential services for children and youth with severe mental illness"
+      },
+      {
+        "letter": "D",
+        "text": "Provision of medication samples to children and adolescents without insurance coverage"
+      },
+      {
+        "letter": "E",
+        "text": "Monitoring of participants to ensure that suspicions of abuse are reported in a timely manner"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 113,
+    "stem": "A child with a normal neurological examination is seen for several episodes of dizziness, vertigo, occipital headache, and hemiparesis, all of which resolve within 24 hours. Which of the following disorders could best explain the symptoms?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Conversion disorder"
+      },
+      {
+        "letter": "B",
+        "text": "Basilar artery migraine"
+      },
+      {
+        "letter": "C",
+        "text": "Tension type headache"
+      },
+      {
+        "letter": "D",
+        "text": "Cyclical vomiting syndrome"
+      },
+      {
+        "letter": "E",
+        "text": "Confusional migraine disorder"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 114,
+    "stem": "The power of a statistical test is equivalent to the likelihood of:",
+    "options": [
+      {
+        "letter": "A",
+        "text": "rejecting the null hypothesis."
+      },
+      {
+        "letter": "B",
+        "text": "confirming the null hypothesis."
+      },
+      {
+        "letter": "C",
+        "text": "avoiding a false positive result."
+      },
+      {
+        "letter": "D",
+        "text": "establishing a true positive result."
+      },
+      {
+        "letter": "E",
+        "text": "obtaining a 95% confidence interval."
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 115,
+    "stem": "An adolescent develops gynecomastia nine months after starting risperidone for impulsive aggression. The psychiatrist explained this potential side effect to the family and documented the discussion in the patient chart. The parents intend to file a lawsuit claiming malpractice. Which of the following statements best describes why the psychiatrist is legally protected from the malpractice claim?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "The psychiatrist met a reasonable standard of care for the adolescent."
+      },
+      {
+        "letter": "B",
+        "text": "The psychiatrist's actions did not result in a physical disability to the adolescent."
+      },
+      {
+        "letter": "C",
+        "text": "The documentation of treatment discussions absolves the psychiatrist of legal action."
+      },
+      {
+        "letter": "D",
+        "text": "The potential harm has to occur within a six-month window after medication initiation."
+      },
+      {
+        "letter": "E",
+        "text": "The risperidone cannot be proven as the direct cause of the adolescent's gynecomastia."
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 116,
+    "stem": "When paired with a sleep diary, which of the following tests is most useful in assessing a child's typical at-home sleep pattern?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Actigraphy"
+      },
+      {
+        "letter": "B",
+        "text": "Pulse oximetry"
+      },
+      {
+        "letter": "C",
+        "text": "Polysomnography"
+      },
+      {
+        "letter": "D",
+        "text": "Electrocardiography"
+      },
+      {
+        "letter": "E",
+        "text": "Electroencephalography"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 117,
+    "stem": "Which of the following neuropeptide levels is likely to be low in a patient presenting with hypersomnolence and REM onset within five minutes of falling asleep?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Leptin"
+      },
+      {
+        "letter": "B",
+        "text": "Orexin"
+      },
+      {
+        "letter": "C",
+        "text": "Ghrelin"
+      },
+      {
+        "letter": "D",
+        "text": "Neuropeptide Y"
+      },
+      {
+        "letter": "E",
+        "text": "Melanin stimulating hormone"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 118,
+    "stem": "A 16-year-old diagnosed with bipolar I disorder, most recent episode manic, has been hospitalized for one month. The patient has beliefs of being the next messiah and has stopped eating and drinking, thinking that only their death will bring peace to the world. The patient's heart rate is dipping intermittently below 50. Trials of valproic acid with different antipsychotic medications have resulted in severe dystonic reactions. Which of the following would be the best treatment option at this time?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Lithium"
+      },
+      {
+        "letter": "B",
+        "text": "Biofeedback"
+      },
+      {
+        "letter": "C",
+        "text": "Ketamine infusion"
+      },
+      {
+        "letter": "D",
+        "text": "Electroconvulsive therapy"
+      },
+      {
+        "letter": "E",
+        "text": "Transcranial magnetic stimulation"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 119,
+    "stem": "A 10-year-old boy presents with an eight-month history of abdominal pain with extensive medical workup and no evidence of physical injury to the body. The patient is physically fit and active in three sports. The patient is described as a \"good kid\" who \"is sensitive but never shows stress.\" Which of the following factors is the strongest risk for the development of this patient's disorder?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Age"
+      },
+      {
+        "letter": "B",
+        "text": "Gender"
+      },
+      {
+        "letter": "C",
+        "text": "Coping style"
+      },
+      {
+        "letter": "D",
+        "text": "Symptom location"
+      },
+      {
+        "letter": "E",
+        "text": "Level of physical activity"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 120,
+    "stem": "Velocardiofacial syndrome, which has been repeatedly implicated in early-onset psychosis, is most often the result of what kind of genetic abnormality?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Methylation"
+      },
+      {
+        "letter": "B",
+        "text": "Gene deletion"
+      },
+      {
+        "letter": "C",
+        "text": "Polymorphisms"
+      },
+      {
+        "letter": "D",
+        "text": "Trinucleotide expansion"
+      },
+      {
+        "letter": "E",
+        "text": "Chromosomal translocation"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 121,
+    "stem": "A seven-year-old child is doing their math homework at home when they begin to have a temper tantrum. The caregiver places the child in time out, and the child does not finish their math homework that evening. Over the next several days, the child begins to have more frequent temper tantrums while doing math homework. What is the best description of the time-out protocol that was used in this situation?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Extinction"
+      },
+      {
+        "letter": "B",
+        "text": "Positive punishment"
+      },
+      {
+        "letter": "C",
+        "text": "Negative punishment"
+      },
+      {
+        "letter": "D",
+        "text": "Positive reinforcement"
+      },
+      {
+        "letter": "E",
+        "text": "Negative reinforcement"
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 122,
+    "stem": "Which of the following strategies is the best example of a universal intervention addressing a social determinant of health related to psychiatric disorders?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Early intervention for children at risk of conduct problems"
+      },
+      {
+        "letter": "B",
+        "text": "Community-based programming focused on urban planning"
+      },
+      {
+        "letter": "C",
+        "text": "Housing for homeless families in local motels instead of shelters"
+      },
+      {
+        "letter": "D",
+        "text": "Psychoeducational groups for patients with first episode psychosis"
+      },
+      {
+        "letter": "E",
+        "text": "Charging the parents of adolescents arrested for drinking and driving"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 123,
+    "stem": "Which of the following institutions provides Americans with most of their information on mental health?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Health insurance companies"
+      },
+      {
+        "letter": "B",
+        "text": "News media and the internet"
+      },
+      {
+        "letter": "C",
+        "text": "Large medical hospital systems"
+      },
+      {
+        "letter": "D",
+        "text": "Federal government regulatory agencies"
+      },
+      {
+        "letter": "E",
+        "text": "Non-governmental advocacy organizations"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 124,
+    "stem": "An adolescent presents to the emergency department with six months of chronic abdominal pain that has progressively worsened despite multiple hospitalizations and prior negative workups. The family is concerned that \"something is being missed\" and denies any psychosocial stressors aside from the impact of the pain. Based on American Academy of Child and Adolescent Psychiatry consensus guidelines, what is the right timing and setting for obtaining a psychiatric evaluation?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Discharge with outpatient psychiatry referral"
+      },
+      {
+        "letter": "B",
+        "text": "Clear medically and refer for psychiatric admission"
+      },
+      {
+        "letter": "C",
+        "text": "Admit for workup, then refer to outpatient psychiatry on discharge"
+      },
+      {
+        "letter": "D",
+        "text": "Admit for medical workup with concurrent psychiatric consultation"
+      },
+      {
+        "letter": "E",
+        "text": "Refer to outpatient gastroenterology and defer psychiatry for now"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 125,
+    "stem": "A psychiatrist is treating an adolescent and their parents with family therapy to minimize emotional conflicts in the family. The psychiatrist fails to decrease the frequency of familial conflicts by educating them to reach a common ground. Then, the psychiatrist paradoxically encourages them to keep having at least one argument a day. Which of the following family therapy modalities accounts for this technique?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Systemic"
+      },
+      {
+        "letter": "B",
+        "text": "Strategic"
+      },
+      {
+        "letter": "C",
+        "text": "Structural"
+      },
+      {
+        "letter": "D",
+        "text": "Psychodynamic"
+      },
+      {
+        "letter": "E",
+        "text": "Solution-focused"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 126,
+    "stem": "A school-age child with autism spectrum disorder, mild intellectual disability, and attention-deficit/hyperactivity disorder is being assessed in the emergency room for otitis media. The patient is currently on risperidone and long-acting methylphenidate, both with reported benefit, and is otherwise medically stable. During the examination, the patient becomes agitated. Non-pharmacologic strategies have been unsuccessful in de-escalating the child. Which of the following is the next best pharmacologic strategy to address the patient's acute behavioral escalation?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Clonidine"
+      },
+      {
+        "letter": "B",
+        "text": "Lorazepam"
+      },
+      {
+        "letter": "C",
+        "text": "Olanzapine"
+      },
+      {
+        "letter": "D",
+        "text": "Risperidone"
+      },
+      {
+        "letter": "E",
+        "text": "Diphenhydramine"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 127,
+    "stem": "An adolescent with obsessive-compulsive disorder who has responded well to fluvoxamine 200 mg daily suddenly has a relapse of symptoms. Which of the following is the most likely factor behind the relapse?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Initiation of a paleo diet"
+      },
+      {
+        "letter": "B",
+        "text": "Initiation of nicotine use"
+      },
+      {
+        "letter": "C",
+        "text": "Initiation of an oral contraceptive"
+      },
+      {
+        "letter": "D",
+        "text": "Developmental increase in metabolism"
+      },
+      {
+        "letter": "E",
+        "text": "Development of tolerance to the fluvoxamine"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 128,
+    "stem": "Which cell type provides scaffolding for the migration of neurons during prenatal neurogenesis?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Astrocyte"
+      },
+      {
+        "letter": "B",
+        "text": "Radial glial"
+      },
+      {
+        "letter": "C",
+        "text": "Macrophage"
+      },
+      {
+        "letter": "D",
+        "text": "Non-pyramidal"
+      },
+      {
+        "letter": "E",
+        "text": "Oligodendrocyte"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 129,
+    "stem": "A 15-year-old patient was discharged from a psychiatric practice a year ago to primary care. Which of the following responsibilities persist for the psychiatrist?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Fidelity"
+      },
+      {
+        "letter": "B",
+        "text": "Autonomy"
+      },
+      {
+        "letter": "C",
+        "text": "Beneficence"
+      },
+      {
+        "letter": "D",
+        "text": "Confidentiality"
+      },
+      {
+        "letter": "E",
+        "text": "Nonmaleficence"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 130,
+    "stem": "At the onset of a forensic evaluation, which of the following warnings should the clinician review with the youth and family?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Their role is to relieve the suffering of their client."
+      },
+      {
+        "letter": "B",
+        "text": "There is limited confidentiality with this type of evaluation."
+      },
+      {
+        "letter": "C",
+        "text": "The session is required to be both video and audio recorded."
+      },
+      {
+        "letter": "D",
+        "text": "Their sole purpose is to confirm a diagnosis and treatment plan."
+      },
+      {
+        "letter": "E",
+        "text": "The evaluation will be based solely on their report from this session."
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 131,
+    "stem": "A previously healthy adolescent presents with fatigue, bilateral lower extremity weakness, and unilateral loss of vision. A magnetic resonance imaging (MRI) scan with contrast demonstrates white matter hyperintense lesions in the optic tract and periventricular regions of the brain. Which of the following diagnoses best describes this patient's condition?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Meningitis"
+      },
+      {
+        "letter": "B",
+        "text": "Multiple sclerosis"
+      },
+      {
+        "letter": "C",
+        "text": "Cerebral lymphoma"
+      },
+      {
+        "letter": "D",
+        "text": "Adrenoleukodystrophy"
+      },
+      {
+        "letter": "E",
+        "text": "Systemic lupus erythematosus"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 132,
+    "stem": "Adolescents and young adults with autism spectrum disorder (ASD) differ from their typically developing age peers in:",
+    "options": [
+      {
+        "letter": "A",
+        "text": "rate of bisexuality."
+      },
+      {
+        "letter": "B",
+        "text": "rate of homosexuality."
+      },
+      {
+        "letter": "C",
+        "text": "interest in having a romantic partner."
+      },
+      {
+        "letter": "D",
+        "text": "rate of identification with birth gender."
+      },
+      {
+        "letter": "E",
+        "text": "interest in increasing knowledge about sexuality."
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 133,
+    "stem": "A psychiatrist volunteers at a free clinic in an attempt to prevent antipsychotic medications being prescribed to socioeconomically vulnerable children. This behavior most closely reflects which of the following ethical principles?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Justice"
+      },
+      {
+        "letter": "B",
+        "text": "Fidelity"
+      },
+      {
+        "letter": "C",
+        "text": "Veracity"
+      },
+      {
+        "letter": "D",
+        "text": "Autonomy"
+      },
+      {
+        "letter": "E",
+        "text": "Confidentiality"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 134,
+    "stem": "A psychiatrist asks their patient a reflective, open-ended question regarding the patient's desire to regain a healthy weight, despite repeated use of diuretics with its negative consequences. This is most likely an example of which therapeutic strategy?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Psychoeducation"
+      },
+      {
+        "letter": "B",
+        "text": "Individual supportive"
+      },
+      {
+        "letter": "C",
+        "text": "Motivational interviewing"
+      },
+      {
+        "letter": "D",
+        "text": "Dialectical behavior therapy"
+      },
+      {
+        "letter": "E",
+        "text": "Cognitive behavioral therapy"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 135,
+    "stem": "A patient with very early onset schizophrenia presents with new onset waxy flexibility, echopraxia and echolalia, and has an extremely poor dietary and fluid intake. Primary neurological etiologies have been ruled out. There was very poor response to benzodiazepines and atypical antipsychotics. Which of the following is the next course of action?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Lithium"
+      },
+      {
+        "letter": "B",
+        "text": "Clozapine"
+      },
+      {
+        "letter": "C",
+        "text": "Olanzapine"
+      },
+      {
+        "letter": "D",
+        "text": "Electroconvulsive therapy"
+      },
+      {
+        "letter": "E",
+        "text": "Transcranial magnetic stimulation"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 136,
+    "stem": "A 16-year-old has been stable on 200 mg of clozapine for several months. A complete blood count is ordered with results as follows: WBC = 3100/ul; ANC = 1300/ul. The youth has no fever, swollen lymph nodes, or other signs of infection. What would be the best action to take in addition to getting a hematology consult?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Continue clozapine and monitor weekly"
+      },
+      {
+        "letter": "B",
+        "text": "Discontinue clozapine and monitor daily"
+      },
+      {
+        "letter": "C",
+        "text": "Discontinue clozapine and monitor weekly"
+      },
+      {
+        "letter": "D",
+        "text": "Continue clozapine and monitor three times a week"
+      },
+      {
+        "letter": "E",
+        "text": "Discontinue clozapine and monitor three times a week"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 137,
+    "stem": "A 15-year-old previously healthy female presents with altered mental status and severe agitation. She slowly developed progressive confusion and memory deficits three weeks ago, with no clear trigger. Over the past two weeks, she has experienced hallucinations, poor sleep, and inattention. Prior to the visit she had a witnessed brief seizure episode. On assessment, she exhibits significant tachycardia and hypertension with an otherwise normal physical exam. Her preliminary ultrasound shows an ovarian lesion. Which of the following diagnoses is most likely consistent with this presentation?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Creutzfeldt-Jakob disease"
+      },
+      {
+        "letter": "B",
+        "text": "Herpes simplex virus encephalitis"
+      },
+      {
+        "letter": "C",
+        "text": "Lambert-Eaton myasthenia syndrome"
+      },
+      {
+        "letter": "D",
+        "text": "Anti-N-methyl-d-aspartate receptor encephalitis"
+      },
+      {
+        "letter": "E",
+        "text": "Voltage-gated potassium channel antibody encephalitis"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 138,
+    "stem": "A 13-year-old girl is brought to the emergency department (ED) by her parents for odd behavior. Medical history is significant for asthma and allergic rhinitis. She was recently started on aripiprazole, and her parents state that she has been acting differently since then, being more irritable and active. The girl reports feeling restless, anxious, and uncomfortable. On examination, she is notably irritable and is pacing back and forth next to her bed in the ED. The remainder of the examination is normal. What is the next best step in management of the child?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Add propranolol"
+      },
+      {
+        "letter": "B",
+        "text": "Add benztropine"
+      },
+      {
+        "letter": "C",
+        "text": "Add valproic acid"
+      },
+      {
+        "letter": "D",
+        "text": "Increase aripiprazole"
+      },
+      {
+        "letter": "E",
+        "text": "Switch aripiprazole to risperidone"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 139,
+    "stem": "A 17-year-old patient is referred for a psychiatric evaluation after multiple appointments with their primary physician for various medical complaints. The patient reports occasional mild chest pain and is constantly anxious about when the next pain might appear. The patient is also spending hours each night reading about causes of chest pain. Which of the following is the most likely diagnosis?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Panic disorder"
+      },
+      {
+        "letter": "B",
+        "text": "Factitious disorder"
+      },
+      {
+        "letter": "C",
+        "text": "Delusional disorder"
+      },
+      {
+        "letter": "D",
+        "text": "Conversion disorder"
+      },
+      {
+        "letter": "E",
+        "text": "Illness anxiety disorder"
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 140,
+    "stem": "A 14-year-old gets into a physical fight with a fellow student who is always taunting and teasing others. According to the acute threat response system theory of impulsive aggression, which of the following brain regions modulates the aggression response by analyzing the costs of benefits of actions?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Amygdala"
+      },
+      {
+        "letter": "B",
+        "text": "Hippocampus"
+      },
+      {
+        "letter": "C",
+        "text": "Prefrontal cortex"
+      },
+      {
+        "letter": "D",
+        "text": "Caudate nucleus"
+      },
+      {
+        "letter": "E",
+        "text": "Periaqueductal gray"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 141,
+    "stem": "Which of the following interventions is classified as universal prevention?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Coping Cat"
+      },
+      {
+        "letter": "B",
+        "text": "Multisystemic Therapy"
+      },
+      {
+        "letter": "C",
+        "text": "Aggression Replacement Training"
+      },
+      {
+        "letter": "D",
+        "text": "Psychological First Aid: Listen, Protect, and Connect"
+      },
+      {
+        "letter": "E",
+        "text": "Cognitive-Behavioral Interventions for Trauma in Schools"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 142,
+    "stem": "A child with a history of systemic lupus erythematosus presents with five days of lethargy, confusion, and affective changes. Over the past three days, the child has not been eating, drinking, talking, or sleeping and has been maintaining odd postures. Symptoms do not change throughout the day. Use of lorazepam improves the patient's mentation and functioning. Which of the following diagnoses best describes the child's psychiatric comorbidity?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Delirium"
+      },
+      {
+        "letter": "B",
+        "text": "Catatonia"
+      },
+      {
+        "letter": "C",
+        "text": "Psychosis"
+      },
+      {
+        "letter": "D",
+        "text": "Conversion disorder"
+      },
+      {
+        "letter": "E",
+        "text": "Neuroleptic malignant syndrome"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 143,
+    "stem": "Which of the following psychological tests is often utilized to assess visuomotor integration in youth?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Rorschach Test"
+      },
+      {
+        "letter": "B",
+        "text": "Rey-Osterrieth Complex Figure"
+      },
+      {
+        "letter": "C",
+        "text": "Robert's Thematic Apperception Test"
+      },
+      {
+        "letter": "D",
+        "text": "Wechsler Individual Achievement Test"
+      },
+      {
+        "letter": "E",
+        "text": "Kaufman Assessment Battery for Children"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 144,
+    "stem": "Which of the following signs or symptoms discriminates a primary psychotic disorder from the psychotic-like phenomena experienced secondary to trauma?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Repetitive play"
+      },
+      {
+        "letter": "B",
+        "text": "Distorted beliefs"
+      },
+      {
+        "letter": "C",
+        "text": "Auditory hallucinations"
+      },
+      {
+        "letter": "D",
+        "text": "Disorganized thought and behavior"
+      },
+      {
+        "letter": "E",
+        "text": "Exacerbations during times of stress"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 145,
+    "stem": "A four-year-old presents with dizziness, unsteady gait, and sudden, brief episodes of losing balance. The family reports that the child's eyes dart back and forth, but there is no loss of consciousness. Symptoms last one to two minutes and then subside spontaneously. This child is most at risk for developing what other neurological condition?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Tics"
+      },
+      {
+        "letter": "B",
+        "text": "Chorea"
+      },
+      {
+        "letter": "C",
+        "text": "Migraine"
+      },
+      {
+        "letter": "D",
+        "text": "Epilepsy"
+      },
+      {
+        "letter": "E",
+        "text": "Narcolepsy"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 146,
+    "stem": "An adolescent who moved to the United States as a child from El Salvador speaks English fluently with their many American friends. During soccer season, the adolescent's family throws parties attended by friends from both El Salvador and America. The adolescent particularly loves serving pupusas and speaking Spanish at the parties. Which of the following strategies of acculturation is most likely to have been adopted by the adolescent?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Adaptation"
+      },
+      {
+        "letter": "B",
+        "text": "Integration"
+      },
+      {
+        "letter": "C",
+        "text": "Separation"
+      },
+      {
+        "letter": "D",
+        "text": "Assimilation"
+      },
+      {
+        "letter": "E",
+        "text": "Marginalization"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 147,
+    "stem": "An adolescent with longstanding chronic fatigue reports periods of falling asleep suddenly in school. The adolescent is fearful, reporting not being able to move or speak for a few minutes when awakening in the morning and reports perceptual disturbances upon awakening. After a thorough clinical interview, which of the following tests is an essential part of a work-up for this disorder?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Actigraphy"
+      },
+      {
+        "letter": "B",
+        "text": "Holter monitoring"
+      },
+      {
+        "letter": "C",
+        "text": "Multiple sleep latency test"
+      },
+      {
+        "letter": "D",
+        "text": "Magnetic resonance imaging"
+      },
+      {
+        "letter": "E",
+        "text": "Maintenance of wakefulness test"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 148,
+    "stem": "The grandparent of a five-year-old child complains that their early morning sleep is disturbed by the child's loud play. Although the grandparent scolds the child, the behavior is getting worse. A psychiatrist advises the grandparent to praise the child frequently during quiet play and to consistently ignore any loud play. The psychiatrist hypothesizes that the grandparent's scolding is serving which of the following functions for the child?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Punishment"
+      },
+      {
+        "letter": "B",
+        "text": "Reinforcement"
+      },
+      {
+        "letter": "C",
+        "text": "Omission of reward"
+      },
+      {
+        "letter": "D",
+        "text": "Conditioned stimulus"
+      },
+      {
+        "letter": "E",
+        "text": "Unconditioned stimulus"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 149,
+    "stem": "Which of the following childhood mental health conditions is associated with the greatest risk for developing alcohol use disorder as an adult?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Conduct disorder"
+      },
+      {
+        "letter": "B",
+        "text": "Major depressive disorder"
+      },
+      {
+        "letter": "C",
+        "text": "Generalized anxiety disorder"
+      },
+      {
+        "letter": "D",
+        "text": "Oppositional defiant disorder"
+      },
+      {
+        "letter": "E",
+        "text": "Attention-deficit/hyperactivity disorder"
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 150,
+    "stem": "According to self-psychology, which of the following is considered typical in children?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Ego"
+      },
+      {
+        "letter": "B",
+        "text": "Avoidance"
+      },
+      {
+        "letter": "C",
+        "text": "Narcissism"
+      },
+      {
+        "letter": "D",
+        "text": "Mentalization"
+      },
+      {
+        "letter": "E",
+        "text": "Object constancy"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 151,
+    "stem": "Which of the following therapeutic modalities is based on the premise that the autonomic nervous system can come under voluntary control through operant conditioning?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Hypnosis"
+      },
+      {
+        "letter": "B",
+        "text": "Biofeedback"
+      },
+      {
+        "letter": "C",
+        "text": "Autogenic therapy"
+      },
+      {
+        "letter": "D",
+        "text": "Transcranial magnetic stimulation"
+      },
+      {
+        "letter": "E",
+        "text": "Eye movement desensitization and reprocessing"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 152,
+    "stem": "What is the proposed mechanism of action by which omega-3 fatty acids exert their antidepressant activity?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Antagonism of NMDA receptor"
+      },
+      {
+        "letter": "B",
+        "text": "Alteration of gut microbial flora"
+      },
+      {
+        "letter": "C",
+        "text": "Inhibition of serotonin reuptake"
+      },
+      {
+        "letter": "D",
+        "text": "Promotion of microglial proliferation"
+      },
+      {
+        "letter": "E",
+        "text": "Suppression of proinflammatory cytokines"
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 153,
+    "stem": "An adolescent is having difficulty making friends, struggles with initiating conversations, exhibits poor eye contact, and has difficulty understanding social cues. The adolescent becomes easily upset with unexpected transitions and is very \"rules focused.\" The patient prefers to be alone and spends considerable time reading about and discussing the solar system. The most likely diagnosis is:",
+    "options": [
+      {
+        "letter": "A",
+        "text": "social anxiety disorder."
+      },
+      {
+        "letter": "B",
+        "text": "autism spectrum disorder."
+      },
+      {
+        "letter": "C",
+        "text": "obsessive-compulsive disorder."
+      },
+      {
+        "letter": "D",
+        "text": "attention-deficit/hyperactivity disorder."
+      },
+      {
+        "letter": "E",
+        "text": "social (pragmatic) communication disorder."
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 154,
+    "stem": "A school-age child has a history of seizures, language regression, and hyperactivity. An electroencephalography is obtained and most likely will demonstrate which of the following findings?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Polymorphic spike waves"
+      },
+      {
+        "letter": "B",
+        "text": "Slow spike-and-wave pattern"
+      },
+      {
+        "letter": "C",
+        "text": "Continuous spike-and-waves in sleep"
+      },
+      {
+        "letter": "D",
+        "text": "Occipital spikes attenuated by eye opening"
+      },
+      {
+        "letter": "E",
+        "text": "Intermittent brief generalized 4 Hz spike-and-wave bursts"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 155,
+    "stem": "In addition to gender-affirming psychotherapy and appropriate social supports, what is the initial medical intervention for a patient who meets criteria for gender dysphoria with Tanner 2 stage puberty?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Oxytocin"
+      },
+      {
+        "letter": "B",
+        "text": "GnRH agonist"
+      },
+      {
+        "letter": "C",
+        "text": "Spironolactone"
+      },
+      {
+        "letter": "D",
+        "text": "Gender affirming surgery"
+      },
+      {
+        "letter": "E",
+        "text": "Cross-sex hormonal therapy"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 156,
+    "stem": "After an argument a child exclaims, \"Nobody wants to be my friend anymore!\" Which of the following cognitive errors is the child exhibiting according to cognitive behavioral theory?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Absolutism"
+      },
+      {
+        "letter": "B",
+        "text": "Personalization"
+      },
+      {
+        "letter": "C",
+        "text": "Catastrophizing"
+      },
+      {
+        "letter": "D",
+        "text": "Overgeneralization"
+      },
+      {
+        "letter": "E",
+        "text": "Attending to negative features of events"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 157,
+    "stem": "What is the primary goal of family therapy for oppositional defiant disorder?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Allowing the therapist to set limits with the child"
+      },
+      {
+        "letter": "B",
+        "text": "Monitoring for signs of abuse to ensure the child's safety"
+      },
+      {
+        "letter": "C",
+        "text": "Establishing a warm and mutually respectful relationship between parents and child"
+      },
+      {
+        "letter": "D",
+        "text": "Providing psychoeducation to the parents about features of oppositional defiant disorder"
+      },
+      {
+        "letter": "E",
+        "text": "Determining whether the family system has diffused or rigid boundaries with external systems"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 158,
+    "stem": "An adolescent presents to the psychiatrist as a follow-up after starting an antipsychotic medication. During the evaluation, the adolescent is noted to have difficulty staying seated and endorses a new onset sense of restlessness. Which of the following is a first-line treatment of these symptoms?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Buspirone"
+      },
+      {
+        "letter": "B",
+        "text": "Propranolol"
+      },
+      {
+        "letter": "C",
+        "text": "Benztropine"
+      },
+      {
+        "letter": "D",
+        "text": "Carbamazepine"
+      },
+      {
+        "letter": "E",
+        "text": "Methylphenidate"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 159,
+    "stem": "A 30-month-old stacks blocks and sits next to a child of the same age who plays with a toy car. The caregiver facilitates play by exchanging toys between the two children. The caregiver is concerned as the 30-month-old does not share their toys directly with the other child and is more focused on showing their blocks to the caregiver. Which of the following is the best response to the caregiver's concern?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "\"The child is engaging in parallel play, which is normal for their age.\""
+      },
+      {
+        "letter": "B",
+        "text": "\"The child needs more direction with their play due to inattention.\""
+      },
+      {
+        "letter": "C",
+        "text": "\"The child is showing differential cooperation due to separation anxiety.\""
+      },
+      {
+        "letter": "D",
+        "text": "\"The child is showing signs of autism and would benefit from evaluation.\""
+      },
+      {
+        "letter": "E",
+        "text": "\"The child has evidence of poor attachment and would benefit from parent-child therapy.\""
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 160,
+    "stem": "A medical student interviews a depressed adolescent patient, and then presents the history and exam to the resident. The resident notices that the student failed to ask about mania. What should the resident say first using the One Minute Preceptor Model of Teaching?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "\"What is your DSM diagnosis of this patient?\""
+      },
+      {
+        "letter": "B",
+        "text": "\"What is the most important rule-out for this case?\""
+      },
+      {
+        "letter": "C",
+        "text": "\"That was a great presentation. One thing you missed was\\...\""
+      },
+      {
+        "letter": "D",
+        "text": "\"Did you ask about any history of elevated mood and energy?\""
+      },
+      {
+        "letter": "E",
+        "text": "\"How well do you think your interview and presentation went?\""
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 161,
+    "stem": "A 13-year-old patient is evaluated for escalating oppositional behaviors, including school truancy, running away from home, and substance use. The patient is given a provisional diagnosis of conduct disorder. The patient's parents ask if their child is likely to become a \"lifetime criminal.\" Which of the following would be the most appropriate response regarding the course of conduct disorder?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "\"We do not currently have enough data to say.\""
+      },
+      {
+        "letter": "B",
+        "text": "\"Most children are likely to become incarcerated as adults.\""
+      },
+      {
+        "letter": "C",
+        "text": "\"Most children end up improving significantly by young adulthood.\""
+      },
+      {
+        "letter": "D",
+        "text": "\"Most children become symptom-free with medication management.\""
+      },
+      {
+        "letter": "E",
+        "text": "\"Most children progressively decline in functioning before they get better.\""
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 162,
+    "stem": "Among youth ages 5-12, which of the following is the most significant influence on emotional development?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Self-actualization"
+      },
+      {
+        "letter": "B",
+        "text": "Object permanence"
+      },
+      {
+        "letter": "C",
+        "text": "Language acquisition"
+      },
+      {
+        "letter": "D",
+        "text": "Sense of competence"
+      },
+      {
+        "letter": "E",
+        "text": "Mastery of formal operations"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 163,
+    "stem": "Which of the following statements accurately describes a forensic child psychiatric evaluation, as opposed to a clinical evaluation?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "The physician has a fiduciary duty to the patient."
+      },
+      {
+        "letter": "B",
+        "text": "The purpose of the evaluation is to relieve suffering."
+      },
+      {
+        "letter": "C",
+        "text": "There is an increased opportunity for therapeutic bias to occur."
+      },
+      {
+        "letter": "D",
+        "text": "The client is considered to be the court or other retaining agency."
+      },
+      {
+        "letter": "E",
+        "text": "A physician-patient relationship is established; and thus, the evaluation remains confidential."
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 164,
+    "stem": "The Privacy Rule established under the Health Insurance Portability and Accountability Act of 1996 (HIPAA) designates which of the following types of notes as a special category, providing them with increased protection and requiring consent by the patient prior to their release?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "HIV treatment"
+      },
+      {
+        "letter": "B",
+        "text": "Psychotherapy notes"
+      },
+      {
+        "letter": "C",
+        "text": "Substance use treatment"
+      },
+      {
+        "letter": "D",
+        "text": "Treatment for gender dysphoria"
+      },
+      {
+        "letter": "E",
+        "text": "Inpatient hospitalization records"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 165,
+    "stem": "Increasing numbers of state-wide Child Psychiatry Access Programs have been designed to enhance pediatricians' ability to access child psychiatrists' expertise by utilizing which of the following models?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Direct consultation by a psychiatrist in the school setting"
+      },
+      {
+        "letter": "B",
+        "text": "Child psychiatrist working as a consultant in a pediatric clinic"
+      },
+      {
+        "letter": "C",
+        "text": "Pediatric residents rotating through child psychiatry fellowship programs"
+      },
+      {
+        "letter": "D",
+        "text": "Pediatrician consulting child psychiatrist by telephone or electronic means"
+      },
+      {
+        "letter": "E",
+        "text": "Weekly virtual rounds by a child psychiatrist on difficult-to-treat shared patients"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 166,
+    "stem": "During an evaluation of a teen with a substance use disorder, the psychiatrist states, \"It is wonderful that you have been sober for six months.\" This is an example of which core skill in motivational interviewing?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Empathy"
+      },
+      {
+        "letter": "B",
+        "text": "Reflection"
+      },
+      {
+        "letter": "C",
+        "text": "Reframing"
+      },
+      {
+        "letter": "D",
+        "text": "Affirmation"
+      },
+      {
+        "letter": "E",
+        "text": "Summarizing"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 167,
+    "stem": "A school hires a psychiatrist to be a consultant following a student suicide. Which of the following responsibilities would most likely be handled by the psychiatrist as a consultant rather than as a psychiatrist working at the school clinically?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Prescribe medication as appropriate"
+      },
+      {
+        "letter": "B",
+        "text": "Direct group therapy among students"
+      },
+      {
+        "letter": "C",
+        "text": "Evaluate staff for grief and depression"
+      },
+      {
+        "letter": "D",
+        "text": "Advise administrators on how to respond"
+      },
+      {
+        "letter": "E",
+        "text": "Evaluate students for grief and depression"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 168,
+    "stem": "Gene imprinting refers to a process when which of the following occurs?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Genes are repressed after a period of activity."
+      },
+      {
+        "letter": "B",
+        "text": "Introns are selectively spliced into the genome."
+      },
+      {
+        "letter": "C",
+        "text": "Genes of either paternal or maternal origin are silenced."
+      },
+      {
+        "letter": "D",
+        "text": "Adenine nucleotides are added to mRNA prior to its translation into DNA."
+      },
+      {
+        "letter": "E",
+        "text": "There is an increase in expression of a gene over several family generations."
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 169,
+    "stem": "An adolescent is evaluated for persistent lack of friends and preoccupation with fantasies that he has superpowers. On exam, his speech is vague, and his affect is fearful. What additional finding would lend support to a diagnosis of schizotypal personality disorder?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Repetitive, stereotyped behaviors"
+      },
+      {
+        "letter": "B",
+        "text": "Mood lability with temper outbursts"
+      },
+      {
+        "letter": "C",
+        "text": "Fear of being separated from parents"
+      },
+      {
+        "letter": "D",
+        "text": "Persecutory and religious delusions"
+      },
+      {
+        "letter": "E",
+        "text": "Social anxiety not reduced by familiarity"
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 170,
+    "stem": "Which of the following is a soft neurological sign most commonly observed in children with attention-deficit/hyperactivity disorder?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Presence of vertical saccades"
+      },
+      {
+        "letter": "B",
+        "text": "Abnormal deep tendon reflexes"
+      },
+      {
+        "letter": "C",
+        "text": "Presence of an intact snout reflex"
+      },
+      {
+        "letter": "D",
+        "text": "Difficulty rising from prone position"
+      },
+      {
+        "letter": "E",
+        "text": "Difficulty with repetitive motor tasks"
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 171,
+    "stem": "A researcher wishes to study clinical outcomes of children with a rare condition over time. Which research method would be best suited for this study?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Cohort"
+      },
+      {
+        "letter": "B",
+        "text": "Case-control"
+      },
+      {
+        "letter": "C",
+        "text": "Meta-analysis"
+      },
+      {
+        "letter": "D",
+        "text": "Cross-sectional"
+      },
+      {
+        "letter": "E",
+        "text": "Randomized controlled trial"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 172,
+    "stem": "Which of the following findings was observed in a 2015 meta-analysis of placebo-controlled trials examining the risk of tics associated with psychostimulant use?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "The use of long-acting methylphenidate was associated with an increase in tics."
+      },
+      {
+        "letter": "B",
+        "text": "The use of short-acting methylphenidate was associated with an increase in tics."
+      },
+      {
+        "letter": "C",
+        "text": "There is no association between new onset or worsening of tics and psychostimulant use."
+      },
+      {
+        "letter": "D",
+        "text": "The use of long acting dextroamphetamine was associated with an increase in tics."
+      },
+      {
+        "letter": "E",
+        "text": "The use of short acting dextroamphetamine was associated with an increase in tics."
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 173,
+    "stem": "The condition in which a triplet repeat expansion leads to an increase in severity of a disorder over several generations is referred to as:",
+    "options": [
+      {
+        "letter": "A",
+        "text": "imprinting."
+      },
+      {
+        "letter": "B",
+        "text": "duplication."
+      },
+      {
+        "letter": "C",
+        "text": "mosaicism."
+      },
+      {
+        "letter": "D",
+        "text": "anticipation."
+      },
+      {
+        "letter": "E",
+        "text": "polymorphism."
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 174,
+    "stem": "A three-year-old child is told the following scenario: \"A child plays with a doll and places it on the bed before leaving the room. The child's sibling, who was not in the room before, comes in and moves the doll to the shelf. Where would the child look for the doll upon returning to the room?\" The three-year-old indicates that the child will look on the shelf. This is because most three-year-olds have not acquired which cognitive process?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Theory of mind"
+      },
+      {
+        "letter": "B",
+        "text": "Social referencing"
+      },
+      {
+        "letter": "C",
+        "text": "Object permanence"
+      },
+      {
+        "letter": "D",
+        "text": "Object conservation"
+      },
+      {
+        "letter": "E",
+        "text": "Transitional phenomena"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 175,
+    "stem": "An 8-year-old is brought by caregivers for psychiatric evaluation of \"visions\" for six months. The child describes seeing gory images of family members dying or being harmed. Caregivers state that the child seems very anxious and constantly asks if family members are safe. Caregivers report that the child was involved in a minor car accident one year ago. The child states these images \"pop into their head\" several times each day and cause distress. The child's presentation is most consistent with which of the following conditions?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Schizophreniform disorder"
+      },
+      {
+        "letter": "B",
+        "text": "Separation anxiety disorder"
+      },
+      {
+        "letter": "C",
+        "text": "Generalized anxiety disorder"
+      },
+      {
+        "letter": "D",
+        "text": "Posttraumatic stress disorder"
+      },
+      {
+        "letter": "E",
+        "text": "Obsessive-compulsive disorder"
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 176,
+    "stem": "Which of the following factors is the strongest predictor for suicide and suicide attempts?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Anxiety"
+      },
+      {
+        "letter": "B",
+        "text": "Depression"
+      },
+      {
+        "letter": "C",
+        "text": "Impulsivity"
+      },
+      {
+        "letter": "D",
+        "text": "Chronic non-suicidal self-injury"
+      },
+      {
+        "letter": "E",
+        "text": "Borderline personality disorder"
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 177,
+    "stem": "The Child Guidance Clinic movement initially began to address which of the following problems?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Family poverty"
+      },
+      {
+        "letter": "B",
+        "text": "Juvenile delinquency"
+      },
+      {
+        "letter": "C",
+        "text": "Child abuse and neglect"
+      },
+      {
+        "letter": "D",
+        "text": "Education of children with disabilities"
+      },
+      {
+        "letter": "E",
+        "text": "Deinstitutionalization of the mentally ill"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 178,
+    "stem": "In addition to guaranteeing a free appropriate public education, the Individuals with Disabilities Education Act (IDEA) also obligates access to:",
+    "options": [
+      {
+        "letter": "A",
+        "text": "parent management training."
+      },
+      {
+        "letter": "B",
+        "text": "a psychiatrist at the school site."
+      },
+      {
+        "letter": "C",
+        "text": "the least restrictive environment."
+      },
+      {
+        "letter": "D",
+        "text": "an individualized tutoring program."
+      },
+      {
+        "letter": "E",
+        "text": "subsidized individual psychotherapy."
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 179,
+    "stem": "Children with encopresis are most likely to have which of the following comorbid psychiatric disorders?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Specific phobia"
+      },
+      {
+        "letter": "B",
+        "text": "Major depressive"
+      },
+      {
+        "letter": "C",
+        "text": "Separation anxiety"
+      },
+      {
+        "letter": "D",
+        "text": "Generalized anxiety"
+      },
+      {
+        "letter": "E",
+        "text": "Oppositional defiant"
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 180,
+    "stem": "Which of the following statements best describes the impact of marijuana use on adolescents transitioning into adulthood as reported in data from the National Longitudinal Survey of Youth?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Infrequent users had the least number of sexual partners and relationships."
+      },
+      {
+        "letter": "B",
+        "text": "Heavy users were the most likely to live with their parents in their late twenties."
+      },
+      {
+        "letter": "C",
+        "text": "Compared to other significant users, early quitters were less likely to have children."
+      },
+      {
+        "letter": "D",
+        "text": "Heavy users who quit early had similar trajectories to those who continued heavy use."
+      },
+      {
+        "letter": "E",
+        "text": "Abstainers' educational achievements were much better than all of the other groups."
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 181,
+    "stem": "Which of the following neuropeptides promotes synaptogenesis and reduces apoptosis during toddlerhood?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Leptin"
+      },
+      {
+        "letter": "B",
+        "text": "Hypocretin"
+      },
+      {
+        "letter": "C",
+        "text": "Anandamide"
+      },
+      {
+        "letter": "D",
+        "text": "Agouti-related peptide"
+      },
+      {
+        "letter": "E",
+        "text": "Brain-derived neurotrophic factor"
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 182,
+    "stem": "A 17-year-old patient presents to the emergency department with symptoms of dehydration, hyperthermia, tachycardia, and rhabdomyolysis. The patient has recently begun treatment for schizophrenia and has a history of substance abuse. In addition to neuroleptic malignant syndrome, drug intoxication is part of the differential diagnosis. Which of the following drugs of abuse is most likely involved?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Alcohol"
+      },
+      {
+        "letter": "B",
+        "text": "Cannabis"
+      },
+      {
+        "letter": "C",
+        "text": "Heroin"
+      },
+      {
+        "letter": "D",
+        "text": "Gamma hydroxybutyrate"
+      },
+      {
+        "letter": "E",
+        "text": "MDMA"
+      }
+    ],
+    "answers": [
+      "E"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 183,
+    "stem": "A forensic psychiatrist evaluates a child who reports being physically abused by a school coach. The child's family is suing the school system. Which of the following should be the focus of the psychiatrist's forensic evaluation?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Duty"
+      },
+      {
+        "letter": "B",
+        "text": "Liability"
+      },
+      {
+        "letter": "C",
+        "text": "Damages"
+      },
+      {
+        "letter": "D",
+        "text": "Dereliction"
+      }
+    ],
+    "answers": [
+      "C"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 184,
+    "stem": "A meta-analysis of randomized controlled trials reports that antidepressants are effective in pediatric patients with a number-needed-to-treat (NNT) of nine. Which of the following statements is the most accurate interpretation of this NNT?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Patients are nine times more likely to respond to an antidepressant than to a placebo."
+      },
+      {
+        "letter": "B",
+        "text": "Treatment with antidepressants will result in a total response rate of one in nine patients."
+      },
+      {
+        "letter": "C",
+        "text": "One in nine patients will respond, even if they do not receive the antidepressant medication."
+      },
+      {
+        "letter": "D",
+        "text": "Many patients may respond to treatment, but only one response out of nine can be attributed to the antidepressant."
+      }
+    ],
+    "answers": [
+      "D"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 185,
+    "stem": "Children are screened for a disorder with a saliva sample. Two hundred samples are taken, and the test yields 85 true positives, 15 false negatives, 99 true negatives, and 1 false positive. What is the sensitivity of the saliva screening test?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "85%"
+      },
+      {
+        "letter": "B",
+        "text": "87%"
+      },
+      {
+        "letter": "C",
+        "text": "98%"
+      },
+      {
+        "letter": "D",
+        "text": "99%"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 186,
+    "stem": "According to recent meta-analyses, which of the following best indicates the median age range when girls in the United States begin puberty?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "5-7 years"
+      },
+      {
+        "letter": "B",
+        "text": "8-10 years"
+      },
+      {
+        "letter": "C",
+        "text": "11-13 years"
+      },
+      {
+        "letter": "D",
+        "text": "14-16 years"
+      }
+    ],
+    "answers": [
+      "B"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 187,
+    "stem": "Which of the following psychosocial factors most positively impacts the mental health of refugee youth?",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Relationships with several close friends"
+      },
+      {
+        "letter": "B",
+        "text": "Placement in a highly ranked school system"
+      },
+      {
+        "letter": "C",
+        "text": "Focus on quick assimilation into the local community"
+      },
+      {
+        "letter": "D",
+        "text": "Regular updates on events occurring in the country of origin"
+      }
+    ],
+    "answers": [
+      "A"
+    ],
+    "multi": false,
+    "has_img": false
+  },
+  {
+    "n": 188,
+    "stem": "A child with autism, intellectual disability, and chronic health problems presents to the emergency department with escalating agitation and aggressive behavior over the past two weeks. The child is currently on guanfacine twice daily and aripiprazole in the morning. Verbal interventions are ineffective in de-escalating the child. Which of the following are the next best approaches to aid in de-escalating the child's behavior? (Select three.)",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Administer oral aripiprazole"
+      },
+      {
+        "letter": "B",
+        "text": "Administer oral hydroxyzine"
+      },
+      {
+        "letter": "C",
+        "text": "Administer intramuscular lorazepam"
+      },
+      {
+        "letter": "D",
+        "text": "Administer intramuscular olanzapine"
+      },
+      {
+        "letter": "E",
+        "text": "Ask the caregivers to leave the room"
+      },
+      {
+        "letter": "F",
+        "text": "Reduce stimulation in the environment"
+      },
+      {
+        "letter": "G",
+        "text": "Transfer the child to inpatient psychiatry"
+      },
+      {
+        "letter": "H",
+        "text": "Address any associated gastrointestinal symptoms"
+      }
+    ],
+    "answers": [
+      "A",
+      "F",
+      "H"
+    ],
+    "multi": true,
+    "has_img": false
+  },
+  {
+    "n": 189,
+    "stem": "Which of the following additional findings support a diagnosis of borderline personality disorder in an adolescent with a one-year history of affective instability, severe impulsivity, and recurrent self-harm? (Select three.)",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Sense of entitlement"
+      },
+      {
+        "letter": "B",
+        "text": "Exploits others without guilt"
+      },
+      {
+        "letter": "C",
+        "text": "Persistent paranoid thoughts"
+      },
+      {
+        "letter": "D",
+        "text": "Chronic feelings of emptiness"
+      },
+      {
+        "letter": "E",
+        "text": "Attempts to avoid abandonment"
+      },
+      {
+        "letter": "F",
+        "text": "Transient dissociative symptoms"
+      },
+      {
+        "letter": "G",
+        "text": "Inappropriately seductive behavior"
+      },
+      {
+        "letter": "H",
+        "text": "Flashbacks of past negative events"
+      }
+    ],
+    "answers": [
+      "D",
+      "E",
+      "F"
+    ],
+    "multi": true,
+    "has_img": false
+  },
+  {
+    "n": 190,
+    "stem": "When consulting on a medical floor for treatment of a patient with depression and liver failure, which antidepressants would be safest to use due to lower risk of further hepatotoxicity? (Select three.)",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Bupropion"
+      },
+      {
+        "letter": "B",
+        "text": "Citalopram"
+      },
+      {
+        "letter": "C",
+        "text": "Trazadone"
+      },
+      {
+        "letter": "D",
+        "text": "Duloxetine"
+      },
+      {
+        "letter": "E",
+        "text": "Nefazadone"
+      },
+      {
+        "letter": "F",
+        "text": "Amitriptyline"
+      },
+      {
+        "letter": "G",
+        "text": "Escitalopram"
+      },
+      {
+        "letter": "H",
+        "text": "Fluvoxamine"
+      }
+    ],
+    "answers": [
+      "B",
+      "G",
+      "H"
+    ],
+    "multi": true,
+    "has_img": false
+  },
+  {
+    "n": 191,
+    "stem": "Which of the following evidence-based psychotherapeutic strategies are useful in the treatment of pediatric obsessive-compulsive disorder? (Select three.)",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Graded exposure"
+      },
+      {
+        "letter": "B",
+        "text": "Improving attachment"
+      },
+      {
+        "letter": "C",
+        "text": "Renaming the thought"
+      },
+      {
+        "letter": "D",
+        "text": "Improving self-concept"
+      },
+      {
+        "letter": "E",
+        "text": "Enacting psychodrama"
+      },
+      {
+        "letter": "F",
+        "text": "Increase active assertion"
+      },
+      {
+        "letter": "G",
+        "text": "Discouraging triangulation"
+      },
+      {
+        "letter": "H",
+        "text": "Accepting thoughts and feelings"
+      }
+    ],
+    "answers": [
+      "A",
+      "C",
+      "F"
+    ],
+    "multi": true,
+    "has_img": false
+  },
+  {
+    "n": 192,
+    "stem": "In normal development, which skills noticeably emerge between the ages of 18 and 36 months which affect how the child interacts with others? (Select three.)",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Conservation"
+      },
+      {
+        "letter": "B",
+        "text": "Symbolic play"
+      },
+      {
+        "letter": "C",
+        "text": "Deferred imitation"
+      },
+      {
+        "letter": "D",
+        "text": "Object permanence"
+      },
+      {
+        "letter": "E",
+        "text": "Identity consolidation"
+      },
+      {
+        "letter": "F",
+        "text": "Internal problem solving"
+      },
+      {
+        "letter": "G",
+        "text": "Trial and error problem solving"
+      },
+      {
+        "letter": "H",
+        "text": "Understanding cause and effect"
+      }
+    ],
+    "answers": [
+      "B",
+      "C",
+      "F"
+    ],
+    "multi": true,
+    "has_img": false
+  },
+  {
+    "n": 193,
+    "stem": "Which of the following would most likely continue or emerge as long-term, neuro-cognitive sequelae of a moderate to severe traumatic brain injury in a child? (Select three.)",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Word finding"
+      },
+      {
+        "letter": "B",
+        "text": "Loss of skills"
+      },
+      {
+        "letter": "C",
+        "text": "Parietal seizures"
+      },
+      {
+        "letter": "D",
+        "text": "Retrograde amnesia"
+      },
+      {
+        "letter": "E",
+        "text": "Slower rates of learning"
+      },
+      {
+        "letter": "F",
+        "text": "Aphasic language deficits"
+      },
+      {
+        "letter": "G",
+        "text": "Intrusive thoughts about the trauma"
+      },
+      {
+        "letter": "H",
+        "text": "Visuospatial constructive impairments"
+      }
+    ],
+    "answers": [
+      "A",
+      "B",
+      "E"
+    ],
+    "multi": true,
+    "has_img": false
+  },
+  {
+    "n": 194,
+    "stem": "A seven-year-old child with attention-deficit/hyperactivity disorder struggles to read and perform academically at grade level. The parents would like the child to have an Individual Education Plan (IEP) at school. The psychiatrist recommends that they write a letter requesting an IEP. Which of the following components are important to get the school to initiate an IEP evaluation for a learning disability? (Select three)",
+    "options": [
+      {
+        "letter": "A",
+        "text": "The child has impaired motor skills."
+      },
+      {
+        "letter": "B",
+        "text": "The child is culturally disadvantaged."
+      },
+      {
+        "letter": "C",
+        "text": "The child has below average intelligence."
+      },
+      {
+        "letter": "D",
+        "text": "The child is attending a disadvantaged school."
+      },
+      {
+        "letter": "E",
+        "text": "The child's primary language is not English."
+      },
+      {
+        "letter": "F",
+        "text": "Vision problems have been ruled out by a professional."
+      },
+      {
+        "letter": "G",
+        "text": "The child has failed high quality interventions to learn to read."
+      },
+      {
+        "letter": "H",
+        "text": "Emotional factors for inhibiting learning are ruled out by a psychiatrist."
+      }
+    ],
+    "answers": [
+      "F",
+      "G",
+      "H"
+    ],
+    "multi": true,
+    "has_img": false
+  },
+  {
+    "n": 195,
+    "stem": "According to the DSM, which diagnoses cannot be diagnosed in conjunction with disruptive mood dysregulation disorder? (Select three.)",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Bipolar disorder"
+      },
+      {
+        "letter": "B",
+        "text": "Conduct disorder"
+      },
+      {
+        "letter": "C",
+        "text": "Major depressive disorder"
+      },
+      {
+        "letter": "D",
+        "text": "Substance abuse disorder"
+      },
+      {
+        "letter": "E",
+        "text": "Intermittent explosive disorder"
+      },
+      {
+        "letter": "F",
+        "text": "Oppositional defiant disorder"
+      },
+      {
+        "letter": "G",
+        "text": "Posttraumatic stress disorder"
+      },
+      {
+        "letter": "H",
+        "text": "Attention-deficit/hyperactivity disorder"
+      }
+    ],
+    "answers": [
+      "A",
+      "E",
+      "F"
+    ],
+    "multi": true,
+    "has_img": false
+  },
+  {
+    "n": 196,
+    "stem": "Which of the following statements are true regarding the association between increased social media use and worse mental health outcomes in transitional-age youth? (Select three.)",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Major depressive disorder predicts the development of problematic social media use."
+      },
+      {
+        "letter": "B",
+        "text": "Social media use has a dose-dependent relationship with the development of depression."
+      },
+      {
+        "letter": "C",
+        "text": "Positive experiences on social media are associated with improved depressive symptoms."
+      },
+      {
+        "letter": "D",
+        "text": "Negative experiences on social media are associated with worsened depressive symptoms."
+      },
+      {
+        "letter": "E",
+        "text": "Depression is a confounder that explains the correlation between social media use and poor sleep."
+      },
+      {
+        "letter": "F",
+        "text": "In marginalized groups, increasing social media use is associated with better mental health outcomes."
+      },
+      {
+        "letter": "G",
+        "text": "Problematic social media use is associated with social anxiety and sensitivity to interpersonal rejection."
+      },
+      {
+        "letter": "H",
+        "text": "Increased use of the \"Like\" feature on social media posts is associated with lower anxiety and higher self-esteem."
+      }
+    ],
+    "answers": [
+      "B",
+      "D",
+      "G"
+    ],
+    "multi": true,
+    "has_img": false
+  },
+  {
+    "n": 197,
+    "stem": "Which of the following brain regions are part of the brain's default mode network? (Select three.)",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Insular cortex"
+      },
+      {
+        "letter": "B",
+        "text": "Medial prefrontal cortex"
+      },
+      {
+        "letter": "C",
+        "text": "Anterior cingulate cortex"
+      },
+      {
+        "letter": "D",
+        "text": "Posterior cingulate cortex"
+      },
+      {
+        "letter": "E",
+        "text": "Dorsolateral prefrontal cortex"
+      },
+      {
+        "letter": "F",
+        "text": "Ventromedial prefrontal cortex"
+      },
+      {
+        "letter": "G",
+        "text": "Medial posterior parietal cortex"
+      },
+      {
+        "letter": "H",
+        "text": "Lateral posterior parietal cortex"
+      }
+    ],
+    "answers": [
+      "B",
+      "D",
+      "G"
+    ],
+    "multi": true,
+    "has_img": false
+  },
+  {
+    "n": 198,
+    "stem": "A sleep specialist is asked to evaluate a 4-year-old who reportedly sits up suddenly from sleep and yells out loudly. When the caretaker enters the bedroom, the child appears fearful and is found breathing heavily, sweating, and with a rapid heartrate. Which of the following are highest on the differential? (Select three.)",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Epilepsy"
+      },
+      {
+        "letter": "B",
+        "text": "Narcolepsy"
+      },
+      {
+        "letter": "C",
+        "text": "Sleep terrors"
+      },
+      {
+        "letter": "D",
+        "text": "Panic attacks"
+      },
+      {
+        "letter": "E",
+        "text": "Somnambulism"
+      },
+      {
+        "letter": "F",
+        "text": "Restless leg syndrome"
+      },
+      {
+        "letter": "G",
+        "text": "Obstructive sleep apnea"
+      },
+      {
+        "letter": "H",
+        "text": "Circadian rhythm sleep disorder"
+      }
+    ],
+    "answers": [
+      "A",
+      "C",
+      "D"
+    ],
+    "multi": true,
+    "has_img": false
+  },
+  {
+    "n": 199,
+    "stem": "Which of the following laboratory findings might be elevated in patients with anorexia nervosa? (Select three.)",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Sodium"
+      },
+      {
+        "letter": "B",
+        "text": "Cortisol"
+      },
+      {
+        "letter": "C",
+        "text": "Chloride"
+      },
+      {
+        "letter": "D",
+        "text": "Thyroxine"
+      },
+      {
+        "letter": "E",
+        "text": "Potassium"
+      },
+      {
+        "letter": "F",
+        "text": "Cholesterol"
+      },
+      {
+        "letter": "G",
+        "text": "Liver enzymes"
+      },
+      {
+        "letter": "H",
+        "text": "White blood cells"
+      }
+    ],
+    "answers": [
+      "B",
+      "F",
+      "G"
+    ],
+    "multi": true,
+    "has_img": false
+  },
+  {
+    "n": 200,
+    "stem": "A child admitted to an inpatient psychiatric hospital is severely agitated and aggressive toward staff. The patient does not respond to de-escalation techniques and refuses oral medication. Physical restraints are initiated, and the patient receives an intramuscular medication. According to the Joint Commission regulations, which of the following procedures should be followed? (Select three.)",
+    "options": [
+      {
+        "letter": "A",
+        "text": "Staff must monitor the child continuously while the child is in restraints."
+      },
+      {
+        "letter": "B",
+        "text": "The child should be removed from the physical restraints as soon as the child is calm."
+      },
+      {
+        "letter": "C",
+        "text": "Oral antihistamine medication should be administered after being released from the restraints."
+      },
+      {
+        "letter": "D",
+        "text": "Constant observation should be initiated for a 24-hour period after the removal from the restraints."
+      },
+      {
+        "letter": "E",
+        "text": "Immediately after the removal of the restraints, the child should be moved to a locked seclusion room."
+      },
+      {
+        "letter": "F",
+        "text": "After the removal of the restraints, the clinician should hold a debriefing discussion with the patient."
+      },
+      {
+        "letter": "G",
+        "text": "The child should remain in physical restraints for a period of 15 minutes in order to ensure their safety."
+      },
+      {
+        "letter": "H",
+        "text": "The child should be isolated from other patients for a 24-hour period after the removal from the restraints."
+      }
+    ],
+    "answers": [
+      "A",
+      "B",
+      "F"
+    ],
+    "multi": true,
+    "has_img": false
+  }
+]

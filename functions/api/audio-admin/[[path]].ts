@@ -1,6 +1,6 @@
 import { keyFromParam, requireBatch, type AudioEnv } from "../../_shared/audio";
 
-const MAX_UPLOAD_BYTES = 55 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 80 * 1024 * 1024;
 const MAX_PART_BYTES = 40 * 1024 * 1024;
 
 function optionalSha(request: Request): string | null {

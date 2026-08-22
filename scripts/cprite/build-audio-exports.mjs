@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Build a Child-bank car file: all 200 CPRITE items, 1x and 1.5x, 1-sec gaps.
+// Build a Child-bank car file: all CPRITE items, 1x and 1.5x, 1-sec gaps.
 // Scope key is "cprite:all" so it never collides with the 5,100-question PRITE "all".
 import { createReadStream, createWriteStream } from "node:fs";
 import { mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
@@ -12,9 +12,9 @@ const ROOT = process.cwd();
 const QUESTIONS = resolve(ROOT, "public/data/cprite_questions.json");
 const SCRIPTS = resolve(ROOT, "extraction/output/cprite_audio_scripts.jsonl");
 const CLIPS = resolve(ROOT, "extraction/output/audio_clips_cprite");
-const EXPORTS = resolve(ROOT, "extraction/output/audio_exports/v7-cprite-2024");
+const EXPORTS = resolve(ROOT, "extraction/output/audio_exports/v8-cprite-2023-2024");
 const PUBLIC_MANIFEST = resolve(ROOT, "public/data/audio_exports.json");
-const PREFIX = "exports/v7-cprite-2024";
+const PREFIX = "exports/v8-cprite-2023-2024";
 const THINKING = 4;
 const BETWEEN = 1;
 const RATES = [1, 1.5];
@@ -145,7 +145,7 @@ async function buildBase(questions, thinking, between) {
     await writeFile(listPath, `${lines.join("\n")}\n`);
     const temporary = `${path}.part.mp3`;
     console.log(`[build] Child library: ${questions.length} questions`);
-    await run("ffmpeg", ["-hide_banner", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", listPath, "-c", "copy", "-map_metadata", "-1", "-metadata", "title=PRITE Daily — Child CPRITE 2024", "-write_xing", "1", "-y", temporary]);
+    await run("ffmpeg", ["-hide_banner", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", listPath, "-c", "copy", "-map_metadata", "-1", "-metadata", "title=PRITE Daily — Child CPRITE 2023-2024", "-write_xing", "1", "-y", temporary]);
     await rename(temporary, path);
   }
   const file = await stat(path);
@@ -161,7 +161,7 @@ async function buildRate(base, rate) {
   if (!(await goodFile(path))) {
     const temporary = `${path}.part.mp3`;
     console.log(`[speed] Child library: ${rate}x`);
-    await run("ffmpeg", ["-hide_banner", "-loglevel", "error", "-i", base.local_path, "-filter:a", `atempo=${rate}`, "-ar", "44100", "-ac", "1", "-c:a", "libmp3lame", "-b:a", "64k", "-map_metadata", "-1", "-metadata", `title=PRITE Daily — Child CPRITE 2024 (${rate}x)`, "-y", temporary]);
+    await run("ffmpeg", ["-hide_banner", "-loglevel", "error", "-i", base.local_path, "-filter:a", `atempo=${rate}`, "-ar", "44100", "-ac", "1", "-c:a", "libmp3lame", "-b:a", "64k", "-map_metadata", "-1", "-metadata", `title=PRITE Daily — Child CPRITE 2023-2024 (${rate}x)`, "-y", temporary]);
     await rename(temporary, path);
   }
   const file = await stat(path);
@@ -212,7 +212,7 @@ async function main() {
   if (!env.url || !env.anonKey || !env.batchSecret) throw new Error("SUPABASE_URL, SUPABASE_ANON_KEY, and AUDIO_BATCH_SECRET are required");
   const questions = await json(QUESTIONS, []);
   const scripts = await readScripts();
-  if (questions.length !== 200) throw new Error(`Expected 200 CPRITE questions, got ${questions.length}`);
+  if (questions.length !== 400) throw new Error(`Expected 400 CPRITE questions, got ${questions.length}`);
   console.log(`[source] ${questions.length} child questions`);
   await downloadAll(questions, scripts, env);
   const [thinking, between] = await Promise.all([silence(THINKING), silence(BETWEEN)]);
@@ -227,7 +227,7 @@ async function main() {
   const fallback = variants.find((v) => v.playback_rate === 1) ?? variants[0];
   const entry = {
     scope_key: "cprite:all",
-    topic: "Child · CPRITE 2024",
+    topic: "Child · CPRITE 2023–2024",
     question_count: questions.length,
     path: fallback.path,
     filename: fallback.filename,

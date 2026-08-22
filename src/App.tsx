@@ -2498,7 +2498,7 @@ export default function App() {
       });
     }
     if (psychMode === "child") {
-      return ys.sort((a, b) => a.localeCompare(b));
+      return ys.sort((a, b) => b.localeCompare(a));
     }
     return ys.sort();
   }, [all, psychMode, modalityFilter]);
@@ -3854,9 +3854,9 @@ export default function App() {
               <Baby size={16} strokeWidth={2.2} />
             </span>
             <div>
-              <div style={s.bankBannerTitle}>Child · CPRITE 2024 (questions 1–{all?.length || 200})</div>
+              <div style={s.bankBannerTitle}>Child · CPRITE 2023–2024 ({all?.length || 400} questions)</div>
               <div style={s.bankBannerHint}>
-                Child Psychiatry Resident-In-Training Exam items. Filter by topic, then use Today or Custom the same way as the other banks.
+                Child Psychiatry Resident-In-Training Exam items from 2023 and 2024. Filter by topic or exam year, then use Today or Custom the same way as the other banks.
               </div>
             </div>
           </div>
@@ -9970,7 +9970,7 @@ function AudioDrillsPanel({ all, onClose, fire }: { all: RawQuestion[]; onClose:
     listAudioReviewProgress().then((rows) => { if (alive) setSavedProgress(rows); });
     // Version the URL as well as sending no-store headers. Pages deployment
     // aliases can briefly retain an older static JSON object across a release.
-    fetch("/data/audio_exports.json?v=audio-cprite-200", { cache: "no-store" })
+    fetch("/data/audio_exports.json?v=audio-cprite-400", { cache: "no-store" })
       .then((response) => response.ok ? response.json() : null)
       .then((manifest) => { if (alive && Array.isArray(manifest?.exports)) setExports(manifest.exports); })
       .catch(() => { /* Exports can be populated after the player ships. */ });

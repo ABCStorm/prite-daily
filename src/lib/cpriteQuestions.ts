@@ -28,7 +28,7 @@ let promise: Promise<unknown[]> | null = null;
 export function loadCpriteQuestions(): Promise<unknown[]> {
   if (!promise) {
     promise = (async () => {
-      const r = await fetch("/data/cprite_questions.json?v=2024-q200", { cache: "force-cache" });
+      const r = await fetch("/data/cprite_questions.json?v=2023-2024-q400", { cache: "force-cache" });
       if (!r.ok) throw new Error(`HTTP ${r.status} for cprite_questions.json`);
       const data = await r.json();
       if (!Array.isArray(data)) throw new Error("cprite_questions.json was not an array");
