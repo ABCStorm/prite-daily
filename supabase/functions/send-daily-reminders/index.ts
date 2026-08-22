@@ -240,11 +240,12 @@ Deno.serve(async (req) => {
 
       ${countdownHtml(r.examDate)}
 
-      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:16px 0 22px"><tr>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:16px 0 10px"><tr>
         <td style="background:#0e7a6b;border-radius:10px;padding:12px 22px">
           <a href="${appUrl}" style="color:#fff;text-decoration:none;font-weight:700;font-size:15px;font-family:-apple-system,Segoe UI,system-ui,sans-serif">Do today's set →</a>
         </td>
       </tr></table>
+      <p style="font-size:12.5px;line-height:1.5;color:#6c7280;margin:0 0 22px;font-family:-apple-system,Segoe UI,system-ui,sans-serif">Use the personal Google account on the residency roster (usually your Gmail, not wright.edu).</p>
 
       <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 22px"><tr>
         <td style="background:#f7f4ee;border-left:3px solid #d8b45a;border-radius:0 10px 10px 0;padding:13px 15px;font-family:-apple-system,Segoe UI,system-ui,sans-serif">

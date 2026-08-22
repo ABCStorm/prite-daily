@@ -166,7 +166,7 @@ async function renderDiagramSvg(code?: string | null): Promise<string | null> {
   try { return (await mermaid.render("mmdx-" + Math.random().toString(36).slice(2), code)).svg; }
   catch { return null; }
 }
-import { isConfigured, supabase, signInWithGoogle, signOut, questionId } from "./lib/supabase";
+import { isConfigured, supabase, signInWithGoogle, signOut, switchGoogleAccount, questionId } from "./lib/supabase";
 import { useAuth } from "./lib/useAuth";
 import { matchRoster, matchPlannedTeam, matchNamesList, academicYearEnd, classYearLevel } from "./lib/roster";
 import { recordToday, peekStreak, totalDays, ymd } from "./lib/streaks";
@@ -3037,7 +3037,23 @@ export default function App() {
     // nav and study bar stay put, and only the question slot is swapped for the
     // caught-up card below. So we only hard-return for the genuinely empty states.
     if (!q && persist && mode === "today" && !answersLoaded) return <Center>Building today’s set…</Center>;
-    if (!q && !(persist && mode === "today")) return <Center>No questions for this filter.</Center>;
+    if (!q && !(persist && mode === "today")) return (
+      <Center>
+        <div style={{ maxWidth: 360 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#e8eaef", marginBottom: 8 }}>Nothing for this day</div>
+          <p style={{ margin: "0 0 18px", lineHeight: 1.55, color: "#c7ccd6" }}>
+            No questions match what you&apos;ve picked. Head back to today&apos;s set.
+          </p>
+          <button
+            type="button"
+            onClick={() => { setMode("today"); setYear("all"); setModalityFilter("all"); setQi(0); }}
+            style={{ ...s.googleBtn, margin: 0, display: "inline-flex", width: "auto", padding: "10px 18px" }}
+          >
+            Back to today
+          </button>
+        </div>
+      </Center>
+    );
   }
 
   const correctSet = q ? (q.answer_letters && q.answer_letters.length ? q.answer_letters
@@ -8328,11 +8344,11 @@ function SignIn({ onJoinPoll }: { onJoinPoll: (code: string) => void }) {
             <Stethoscope size={22} strokeWidth={2.3} color="#fff" />
           </span>
           <h1 style={s.gateTitle} className="gateShimmer gs1">PRITE Daily</h1>
-          <p style={s.gateSub} className="gs2">Daily PRITE practice for the residency. Sign in with your Google account to continue.</p>
+          <p style={s.gateSub} className="gs2">Daily PRITE practice for the residency.</p>
           <button style={s.googleBtn} className="gateBtn gs3" onClick={() => signInWithGoogle()}>
             <GoogleG /> Sign in with Google
           </button>
-          <p style={s.gateFine} className="gs4">Residents and known faculty are approved automatically. Some faculty or alumni may still need admin approval.</p>
+          <p style={s.gateFine} className="gs4">Use the personal Google account on the residency roster (usually your Gmail, not wright.edu). Residents and known faculty are approved automatically; some faculty or alumni may still need a quick admin tap.</p>
           {/* Med students hit the pending queue and get declined — say so up front,
               warmly, so the didactics invitation lands before the rejection does.
               The code box below turns that invitation into something they can act
@@ -8373,29 +8389,39 @@ function SignIn({ onJoinPoll }: { onJoinPoll: (code: string) => void }) {
 }
 
 function Pending({ email, status }: { email: string; status: string }) {
+  const switchAccount = () => { void switchGoogleAccount(); };
   return (
     <div style={s.gateRoot}>
       <style>{CSS}</style>
       <GateBackdrop />
       <div style={s.gateCard}>
         <span style={{ ...s.gateMark, background: T.gold }}><Clock size={22} strokeWidth={2.3} color="#fff" /></span>
-        <h1 style={s.gateTitle}>{status === "blocked" ? "Full accounts are limited" : "Awaiting approval"}</h1>
+        <h1 style={s.gateTitle}>{status === "blocked" ? "Full accounts are limited" : "Try the Gmail on the roster"}</h1>
         <p style={s.gateSub}>
-          You’re signed in as <b style={{ color: T.text }}>{email}</b>.{" "}
+          You&apos;re signed in as <b style={{ color: T.text }}>{email}</b>.{" "}
           {status === "blocked"
-            ? "Our board of psychiatry makes us restrict somewhat who has access to the full question bank, so we can’t set up an account here — but there’s no problem at all. If you believe this is a mistake, email correllsoftware@gmail.com and we’ll sort it out."
-            : "An admin needs to approve you before you can start. You’ll get in as soon as they do."}
+            ? "Our board of psychiatry makes us restrict somewhat who has access to the full question bank, so we can’t set up an account here — but there’s no problem at all."
+            : "Use the personal Google account on the residency roster (usually your Gmail, not wright.edu). If that still doesn’t match, an admin can approve you."}
         </p>
         {/* The most common blocked case is a medical student rotating with us —
             lead with the invitation rather than leaving them at a dead end. */}
         {status === "blocked" && (
           <p style={s.gateStudentNote}>
-            <b style={{ color: T.tealDeep }}>Rotating with us as a medical student?</b> You don’t need an
+            <b style={{ color: T.tealDeep }}>Rotating with us as a medical student?</b> You don&apos;t need an
             account at all — we would love for you to be a part of our board-question sections at Tuesday
             didactics. You can join the live polls right from your phone.
           </p>
         )}
-        <button style={{ ...s.googleBtn, marginTop: status === "blocked" ? 14 : 0 }} onClick={() => signOut()}><LogOut size={15} strokeWidth={2.2} /> Sign out</button>
+        <button style={{ ...s.googleBtn, marginTop: status === "blocked" ? 14 : 0 }} onClick={switchAccount}>
+          <GoogleG /> Use a different Google account
+        </button>
+        <button
+          type="button"
+          style={{ ...s.googleBtn, marginTop: 10, background: "transparent", border: `1px solid ${T.inkLine}`, color: T.muted, boxShadow: "none" }}
+          onClick={() => signOut()}
+        >
+          <LogOut size={15} strokeWidth={2.2} /> Sign out
+        </button>
       </div>
     </div>
   );
